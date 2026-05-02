@@ -1,0 +1,12 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Pre-approve these packages to run their build scripts
+# Saves the "pnpm approve-builds" prompt for known-good packages
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
+  - '@swc/core'
+  - '@parcel/watcher'
