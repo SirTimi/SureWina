@@ -57,3 +57,37 @@ export interface RecentStatsResponse {
   totalWinnersAllTime: number;
   totalPrizesPaidNgn: number;
 }
+
+// === Purchase flow ===
+
+export type PaymentMethod = 'CARD' | 'TRANSFER' | 'USSD' | 'OPAY';
+
+export interface InitiatePurchaseRequest {
+  drawCode: string;
+  quantity: number;
+  phoneE164: string;
+  stateOfPlayCode: string;
+  paymentMethod: PaymentMethod;
+}
+
+export interface InitiatePurchaseResponse {
+  purchaseSessionId: string;
+  totalNgn: number;
+  redirectUrl: string;
+  expiresAt: string;
+}
+
+export interface ConfirmPurchaseResponse {
+  success: boolean;
+  ticketRefs: string[];
+  drawCode: string;
+  drawScheduledAt: string;
+  drawPrizeDescription: string;
+  totalPaidNgn: number;
+  buyerPhoneE164: string;
+  jackpotAccumulation: {
+    cumulativeCount: number;
+    ticketsToNextEntry: number;
+    newJackpotEntries: number;
+  };
+}
