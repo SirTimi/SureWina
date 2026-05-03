@@ -1,23 +1,59 @@
 :root {
-  --color-primary: 16 95 230;
-  --color-primary-foreground: 255 255 255;
-  --color-secondary: 100 116 139;
-  --color-secondary-foreground: 255 255 255;
-  --color-success: 22 163 74;
-  --color-success-foreground: 255 255 255;
-  --color-warning: 234 179 8;
-  --color-warning-foreground: 0 0 0;
-  --color-danger: 220 38 38;
-  --color-danger-foreground: 255 255 255;
-  --color-surface: 255 255 255;
-  --color-foreground: 15 23 42;
-  --color-muted: 100 116 139;
-  --color-border: 226 232 240;
+  /* === Brand · Navy (primary scale) === */
+  --color-navy-50: 238 242 248;
+  --color-navy-100: 220 229 240;
+  --color-navy-500: 45 99 149;
+  --color-navy-700: 22 89 150;
+  --color-navy-800: 14 42 71;
+  --color-navy-900: 10 31 54;
+  --color-navy-950: 6 21 40;
 
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-    Arial, sans-serif;
-  --font-mono:
-    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas,
-    'Liberation Mono', 'Courier New', monospace;
+  /* === Accent · Burnt Amber === */
+  --color-amber-50: 251 242 230;
+  --color-amber-100: 248 230 210;
+  --color-amber-400: 230 149 68;
+  --color-amber-500: 216 122 24;
+  --color-amber-700: 164 90 18;
+
+  /* === Semantic === */
+  --color-success-100: 215 237 226;
+  --color-success-500: 31 141 90;
+  --color-warning-100: 246 232 201;
+  --color-warning-500: 136 120 10;
+  --color-danger-100: 242 208 217;
+  --color-danger-500: 136 52 52;
+
+  /* === Neutrals · Warm-leaning === */
+  --color-ink-50: 241 242 245;
+  --color-ink-100: 228 230 234;
+  --color-ink-200: 201 205 211;
+  --color-ink-300: 165 170 178;
+  --color-ink-500: 90 104 105;
+  --color-ink-700: 53 58 66;
+  --color-ink-950: 8 15 20;
+
+  --color-paper: 250 250 247;
+
+  /* === Typography === */
+  --font-display: 'General Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* === Semantic aliases (used by Tailwind preset) === */
+  --color-primary: var(--color-navy-800);
+  --color-primary-foreground: 255 255 255;
+  --color-accent: var(--color-amber-500);
+  --color-accent-foreground: 255 255 255;
+  --color-secondary: var(--color-ink-500);
+  --color-secondary-foreground: 255 255 255;
+  --color-success: var(--color-success-500);
+  --color-success-foreground: 255 255 255;
+  --color-warning: var(--color-warning-500);
+  --color-warning-foreground: 255 255 255;
+  --color-danger: var(--color-danger-500);
+  --color-danger-foreground: 255 255 255;
+  --color-surface: var(--color-paper);
+  --color-foreground: var(--color-ink-950);
+  --color-muted: var(--color-ink-500);
+  --color-border: var(--color-ink-100);
 }

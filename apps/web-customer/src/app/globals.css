@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import '@surewina/ui/styles/tokens.css';
+@import '@surewina/ui/styles/globals.css';

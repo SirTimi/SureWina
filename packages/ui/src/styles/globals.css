@@ -1,3 +1,6 @@
+@import url('https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 * {
   border-color: rgb(var(--color-border));
 }
@@ -6,11 +9,19 @@ html,
 body {
   margin: 0;
   padding: 0;
-  font-family: var(--font-sans);
-  background-color: rgb(var(--color-surface));
-  color: rgb(var(--color-foreground));
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  background-color: rgb(var(--color-paper));
+  color: rgb(var(--color-ink-950));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.015em;
 }
 
 *,
@@ -20,10 +31,15 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid rgb(var(--color-primary));
+  outline: 2px solid rgb(var(--color-navy-700));
   outline-offset: 2px;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
+}
+
+/* Tabular figures for currency */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }

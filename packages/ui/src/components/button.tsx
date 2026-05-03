@@ -2,7 +2,7 @@ import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes } from 'react';
 import { cn } from '../lib/cn.js';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
+export type ButtonVariant = 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger' | 'success';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -13,17 +13,28 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/95',
-  secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/90 active:bg-secondary/95',
-  ghost: 'bg-transparent text-foreground hover:bg-muted/10 active:bg-muted/20',
-  danger: 'bg-danger text-danger-foreground hover:bg-danger/90 active:bg-danger/95',
-  success: 'bg-success text-success-foreground hover:bg-success/90 active:bg-success/95',
+  // Primary = navy-800 = navigation, ownership actions, default CTAs
+  primary:
+    'bg-navy-800 text-white hover:bg-navy-700 active:bg-navy-900 border border-navy-800',
+  // Accent = amber-500 = the ONE most important commercial CTA per page (e.g. "Buy a ticket")
+  accent:
+    'bg-amber-500 text-white hover:bg-amber-700 active:bg-amber-700 border border-amber-500',
+  // Secondary = white-with-border default
+  secondary:
+    'bg-white text-ink-950 hover:bg-ink-50 active:bg-ink-100 border border-ink-200',
+  // Ghost = low-priority actions inside a dense surface
+  ghost:
+    'bg-transparent text-ink-950 hover:bg-ink-50 active:bg-ink-100 border border-transparent',
+  danger:
+    'bg-danger text-white hover:opacity-90 active:opacity-95 border border-danger',
+  success:
+    'bg-success text-white hover:opacity-90 active:opacity-95 border border-success',
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-sm rounded-sm',
-  md: 'h-11 px-4 text-base rounded',
-  lg: 'h-12 px-6 text-lg rounded',
+  sm: 'h-9 px-3.5 text-sm rounded-sm',
+  md: 'h-11 px-5 text-base rounded',
+  lg: 'h-12 px-6 text-base rounded-lg',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -51,8 +62,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={isDisabled}
       aria-busy={isLoading || undefined}
       className={cn(
-        'inline-flex items-center justify-center font-medium transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+        'inline-flex items-center justify-center gap-2 font-medium transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-700 focus-visible:ring-offset-2 focus-visible:ring-offset-paper',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         variantStyles[variant],
         sizeStyles[size],
@@ -62,10 +73,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...rest}
     >
       {isLoading ? (
-        <span className="inline-flex items-center gap-2">
+        <>
           <Spinner />
           {children}
-        </span>
+        </>
       ) : (
         children
       )}
