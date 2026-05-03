@@ -16,4 +16,10 @@ export type { PageHeaderProps } from './components/page-header.js';
 export { Logo } from './components/logo.js';
 export type { LogoProps } from './components/logo.js';
 
+export { Stat } from './components/stat.js';
+export type { StatProps } from './components/stat.js';
+
+export { EmptyState } from './components/empty-state.js';
+export type { EmptyStateProps } from './components/empty-state.js';
+
 export { cn } from './lib/cn.js';
