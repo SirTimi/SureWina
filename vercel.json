@@ -1,8 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm turbo run build --filter=web-customer",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "outputDirectory": "apps/web-customer/.next",
-  "framework": "nextjs",
-  "ignoreCommand": "npx turbo-ignore web-customer"
+  "buildCommand": "cd ../.. && pnpm turbo run build --filter=web-customer",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "framework": "nextjs"
 }
