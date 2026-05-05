@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, CreditCard } from 'lucide-react';
-import { Button, Card } from '@surewina/ui';
+import { Card } from '@surewina/ui';
 import { api } from '@/lib/api';
 
 interface ProcessingPanelProps {
@@ -18,14 +18,11 @@ export function ProcessingPanel({ drawCode, sessionId, quantity, phoneE164 }: Pr
   const [stage, setStage] = useState<'connecting' | 'authorising' | 'confirming'>('connecting');
 
   useEffect(() => {
-    // Simulate gateway flow: connecting → authorising → confirming → done
     const t1 = setTimeout(() => setStage('authorising'), 1200);
     const t2 = setTimeout(() => setStage('confirming'), 2600);
     const t3 = setTimeout(async () => {
       try {
         const result = await api.tickets.confirmPurchase(sessionId, drawCode, quantity, phoneE164);
-        // Use the first ticket ref as the canonical reference for the confirmation page
-        // The page will fetch the full set itself
         const params = new URLSearchParams({
           refs: result.ticketRefs.join(','),
           draw: result.drawCode,

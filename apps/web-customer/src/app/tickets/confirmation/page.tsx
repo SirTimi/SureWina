@@ -1,102 +1,165 @@
-'use client';
+import Link from 'next/link';
+import { CheckCircle2, Sparkles, Download } from 'lucide-react';
+import { Button, Card, Container } from '@surewina/ui';
+import { formatNaira, formatPhoneForDisplay } from '@surewina/utils';
+import { drawTypeShortLabel, formatDrawDate, formatDrawTime } from '@/lib/draw-helpers';
+import { CopyableTicketRef } from '@/components/copyable-ticket-ref';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Loader2, CreditCard } from 'lucide-react';
-import { Button, Card } from '@surewina/ui';
-import { api } from '@/lib/api';
-
-interface ProcessingPanelProps {
-  drawCode: string;
-  sessionId: string;
-  quantity: number;
-  phoneE164: string;
+interface ConfirmationPageProps {
+  searchParams: Promise<{
+    refs?: string;
+    draw?: string;
+    phone?: string;
+    paid?: string;
+    newEntries?: string;
+    cumCount?: string;
+    toNext?: string;
+  }>;
 }
 
-export function ProcessingPanel({ drawCode, sessionId, quantity, phoneE164 }: ProcessingPanelProps) {
-  const router = useRouter();
-  const [stage, setStage] = useState<'connecting' | 'authorising' | 'confirming'>('connecting');
+export default async function ConfirmationPage({ searchParams }: ConfirmationPageProps) {
+  const params = await searchParams;
+  const ticketRefs = (params.refs ?? '').split(',').filter(Boolean);
+  const drawCode = params.draw ?? '';
+  const phone = params.phone ?? '';
+  const paid = parseInt(params.paid ?? '0', 10);
+  const newEntries = parseInt(params.newEntries ?? '0', 10);
+  const cumCount = parseInt(params.cumCount ?? '0', 10);
+  const toNext = parseInt(params.toNext ?? '0', 10);
 
-  useEffect(() => {
-    // Simulate gateway flow: connecting → authorising → confirming → done
-    const t1 = setTimeout(() => setStage('authorising'), 1200);
-    const t2 = setTimeout(() => setStage('confirming'), 2600);
-    const t3 = setTimeout(async () => {
-      try {
-        const result = await api.tickets.confirmPurchase(sessionId, drawCode, quantity, phoneE164);
-        // Use the first ticket ref as the canonical reference for the confirmation page
-        // The page will fetch the full set itself
-        const params = new URLSearchParams({
-          refs: result.ticketRefs.join(','),
-          draw: result.drawCode,
-          phone: result.buyerPhoneE164,
-          paid: String(result.totalPaidNgn),
-          newEntries: String(result.jackpotAccumulation.newJackpotEntries),
-          cumCount: String(result.jackpotAccumulation.cumulativeCount),
-          toNext: String(result.jackpotAccumulation.ticketsToNextEntry),
-        });
-        router.push(`/tickets/confirmation?${params.toString()}`);
-      } catch {
-        router.push(`/draws/${drawCode}/buy/failed?session=${sessionId}`);
-      }
-    }, 4000);
+  if (ticketRefs.length === 0 || !drawCode) {
+    return (
+      <Container size="md" className="py-16 text-center">
+        <h1 className="font-display text-2xl font-bold text-ink-950">No tickets to show</h1>
+        <p className="text-ink-500 mt-2">Start a new purchase to see your confirmation.</p>
+        <Link href="/" className="inline-block mt-5">
+          <Button variant="primary">Back to active draws</Button>
+        </Link>
+      </Container>
+    );
+  }
 
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, [drawCode, sessionId, quantity, phoneE164, router]);
+  const isJackpot = drawCode.includes('JACKPOT');
+  const drawType = isJackpot ? 'SATURDAY_JACKPOT' : 'DAILY_STANDARD';
 
-  const stageLabel: Record<typeof stage, string> = {
-    connecting: 'Connecting to your bank…',
-    authorising: 'Authorising payment…',
-    confirming: 'Confirming and issuing your ticket…',
-  };
+  const drawDate = new Date();
+  if (isJackpot) {
+    drawDate.setHours(21, 0, 0, 0);
+  } else {
+    drawDate.setHours(20, 0, 0, 0);
+  }
+  if (drawDate < new Date()) drawDate.setDate(drawDate.getDate() + 1);
 
   return (
-    <Card variant="default" className="p-8 sm:p-10 text-center">
-      <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-navy-50 mb-5">
-        <CreditCard className="w-6 h-6 text-navy-800" />
+    <Container size="md" className="py-12 sm:py-16">
+      {/* Success header */}
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-success-bg mb-4">
+          <CheckCircle2 className="w-7 h-7 text-success" />
+        </div>
+        <h1 className="font-display text-3xl sm:text-4xl font-bold text-ink-950">
+          You&apos;re in the draw.
+        </h1>
+        <p className="text-base text-ink-500 mt-3">
+          {ticketRefs.length} ticket{ticketRefs.length === 1 ? '' : 's'} purchased for the{' '}
+          {drawTypeShortLabel[drawType].toLowerCase()} on{' '}
+          <span className="font-semibold text-ink-950">{formatDrawDate(drawDate.toISOString())}</span>{' '}
+          ·{' '}
+          <span className="font-semibold text-ink-950">{formatDrawTime(drawDate.toISOString())}</span>
+        </p>
       </div>
-      <h1 className="font-display text-2xl font-bold text-ink-950">Don&apos;t close this window</h1>
-      <p className="text-ink-500 mt-2 text-base">
-        We&apos;re completing your purchase. This usually takes a few seconds.
+
+      {/* Ticket card */}
+      <Card variant="default" className="overflow-hidden mb-6">
+        <div className="p-6 border-b border-ink-100 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
+              {drawTypeShortLabel[drawType]}
+            </p>
+            <h2 className="font-display text-xl font-bold text-ink-950 mt-1">
+              {isJackpot ? 'Saturday ₦4M jackpot' : 'Samsung Galaxy A55 5G'}
+            </h2>
+          </div>
+          <div className="bg-ink-50 px-3 py-1.5 rounded-md text-xs text-ink-700 font-mono whitespace-nowrap">
+            {formatDrawDate(drawDate.toISOString()).slice(0, 6)} ·{' '}
+            {formatDrawTime(drawDate.toISOString()).replace(' WAT', '')}
+          </div>
+        </div>
+
+        <div className="bg-ink-50/50 p-6">
+          <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold mb-3">
+            Your ticket reference{ticketRefs.length === 1 ? '' : 's'}
+          </p>
+          <div className="space-y-2">
+            {ticketRefs.map((ref) => (
+              <CopyableTicketRef key={ref} ticketRef={ref} />
+            ))}
+          </div>
+
+          {!isJackpot && (newEntries > 0 || toNext > 0) && (
+            <div className="mt-4 bg-amber-50 border border-amber-100 rounded-md p-3 flex items-start gap-2">
+              <Sparkles className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-ink-700">
+                {newEntries > 0 ? (
+                  <>
+                    <span className="font-semibold text-amber-700">
+                      {newEntries} new free Saturday jackpot{' '}
+                      {newEntries === 1 ? 'entry' : 'entries'} unlocked!
+                    </span>{' '}
+                    Cumulative ticket count: <span className="tabular-nums">{cumCount}</span>.
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold text-amber-700">
+                      {toNext} more daily ticket{toNext === 1 ? '' : 's'}
+                    </span>{' '}
+                    for a free Saturday ₦4M jackpot entry. Your current count:{' '}
+                    <span className="tabular-nums font-semibold">{cumCount}/10</span>.
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-5 flex items-center justify-between gap-3 border-t border-ink-100 text-xs">
+          <span className="text-ink-500">
+            SMS confirmation sent to{' '}
+            <span className="font-mono font-semibold text-ink-950">
+              {formatPhoneForDisplay(phone)}
+            </span>
+          </span>
+          <button
+            type="button"
+            className="text-navy-800 hover:text-navy-700 font-medium inline-flex items-center gap-1"
+          >
+            <Download className="w-3 h-3" />
+            Download receipt
+          </button>
+        </div>
+      </Card>
+
+      <p className="text-xs text-ink-500 text-center mb-6">
+        Total paid: <span className="font-semibold text-ink-700 tabular-nums">{formatNaira(paid)}</span>
       </p>
 
-      <div className="mt-8 space-y-3 text-left max-w-xs mx-auto">
-        {(['connecting', 'authorising', 'confirming'] as const).map((s) => {
-          const isActive = s === stage;
-          const isDone =
-            (s === 'connecting' && (stage === 'authorising' || stage === 'confirming')) ||
-            (s === 'authorising' && stage === 'confirming');
-          return (
-            <div
-              key={s}
-              className={
-                isActive
-                  ? 'flex items-center gap-3 text-sm text-ink-950 font-medium'
-                  : isDone
-                  ? 'flex items-center gap-3 text-sm text-success'
-                  : 'flex items-center gap-3 text-sm text-ink-300'
-              }
-            >
-              {isActive ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : isDone ? (
-                <span className="w-4 h-4 rounded-full bg-success text-white text-[10px] inline-flex items-center justify-center">
-                  ✓
-                </span>
-              ) : (
-                <span className="w-4 h-4 rounded-full border-2 border-ink-200 inline-block" />
-              )}
-              {stageLabel[s]}
-            </div>
-          );
-        })}
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <Link href={`/draws/${drawCode}`}>
+          <Button variant="primary" size="md">
+            Buy more tickets
+          </Button>
+        </Link>
+        <Link href={`/draws/${drawCode}/live`}>
+          <Button variant="secondary" size="md">
+            Watch the draw live
+          </Button>
+        </Link>
       </div>
 
-      <p className="text-xs text-ink-300 mt-8 font-mono">Session: {sessionId}</p>
-    </Card>
+      <p className="text-xs text-ink-500 text-center mt-8 max-w-md mx-auto leading-relaxed">
+        Keep your ticket reference safe. You&apos;ll need it to check your result. We never publish
+        winner names — only ticket references.
+      </p>
+    </Container>
   );
 }

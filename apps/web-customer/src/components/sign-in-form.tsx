@@ -9,6 +9,7 @@ import { ArrowRight, AlertCircle, Lock } from 'lucide-react';
 import { Button } from '@surewina/ui';
 import { isValidNigerianPhone, normalizePhone } from '@surewina/utils';
 import { api } from '@/lib/api';
+import Link from 'next/link';
 
 const signInSchema = z.object({
   phone: z
@@ -129,9 +130,9 @@ export function SignInForm({ nextPath }: SignInFormProps) {
 
       <p className="text-sm text-ink-500 mt-8 pt-6 border-t border-ink-100 text-center">
         Just want to buy a ticket?{' '}
-        <a href="/" className="text-navy-800 hover:text-navy-700 font-medium">
+        <Link href="/" className="text-navy-800 hover:text-navy-700 font-medium">
           No account needed →
-        </a>
+        </Link>
       </p>
     </div>
   );

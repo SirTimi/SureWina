@@ -23,7 +23,9 @@ export const purchaseSchema = z.object({
   paymentMethod: z.enum(['CARD', 'TRANSFER', 'USSD', 'OPAY'], {
     message: 'Select a payment method',
   }),
-  ageConfirmed: z.literal(true, {
+  // Use boolean + refine instead of z.literal(true) so the form input type
+  // accepts `false` for the unchecked default state, but rejects it on submit.
+  ageConfirmed: z.boolean().refine((v) => v === true, {
     message: 'You must confirm you are 18 or older',
   }),
 });

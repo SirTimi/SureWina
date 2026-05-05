@@ -3,7 +3,7 @@ import type {
   RequestOtpResponse,
   VerifyOtpRequest,
   VerifyOtpResponse,
-} from '../../../types/src/api';
+} from '@surewina/types';
 import type { ApiClient } from '../client.js';
 
 // In-memory mock OTP store. Real backend uses Redis with TTL.

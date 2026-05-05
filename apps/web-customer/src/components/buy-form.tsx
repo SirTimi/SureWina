@@ -2,14 +2,18 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Minus, Plus, Lock, AlertCircle } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira, getAllStatesSorted } from '@surewina/utils';
 import type { DrawPublic } from '@surewina/types';
 import { api } from '@/lib/api';
-import { purchaseSchema, type PurchaseFormValues } from '@/lib/schemas';
+import {
+  purchaseSchema,
+  type PurchaseFormValues,
+  type PurchaseFormParsed,
+} from '@/lib/schemas';
 
 interface BuyFormProps {
   draw: DrawPublic;
@@ -34,7 +38,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<PurchaseFormValues>({
+  } = useForm<PurchaseFormValues, unknown, PurchaseFormParsed>({
     resolver: zodResolver(purchaseSchema),
     defaultValues: {
       quantity: initialQuantity,
@@ -53,13 +57,13 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
     setValue('quantity', next, { shouldValidate: true });
   };
 
-  const onSubmit = async (data: PurchaseFormValues) => {
+  const onSubmit: SubmitHandler<PurchaseFormParsed> = async (data) => {
     setSubmitError(null);
     try {
       const result = await api.tickets.initiatePurchase({
         drawCode: draw.drawCode,
         quantity: data.quantity,
-        phoneE164: data.phone as string, // already normalised by zod transform
+        phoneE164: data.phone,
         stateOfPlayCode: data.stateOfPlayCode,
         paymentMethod: data.paymentMethod,
       });
