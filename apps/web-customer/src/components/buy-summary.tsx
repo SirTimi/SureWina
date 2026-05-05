@@ -59,7 +59,7 @@ export function BuySummary({ draw }: BuySummaryProps) {
           <li className="flex items-start gap-2">
             <Shield className="w-3.5 h-3.5 text-navy-800 flex-shrink-0 mt-0.5" />
             <span>
-              Payment processed by Paystack/Flutterwave — PCI-DSS compliant. We never see your
+              Payment processed by Paystack/Flutterwave, PCI-DSS compliant. We never see your
               card details.
             </span>
           </li>

@@ -12,7 +12,7 @@ export default function ResponsiblePlayPage() {
         </Badge>
         <h1 className="font-display text-4xl font-bold text-ink-950">Responsible play</h1>
         <p className="text-base text-ink-500 mt-3 max-w-xl leading-relaxed">
-          A raffle should be entertainment, not a financial plan. Set limits — we&apos;ll enforce
+          A raffle should be entertainment, not a financial plan. Set limits and we&apos;ll enforce
           them, even on us.
         </p>
       </div>

@@ -7,7 +7,7 @@ export default function ClaimsPage() {
       <div className="mb-6">
         <h1 className="font-display text-3xl font-bold text-ink-950">My claims</h1>
         <p className="text-base text-ink-500 mt-2">
-          Every prize you&apos;ve ever won — current pipeline status, fulfilment timeline, and
+          Every prize you&apos;ve ever won, current pipeline status, fulfilment timeline, and
           history.
         </p>
       </div>

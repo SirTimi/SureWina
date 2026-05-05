@@ -46,7 +46,7 @@ export function HowDrawWorks({ seedHash, seedCommittedAt }: HowDrawWorksProps) {
             <h3 className="font-semibold text-sm text-ink-950 mb-1">Tickets sold count is signed</h3>
             <p className="text-xs text-ink-500 leading-relaxed">
               The live counter is signed every 30 seconds by our auditor. Tampering breaks the
-              chain — you&apos;d see it in the archive.
+              chain, you&apos;d see it in the archive.
             </p>
           </div>
         </div>

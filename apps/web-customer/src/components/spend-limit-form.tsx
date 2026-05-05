@@ -87,7 +87,7 @@ export function SpendLimitForm() {
       {period === 'NONE' && (
         <div className="bg-warning-bg border border-warning/20 rounded-md p-4 mt-2">
           <p className="text-sm text-ink-700 leading-relaxed">
-            No cap is in place. We strongly recommend setting one — it&apos;s one tap to change
+            No cap is in place. We strongly recommend setting one, it&apos;s one tap to change
             and it stays out of your way until you need it.
           </p>
         </div>

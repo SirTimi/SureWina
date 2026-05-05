@@ -35,7 +35,7 @@ export function RecentWinners({ winners }: RecentWinnersProps) {
           </h2>
           <p className="text-sm text-ink-500 mt-1 max-w-xl">
             Winner privacy is a hard rule. We publish ticket reference, prize, and draw
-            timestamp — never names.
+            timestamp, We would never use names.
           </p>
         </div>
         <Link

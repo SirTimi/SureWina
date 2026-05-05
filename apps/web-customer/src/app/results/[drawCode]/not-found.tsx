@@ -8,7 +8,7 @@ export default function ResultNotFound() {
       <EmptyState
         icon={<SearchX className="w-12 h-12" />}
         title="Result not found"
-        description="No published result matches this draw code. All draw results are permanent and archived — if you're sure of the code, please check it again."
+        description="No published result matches this draw code. All draw results are permanent and archived, if you're sure of the code, please check it again."
         action={
           <Link href="/results">
             <Button variant="primary">Browse all results</Button>

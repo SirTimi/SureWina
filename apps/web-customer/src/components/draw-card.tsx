@@ -65,7 +65,7 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
           )}
           <Link href={`/draws/${draw.drawCode}`}>
             <Button variant={isJackpot ? 'accent' : 'primary'} size="sm">
-              Buy ticket — {formatNaira(draw.ticketPriceNgn)}
+              Buy ticket - {formatNaira(draw.ticketPriceNgn)}
             </Button>
           </Link>
         </div>

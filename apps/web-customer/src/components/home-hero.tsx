@@ -25,14 +25,14 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
 
           <p className="text-base sm:text-lg text-white/70 mt-5 max-w-xl leading-relaxed">
             Daily product draws and a {formatNaira(4000000)} jackpot every Saturday.
-            Audited, regulated, and transparent — every draw publishes its RNG seed hash.
+            Audited, regulated, and transparent. Every draw publishes its RNG seed hash.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
             {primaryDrawCode && primaryTicketPrice !== undefined && (
               <Link href={`/draws/${primaryDrawCode}`}>
                 <Button variant="accent" size="lg">
-                  Buy a ticket — {formatNaira(primaryTicketPrice)}
+                  Buy a ticket for {formatNaira(primaryTicketPrice)}
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>

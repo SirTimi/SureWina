@@ -96,7 +96,7 @@ export default async function ResultDetailPage({ params }: ResultDetailPageProps
             {result.winnerTicketRef}
           </p>
           <p className="text-xs text-ink-500 mt-2">
-            Winner privacy is a hard rule. We never publish names — only ticket reference, draw,
+            Winner privacy is a hard rule. We never publish names, only ticket reference, draw,
             prize, and timestamp.
           </p>
         </div>

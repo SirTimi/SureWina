@@ -7,7 +7,7 @@ export function SiteFooter() {
       <Container size="lg" className="py-12">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-8 mb-10">
           <div className="sm:col-span-1">
-            <Logo size="md" inverted />
+            <Logo />
             <p className="text-xs mt-3 text-white/50">
               Nigeria&apos;s regulated digital raffle platform.
             </p>

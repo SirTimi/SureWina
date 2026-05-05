@@ -140,7 +140,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
           value={formatNaira(lifetimeWinningsNgn)}
           hint={
             lifetimeWinCount === 0
-              ? 'No wins yet — keep going'
+              ? 'No wins yet? keep going'
               : `${lifetimeWinCount} prize${lifetimeWinCount === 1 ? '' : 's'} claimed${lastWinAt ? ` · ${formatDrawDate(lastWinAt).slice(0, 6)}` : ''}`
           }
         />

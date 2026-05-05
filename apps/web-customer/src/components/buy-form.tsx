@@ -171,7 +171,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         </select>
         {errors.stateOfPlayCode && <FieldError message={errors.stateOfPlayCode.message} />}
         <p className="text-xs text-ink-500 mt-2">
-          This is a regulatory requirement — your ticket is recorded against this state for State
+          This is a regulatory requirement, your ticket is recorded against this state for State
           Lottery Board reporting. You can&apos;t change it after purchase.
         </p>
       </Card>
@@ -247,7 +247,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         >
           {isSubmitting
             ? 'Starting payment…'
-            : `Continue to payment — ${formatNaira((quantity ?? 1) * draw.ticketPriceNgn)}`}
+            : `Continue to payment of  ${formatNaira((quantity ?? 1) * draw.ticketPriceNgn)}`}
         </Button>
 
         <p className="text-xs text-ink-500 mt-3 flex items-center justify-center gap-1.5">

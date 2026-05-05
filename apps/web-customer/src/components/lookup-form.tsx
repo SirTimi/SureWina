@@ -138,7 +138,7 @@ function ResultPanel({ data }: { data: LookupTicketResponse }) {
                 Winning ticket
               </p>
               <h2 className="font-display text-xl font-bold text-ink-950 mt-0.5">
-                You won — {ticket.drawCode}
+                You won - {ticket.drawCode}
               </h2>
               <p className="font-mono text-sm text-ink-700 mt-1">{ticket.ticketRef}</p>
             </div>

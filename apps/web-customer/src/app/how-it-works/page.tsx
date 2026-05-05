@@ -50,7 +50,7 @@ export default async function HowItWorksPage() {
       </Container>
 
       {/* Why our draws can't be rigged */}
-      {/* Why our draws can't be rigged — full-width section */}
+      {/* Why our draws can't be rigged, full-width section */}
       <section className="bg-paper py-16 sm:py-20 my-12 border-y border-ink-100">
         <Container size="xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 rounded-lg overflow-hidden border border-ink-100 bg-white">
@@ -190,7 +190,7 @@ export default async function HowItWorksPage() {
           {dailyDraw && (
             <Link href={`/draws/${dailyDraw.drawCode}`}>
               <Button variant="accent" size="lg">
-                Buy a ticket — {formatNaira(dailyDraw.ticketPriceNgn)}
+                Buy a ticket for{formatNaira(dailyDraw.ticketPriceNgn)}
               </Button>
             </Link>
           )}

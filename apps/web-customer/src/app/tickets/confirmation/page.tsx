@@ -158,7 +158,7 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
 
       <p className="text-xs text-ink-500 text-center mt-8 max-w-md mx-auto leading-relaxed">
         Keep your ticket reference safe. You&apos;ll need it to check your result. We never publish
-        winner names — only ticket references.
+        winner names, only ticket references.
       </p>
     </Container>
   );

@@ -4,7 +4,7 @@ import { SiteFooter } from '@/components/site-footer';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Surewina — Win real prizes. Trust the draw.',
+  title: 'Surewina - Win real prizes. Trust the draw.',
   description:
     'Nigeria\'s regulated digital raffle platform. Daily product draws and a guaranteed ₦4,000,000 Saturday jackpot. Audited, regulated, transparent.',
 };

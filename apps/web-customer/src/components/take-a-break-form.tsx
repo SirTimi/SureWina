@@ -45,7 +45,7 @@ export function TakeABreakForm() {
           <p className="text-sm text-ink-700 leading-relaxed">
             <span className="font-semibold text-danger">Permanent self-exclusion</span> means
             your account is closed forever. You won&apos;t be able to register again with this
-            phone number, ID, or BVN. This is a serious action — please consider a long break
+            phone number, ID, or BVN. This is a serious action, please consider a long break
             (6 months) first.
           </p>
         </div>

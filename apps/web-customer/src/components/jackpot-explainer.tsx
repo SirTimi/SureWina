@@ -16,7 +16,7 @@ export function JackpotExplainer() {
             </h2>
             <p className="text-white/70 leading-relaxed mb-6">
               Buy daily tickets, win daily prizes, and quietly stack entries into the ₦4,000,000
-              Saturday draw. No subscription, no hidden math — the count is on your dashboard, always.
+              Saturday draw. No subscription, no hidden math, the count is on your dashboard, always.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link href="/how-it-works">
