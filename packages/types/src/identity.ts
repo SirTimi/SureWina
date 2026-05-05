@@ -19,8 +19,36 @@ export interface UserPublic {
   kycStatus: UserKycStatus;
 }
 
-export type AgentTier = 'BRONZE' | 'SILVER' | 'GOLD';
+/**
+ * Full user view returned by /me — includes phone, email, settings.
+ * Only the user's own client should ever see this.
+ */
+export interface UserMe {
+  userId: UUID;
+  phoneNumber: PhoneE164;
+  email: string | null;
+  displayName: string | null;
+  kycStatus: UserKycStatus;
+  loyaltyPointsBalance: number;
+  notificationPreferences: {
+    sms: boolean;
+    push: boolean;
+    email: boolean;
+  };
+  bankAccount: {
+    bankName: string;
+    accountNumber: string; // last 4 only
+    accountName: string;
+  } | null;
+  spendLimit: {
+    period: 'WEEKLY' | 'MONTHLY';
+    capNgn: number;
+  } | null;
+  selfExclusionUntil: Timestamp | null;
+  createdAt: Timestamp;
+}
 
+export type AgentTier = 'BRONZE' | 'SILVER' | 'GOLD';
 export type AgentStatus = 'PENDING_KYC' | 'ACTIVE' | 'SUSPENDED' | 'TERMINATED';
 
 export interface Agent {

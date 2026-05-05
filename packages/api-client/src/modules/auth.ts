@@ -1,12 +1,13 @@
 import type {
   RequestOtpRequest,
   RequestOtpResponse,
+  UserMe,
   VerifyOtpRequest,
   VerifyOtpResponse,
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
+import { MOCK_USER_ME } from './mock-data.js';
 
-// In-memory mock OTP store. Real backend uses Redis with TTL.
 const mockChallenges = new Map<string, { phone: string; otp: string; expiresAt: number }>();
 
 export class AuthModule {
@@ -17,14 +18,11 @@ export class AuthModule {
     const challengeId = `chal_${Math.random().toString(36).slice(2, 11)}`;
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = Date.now() + 5 * 60 * 1000;
-
     mockChallenges.set(challengeId, { phone: req.phoneE164, otp, expiresAt });
-
     return Promise.resolve({
       challengeId,
       channel: 'SMS',
       expiresAt: new Date(expiresAt).toISOString(),
-      // In real life this is never returned. Mocks expose it for testing.
       mockOtp: otp,
     });
   }
@@ -32,9 +30,6 @@ export class AuthModule {
   async verifyOtp(req: VerifyOtpRequest): Promise<VerifyOtpResponse> {
     // TODO Phase 6+: return this.client.post('/auth/otp/verify', req);
     const challenge = mockChallenges.get(req.challengeId);
-
-    // For mock convenience: also accept literal "000000" or "123456" as override codes
-    // so testers don't have to look at the network tab every time.
     const isOverride = req.otp === '000000' || req.otp === '123456';
 
     if (!challenge && !isOverride) {
@@ -52,18 +47,25 @@ export class AuthModule {
       mockChallenges.delete(req.challengeId);
     }
 
-    const phone = challenge?.phone ?? '+2348000000000';
-    const isNewUser = Math.random() > 0.5; // Mock: random for testing both paths
-
     return Promise.resolve({
       user: {
-        userId: `usr_${Math.random().toString(36).slice(2, 11)}`,
-        displayName: null,
-        kycStatus: 'OTP_VERIFIED',
+        userId: MOCK_USER_ME.userId,
+        displayName: MOCK_USER_ME.displayName,
+        kycStatus: MOCK_USER_ME.kycStatus,
       },
       accessToken: `mock_access_${Math.random().toString(36).slice(2)}`,
       refreshToken: `mock_refresh_${Math.random().toString(36).slice(2)}`,
-      isNewUser,
+      isNewUser: false,
     });
+  }
+
+  async getMe(): Promise<UserMe> {
+    // TODO Phase 6+: return this.client.get('/auth/me');
+    return Promise.resolve({ ...MOCK_USER_ME });
+  }
+
+  async signOut(): Promise<void> {
+    // TODO Phase 6+: return this.client.post('/auth/sign-out');
+    return Promise.resolve();
   }
 }

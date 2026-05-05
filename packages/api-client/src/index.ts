@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth.js';
 import { AgentsModule } from './modules/agents.js';
 import { AdminModule } from './modules/admin.js';
 import { StatsModule } from './modules/stats.js';
+import { DashboardModule } from './modules/dashboard.js';
 
 export interface SurewinaApi {
   health: HealthModule;
@@ -16,6 +17,7 @@ export interface SurewinaApi {
   agents: AgentsModule;
   admin: AdminModule;
   stats: StatsModule;
+  dashboard: DashboardModule;
 }
 
 export function createClient(config: ApiClientConfig): SurewinaApi {
@@ -28,6 +30,7 @@ export function createClient(config: ApiClientConfig): SurewinaApi {
     agents: new AgentsModule(client),
     admin: new AdminModule(client),
     stats: new StatsModule(client),
+    dashboard: new DashboardModule(client),
   };
 }
 

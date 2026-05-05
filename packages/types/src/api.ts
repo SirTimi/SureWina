@@ -1,6 +1,7 @@
-import type { DrawPublic, DrawResultPublic } from './draws.js';
-import type { TicketPublic } from './tickets.js';
-import type { UserPublic } from './identity.js';
+import type { DrawPublic, DrawResultPublic, DrawType } from './draws.js';
+import type { TicketPublic, TicketStatus, TicketType } from './tickets.js';
+import type { UserMe, UserPublic } from './identity.js';
+import type { ClaimType, PrizeClaimStatus } from './prizes.js';
 
 export interface ListActiveDrawsResponse {
   draws: DrawPublic[];
@@ -98,13 +99,9 @@ export interface RequestOtpRequest {
 }
 
 export interface RequestOtpResponse {
-  /** Opaque session key the verify call needs. */
   challengeId: string;
-  /** Where to send the OTP. Always 'SMS' for customers in v1. */
   channel: 'SMS';
-  /** UTC ISO timestamp after which the OTP expires. */
   expiresAt: string;
-  /** Mock-only: in real life this comes via SMS. Helps testing. */
   mockOtp?: string;
 }
 
@@ -115,10 +112,97 @@ export interface VerifyOtpRequest {
 
 export interface VerifyOtpResponse {
   user: UserPublic;
-  /** Short-lived access token (JWT in real life). */
   accessToken: string;
-  /** Long-lived refresh token (httpOnly cookie in real life). */
   refreshToken: string;
-  /** True if this was the user's first sign-in (account just created). */
   isNewUser: boolean;
+}
+
+// === Dashboard ===
+
+/** Detailed ticket view used in dashboard lists. */
+export interface DashboardTicket {
+  ticketRef: string;
+  drawCode: string;
+  drawType: DrawType;
+  drawPrizeDescription: string;
+  ticketType: TicketType;
+  faceValueNgn: number;
+  stateOfPlayCode: string;
+  status: TicketStatus;
+  isWinner: boolean;
+  drawScheduledAt: string;
+  /** True if drawScheduledAt is in the future. */
+  awaitingDraw: boolean;
+  /** ISO timestamp of purchase. */
+  createdAt: string;
+}
+
+/** Group of tickets for the same draw. */
+export interface DashboardDrawGroup {
+  drawCode: string;
+  drawType: DrawType;
+  drawPrizeDescription: string;
+  drawScheduledAt: string;
+  ticketCount: number;
+  ticketRefs: string[];
+  awaitingDraw: boolean;
+}
+
+export interface DashboardSummary {
+  user: UserMe;
+  activeTicketCount: number;
+  activeDrawGroups: DashboardDrawGroup[];
+  jackpot: {
+    freeEntries: number;
+    cumulativeCount: number;
+    ticketsToNextEntry: number;
+  };
+  totalSpentMonthlyNgn: number;
+  monthlyLimitNgn: number | null;
+  lifetimeWinningsNgn: number;
+  lifetimeWinCount: number;
+  lastWinAt: string | null;
+}
+
+export interface DashboardClaim {
+  claimId: string;
+  drawCode: string;
+  drawType: DrawType;
+  prizeDescription: string;
+  ticketRef: string;
+  grossPrizeValueNgn: number;
+  netPrizeValueNgn: number;
+  whtAmountNgn: number;
+  claimType: ClaimType | null;
+  status: PrizeClaimStatus;
+  selectionDeadlineAt: string;
+  claimDeadlineAt: string;
+  fulfilledAt: string | null;
+  drawDate: string;
+}
+
+export interface ListMyTicketsRequest {
+  filter?: 'active' | 'past' | 'all';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ListMyTicketsResponse {
+  tickets: DashboardTicket[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface GetTicketDetailResponse {
+  ticket: DashboardTicket;
+  draw: DrawPublic;
+  /** Other tickets the user holds for the same draw. */
+  siblingTickets: string[];
+  /** If past + winner, link to claim. */
+  claimId: string | null;
+}
+
+export interface ListMyClaimsResponse {
+  claims: DashboardClaim[];
 }

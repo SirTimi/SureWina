@@ -1,10 +1,13 @@
 import type {
+  DashboardClaim,
+  DashboardTicket,
   DrawPublic,
   DrawResultPublic,
   GetDrawResponse,
   GetResultDetailResponse,
   LookupTicketResponse,
   RecentStatsResponse,
+  UserMe,
 } from '@surewina/types';
 
 function inHours(hours: number): string {
@@ -14,6 +17,13 @@ function inHours(hours: number): string {
 function daysAgo(days: number, hour = 20): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
+  d.setHours(hour, 0, 0, 0);
+  return d.toISOString();
+}
+
+function daysFromNow(days: number, hour = 20): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
   d.setHours(hour, 0, 0, 0);
   return d.toISOString();
 }
@@ -60,7 +70,7 @@ export const MOCK_DRAW_BY_ID: Record<string, GetDrawResponse> = {
   },
 };
 
-// === Past results (public archive) ===
+// === Past results ===
 
 export const MOCK_PAST_RESULTS: DrawResultPublic[] = [
   {
@@ -115,16 +125,7 @@ export const MOCK_PAST_RESULTS: DrawResultPublic[] = [
     totalTicketsSold: 12408,
     winnerTicketRef: 'SW-7K39-X2QP',
     rngSeedHash: 'c5e9b214d6f3a7c1',
-    stateBreakdown: {
-      LAG: 4123,
-      FCT: 1987,
-      KAN: 1245,
-      RIV: 892,
-      OYO: 743,
-      OGU: 612,
-      KAD: 521,
-      ENU: 432,
-    },
+    stateBreakdown: { LAG: 4123, FCT: 1987, KAN: 1245, RIV: 892, OYO: 743, OGU: 612, KAD: 521, ENU: 432 },
     executedAt: daysAgo(6, 21),
   },
   {
@@ -179,15 +180,7 @@ export const MOCK_PAST_RESULTS: DrawResultPublic[] = [
     totalTicketsSold: 11892,
     winnerTicketRef: 'SW-9D4F-RT88',
     rngSeedHash: '8f2a1c5d3e7b9d4c',
-    stateBreakdown: {
-      LAG: 3987,
-      FCT: 1834,
-      KAN: 1198,
-      RIV: 867,
-      OYO: 712,
-      OGU: 589,
-      KAD: 498,
-    },
+    stateBreakdown: { LAG: 3987, FCT: 1834, KAN: 1198, RIV: 867, OYO: 712, OGU: 589, KAD: 498 },
     executedAt: daysAgo(13, 21),
   },
 ];
@@ -195,15 +188,9 @@ export const MOCK_PAST_RESULTS: DrawResultPublic[] = [
 export const MOCK_RESULT_DETAIL: Record<string, GetResultDetailResponse> = Object.fromEntries(
   MOCK_PAST_RESULTS.map((r) => [
     r.drawCode,
-    {
-      result: r,
-      drawDescription: r.prizeDescription,
-      prizeImageUrl: null,
-    },
+    { result: r, drawDescription: r.prizeDescription, prizeImageUrl: null },
   ]),
 );
-
-// === Recent stats (home page) ===
 
 export const MOCK_RECENT_STATS: RecentStatsResponse = {
   recentWinners: [
@@ -298,3 +285,175 @@ export const MOCK_TICKET_BY_REF: Record<string, LookupTicketResponse> = {
     claimUrl: '/claim/mock-claim-id-jackpot',
   },
 };
+
+// === Dashboard mock user + portfolio ===
+
+export const MOCK_USER_ME: UserMe = {
+  userId: 'usr_chidi_mock_demo_user_id_001',
+  phoneNumber: '+2348034129018',
+  email: null,
+  displayName: null,
+  kycStatus: 'OTP_VERIFIED',
+  loyaltyPointsBalance: 245,
+  notificationPreferences: {
+    sms: true,
+    push: true,
+    email: false,
+  },
+  bankAccount: null,
+  spendLimit: {
+    period: 'MONTHLY',
+    capNgn: 20000,
+  },
+  selfExclusionUntil: null,
+  createdAt: daysAgo(45),
+};
+
+export const MOCK_DASHBOARD_TICKETS: DashboardTicket[] = [
+  // 14 active tickets across 3 upcoming draws
+  // Draw 1: Today's Galaxy A55 daily (2 tickets)
+  {
+    ticketRef: 'SW-04AB-9LK2',
+    drawCode: 'RD-DRAW-20260427-DAILY',
+    drawType: 'DAILY_STANDARD',
+    drawPrizeDescription: 'Samsung Galaxy A55 5G',
+    ticketType: 'STANDARD',
+    faceValueNgn: 500,
+    stateOfPlayCode: 'LAG',
+    status: 'ACTIVE',
+    isWinner: false,
+    drawScheduledAt: daysFromNow(0),
+    awaitingDraw: true,
+    createdAt: daysAgo(0),
+  },
+  {
+    ticketRef: 'SW-04AB-9LK3',
+    drawCode: 'RD-DRAW-20260427-DAILY',
+    drawType: 'DAILY_STANDARD',
+    drawPrizeDescription: 'Samsung Galaxy A55 5G',
+    ticketType: 'STANDARD',
+    faceValueNgn: 500,
+    stateOfPlayCode: 'LAG',
+    status: 'ACTIVE',
+    isWinner: false,
+    drawScheduledAt: daysFromNow(0),
+    awaitingDraw: true,
+    createdAt: daysAgo(0),
+  },
+  // Draw 2: Saturday jackpot (1 jackpot ticket)
+  {
+    ticketRef: 'SW-7K39-X2QP',
+    drawCode: 'RD-DRAW-20260502-JACKPOT',
+    drawType: 'SATURDAY_JACKPOT',
+    drawPrizeDescription: 'Saturday ₦4M jackpot',
+    ticketType: 'JACKPOT',
+    faceValueNgn: 5000,
+    stateOfPlayCode: 'LAG',
+    status: 'ACTIVE',
+    isWinner: false,
+    drawScheduledAt: daysFromNow(4, 21),
+    awaitingDraw: true,
+    createdAt: daysAgo(1),
+  },
+  // Draw 3: Tomorrow's Hisense U7 TV daily (3 tickets)
+  ...Array.from({ length: 3 }, (_, i): DashboardTicket => ({
+    ticketRef: `SW-1M2N-44T${'RST'[i]}`,
+    drawCode: 'RD-DRAW-20260428-DAILY',
+    drawType: 'DAILY_STANDARD',
+    drawPrizeDescription: 'Hisense 55" U7 TV',
+    ticketType: 'STANDARD',
+    faceValueNgn: 500,
+    stateOfPlayCode: 'LAG',
+    status: 'ACTIVE',
+    isWinner: false,
+    drawScheduledAt: daysFromNow(1),
+    awaitingDraw: true,
+    createdAt: daysAgo(0),
+  })),
+  // Draw 4: Day-after-tomorrow daily (4 tickets)
+  ...Array.from({ length: 4 }, (_, i): DashboardTicket => ({
+    ticketRef: `SW-PQ${i + 1}R-T${i + 5}M9`,
+    drawCode: 'RD-DRAW-20260429-DAILY',
+    drawType: 'DAILY_STANDARD',
+    drawPrizeDescription: 'LG OLED 65" TV',
+    ticketType: 'STANDARD',
+    faceValueNgn: 500,
+    stateOfPlayCode: 'LAG',
+    status: 'ACTIVE',
+    isWinner: false,
+    drawScheduledAt: daysFromNow(2),
+    awaitingDraw: true,
+    createdAt: daysAgo(1),
+  })),
+  // Draw 5: 3 days from now daily (4 tickets)
+  ...Array.from({ length: 4 }, (_, i): DashboardTicket => ({
+    ticketRef: `SW-XY${i + 8}Z-A${i + 1}B5`,
+    drawCode: 'RD-DRAW-20260430-DAILY',
+    drawType: 'DAILY_STANDARD',
+    drawPrizeDescription: 'iPhone 15',
+    ticketType: 'STANDARD',
+    faceValueNgn: 500,
+    stateOfPlayCode: 'LAG',
+    status: 'ACTIVE',
+    isWinner: false,
+    drawScheduledAt: daysFromNow(3),
+    awaitingDraw: true,
+    createdAt: daysAgo(2),
+  })),
+  // === Past tickets (28 total) ===
+  // Past winning ticket — converted to claim
+  {
+    ticketRef: 'SW-WIN1-A2B3',
+    drawCode: 'RD-DRAW-20260330-DAILY',
+    drawType: 'DAILY_STANDARD',
+    drawPrizeDescription: 'Samsung Galaxy A55',
+    ticketType: 'STANDARD',
+    faceValueNgn: 500,
+    stateOfPlayCode: 'LAG',
+    status: 'WINNING',
+    isWinner: true,
+    drawScheduledAt: daysAgo(33),
+    awaitingDraw: false,
+    createdAt: daysAgo(34),
+  },
+  // 27 past non-winning tickets across various past draws
+  ...Array.from({ length: 27 }, (_, i): DashboardTicket => {
+    const daysBack = 5 + Math.floor(i / 2);
+    const drawDate = new Date();
+    drawDate.setDate(drawDate.getDate() - daysBack);
+    const yyyymmdd = `${drawDate.getFullYear()}${String(drawDate.getMonth() + 1).padStart(2, '0')}${String(drawDate.getDate()).padStart(2, '0')}`;
+    return {
+      ticketRef: `SW-P${String(i).padStart(2, '0')}T-${'AB'[i % 2]}${'CD'[i % 2]}${(i + 1).toString().slice(-2).padStart(2, '0')}`,
+      drawCode: `RD-DRAW-${yyyymmdd}-DAILY`,
+      drawType: 'DAILY_STANDARD',
+      drawPrizeDescription: ['LG TV', 'iPhone 14', 'Bosch washer', 'Hisense fridge', 'Galaxy A55'][i % 5],
+      ticketType: 'STANDARD',
+      faceValueNgn: 500,
+      stateOfPlayCode: 'LAG',
+      status: 'EXPIRED',
+      isWinner: false,
+      drawScheduledAt: daysAgo(daysBack),
+      awaitingDraw: false,
+      createdAt: daysAgo(daysBack + 1),
+    };
+  }),
+];
+
+export const MOCK_DASHBOARD_CLAIMS: DashboardClaim[] = [
+  {
+    claimId: 'clm_mock_001',
+    drawCode: 'RD-DRAW-20260330-DAILY',
+    drawType: 'DAILY_STANDARD',
+    prizeDescription: 'Samsung Galaxy A55',
+    ticketRef: 'SW-WIN1-A2B3',
+    grossPrizeValueNgn: 420000,
+    netPrizeValueNgn: 420000,
+    whtAmountNgn: 0,
+    claimType: 'PRODUCT',
+    status: 'DELIVERED',
+    selectionDeadlineAt: daysAgo(26),
+    claimDeadlineAt: daysAgo(3),
+    fulfilledAt: daysAgo(20),
+    drawDate: daysAgo(33),
+  },
+];

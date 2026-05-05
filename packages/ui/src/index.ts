@@ -22,4 +22,7 @@ export type { StatProps } from './components/stat.js';
 export { EmptyState } from './components/empty-state.js';
 export type { EmptyStateProps } from './components/empty-state.js';
 
+export { Tabs } from './components/tabs.js';
+export type { TabsProps, TabItem } from './components/tabs.js';
+
 export { cn } from './lib/cn.js';
