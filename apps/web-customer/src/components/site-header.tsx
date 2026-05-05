@@ -6,7 +6,7 @@ export function SiteHeader() {
     <header className="border-b border-ink-100 bg-white">
       <Container size="lg" className="flex items-center justify-between h-16">
         <Link href="/" aria-label="Surewina home">
-          <Logo size="md" />
+          <Logo />
         </Link>
 
         <nav className="flex items-center gap-5 sm:gap-7 text-sm font-medium text-ink-700">
