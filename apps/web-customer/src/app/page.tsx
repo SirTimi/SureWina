@@ -34,7 +34,7 @@ export default async function HomePage() {
       />
 
       <Container size="lg" className="py-12">
-        <div className="flex items-end justify-between mb-6">
+        <div className="flex items-end justify-between mb-6 mt-10">
           <h2 className="text-2xl font-display font-semibold text-ink-950">Active draws</h2>
           <Link
             href="/draws"
@@ -43,7 +43,7 @@ export default async function HomePage() {
             See all draws →
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           {drawsWithStats.map(({ draw, ticketsSold }) => (
             <DrawCard key={draw.drawCode} draw={draw} ticketsSold={ticketsSold} />
           ))}

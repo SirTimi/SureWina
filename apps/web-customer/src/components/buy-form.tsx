@@ -173,7 +173,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
       </Card>
 
       {/* Payment method */}
-      <Card variant="default" className="p-6">
+      <Card variant="default" className="p-5 sm:p-6">
         <p className="block text-sm font-medium text-ink-700 mb-3">Pay with</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {paymentMethods.map((m) => {
@@ -183,18 +183,20 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
                 key={m.id}
                 className={
                   isSelected
-                    ? 'flex flex-col gap-0.5 p-4 border-2 border-navy-700 bg-navy-50/30 rounded-md cursor-pointer'
-                    : 'flex flex-col gap-0.5 p-4 border border-ink-200 bg-white rounded-md cursor-pointer hover:border-ink-300 transition-colors'
+                    ? 'flex items-start gap-3 p-3 sm:p-4 border-2 border-navy-700 bg-navy-50/30 rounded-md cursor-pointer'
+                    : 'flex items-start gap-3 p-3 sm:p-4 border border-ink-200 bg-white rounded-md cursor-pointer hover:border-ink-300 transition-colors'
                 }
               >
                 <input
                   type="radio"
                   value={m.id}
                   {...register('paymentMethod')}
-                  className="sr-only"
+                  className="mt-1 w-4 h-4 accent-navy-800 flex-shrink-0"
                 />
-                <span className="text-sm font-semibold text-ink-950">{m.label}</span>
-                <span className="text-xs text-ink-500">{m.sublabel}</span>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-sm font-semibold text-ink-950">{m.label}</span>
+                  <span className="text-xs text-ink-500">{m.sublabel}</span>
+                </div>
               </label>
             );
           })}

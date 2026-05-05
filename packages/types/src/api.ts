@@ -1,5 +1,6 @@
 import type { DrawPublic, DrawResultPublic } from './draws.js';
 import type { TicketPublic } from './tickets.js';
+import type { UserPublic } from './identity.js';
 
 export interface ListActiveDrawsResponse {
   draws: DrawPublic[];
@@ -58,8 +59,6 @@ export interface RecentStatsResponse {
   totalPrizesPaidNgn: number;
 }
 
-// === Purchase flow ===
-
 export type PaymentMethod = 'CARD' | 'TRANSFER' | 'USSD' | 'OPAY';
 
 export interface InitiatePurchaseRequest {
@@ -90,4 +89,36 @@ export interface ConfirmPurchaseResponse {
     ticketsToNextEntry: number;
     newJackpotEntries: number;
   };
+}
+
+// === Auth ===
+
+export interface RequestOtpRequest {
+  phoneE164: string;
+}
+
+export interface RequestOtpResponse {
+  /** Opaque session key the verify call needs. */
+  challengeId: string;
+  /** Where to send the OTP. Always 'SMS' for customers in v1. */
+  channel: 'SMS';
+  /** UTC ISO timestamp after which the OTP expires. */
+  expiresAt: string;
+  /** Mock-only: in real life this comes via SMS. Helps testing. */
+  mockOtp?: string;
+}
+
+export interface VerifyOtpRequest {
+  challengeId: string;
+  otp: string;
+}
+
+export interface VerifyOtpResponse {
+  user: UserPublic;
+  /** Short-lived access token (JWT in real life). */
+  accessToken: string;
+  /** Long-lived refresh token (httpOnly cookie in real life). */
+  refreshToken: string;
+  /** True if this was the user's first sign-in (account just created). */
+  isNewUser: boolean;
 }
