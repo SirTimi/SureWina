@@ -3,29 +3,42 @@ import { Container, Logo } from '@surewina/ui';
 
 export function SiteHeader() {
   return (
-    <header className="border-b border-ink-100 bg-white">
-      <Container size="lg" className="flex items-center justify-between h-16">
-        <Link href="/" aria-label="Surewina home">
+    <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/95 backdrop-blur">
+      <Container size="lg" className="flex h-20 items-center justify-between">
+        <Link href="/" aria-label="Surewina home" className="flex items-center">
           <Logo />
         </Link>
 
-        <nav className="flex items-center gap-5 sm:gap-7 text-sm font-medium text-ink-700">
-          <Link href="/how-it-works" className="hover:text-navy-800 transition-colors hidden sm:inline">
+        <nav className="hidden items-center gap-8 text-sm font-semibold text-navy-950 md:flex">
+          <Link href="/how-it-works" className="transition hover:text-blue-700">
             How it works
           </Link>
-          <Link href="/results" className="hover:text-navy-800 transition-colors hidden sm:inline">
+          <Link href="/results" className="transition hover:text-blue-700">
             Past results
           </Link>
-          <Link href="/lookup" className="hover:text-navy-800 transition-colors">
+          <Link href="/lookup" className="transition hover:text-blue-700">
             Check ticket
           </Link>
           <Link
             href="/sign-in"
-            className="hover:text-navy-800 transition-colors border-l border-ink-100 pl-5 sm:pl-7"
+            className="border-l border-slate-200 pl-7 transition hover:text-blue-700"
           >
             Sign in
           </Link>
+          <Link
+            href="/draws"
+            className="rounded-xl bg-amber-400 px-5 py-3 font-bold text-navy-950 shadow-[0_10px_24px_rgba(245,158,11,0.25)] transition hover:bg-amber-300"
+          >
+            Buy a ticket
+          </Link>
         </nav>
+
+        <Link
+          href="/draws"
+          className="rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-navy-950 md:hidden"
+        >
+          Buy
+        </Link>
       </Container>
     </header>
   );
