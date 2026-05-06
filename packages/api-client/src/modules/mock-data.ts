@@ -8,6 +8,13 @@ import type {
   LookupTicketResponse,
   RecentStatsResponse,
   UserMe,
+  ClaimKycStatus,
+  ClaimPath,
+  ClaimStatusEvent,
+  CollectionPoint,
+  GetClaimStatusResponse,
+  LiveDrawState,
+  WinnerNotification,
 } from '@surewina/types';
 
 function inHours(hours: number): string {
@@ -457,3 +464,310 @@ export const MOCK_DASHBOARD_CLAIMS: DashboardClaim[] = [
     drawDate: daysAgo(33),
   },
 ];
+
+// === Winner notification mock ===
+
+export const MOCK_WINNER_NOTIFICATION: WinnerNotification = {
+  claimId: 'clm_demo_winner_001',
+  ticketRef: 'SW-04AB-9LK2',
+  drawCode: 'RD-DRAW-20260427-DAILY',
+  drawType: 'DAILY_STANDARD',
+  prizeDescription: 'Samsung Galaxy A55 5G',
+  prizeImageUrl: '/images/draw-phone.webp',
+  grossPrizeValueNgn: 420000,
+  drawnAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+  seedHash: '9f4c2b8e1a7d6f30c5e9b2148a6d4f7c2c6e9a4b7d0f3e6c1a5b8d',
+  seedReveal: '4a1f7c8d2e9b0a5f6c1d3e4b7a9c2d8e5f0a1b6c3d7e4f9a2b8c5',
+  selectionDeadlineAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  buyerPhoneLast4: '9018',
+};
+
+export const MOCK_WINNER_BY_CLAIM: Record<string, WinnerNotification> = {
+  clm_demo_winner_001: MOCK_WINNER_NOTIFICATION,
+  clm_demo_winner_jackpot: {
+    ...MOCK_WINNER_NOTIFICATION,
+    claimId: 'clm_demo_winner_jackpot',
+    ticketRef: 'SW-7K39-X2QP',
+    drawCode: 'RD-DRAW-20260502-JACKPOT',
+    drawType: 'SATURDAY_JACKPOT',
+    prizeDescription: 'Saturday ₦4M Jackpot',
+    prizeImageUrl: '/images/jackpot-cash.webp',
+    grossPrizeValueNgn: 4000000,
+  },
+};
+
+// === Live draw mock ===
+
+let liveDrawTickStartedAt = Date.now();
+
+export function getMockLiveDrawState(drawCode: string): LiveDrawState {
+  const isJackpot = drawCode.includes('JACKPOT');
+
+  // Phase advances based on time since module load — keeps the "drawing" animation honest
+  const elapsed = Date.now() - liveDrawTickStartedAt;
+  let phase: LiveDrawState['phase'];
+  if (elapsed < 12_000) phase = 'PRE_DRAW';
+  else if (elapsed < 20_000) phase = 'DRAWING';
+  else phase = 'COMPLETE';
+
+  return {
+    drawCode,
+    drawType: isJackpot ? 'SATURDAY_JACKPOT' : 'DAILY_STANDARD',
+    prizeDescription: isJackpot ? 'Saturday ₦4M Jackpot' : 'Samsung Galaxy A55 5G',
+    prizeValueNgn: isJackpot ? 4_000_000 : 420_000,
+    scheduledAt: new Date(liveDrawTickStartedAt).toISOString(),
+    ticketsSold: isJackpot ? 12_408 : 5_841,
+    seedHash: '9f4c2b8e1a7d6f30c5e9b2148a6d4f7c2c6e9a4b7d0f3e6c1a5b8d',
+    phase,
+    winningTicketRef: phase === 'COMPLETE' ? 'SW-04AB-9LK2' : null,
+    seedReveal:
+      phase === 'COMPLETE'
+        ? '4a1f7c8d2e9b0a5f6c1d3e4b7a9c2d8e5f0a1b6c3d7e4f9a2b8c5'
+        : null,
+  };
+}
+
+export function resetMockLiveDraw(): void {
+  liveDrawTickStartedAt = Date.now();
+}
+
+// === Claim path mock ===
+
+const mockClaims: Record<string, ClaimPath> = {
+  clm_demo_winner_001: {
+    claimId: 'clm_demo_winner_001',
+    ticketRef: 'SW-04AB-9LK2',
+    drawCode: 'RD-DRAW-20260427-DAILY',
+    prizeDescription: 'Samsung Galaxy A55 5G',
+    grossPrizeValueNgn: 420_000,
+    estimatedWhtNgn: 42_000,
+    netCashIfChosenNgn: 378_000,
+    selectionMade: false,
+    selectedPath: null,
+    selectionDeadlineAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    changeWindowEndsAt: null,
+    isJackpot: false,
+  },
+  clm_demo_winner_jackpot: {
+    claimId: 'clm_demo_winner_jackpot',
+    ticketRef: 'SW-7K39-X2QP',
+    drawCode: 'RD-DRAW-20260502-JACKPOT',
+    prizeDescription: 'Saturday ₦4M Jackpot',
+    grossPrizeValueNgn: 4_000_000,
+    estimatedWhtNgn: 400_000,
+    netCashIfChosenNgn: 3_600_000,
+    selectionMade: false,
+    selectedPath: null,
+    selectionDeadlineAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    changeWindowEndsAt: null,
+    isJackpot: true,
+  },
+};
+
+export function getMockClaim(claimId: string): ClaimPath | undefined {
+  return mockClaims[claimId];
+}
+
+export function setMockClaimSelection(
+  claimId: string,
+  path: 'PRODUCT' | 'CASH',
+): ClaimPath | undefined {
+  const c = mockClaims[claimId];
+  if (!c) return undefined;
+  c.selectionMade = true;
+  c.selectedPath = path;
+  c.changeWindowEndsAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  return c;
+}
+
+// === Collection points mock ===
+
+export const MOCK_COLLECTION_POINTS: CollectionPoint[] = [
+  {
+    id: 'cp_lekki_phase_1',
+    name: 'Surewina Collection Centre, Lekki Phase 1',
+    address: '12B Admiralty Way, Lekki Phase 1',
+    city: 'Lagos',
+    stateCode: 'LAG',
+    openingHours: 'Mon–Sat · 09:00–17:00',
+  },
+  {
+    id: 'cp_ikeja',
+    name: 'Surewina Collection Centre, Ikeja',
+    address: '34 Mobolaji Bank Anthony Way, Ikeja GRA',
+    city: 'Lagos',
+    stateCode: 'LAG',
+    openingHours: 'Mon–Sat · 09:00–17:00',
+  },
+  {
+    id: 'cp_abuja_wuse',
+    name: 'Surewina Collection Centre, Wuse 2',
+    address: 'Plot 1234, Adetokunbo Ademola Crescent, Wuse 2',
+    city: 'Abuja',
+    stateCode: 'FCT',
+    openingHours: 'Mon–Fri · 09:00–17:00',
+  },
+  {
+    id: 'cp_ph_gra',
+    name: 'Surewina Collection Centre, Port Harcourt',
+    address: '17 Aba Road, GRA Phase II',
+    city: 'Port Harcourt',
+    stateCode: 'RIV',
+    openingHours: 'Mon–Sat · 09:00–17:00',
+  },
+  {
+    id: 'cp_kano',
+    name: 'Surewina Collection Centre, Kano',
+    address: '8 Bompai Road, Nasarawa GRA',
+    city: 'Kano',
+    stateCode: 'KAN',
+    openingHours: 'Mon–Sat · 09:00–17:00',
+  },
+  {
+    id: 'cp_ibadan',
+    name: 'Surewina Collection Centre, Ibadan',
+    address: '21 Awolowo Avenue, Bodija',
+    city: 'Ibadan',
+    stateCode: 'OYO',
+    openingHours: 'Mon–Sat · 09:00–17:00',
+  },
+];
+
+// === KYC status mock ===
+
+const mockKycByClaimId: Record<string, ClaimKycStatus> = {};
+
+export function getMockKyc(claimId: string): ClaimKycStatus {
+  if (!mockKycByClaimId[claimId]) {
+    mockKycByClaimId[claimId] = {
+      claimId,
+      status: 'NOT_STARTED',
+      rejectionReason: null,
+      bvnLast4: null,
+      bankAccount: null,
+      documentUploaded: false,
+      selfieUploaded: false,
+      kycDeadlineAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+  }
+  return mockKycByClaimId[claimId];
+}
+
+export function setMockKyc(claimId: string, patch: Partial<ClaimKycStatus>): ClaimKycStatus {
+  const current = getMockKyc(claimId);
+  Object.assign(current, patch);
+  return current;
+}
+
+// === Claim status (timeline) mock ===
+
+export function getMockClaimStatus(claimId: string): GetClaimStatusResponse {
+  const claim = mockClaims[claimId];
+  const kyc = mockKycByClaimId[claimId];
+
+  // Build timeline based on selected path + kyc state
+  const events: ClaimStatusEvent[] = [
+    {
+      id: 'won',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+      label: 'Ticket won the draw',
+      description: claim
+        ? `${claim.ticketRef} matched the winning index`
+        : 'Your ticket matched the winning index',
+      iconKey: 'trophy',
+      state: 'done',
+    },
+    {
+      id: 'notified',
+      timestamp: new Date(Date.now() - 1000 * 60 * 55).toISOString(),
+      label: 'You were notified',
+      description: 'SMS sent to verify the win',
+      iconKey: 'check',
+      state: 'done',
+    },
+  ];
+
+  if (claim?.selectionMade) {
+    events.push({
+      id: 'selection',
+      timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+      label:
+        claim.selectedPath === 'CASH' ? 'You chose cash' : 'You chose product fulfilment',
+      description:
+        claim.selectedPath === 'CASH'
+          ? 'KYC required before payout'
+          : 'Collection booking next',
+      iconKey: claim.selectedPath === 'CASH' ? 'banknote' : 'package',
+      state: 'done',
+    });
+
+    if (claim.selectedPath === 'CASH') {
+      const kycComplete = kyc?.status === 'COMPLETE';
+      events.push({
+        id: 'kyc',
+        timestamp: kycComplete
+          ? new Date(Date.now() - 1000 * 60 * 10).toISOString()
+          : new Date().toISOString(),
+        label: kycComplete ? 'KYC verified' : 'KYC in progress',
+        description: kycComplete
+          ? 'NIN, BVN and bank account confirmed'
+          : 'Upload ID, verify BVN, link bank account',
+        iconKey: 'shield',
+        state: kycComplete ? 'done' : 'current',
+      });
+
+      events.push({
+        id: 'payout',
+        timestamp: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
+        label: 'Bank transfer',
+        description: 'Net amount paid after WHT deduction',
+        iconKey: 'banknote',
+        state: kycComplete ? 'current' : 'future',
+      });
+    } else {
+      events.push({
+        id: 'booking',
+        timestamp: new Date().toISOString(),
+        label: 'Collection booking',
+        description: 'Choose a collection centre and date',
+        iconKey: 'package',
+        state: 'current',
+      });
+
+      events.push({
+        id: 'pickup',
+        timestamp: new Date(Date.now() + 1000 * 60 * 60 * 72).toISOString(),
+        label: 'Prize collected',
+        description: 'Bring valid ID + the SMS receipt',
+        iconKey: 'home',
+        state: 'future',
+      });
+    }
+  } else {
+    events.push({
+      id: 'select',
+      timestamp: new Date().toISOString(),
+      label: 'Choose product or cash',
+      description: 'You have until the selection deadline to decide',
+      iconKey: 'clock',
+      state: 'current',
+    });
+  }
+
+  return {
+    claimId,
+    prizeDescription: claim?.prizeDescription ?? 'Prize',
+    selectedPath: claim?.selectedPath ?? null,
+    currentStatus: claim?.selectionMade
+      ? claim.selectedPath === 'CASH'
+        ? mockKycByClaimId[claimId]?.status === 'COMPLETE'
+          ? 'Awaiting bank transfer'
+          : 'KYC in progress'
+        : 'Awaiting collection booking'
+      : 'Awaiting your selection',
+    events,
+    estimatedCompletionAt: claim?.selectedPath === 'CASH'
+      ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      : new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+  };
+}

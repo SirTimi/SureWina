@@ -241,3 +241,200 @@ export interface RequestBreakRequest {
 export interface RequestBreakResponse {
   selfExclusionUntil: string | null; // null if permanent
 }
+
+// === Winner / Claim ===
+
+export interface WinnerNotification {
+  claimId: string;
+  ticketRef: string;
+  drawCode: string;
+  drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT' | 'PRODUCT_PRIZE';
+  prizeDescription: string;
+  prizeImageUrl: string | null;
+  grossPrizeValueNgn: number;
+  drawnAt: string;
+  /** Public RNG seed hash (committed before draw). */
+  seedHash: string;
+  /** Revealed seed (post-draw). */
+  seedReveal: string | null;
+  /** UTC ISO timestamp of the selection deadline (typically draw + 7 days). */
+  selectionDeadlineAt: string;
+  /** Last 4 digits of the phone we'll call. */
+  buyerPhoneLast4: string;
+}
+
+export interface GetWinnerNotificationResponse {
+  notification: WinnerNotification;
+}
+
+// === Live draw ===
+
+export interface LiveDrawState {
+  drawCode: string;
+  drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT' | 'PRODUCT_PRIZE';
+  prizeDescription: string;
+  prizeValueNgn: number;
+  /** When the draw is scheduled to execute. */
+  scheduledAt: string;
+  ticketsSold: number;
+  seedHash: string;
+  /** 'PRE_DRAW' | 'DRAWING' | 'COMPLETE' */
+  phase: 'PRE_DRAW' | 'DRAWING' | 'COMPLETE';
+  /** Set when phase === 'COMPLETE'. */
+  winningTicketRef: string | null;
+  /** Set when phase === 'COMPLETE'. */
+  seedReveal: string | null;
+}
+
+export interface GetLiveDrawResponse {
+  state: LiveDrawState;
+}
+
+// === Claim flow ===
+
+export interface ClaimPath {
+  claimId: string;
+  ticketRef: string;
+  drawCode: string;
+  prizeDescription: string;
+  grossPrizeValueNgn: number;
+  /** WHT only applies to cash conversions over ₦10,000. */
+  estimatedWhtNgn: number;
+  netCashIfChosenNgn: number;
+  /** True if user already chose. */
+  selectionMade: boolean;
+  selectedPath: 'PRODUCT' | 'CASH' | null;
+  /** Selection deadline (typically draw + 7 days). */
+  selectionDeadlineAt: string;
+  /** 48h from selection — the user can change once. */
+  changeWindowEndsAt: string | null;
+  /** True if jackpot — affects T&Cs (photo-op required). */
+  isJackpot: boolean;
+}
+
+export interface GetClaimPathResponse {
+  claim: ClaimPath;
+}
+
+export interface ChooseClaimPathRequest {
+  claimId: string;
+  path: 'PRODUCT' | 'CASH';
+}
+
+export interface ChooseClaimPathResponse {
+  claim: ClaimPath;
+}
+
+// === Product collection ===
+
+export interface CollectionPoint {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  stateCode: string;
+  openingHours: string;
+}
+
+export interface ListCollectionPointsRequest {
+  stateCode?: string;
+}
+
+export interface ListCollectionPointsResponse {
+  points: CollectionPoint[];
+}
+
+export interface BookCollectionRequest {
+  claimId: string;
+  collectionPointId: string;
+  /** ISO date of preferred collection day. */
+  preferredDate: string;
+}
+
+export interface BookCollectionResponse {
+  bookingId: string;
+  collectionPoint: CollectionPoint;
+  scheduledAt: string;
+}
+
+// === KYC for cash conversion ===
+
+export interface ClaimKycStatus {
+  claimId: string;
+  status:
+    | 'NOT_STARTED'
+    | 'DOCS_UPLOADED'
+    | 'BVN_PENDING'
+    | 'BVN_VERIFIED'
+    | 'BANK_PENDING'
+    | 'BANK_VERIFIED'
+    | 'COMPLETE'
+    | 'REJECTED';
+  rejectionReason: string | null;
+  bvnLast4: string | null;
+  bankAccount: {
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+  } | null;
+  documentUploaded: boolean;
+  selfieUploaded: boolean;
+  /** Hard deadline — claim forfeits if KYC not complete. */
+  kycDeadlineAt: string;
+}
+
+export interface GetClaimKycStatusResponse {
+  kyc: ClaimKycStatus;
+}
+
+export interface SubmitKycDocumentRequest {
+  claimId: string;
+  documentType: 'NIN' | 'DRIVER_LICENCE' | 'INTERNATIONAL_PASSPORT' | 'VOTER_CARD';
+  /** Mock: any base64 string is accepted. */
+  documentImageBase64: string;
+  selfieImageBase64: string;
+}
+
+export interface SubmitKycDocumentResponse {
+  kyc: ClaimKycStatus;
+}
+
+export interface SubmitKycBvnRequest {
+  claimId: string;
+  bvn: string;
+}
+
+export interface SubmitKycBvnResponse {
+  kyc: ClaimKycStatus;
+}
+
+export interface SubmitKycBankRequest {
+  claimId: string;
+  bankCode: string;
+  accountNumber: string;
+}
+
+export interface SubmitKycBankResponse {
+  kyc: ClaimKycStatus;
+}
+
+// === Claim status (timeline) ===
+
+export interface ClaimStatusEvent {
+  id: string;
+  timestamp: string;
+  label: string;
+  description: string | null;
+  /** Lucide icon name as string — UI maps to component. */
+  iconKey: 'trophy' | 'check' | 'shield' | 'package' | 'banknote' | 'truck' | 'home' | 'clock' | 'alert';
+  state: 'done' | 'current' | 'future';
+}
+
+export interface GetClaimStatusResponse {
+  claimId: string;
+  prizeDescription: string;
+  selectedPath: 'PRODUCT' | 'CASH' | null;
+  currentStatus: string;
+  events: ClaimStatusEvent[];
+  estimatedCompletionAt: string | null;
+}
