@@ -4,6 +4,7 @@ import type {
   ListMyClaimsResponse,
   ListMyTicketsRequest,
   ListMyTicketsResponse,
+  UserMe,
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
 import {
@@ -12,18 +13,28 @@ import {
   MOCK_DASHBOARD_TICKETS,
   MOCK_USER_ME,
 } from './mock-data.js';
+import type { AccountModule } from './account.js';
 
 export class DashboardModule {
+  private accountModule?: AccountModule;
+
   constructor(private readonly client: ApiClient) {}
 
+  _setAccountModule(account: AccountModule): void {
+    this.accountModule = account;
+  }
+
+  private getCurrentUser(): UserMe {
+    return this.accountModule ? this.accountModule.getCurrentMockState() : { ...MOCK_USER_ME };
+  }
+
   async getSummary(): Promise<DashboardSummary> {
-    // TODO Phase 6+: return this.client.get('/dashboard/summary');
+    const user = this.getCurrentUser();
     const activeTickets = MOCK_DASHBOARD_TICKETS.filter((t) => t.awaitingDraw);
     const dailyStandardCount = activeTickets.filter(
       (t) => t.ticketType === 'STANDARD',
     ).length;
 
-    // Group active tickets by draw
     const byDraw = new Map<string, typeof activeTickets>();
     for (const t of activeTickets) {
       const list = byDraw.get(t.drawCode) ?? [];
@@ -43,12 +54,10 @@ export class DashboardModule {
       }))
       .sort((a, b) => a.drawScheduledAt.localeCompare(b.drawScheduledAt));
 
-    // Compute jackpot accumulation: 1 free entry per 10 daily standard tickets
     const cumulativeCount = dailyStandardCount;
     const freeEntries = Math.floor(cumulativeCount / 10);
     const ticketsToNextEntry = cumulativeCount % 10 === 0 ? 10 : 10 - (cumulativeCount % 10);
 
-    // Compute total spent this month
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
@@ -56,7 +65,6 @@ export class DashboardModule {
       .filter((t) => new Date(t.createdAt) >= monthStart)
       .reduce((sum, t) => sum + t.faceValueNgn, 0);
 
-    // Lifetime winnings
     const wins = MOCK_DASHBOARD_CLAIMS.filter(
       (c) => c.status === 'DELIVERED' || c.status === 'CASH_PAID',
     );
@@ -64,16 +72,12 @@ export class DashboardModule {
     const lastWinAt = wins.length > 0 ? wins[0].drawDate : null;
 
     return Promise.resolve({
-      user: { ...MOCK_USER_ME },
+      user,
       activeTicketCount: activeTickets.length,
       activeDrawGroups,
-      jackpot: {
-        freeEntries,
-        cumulativeCount,
-        ticketsToNextEntry,
-      },
+      jackpot: { freeEntries, cumulativeCount, ticketsToNextEntry },
       totalSpentMonthlyNgn,
-      monthlyLimitNgn: MOCK_USER_ME.spendLimit?.capNgn ?? null,
+      monthlyLimitNgn: user.spendLimit?.capNgn ?? null,
       lifetimeWinningsNgn,
       lifetimeWinCount: wins.length,
       lastWinAt,
@@ -81,7 +85,6 @@ export class DashboardModule {
   }
 
   async listMyTickets(req?: ListMyTicketsRequest): Promise<ListMyTicketsResponse> {
-    // TODO Phase 6+: return this.client.get('/dashboard/tickets', { query: req });
     const filter = req?.filter ?? 'all';
     const page = req?.page ?? 1;
     const pageSize = req?.pageSize ?? 20;
@@ -102,7 +105,6 @@ export class DashboardModule {
   }
 
   async getTicketDetail(ticketRef: string): Promise<GetTicketDetailResponse> {
-    // TODO Phase 6+: return this.client.get(`/dashboard/tickets/${ticketRef}`);
     const ticket = MOCK_DASHBOARD_TICKETS.find((t) => t.ticketRef === ticketRef);
     if (!ticket) throw new Error(`Ticket not found: ${ticketRef}`);
 
@@ -132,7 +134,6 @@ export class DashboardModule {
   }
 
   async listMyClaims(): Promise<ListMyClaimsResponse> {
-    // TODO Phase 6+: return this.client.get('/dashboard/claims');
     return Promise.resolve({ claims: [...MOCK_DASHBOARD_CLAIMS] });
   }
 }

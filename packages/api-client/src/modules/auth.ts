@@ -7,14 +7,22 @@ import type {
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
 import { MOCK_USER_ME } from './mock-data.js';
+import type { AccountModule } from './account.js';
 
 const mockChallenges = new Map<string, { phone: string; otp: string; expiresAt: number }>();
 
 export class AuthModule {
+  /** Set after construction by createClient so getMe returns the live mutable state. */
+  private accountModule?: AccountModule;
+
   constructor(private readonly client: ApiClient) {}
 
+  /** Internal — called by createClient. */
+  _setAccountModule(account: AccountModule): void {
+    this.accountModule = account;
+  }
+
   async requestOtp(req: RequestOtpRequest): Promise<RequestOtpResponse> {
-    // TODO Phase 6+: return this.client.post('/auth/otp/request', req);
     const challengeId = `chal_${Math.random().toString(36).slice(2, 11)}`;
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = Date.now() + 5 * 60 * 1000;
@@ -28,7 +36,6 @@ export class AuthModule {
   }
 
   async verifyOtp(req: VerifyOtpRequest): Promise<VerifyOtpResponse> {
-    // TODO Phase 6+: return this.client.post('/auth/otp/verify', req);
     const challenge = mockChallenges.get(req.challengeId);
     const isOverride = req.otp === '000000' || req.otp === '123456';
 
@@ -61,6 +68,9 @@ export class AuthModule {
 
   async getMe(): Promise<UserMe> {
     // TODO Phase 6+: return this.client.get('/auth/me');
+    if (this.accountModule) {
+      return Promise.resolve(this.accountModule.getCurrentMockState());
+    }
     return Promise.resolve({ ...MOCK_USER_ME });
   }
 

@@ -92,8 +92,6 @@ export interface ConfirmPurchaseResponse {
   };
 }
 
-// === Auth ===
-
 export interface RequestOtpRequest {
   phoneE164: string;
 }
@@ -117,9 +115,6 @@ export interface VerifyOtpResponse {
   isNewUser: boolean;
 }
 
-// === Dashboard ===
-
-/** Detailed ticket view used in dashboard lists. */
 export interface DashboardTicket {
   ticketRef: string;
   drawCode: string;
@@ -131,13 +126,10 @@ export interface DashboardTicket {
   status: TicketStatus;
   isWinner: boolean;
   drawScheduledAt: string;
-  /** True if drawScheduledAt is in the future. */
   awaitingDraw: boolean;
-  /** ISO timestamp of purchase. */
   createdAt: string;
 }
 
-/** Group of tickets for the same draw. */
 export interface DashboardDrawGroup {
   drawCode: string;
   drawType: DrawType;
@@ -197,12 +189,55 @@ export interface ListMyTicketsResponse {
 export interface GetTicketDetailResponse {
   ticket: DashboardTicket;
   draw: DrawPublic;
-  /** Other tickets the user holds for the same draw. */
   siblingTickets: string[];
-  /** If past + winner, link to claim. */
   claimId: string | null;
 }
 
 export interface ListMyClaimsResponse {
   claims: DashboardClaim[];
+}
+
+// === Account ===
+
+export interface UpdateProfileRequest {
+  displayName?: string | null;
+  email?: string | null;
+}
+
+export interface UpdateNotificationPreferencesRequest {
+  sms?: boolean;
+  push?: boolean;
+  email?: boolean;
+}
+
+export interface UpdateBankAccountRequest {
+  bankCode: string;
+  accountNumber: string;
+}
+
+export interface UpdateBankAccountResponse {
+  bankAccount: {
+    bankName: string;
+    accountNumber: string; // last-4 only
+    accountName: string;
+  };
+}
+
+export interface UpdateSpendLimitRequest {
+  period: 'WEEKLY' | 'MONTHLY';
+  capNgn: number;
+}
+
+export interface RemoveSpendLimitRequest {
+  // Empty body — confirms removal intent.
+  reason?: string;
+}
+
+export interface RequestBreakRequest {
+  duration: '7d' | '30d' | '6mo' | 'permanent';
+  reason?: string;
+}
+
+export interface RequestBreakResponse {
+  selfExclusionUntil: string | null; // null if permanent
 }

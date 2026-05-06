@@ -8,6 +8,7 @@ import { AgentsModule } from './modules/agents.js';
 import { AdminModule } from './modules/admin.js';
 import { StatsModule } from './modules/stats.js';
 import { DashboardModule } from './modules/dashboard.js';
+import { AccountModule } from './modules/account.js';
 
 export interface SurewinaApi {
   health: HealthModule;
@@ -18,19 +19,29 @@ export interface SurewinaApi {
   admin: AdminModule;
   stats: StatsModule;
   dashboard: DashboardModule;
+  account: AccountModule;
 }
 
 export function createClient(config: ApiClientConfig): SurewinaApi {
   const client = new ApiClient(config);
+  const account = new AccountModule(client);
+  const auth = new AuthModule(client);
+  const dashboard = new DashboardModule(client);
+
+  // Wire shared mock state — auth and dashboard read from account's mutable state.
+  auth._setAccountModule(account);
+  dashboard._setAccountModule(account);
+
   return {
     health: new HealthModule(client),
     tickets: new TicketsModule(client),
     draws: new DrawsModule(client),
-    auth: new AuthModule(client),
+    auth,
     agents: new AgentsModule(client),
     admin: new AdminModule(client),
     stats: new StatsModule(client),
-    dashboard: new DashboardModule(client),
+    dashboard,
+    account,
   };
 }
 
