@@ -19,21 +19,21 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
       className="flex flex-col overflow-hidden rounded-2xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
     >
       <div className="relative aspect-[16/9] overflow-hidden border-b border-slate-100 bg-gradient-to-br from-blue-50 via-white to-amber-50">
-        <div className="relative z-10 flex h-full w-full items-center justify-center">
-  <img
-    src={isJackpot ? '/images/jackpot-cash.webp' : '/images/draw-phone.webp'}
-    alt={draw.prizeDescription}
-    className={
-      isJackpot
-        ? 'h-[82%] w-[82%] object-contain'
-        : 'h-[88%] w-[88%] object-contain'
-    }
-  />
-</div>
-
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.16),transparent_22%),radial-gradient(circle_at_85%_25%,rgba(245,158,11,0.18),transparent_22%)]" />
 
-        <div className="absolute left-4 top-4 flex gap-2">
+        <div className="relative z-10 flex h-full w-full items-center justify-center">
+          <img
+            src={isJackpot ? '/images/jackpot-cash.webp' : '/images/draw-phone.webp'}
+            alt={draw.prizeDescription}
+            className={
+              isJackpot
+                ? 'h-[150%] w-[150%] object-contain'
+                : 'h-[150%] w-[150%] object-contain'
+            }
+          />
+        </div>
+
+        <div className="absolute left-4 top-4 z-20 flex gap-2">
           <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
             {drawTypeShortLabel[draw.drawType]}
           </Badge>
@@ -101,7 +101,7 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
                   : 'rounded-lg font-bold'
               }
             >
-              Buy ticket — {formatNaira(draw.ticketPriceNgn)}
+              Buy ticket {formatNaira(draw.ticketPriceNgn)}
             </Button>
           </Link>
         </div>
