@@ -10,26 +10,35 @@ interface HomeHeroProps {
 
 export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps) {
   return (
-    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(251,191,36,0.42)_0%,rgba(251,191,36,0.22)_22%,transparent_48%),radial-gradient(circle_at_8%_12%,rgba(37,99,235,0.09)_0%,transparent_34%),linear-gradient(180deg,#ffffff_0%,#fff8e7_62%,#fbfaf5_100%)]">
+    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(251,191,36,0.42)_0%,rgba(251,191,36,0.22)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#fff7e6_48%,#ffe9a8_100%)]">
       <style>
         {`
           @keyframes surewina-float {
             0%, 100% {
-              transform: translateY(0) scale(1.08);
+              transform: translateY(0);
             }
             50% {
-              transform: translateY(-14px) scale(1.08);
+              transform: translateY(-10px);
             }
           }
         `}
       </style>
 
-      <Container
-        size="lg"
-        className="relative grid min-h-[620px] grid-cols-1 items-center gap-8 pb-20 pt-12 lg:grid-cols-[0.82fr_1.18fr] lg:pb-24 lg:pt-16"
-      >
-        <div className="relative z-20 max-w-[620px] lg:-ml-8 xl:-ml-12">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/80 px-4 py-2 text-sm font-semibold text-blue-800 shadow-sm backdrop-blur">
+      <Container size="lg" className="relative min-h-[620px] pb-20 pt-14 lg:pb-24 lg:pt-16">
+        <div className="pointer-events-none absolute inset-y-0 right-[-6%] z-0 hidden w-[58%] items-center justify-end lg:flex">
+          <div className="absolute right-[8%] top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-amber-300/25 blur-3xl" />
+          <div className="absolute bottom-24 right-[16%] h-16 w-[420px] rounded-full bg-amber-900/10 blur-2xl" />
+
+          <img
+            src="/images/hero-keke.webp"
+            alt="Surewina grand prize"
+            className="relative z-10 h-[500px] w-full object-contain object-right drop-shadow-[0_34px_70px_rgba(15,23,42,0.24)]"
+            style={{ animation: 'surewina-float 4.8s ease-in-out infinite' }}
+          />
+        </div>
+
+        <div className="relative z-20 max-w-[650px]">
+          <div className="mb-6 inline-flex items-center gap-2  border border-blue-100 bg-white/85 px-4 py-2 text-sm font-semibold text-blue-800 shadow-sm backdrop-blur">
             <ShieldCheck className="h-4 w-4 text-blue-600" />
             Licensed under Nigerian lottery law · NLRC
           </div>
@@ -51,7 +60,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
                 <Button
                   variant="accent"
                   size="lg"
-                  className="rounded-xl bg-amber-400 font-bold text-navy-950 shadow-[0_16px_34px_rgba(245,158,11,0.28)] hover:bg-amber-300"
+                  className="rounded-sm bg-amber-400 font-bold text-navy-950 shadow-[0_16px_34px_rgba(245,158,11,0.28)] hover:bg-amber-300"
                 >
                   Buy a ticket {formatNaira(primaryTicketPrice)}
                   <ArrowRight className="h-4 w-4" />
@@ -63,7 +72,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
               <Button
                 variant="secondary"
                 size="lg"
-                className="rounded-xl border-slate-200 bg-white/90 font-bold text-blue-800 shadow-sm backdrop-blur"
+                className="rounded-sm border-slate-200 bg-white/90 font-bold text-blue-800 shadow-sm backdrop-blur"
               >
                 <PlayCircle className="h-5 w-5" />
                 How it works
@@ -98,20 +107,14 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
           </div>
         </div>
 
-        <div className="relative z-10 hidden min-h-[560px] items-center justify-center lg:flex">
-          <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-300/25 blur-3xl" />
-          <div className="absolute bottom-16 left-1/2 h-16 w-[420px] -translate-x-1/2 rounded-full bg-amber-900/10 blur-2xl" />
-
+        <div className="relative z-10 mt-10 flex justify-center lg:hidden">
           <img
             src="/images/hero-keke.webp"
             alt="Surewina grand prize"
-            className="relative z-10 max-h-[720px] w-[200%] max-w-none object-contain drop-shadow-[0_38px_70px_rgba(15,23,42,0.26)]"
-            style={{ animation: 'surewina-float 4.5s ease-in-out infinite' }}
+            className="max-h-[340px] w-full object-contain drop-shadow-[0_28px_60px_rgba(15,23,42,0.22)]"
           />
         </div>
       </Container>
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-[#fbfaf5]" />
     </section>
   );
 }
