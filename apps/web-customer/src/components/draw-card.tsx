@@ -25,11 +25,7 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
           <img
             src={isJackpot ? '/images/jackpot-cash.webp' : '/images/draw-phone.webp'}
             alt={draw.prizeDescription}
-            className={
-              isJackpot
-                ? 'h-[150%] w-[150%] object-contain'
-                : 'h-[150%] w-[150%] object-contain'
-            }
+            className="h-[150%] w-[150%] object-contain"
           />
         </div>
 
@@ -62,8 +58,8 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
             <p
               className={
                 isJackpot
-                  ? 'mt-1 font-display text-2xl font-black text-emerald-600 tabular-nums'
-                  : 'mt-1 font-display text-2xl font-black text-blue-700 tabular-nums'
+                  ? 'mt-1 font-display text-2xl font-black text-[#4E8F01] tabular-nums'
+                  : 'mt-1 font-display text-2xl font-black text-[#4E8F01] tabular-nums'
               }
             >
               {formatNaira(draw.prizeValueNgn)}
@@ -87,19 +83,13 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
               <span className="tabular-nums">{ticketsSold.toLocaleString()}</span>
               tickets sold
             </span>
-          ) : (
-            <span />
-          )}
+          ) : null}
 
           <Link href={`/draws/${draw.drawCode}`}>
             <Button
               variant={isJackpot ? 'accent' : 'primary'}
               size="sm"
-              className={
-                isJackpot
-                  ? 'rounded-lg bg-amber-400 font-bold text-navy-950 hover:bg-amber-300'
-                  : 'rounded-lg font-bold'
-              }
+              className="rounded-lg !border-transparent bg-[#a8e368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
             >
               Buy ticket {formatNaira(draw.ticketPriceNgn)}
             </Button>

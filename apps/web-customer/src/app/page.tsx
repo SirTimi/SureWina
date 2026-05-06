@@ -37,23 +37,27 @@ export default async function HomePage() {
       <MarqueeBar />
 
       <Container size="lg" className="py-12">
-        <div className="flex items-end justify-between mb-6 mt-10">
-          <h2 className="text-[30px] font-display font-semibold text-ink-950">Active Draws</h2>
+        <div className="mb-6 mt-10 flex items-end justify-between">
+          <h2 className="font-display text-[30px] font-semibold text-ink-950">
+            Active Draws
+          </h2>
+
           <Link
             href="/draws"
-            className="text-sm text-navy-800 hover:text-navy-700 font-medium"
+            className="text-sm font-medium text-navy-800 hover:text-navy-700"
           >
             See all draws →
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-          {drawsWithStats.map(({ draw, ticketsSold }) => (
-            <DrawCard key={draw.drawCode} draw={draw} ticketsSold={ticketsSold} />
-          ))}
-        </div>
 
-        <div className="mt-8">
-          <TrustPanel />
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            {drawsWithStats.map(({ draw, ticketsSold }) => (
+              <DrawCard key={draw.drawCode} draw={draw} ticketsSold={ticketsSold} />
+            ))}
+          </div>
+
+          <TrustPanel layout="broken" />
         </div>
       </Container>
 
