@@ -6,7 +6,7 @@ export function SiteHeader() {
     <header className="absolute inset-x-0 top-2 z-50 bg-transparent">
       <Container
         size="lg"
-        className="flex h-20 max-w-[1180px] items-center justify-between"
+        className="flex h-20 max-w-[1300px] items-center justify-between"
       >
         <Link href="/" aria-label="Surewina home" className="flex items-center">
           <Logo />
