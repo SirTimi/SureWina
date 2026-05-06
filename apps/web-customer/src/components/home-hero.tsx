@@ -15,10 +15,10 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
         {`
           @keyframes surewina-float {
             0%, 100% {
-              transform: translateY(0);
+              transform: translateY(-50%);
             }
             50% {
-              transform: translateY(-10px);
+              transform: translateY(calc(-50% - 10px));
             }
           }
         `}
@@ -28,17 +28,18 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
         size="lg"
         className="relative min-h-[650px] max-w-[1180px] pb-20 pt-28 lg:pb-24 lg:pt-32"
       >
-        <div className="pointer-events-none absolute inset-y-0 right-[-7%] top-8 z-0 hidden w-[72%] items-center justify-end lg:flex">
-          <div className="absolute right-[8%] top-[54%] h-[680px] w-[680px] -translate-y-1/2 rounded-full bg-[#A8E368]/25 blur-3xl" />
-            <div className="absolute bottom-12 right-[16%] h-20 w-[560px] rounded-full bg-[#4E8F01]/10 blur-2xl" />
+        <div className="pointer-events-none absolute right-[-48px] top-[58%] z-0 hidden w-[760px] lg:block">
+          <div className="absolute right-[90px] top-1/2 h-[660px] w-[660px] -translate-y-1/2 rounded-full bg-[#A8E368]/25 blur-3xl" />
+          <div className="absolute bottom-[18px] right-[130px] h-20 w-[540px] rounded-full bg-[#4E8F01]/10 blur-2xl" />
 
-              <img
-                src="/images/hero-keke.webp"
-                alt="Surewina grand prize"
-                className="relative z-10 h-[790px] w-full object-contain object-right drop-shadow-[0_40px_84px_rgba(15,23,42,0.28)]"
-                style={{ animation: 'surewina-float 4.8s ease-in-out infinite' }}
-              />
+          <img
+            src="/images/hero-keke.webp"
+            alt="Surewina grand prize"
+            className="relative z-10 w-full object-contain object-right drop-shadow-[0_40px_84px_rgba(15,23,42,0.28)]"
+            style={{ animation: 'surewina-float 4.8s ease-in-out infinite' }}
+          />
         </div>
+
         <div className="relative z-20 max-w-[650px]">
           <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
             <ShieldCheck className="h-4 w-4 text-white" />
