@@ -6,13 +6,13 @@ export function SiteHeader() {
     <header className="absolute inset-x-0 top-2 z-50 bg-transparent">
       <Container
         size="lg"
-        className="flex h-20 max-w-[1300px] items-center justify-between"
+        className="flex h-20 max-w-[1500px] items-center justify-between"
       >
         <Link href="/" aria-label="Surewina home" className="flex items-center">
           <Logo />
         </Link>
 
-        <nav className="hidden items-center gap-8 text-[13px] font-[700] text-navy-950 md:flex">
+        <nav className="hidden items-center gap-8 text-[14px] font-[600] text-navy-950 md:flex">
           <Link href="/how-it-works" className="transition hover:text-[#4E8F01]">
             How it works
           </Link>

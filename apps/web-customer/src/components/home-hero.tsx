@@ -26,9 +26,9 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
 
       <Container
         size="lg"
-        className="relative min-h-[650px] max-w-[1300px] pb-20 pt-28 lg:pb-24 lg:pt-32"
+        className="relative min-h-[650px] max-w-[1500px] pb-20 pt-28 lg:pb-24 lg:pt-32"
       >
-        <div className="pointer-events-none absolute right-[-40px] top-[62%] z-0 hidden w-[940px] lg:block 2xl:right-[-20px] 2xl:w-[980px]">
+        <div className="pointer-events-none absolute right-[-40px] top-[68%] z-0 hidden w-[940px] lg:block 2xl:right-[-20px] 2xl:w-[980px]">
           <div className="absolute right-[120px] top-1/2 h-[780px] w-[780px] -translate-y-1/2 rounded-full bg-[#A8E368]/25 blur-3xl" />
           <div className="absolute bottom-[18px] right-[170px] h-20 w-[660px] rounded-full bg-[#4E8F01]/10 blur-2xl" />
 
