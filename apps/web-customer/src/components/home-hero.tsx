@@ -28,18 +28,17 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
         size="lg"
         className="relative min-h-[650px] max-w-[1180px] pb-20 pt-28 lg:pb-24 lg:pt-32"
       >
-        <div className="pointer-events-none absolute inset-y-0 right-[-12%] z-0 hidden w-[68%] items-center justify-end lg:flex">
-          <div className="absolute right-[10%] top-1/2 h-[620px] w-[620px] -translate-y-1/2 rounded-full bg-[#A8E368]/25 blur-3xl" />
-          <div className="absolute bottom-20 right-[18%] h-20 w-[520px] rounded-full bg-[#4E8F01]/10 blur-2xl" />
+        <div className="pointer-events-none absolute inset-y-0 right-[-7%] top-8 z-0 hidden w-[72%] items-center justify-end lg:flex">
+  <div className="absolute right-[8%] top-[54%] h-[680px] w-[680px] -translate-y-1/2 rounded-full bg-[#A8E368]/25 blur-3xl" />
+  <div className="absolute bottom-12 right-[16%] h-20 w-[560px] rounded-full bg-[#4E8F01]/10 blur-2xl" />
 
-          <img
-            src="/images/hero-keke.webp"
-            alt="Surewina grand prize"
-            className="relative z-10 h-[650px] w-full object-contain object-right drop-shadow-[0_38px_80px_rgba(15,23,42,0.26)]"
-            style={{ animation: 'surewina-float 4.8s ease-in-out infinite' }}
-          />
-        </div>
-
+  <img
+    src="/images/hero-keke.webp"
+    alt="Surewina grand prize"
+    className="relative z-10 h-[790px] w-full object-contain object-right drop-shadow-[0_40px_84px_rgba(15,23,42,0.28)]"
+    style={{ animation: 'surewina-float 4.8s ease-in-out infinite' }}
+  />
+</div>
         <div className="relative z-20 max-w-[650px]">
           <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
             <ShieldCheck className="h-4 w-4 text-white" />
