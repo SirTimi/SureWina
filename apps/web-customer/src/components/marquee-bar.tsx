@@ -15,7 +15,7 @@ const items = [
 
 export function MarqueeBar() {
   return (
-    <div className="relative overflow-hidden border-y border-navy-950/8 bg-navy-950 py-4">
+    <div className="relative overflow-hidden border-y border-navy-950/8 bg-[#d3a601] py-4">
       <style>
         {`
           @keyframes surewina-marquee {
