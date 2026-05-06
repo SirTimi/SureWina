@@ -9,7 +9,7 @@ export interface ContainerProps extends HTMLAttributes<HTMLDivElement> {
 const sizeStyles = {
   sm: 'max-w-2xl',
   md: 'max-w-4xl',
-  lg: 'max-w-6xl',
+  lg: 'max-w-7xl',
   xl: 'max-w-7xl',
 };
 
@@ -18,7 +18,7 @@ export const Container = forwardRef<HTMLDivElement, ContainerProps>(
     return (
       <div
         ref={ref}
-        className={cn('mx-auto px-4 sm:px-6', sizeStyles[size], className)}
+        className={cn('mx-auto px-6 sm:px-8 lg:px-12 xl:px-16', sizeStyles[size], className)}
         {...rest}
       />
     );
