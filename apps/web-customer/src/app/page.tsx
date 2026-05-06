@@ -36,7 +36,7 @@ export default async function HomePage() {
 
       <MarqueeBar />
 
-      <Container size="lg" className="py-12">
+      <Container size="lg" className="max-w-[1500px] py-12">
         <div className="mb-6 mt-10 flex items-end justify-between">
           <h2 className="font-display text-[30px] font-semibold text-ink-950">
             Active Draws
@@ -50,8 +50,8 @@ export default async function HomePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {drawsWithStats.map(({ draw, ticketsSold }) => (
               <DrawCard key={draw.drawCode} draw={draw} ticketsSold={ticketsSold} />
             ))}

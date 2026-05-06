@@ -32,7 +32,7 @@ interface TrustPanelProps {
 export function TrustPanel({ layout = 'default' }: TrustPanelProps) {
   if (layout === 'broken') {
     return (
-      <aside className="grid grid-cols-1 gap-4 xl:self-start">
+      <aside className="grid grid-cols-1 gap-2 self-start">
         <div className="mb-1 inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.12em] text-navy-800">
           <ShieldCheck className="h-4 w-4 text-blue-700" />
           Why you can trust this draw
