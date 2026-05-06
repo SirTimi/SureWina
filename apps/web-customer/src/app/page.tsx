@@ -6,6 +6,7 @@ import { DrawCard } from '@/components/draw-card';
 import { TrustPanel } from '@/components/trust-panel';
 import { JackpotExplainer } from '@/components/jackpot-explainer';
 import { RecentWinners } from '@/components/recent-winners';
+import { MarqueeBar } from '@/components/marquee-bar';
 
 export default async function HomePage() {
   const [{ draws }, recentStats] = await Promise.all([
@@ -32,6 +33,8 @@ export default async function HomePage() {
         primaryDrawCode={dailyDraw?.draw.drawCode}
         primaryTicketPrice={dailyDraw?.draw.ticketPriceNgn}
       />
+
+      <MarqueeBar />
 
       <Container size="lg" className="py-12">
         <div className="flex items-end justify-between mb-6 mt-10">
