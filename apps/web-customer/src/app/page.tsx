@@ -36,7 +36,7 @@ export default async function HomePage() {
 
       <MarqueeBar />
 
-      <Container size="lg" className="max-w-[1500px] py-12">
+      <Container size="lg" className="max-w-[1400px] py-12">
         <div className="mb-6 mt-10 flex items-end justify-between">
           <h2 className="font-display text-[30px] font-semibold text-ink-950">
             Active Draws
