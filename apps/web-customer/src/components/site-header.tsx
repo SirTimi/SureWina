@@ -27,7 +27,7 @@ export function SiteHeader() {
           </Link>
           <Link
             href="/draws"
-            className="rounded-xl bg-amber-400 px-5 py-3 font-bold text-navy-950 shadow-[0_10px_24px_rgba(245,158,11,0.25)] transition hover:bg-amber-300"
+            className="rounded-sm bg-[#4E8F01] px-5 py-3 font-bold text-white transition hover:bg-amber-300"
           >
             Buy a ticket
           </Link>
