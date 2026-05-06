@@ -3,7 +3,7 @@ import { Container, Logo } from '@surewina/ui';
 
 export function SiteHeader() {
   return (
-    <header className="absolute inset-x-0 top-0 z-50 bg-transparent">
+    <header className="absolute inset-x-0 top-2 z-50 bg-transparent">
       <Container
         size="lg"
         className="flex h-20 max-w-[1180px] items-center justify-between"

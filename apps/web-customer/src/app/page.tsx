@@ -35,7 +35,7 @@ export default async function HomePage() {
 
       <Container size="lg" className="py-12">
         <div className="flex items-end justify-between mb-6 mt-10">
-          <h2 className="text-2xl font-display font-semibold text-ink-950">Active draws</h2>
+          <h2 className="text-[30px] font-display font-semibold text-ink-950">Active Draws</h2>
           <Link
             href="/draws"
             className="text-sm text-navy-800 hover:text-navy-700 font-medium"

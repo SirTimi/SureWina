@@ -35,7 +35,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
           <img
             src="/images/hero-keke.webp"
             alt="Surewina grand prize"
-            className="relative z-10 h-[620px] w-full object-contain object-right drop-shadow-[0_38px_80px_rgba(15,23,42,0.26)]"
+            className="relative z-10 h-[650px] w-full object-contain object-right drop-shadow-[0_38px_80px_rgba(15,23,42,0.26)]"
             style={{ animation: 'surewina-float 4.8s ease-in-out infinite' }}
           />
         </div>
