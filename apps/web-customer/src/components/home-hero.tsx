@@ -10,7 +10,7 @@ interface HomeHeroProps {
 
 export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps) {
   return (
-    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(251,191,36,0.42)_0%,rgba(251,191,36,0.22)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#fff7e6_48%,#ffe9a8_100%)]">
+    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)]">
       <style>
         {`
           @keyframes surewina-float {
@@ -24,29 +24,32 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
         `}
       </style>
 
-      <Container size="lg" className="relative min-h-[620px] pb-20 pt-14 lg:pb-24 lg:pt-16">
-        <div className="pointer-events-none absolute inset-y-0 right-[-6%] z-0 hidden w-[58%] items-center justify-end lg:flex">
-          <div className="absolute right-[8%] top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-amber-300/25 blur-3xl" />
-          <div className="absolute bottom-24 right-[16%] h-16 w-[420px] rounded-full bg-amber-900/10 blur-2xl" />
+      <Container
+        size="lg"
+        className="relative min-h-[650px] max-w-[1180px] pb-20 pt-14 lg:pb-24 lg:pt-16"
+      >
+        <div className="pointer-events-none absolute inset-y-0 right-[-12%] z-0 hidden w-[68%] items-center justify-end lg:flex">
+          <div className="absolute right-[10%] top-1/2 h-[620px] w-[620px] -translate-y-1/2 rounded-full bg-[#A8E368]/25 blur-3xl" />
+          <div className="absolute bottom-20 right-[18%] h-20 w-[520px] rounded-full bg-[#4E8F01]/10 blur-2xl" />
 
           <img
             src="/images/hero-keke.webp"
             alt="Surewina grand prize"
-            className="relative z-10 h-[500px] w-full object-contain object-right drop-shadow-[0_34px_70px_rgba(15,23,42,0.24)]"
+            className="relative z-10 h-[620px] w-full object-contain object-right drop-shadow-[0_38px_80px_rgba(15,23,42,0.26)]"
             style={{ animation: 'surewina-float 4.8s ease-in-out infinite' }}
           />
         </div>
 
         <div className="relative z-20 max-w-[650px]">
-          <div className="mb-6 inline-flex items-center gap-2  border border-blue-100 bg-white/85 px-4 py-2 text-sm font-semibold text-blue-800 shadow-sm backdrop-blur">
-            <ShieldCheck className="h-4 w-4 text-blue-600" />
+          <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+            <ShieldCheck className="h-4 w-4 text-white" />
             Licensed under Nigerian lottery law · NLRC
           </div>
 
           <h1 className="font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl lg:text-7xl">
             Win real prizes.
             <br />
-            <span className="text-blue-700">Trust</span> the draw.
+            <span className="text-[#4E8F01]">Trust</span> the draw.
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-700">
@@ -60,7 +63,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
                 <Button
                   variant="accent"
                   size="lg"
-                  className="rounded-sm bg-amber-400 font-bold text-navy-950 shadow-[0_16px_34px_rgba(245,158,11,0.28)] hover:bg-amber-300"
+                  className="rounded-sm border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:border-transparent hover:bg-[#B7EF79]"
                 >
                   Buy a ticket {formatNaira(primaryTicketPrice)}
                   <ArrowRight className="h-4 w-4" />
@@ -72,7 +75,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
               <Button
                 variant="secondary"
                 size="lg"
-                className="rounded-sm border-slate-200 bg-white/90 font-bold text-blue-800 shadow-sm backdrop-blur"
+                className="rounded-sm border-[#4E8F01]/20 bg-white/90 font-bold text-[#4E8F01] shadow-sm backdrop-blur hover:bg-white"
               >
                 <PlayCircle className="h-5 w-5" />
                 How it works
@@ -80,9 +83,9 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
             </Link>
           </div>
 
-          <div className="mt-8 grid max-w-2xl grid-cols-1 gap-4 border-t border-slate-200/80 pt-6 sm:grid-cols-3">
+          <div className="mt-8 grid max-w-2xl grid-cols-1 gap-4 border-t border-[#4E8F01]/15 pt-6 sm:grid-cols-3">
             <div className="flex items-center gap-3">
-              <BadgeCheck className="h-7 w-7 text-emerald-600" />
+              <BadgeCheck className="h-7 w-7 text-[#4E8F01]" />
               <div>
                 <p className="text-sm font-bold text-navy-950">Licensed & Regulated</p>
                 <p className="text-xs text-slate-500">NLRC Certified</p>
@@ -90,7 +93,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
             </div>
 
             <div className="flex items-center gap-3">
-              <Lock className="h-7 w-7 text-blue-600" />
+              <Lock className="h-7 w-7 text-[#4E8F01]" />
               <div>
                 <p className="text-sm font-bold text-navy-950">100% Transparent</p>
                 <p className="text-xs text-slate-500">RNG Seed Hash</p>
@@ -98,7 +101,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
             </div>
 
             <div className="flex items-center gap-3">
-              <Users className="h-7 w-7 text-violet-600" />
+              <Users className="h-7 w-7 text-[#4E8F01]" />
               <div>
                 <p className="text-sm font-bold text-navy-950">Trusted by Thousands</p>
                 <p className="text-xs text-slate-500">Across Nigeria</p>
@@ -111,7 +114,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
           <img
             src="/images/hero-keke.webp"
             alt="Surewina grand prize"
-            className="max-h-[340px] w-full object-contain drop-shadow-[0_28px_60px_rgba(15,23,42,0.22)]"
+            className="max-h-[360px] w-full object-contain drop-shadow-[0_28px_60px_rgba(15,23,42,0.22)]"
           />
         </div>
       </Container>
