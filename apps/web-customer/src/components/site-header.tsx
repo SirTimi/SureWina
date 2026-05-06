@@ -12,7 +12,7 @@ export function SiteHeader() {
           <Logo />
         </Link>
 
-        <nav className="hidden items-center gap-8 text-sm font-semibold text-navy-950 md:flex">
+        <nav className="hidden items-center gap-8 text-[13px] font-[700] text-navy-950 md:flex">
           <Link href="/how-it-works" className="transition hover:text-[#4E8F01]">
             How it works
           </Link>
