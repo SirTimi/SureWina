@@ -26,7 +26,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
 
       <Container
         size="lg"
-        className="relative min-h-[650px] max-w-[1180px] pb-20 pt-14 lg:pb-24 lg:pt-16"
+        className="relative min-h-[650px] max-w-[1180px] pb-20 pt-28 lg:pb-24 lg:pt-32"
       >
         <div className="pointer-events-none absolute inset-y-0 right-[-12%] z-0 hidden w-[68%] items-center justify-end lg:flex">
           <div className="absolute right-[10%] top-1/2 h-[620px] w-[620px] -translate-y-1/2 rounded-full bg-[#A8E368]/25 blur-3xl" />
@@ -63,7 +63,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
                 <Button
                   variant="accent"
                   size="lg"
-                  className="rounded-sm border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:border-transparent hover:bg-[#B7EF79]"
+                  className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
                 >
                   Buy a ticket {formatNaira(primaryTicketPrice)}
                   <ArrowRight className="h-4 w-4" />
@@ -108,14 +108,6 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="relative z-10 mt-10 flex justify-center lg:hidden">
-          <img
-            src="/images/hero-keke.webp"
-            alt="Surewina grand prize"
-            className="max-h-[360px] w-full object-contain drop-shadow-[0_28px_60px_rgba(15,23,42,0.22)]"
-          />
         </div>
       </Container>
     </section>
