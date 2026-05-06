@@ -34,7 +34,7 @@ const footerGroups = [
 
 export function SiteFooter() {
   return (
-    <footer className="mt-20 bg-[#4E8F01] text-white">
+    <footer className="mt-20 bg-[#004D25] text-white">
       <Container size="lg" className="max-w-[1400px] py-14">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-16">
           <div>
