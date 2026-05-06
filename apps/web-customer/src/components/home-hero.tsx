@@ -26,11 +26,11 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
 
       <Container
         size="lg"
-        className="relative min-h-[650px] max-w-[1180px] pb-20 pt-28 lg:pb-24 lg:pt-32"
+        className="relative min-h-[650px] max-w-[1180px] pb-20 pt-28 lg:pb-24 lg:pt-32 2xl:max-w-[1180px]"
       >
-        <div className="pointer-events-none absolute right-[-78px] top-[58%] z-0 hidden w-[900px] lg:block">
-          <div className="absolute right-[120px] top-1/2 h-[760px] w-[760px] -translate-y-1/2 rounded-full bg-[#A8E368]/25 blur-3xl" />
-            <div className="absolute bottom-[18px] right-[170px] h-20 w-[620px] rounded-full bg-[#4E8F01]/10 blur-2xl" />
+        <div className="pointer-events-none absolute right-[-86px] top-[58%] z-0 hidden w-[930px] lg:block 2xl:right-[-86px] 2xl:w-[930px]">
+          <div className="absolute right-[130px] top-1/2 h-[780px] w-[780px] -translate-y-1/2 rounded-full bg-[#A8E368]/25 blur-3xl" />
+          <div className="absolute bottom-[18px] right-[185px] h-20 w-[640px] rounded-full bg-[#4E8F01]/10 blur-2xl" />
 
           <img
             src="/images/hero-keke.webp"
