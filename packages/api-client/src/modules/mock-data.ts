@@ -38,6 +38,7 @@ function daysFromNow(days: number, hour = 20): string {
 // === Active draws ===
 
 export const MOCK_ACTIVE_DRAWS: DrawPublic[] = [
+  // Today's daily — closes in ~7 hours
   {
     drawCode: 'RD-DRAW-20260427-DAILY',
     drawType: 'DAILY_STANDARD',
@@ -49,6 +50,43 @@ export const MOCK_ACTIVE_DRAWS: DrawPublic[] = [
     scheduledAt: inHours(8),
     cutoffAt: inHours(7),
   },
+  // Tomorrow's daily — Hisense U7 TV
+  {
+    drawCode: 'RD-DRAW-20260428-DAILY',
+    drawType: 'DAILY_STANDARD',
+    status: 'ACTIVE',
+    prizeDescription: 'Hisense 55" U7 TV',
+    prizeValueNgn: 540000,
+    prizeImageUrl: null,
+    ticketPriceNgn: 500,
+    scheduledAt: inHours(32),
+    cutoffAt: inHours(31),
+  },
+  // Day-after — LG OLED
+  {
+    drawCode: 'RD-DRAW-20260429-DAILY',
+    drawType: 'DAILY_STANDARD',
+    status: 'ACTIVE',
+    prizeDescription: 'LG OLED 65" TV',
+    prizeValueNgn: 1100000,
+    prizeImageUrl: null,
+    ticketPriceNgn: 500,
+    scheduledAt: inHours(56),
+    cutoffAt: inHours(55),
+  },
+  // 3 days out — iPhone
+  {
+    drawCode: 'RD-DRAW-20260430-DAILY',
+    drawType: 'DAILY_STANDARD',
+    status: 'ACTIVE',
+    prizeDescription: 'iPhone 15',
+    prizeValueNgn: 950000,
+    prizeImageUrl: null,
+    ticketPriceNgn: 500,
+    scheduledAt: inHours(80),
+    cutoffAt: inHours(79),
+  },
+  // Saturday jackpot
   {
     drawCode: 'RD-DRAW-20260502-JACKPOT',
     drawType: 'SATURDAY_JACKPOT',
@@ -69,8 +107,26 @@ export const MOCK_DRAW_BY_ID: Record<string, GetDrawResponse> = {
     prizePoolNgn: 821000,
     jackpotEligible: false,
   },
-  'RD-DRAW-20260502-JACKPOT': {
+  'RD-DRAW-20260428-DAILY': {
     draw: MOCK_ACTIVE_DRAWS[1],
+    ticketsSold: 1042,
+    prizePoolNgn: 260500,
+    jackpotEligible: false,
+  },
+  'RD-DRAW-20260429-DAILY': {
+    draw: MOCK_ACTIVE_DRAWS[2],
+    ticketsSold: 412,
+    prizePoolNgn: 103000,
+    jackpotEligible: false,
+  },
+  'RD-DRAW-20260430-DAILY': {
+    draw: MOCK_ACTIVE_DRAWS[3],
+    ticketsSold: 218,
+    prizePoolNgn: 54500,
+    jackpotEligible: false,
+  },
+  'RD-DRAW-20260502-JACKPOT': {
+    draw: MOCK_ACTIVE_DRAWS[4],
     ticketsSold: 812,
     prizePoolNgn: 4000000,
     jackpotEligible: true,
