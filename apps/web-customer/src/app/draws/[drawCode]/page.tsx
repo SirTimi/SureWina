@@ -1,6 +1,13 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ChevronLeft, Users } from 'lucide-react';
+import {
+  ArrowLeft,
+  Clock,
+  Hash,
+  ShieldCheck,
+  Ticket,
+  Users,
+} from 'lucide-react';
 import { Badge, Card, Container } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { api } from '@/lib/api';
@@ -16,6 +23,7 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
   const { drawCode } = await params;
 
   let drawData;
+
   try {
     drawData = await api.draws.getById(drawCode);
   } catch {
@@ -27,123 +35,225 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
   const ticketCap = isJackpot ? null : 6000;
   const soldPercentage = ticketCap ? Math.min(100, (ticketsSold / ticketCap) * 100) : 0;
 
-  // Mock seed hash for tonight's draw
   const seedHash = '9f4c2b8e1a7d6f30c5e9b2148a6d4f7c2c6e9a4b7d0f3e6c1a5b8d';
   const seedCommittedAt = '00:00 WAT';
 
+  const prizeImage = isJackpot ? '/images/jackpot-cash.webp' : '/images/draw-phone.webp';
+
   return (
-    <Container size="lg" className="py-8">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-ink-500 mb-6">
-        <Link href="/" className="hover:text-navy-800 inline-flex items-center gap-1">
-          <ChevronLeft className="w-3.5 h-3.5" />
-          Active draws
-        </Link>
-        <span className="text-ink-300">/</span>
-        <span className="text-ink-700">
-          {drawTypeShortLabel[draw.drawType]} · {formatDrawDate(draw.scheduledAt)}
-        </span>
-      </nav>
+    <main>
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pb-12 pt-32 sm:pt-36 lg:pt-40">
+        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
+        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-[#4E8F01]/10 blur-3xl" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
-        {/* Left column: prize details */}
-        <div className="space-y-6">
-          {/* Prize image card */}
-          <Card variant="default" className="overflow-hidden">
-            <div className="relative bg-ink-50 aspect-[16/9] flex items-center justify-center border-b border-ink-100">
-              <span className="text-xs text-ink-300 font-mono">
-                [ product shot · 16:9 · {draw.prizeDescription} ]
-              </span>
-            </div>
+        <Container size="lg" className="relative max-w-[1400px]">
+          <Link
+            href="/draws"
+            className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to active draws
+          </Link>
 
-            <div className="p-6">
-              <div className="flex items-center gap-2 mb-3">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
+            <div>
+              <div className="mb-5 flex flex-wrap items-center gap-2">
                 <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
                   {drawTypeShortLabel[draw.drawType]}
                 </Badge>
+
                 <Badge variant="live" withDot>
                   Live · selling now
                 </Badge>
+
+                <span className="inline-flex items-center gap-2 rounded-sm bg-white/80 px-3 py-1.5 text-xs font-bold text-[#4E8F01] shadow-sm backdrop-blur">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Regulated draw
+                </span>
               </div>
 
-              <p className="text-[10px] uppercase tracking-wider text-ink-500 font-medium mb-1">
-                Today&apos;s prize
-              </p>
-              <h1 className="font-display text-3xl font-bold text-ink-950">
+              <h1 className="max-w-4xl font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl lg:text-7xl">
                 {draw.prizeDescription}
               </h1>
-              <p className="text-base text-ink-500 mt-3 leading-relaxed">
+
+              <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
                 {isJackpot
-                  ? 'Guaranteed ₦4,000,000 cash prize, paid to your verified Nigerian bank account within 24 hours of KYC clearance. WHT deducted at source.'
-                  : '128 GB storage · 8 GB RAM · Awesome Navy. Brand new, sealed, shipped within 3 working days to anywhere in Nigeria with full manufacturer warranty.'}
+                  ? 'Guaranteed cash prize, paid to your verified Nigerian bank account after claim verification. Every draw publishes public records and seed verification data.'
+                  : 'Brand new, sealed product prize with public draw records, ticket references, and verifiable RNG seed hash after the draw.'}
               </p>
 
-              <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-ink-100">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-                    {isJackpot ? 'Guaranteed prize' : 'Prize value'}
-                  </p>
-                  <p className="text-lg font-display font-bold text-ink-950 tabular-nums mt-1">
-                    {formatNaira(draw.prizeValueNgn)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-                    Ticket price
-                  </p>
-                  <p className="text-lg font-display font-bold text-ink-950 tabular-nums mt-1">
-                    {formatNaira(draw.ticketPriceNgn)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-                    Closes in
-                  </p>
-                  <p className="text-lg font-display font-bold text-ink-950 tabular-nums mt-1 font-mono">
-                    {formatCountdown(draw.cutoffAt)}
-                  </p>
-                </div>
+              <div className="mt-8 grid max-w-4xl grid-cols-2 gap-4 md:grid-cols-4">
+                <DetailStat
+                  label={isJackpot ? 'Guaranteed prize' : 'Prize value'}
+                  value={formatNaira(draw.prizeValueNgn)}
+                />
+                <DetailStat label="Ticket price" value={formatNaira(draw.ticketPriceNgn)} />
+                <DetailStat label="Closes in" value={formatCountdown(draw.cutoffAt)} mono />
+                <DetailStat label="Tickets sold" value={ticketsSold.toLocaleString()} />
               </div>
+            </div>
 
-              {/* Tickets sold progress */}
-              <div className="mt-6 pt-5 border-t border-ink-100">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="inline-flex items-center gap-1.5 text-ink-700">
-                    <Users className="w-4 h-4" />
-                    <span className="font-semibold tabular-nums">
-                      {ticketsSold.toLocaleString()}
-                    </span>{' '}
-                    tickets sold so far
-                  </span>
-                  <span className="text-xs text-ink-500">Updated 12s ago</span>
+            <div className="hidden lg:block">
+              <BuyTicketPanel draw={draw} />
+            </div>
+          </div>
+        </Container>
+      </section>
+
+      <section className="bg-[#F8FAF4]">
+        <Container size="lg" className="max-w-[1400px] py-10 lg:py-14">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="space-y-6">
+              <Card
+                variant="default"
+                className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.07)]"
+              >
+                <div className="relative min-h-[440px] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(168,227,104,0.34)_0%,rgba(168,227,104,0.18)_26%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#A8E368_100%)]">
+                  <div className="absolute left-6 top-6 z-20 flex gap-2">
+                    <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
+                      {drawTypeShortLabel[draw.drawType]}
+                    </Badge>
+                    <Badge variant="live" withDot>
+                      Live
+                    </Badge>
+                  </div>
+
+                  <div className="absolute inset-0 flex items-center justify-center p-8">
+                    <img
+                      src={prizeImage}
+                      alt={draw.prizeDescription}
+                      className={
+                        isJackpot
+                          ? 'h-[115%] w-[115%] object-contain drop-shadow-[0_34px_80px_rgba(15,23,42,0.22)]'
+                          : 'h-[120%] w-[120%] object-contain drop-shadow-[0_34px_80px_rgba(15,23,42,0.18)]'
+                      }
+                    />
+                  </div>
                 </div>
-                {ticketCap && (
+
+                <div className="grid grid-cols-1 border-t border-slate-100 md:grid-cols-3">
+                  <InfoCell
+                    icon={<Ticket className="h-4 w-4" />}
+                    title="Draw code"
+                    value={draw.drawCode}
+                  />
+                  <InfoCell
+                    icon={<Clock className="h-4 w-4" />}
+                    title="Scheduled"
+                    value={formatDrawDate(draw.scheduledAt)}
+                  />
+                  <InfoCell
+                    icon={<Hash className="h-4 w-4" />}
+                    title="Prize pool"
+                    value={formatNaira(prizePoolNgn)}
+                  />
+                </div>
+              </Card>
+
+              <Card
+                variant="default"
+                className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+              >
+                <div className="mb-5 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+                      Live demand
+                    </p>
+                    <h2 className="mt-1 font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
+                      {ticketsSold.toLocaleString()} tickets sold so far
+                    </h2>
+                  </div>
+
+                  <div className="hidden rounded-sm bg-[#A8E368]/25 px-3 py-2 text-xs font-bold text-[#4E8F01] sm:block">
+                    Updated 12s ago
+                  </div>
+                </div>
+
+                {ticketCap ? (
                   <>
-                    <div className="h-2 bg-ink-100 rounded-full overflow-hidden">
+                    <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full bg-navy-800 rounded-full transition-all"
+                        className="h-full rounded-full bg-[#4E8F01] transition-all"
                         style={{ width: `${soldPercentage}%` }}
                       />
                     </div>
-                    <p className="text-xs text-ink-500 mt-2">
-                      Cap: {ticketCap.toLocaleString()} tickets per daily draw. Anything above{' '}
-                      {ticketCap.toLocaleString()} is refunded automatically.
+
+                    <p className="mt-3 text-sm leading-relaxed text-slate-500">
+                      Cap: {ticketCap.toLocaleString()} tickets per daily draw. Anything
+                      above {ticketCap.toLocaleString()} is refunded automatically.
                     </p>
                   </>
+                ) : (
+                  <p className="text-sm leading-relaxed text-slate-500">
+                    The jackpot has no daily product ticket cap. All valid jackpot tickets
+                    enter the Saturday draw.
+                  </p>
                 )}
-              </div>
+              </Card>
+
+              <HowDrawWorks seedHash={seedHash} seedCommittedAt={seedCommittedAt} />
             </div>
-          </Card>
 
-          {/* How this draw works */}
-          <HowDrawWorks seedHash={seedHash} seedCommittedAt={seedCommittedAt} />
-        </div>
+            <div className="lg:hidden">
+              <BuyTicketPanel draw={draw} />
+            </div>
 
-        {/* Right column: buy panel */}
-        <div>
-          <BuyTicketPanel draw={draw} />
-        </div>
+            <aside className="hidden lg:block">
+              <div className="sticky top-28">
+                <BuyTicketPanel draw={draw} />
+              </div>
+            </aside>
+          </div>
+        </Container>
+      </section>
+    </main>
+  );
+}
+
+interface DetailStatProps {
+  label: string;
+  value: string;
+  mono?: boolean;
+}
+
+function DetailStat({ label, value, mono }: DetailStatProps) {
+  return (
+    <Card
+      variant="default"
+      className="rounded-2xl border-[#4E8F01]/15 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur"
+    >
+      <p
+        className={
+          mono
+            ? 'font-mono text-2xl font-black tracking-[-0.03em] text-navy-950 tabular-nums'
+            : 'font-display text-2xl font-black tracking-[-0.03em] text-navy-950 tabular-nums'
+        }
+      >
+        {value}
+      </p>
+      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+        {label}
+      </p>
+    </Card>
+  );
+}
+
+function InfoCell({
+  icon,
+  title,
+  value,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+}) {
+  return (
+    <div className="border-b border-slate-100 p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
+      <div className="mb-2 flex items-center gap-2 text-[#4E8F01]">
+        {icon}
+        <p className="text-[10px] font-black uppercase tracking-[0.14em]">{title}</p>
       </div>
-    </Container>
+      <p className="font-semibold text-navy-950">{value}</p>
+    </div>
   );
 }

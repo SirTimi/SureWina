@@ -2,8 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Hash, Play, ShieldCheck, Sparkles, Trophy } from 'lucide-react';
-import { Button, Container } from '@surewina/ui';
+import {
+  ArrowLeft,
+  Check,
+  Hash,
+  Play,
+  ShieldCheck,
+  Sparkles,
+  Ticket,
+  Trophy,
+} from 'lucide-react';
+import { Badge, Button, Card, Container } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import type { LiveDrawState } from '@surewina/types';
 import { api } from '@/lib/api';
@@ -15,198 +24,361 @@ interface LiveDrawViewProps {
 
 const SLOT_COUNT = 8;
 
+type StageKey = 'committed' | 'sorting' | 'running' | 'locked';
+
 export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
   const [state, setState] = useState<LiveDrawState | null>(null);
   const [countdown, setCountdown] = useState(12);
   const [slotValues, setSlotValues] = useState<string[]>(Array(SLOT_COUNT).fill('•'));
   const [drawStarted, setDrawStarted] = useState(false);
 
-  // Initial fetch
   useEffect(() => {
     api.claims.getLiveDraw(drawCode).then((res) => setState(res.state));
   }, [drawCode]);
 
-  // Countdown ticker
   useEffect(() => {
-    if (!drawStarted) return;
-    if (countdown <= 0) return;
+    if (!drawStarted || countdown <= 0) return;
+
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [countdown, drawStarted]);
 
-  // Slot animation when drawing
   useEffect(() => {
     if (!drawStarted) return;
+
     if (countdown > 0) {
-      // Roulette mode — random characters scramble
       const t = setInterval(() => {
         setSlotValues((vals) =>
-          vals.map(() => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 31)]),
+          vals.map(
+            () =>
+              'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[
+                Math.floor(Math.random() * 31)
+              ],
+          ),
         );
       }, 80);
+
       return () => clearInterval(t);
     }
-    // Lock final winning ticket once countdown hits 0
+
     const final = state?.winningTicketRef ?? 'SW-04AB-9LK2';
     const cleaned = final.replace(/-/g, '').slice(0, SLOT_COUNT).padEnd(SLOT_COUNT, '0');
     setSlotValues(cleaned.split(''));
   }, [countdown, drawStarted, state]);
 
-  // Refresh state once countdown completes
   useEffect(() => {
     if (drawStarted && countdown === 0) {
       const t = setTimeout(() => {
         api.claims.getLiveDraw(drawCode).then((res) => setState(res.state));
       }, 1000);
+
       return () => clearTimeout(t);
     }
   }, [countdown, drawStarted, drawCode]);
 
   if (!state) {
     return (
-      <Container size="md" className="py-16">
-        <div className="h-96 animate-pulse rounded-2xl bg-slate-100" />
-      </Container>
+      <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pt-32">
+        <Container size="lg" className="max-w-[1400px] pb-16">
+          <div className="h-[520px] animate-pulse rounded-3xl border border-slate-200 bg-white/80 shadow-[0_28px_80px_rgba(15,23,42,0.08)]" />
+        </Container>
+      </main>
     );
   }
 
   const isComplete = drawStarted && countdown === 0;
 
+  const activeStage: StageKey = !drawStarted
+    ? 'committed'
+    : !isComplete
+      ? 'running'
+      : 'locked';
+
   return (
-    <section className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-gradient-to-b from-navy-950 via-navy-950 to-[#08152a] text-white">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#A8E368]/40 to-transparent" />
-      <div className="pointer-events-none absolute right-[-15%] top-[10%] h-[500px] w-[500px] rounded-full bg-[#A8E368]/8 blur-3xl" />
-      <div className="pointer-events-none absolute left-[-10%] bottom-[10%] h-[400px] w-[400px] rounded-full bg-amber-500/8 blur-3xl" />
+    <main className="min-h-screen bg-[#F8FAF4]">
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pb-12 pt-32 sm:pt-36 lg:pt-40">
+        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
+        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-[#4E8F01]/10 blur-3xl" />
 
-      <Container size="md" className="relative z-10 max-w-[820px] py-16 text-center lg:py-24">
-        {/* Eyebrow */}
-        <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.24em] text-[#A8E368]">
-          {drawTypeShortLabel[state.drawType]} · {formatDrawDate(state.scheduledAt)} ·{' '}
-          {formatDrawTime(state.scheduledAt)}
-        </div>
-
-        {/* Headline */}
-        <h1 className="font-display text-5xl font-black leading-[1.02] tracking-[-0.04em] sm:text-6xl">
-          {!drawStarted && 'Ready to draw'}
-          {drawStarted && !isComplete && (
-            <>
-              Drawing in <span className="text-[#A8E368]">{countdown}s</span>
-            </>
-          )}
-          {isComplete && <span className="text-[#A8E368]">Winner picked.</span>}
-        </h1>
-
-        {!isComplete && (
-          <p className="mx-auto mt-4 max-w-xl text-base text-white/70">
-            {drawStarted
-              ? 'Sit tight. The seed is being fed to the deterministic RNG. The winning index will lock when the timer hits zero.'
-              : 'The seed hash is committed and public. Press start to run the draw.'}
-          </p>
-        )}
-
-        {isComplete && state.winningTicketRef && (
-          <p className="mx-auto mt-4 max-w-xl text-base text-white/70">
-            Seed has been revealed. Anyone can re-hash the seed and confirm it matches what we
-            published before the draw.
-          </p>
-        )}
-
-        {/* Slot row */}
-        <div className="mt-12 flex justify-center gap-2 sm:gap-3">
-          {slotValues.map((val, i) => (
-            <div
-              key={i}
-              className={`flex h-16 w-12 items-center justify-center rounded-xl border font-mono text-2xl font-black tabular-nums transition-all sm:h-20 sm:w-16 sm:text-3xl ${
-                isComplete
-                  ? 'border-[#A8E368]/60 bg-[#A8E368]/15 text-[#A8E368] shadow-[0_0_30px_rgba(168,227,104,0.25)]'
-                  : drawStarted
-                  ? 'border-white/20 bg-white/5 text-white/80'
-                  : 'border-white/10 bg-white/5 text-white/30'
-              }`}
-            >
-              {val}
-            </div>
-          ))}
-        </div>
-
-        {/* Action area */}
-        {!drawStarted && (
-          <Button
-            onClick={() => setDrawStarted(true)}
-            variant="accent"
-            size="lg"
-            className="mt-12 rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
+        <Container size="lg" className="relative max-w-[1400px]">
+          <Link
+            href={`/draws/${drawCode}`}
+            className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
           >
-            <Play className="h-4 w-4" />
-            Start the draw (demo)
-          </Button>
-        )}
+            <ArrowLeft className="h-4 w-4" />
+            Back to draw
+          </Link>
 
-        {isComplete && state.winningTicketRef && (
-          <div className="mx-auto mt-10 inline-flex flex-col gap-3 rounded-2xl border border-[#A8E368]/30 bg-[#A8E368]/8 px-8 py-6 sm:flex-row sm:items-center sm:gap-6">
-            <Trophy className="h-8 w-8 text-[#A8E368]" />
-            <div className="text-left">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8E368]">
-                Winning ticket
-              </p>
-              <p className="mt-1 font-mono text-xl font-bold tracking-wider text-white">
-                {state.winningTicketRef}
-              </p>
+          <div className="max-w-4xl">
+            <div className="mb-6 flex flex-wrap items-center gap-2">
+              <Badge variant={state.drawType === 'SATURDAY_JACKPOT' ? 'jackpot' : 'daily'}>
+                {drawTypeShortLabel[state.drawType]}
+              </Badge>
+
+              <span className="inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+                <ShieldCheck className="h-4 w-4 text-white" />
+                Live draw · public verification
+              </span>
             </div>
-          </div>
-        )}
 
-        {/* Stat strip */}
-        <div className="mx-auto mt-10 grid max-w-2xl grid-cols-2 gap-4 border-t border-white/10 pt-8 sm:grid-cols-3">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
-              Tickets sold
-            </p>
-            <p className="mt-2 font-display text-2xl font-black tabular-nums">
-              {state.ticketsSold.toLocaleString()}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
-              Prize
-            </p>
-            <p className="mt-2 font-display text-base font-bold leading-tight">
-              {state.prizeDescription}
-            </p>
-            <p className="mt-1 text-xs text-[#A8E368] tabular-nums">
-              {formatNaira(state.prizeValueNgn)}
-            </p>
-          </div>
-          <div className="col-span-2 sm:col-span-1">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
-              Seed hash
-            </p>
-            <p className="mt-2 truncate font-mono text-sm text-white/80">
-              {state.seedHash.slice(0, 16)}…
-            </p>
-          </div>
-        </div>
+            <h1 className="font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl lg:text-7xl">
+              {!drawStarted && (
+                <>
+                  Ready to
+                  <br />
+                  <span className="text-[#4E8F01]">run the draw.</span>
+                </>
+              )}
 
-        {/* Footer */}
-        <div className="mt-12 border-t border-white/10 pt-6">
-          <p className="mx-auto max-w-md text-xs text-white/50">
-            The seed was committed at 00:00 WAT today. After this draw closes, the original seed
-            will be revealed at{' '}
-            <Link
-              href={`/results/${drawCode}`}
-              className="text-[#A8E368] hover:underline"
+              {drawStarted && !isComplete && (
+                <>
+                  Drawing in
+                  <br />
+                  <span className="text-[#4E8F01]">{countdown}s.</span>
+                </>
+              )}
+
+              {isComplete && (
+                <>
+                  Winner
+                  <br />
+                  <span className="text-[#4E8F01]">picked.</span>
+                </>
+              )}
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
+              {!drawStarted &&
+                'The seed hash is already committed and public. Start the draw to run the deterministic RNG.'}
+
+              {drawStarted &&
+                !isComplete &&
+                'Ticket references are being sorted. The committed seed is being fed into the draw logic.'}
+
+              {isComplete &&
+                'The winning reference is now locked. Seed reveal can be checked against the earlier committed hash.'}
+            </p>
+          </div>
+        </Container>
+      </section>
+
+      <Container size="lg" className="max-w-[1400px] py-10 lg:py-14">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <Card
+            variant="default"
+            className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.08)]"
+          >
+            <div className="border-b border-slate-100 bg-[#F8FAF4] px-6 py-5">
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                    Draw stage
+                  </p>
+                  <p className="mt-1 font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
+                    {state.prizeDescription}
+                  </p>
+                </div>
+
+                <div className="inline-flex items-center gap-2 rounded-sm bg-white px-3 py-2 text-xs font-bold text-[#4E8F01] shadow-sm">
+                  <Ticket className="h-4 w-4" />
+                  {state.ticketsSold.toLocaleString()} tickets sold
+                </div>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(168,227,104,0.32)_0%,rgba(168,227,104,0.14)_30%,transparent_62%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#A8E368_100%)] px-5 py-12 sm:px-8 sm:py-16">
+              <div className="mx-auto max-w-4xl">
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
+                  {slotValues.map((val, i) => (
+                    <div
+                      key={`${i}-${val}`}
+                      className={
+                        isComplete
+                          ? 'flex h-16 items-center justify-center rounded-2xl border border-[#4E8F01]/25 bg-white text-center font-mono text-2xl font-black text-[#4E8F01] shadow-[0_18px_50px_rgba(78,143,1,0.18)] sm:h-24 sm:text-4xl'
+                          : drawStarted
+                            ? 'flex h-16 items-center justify-center rounded-2xl border border-[#4E8F01]/15 bg-white/75 text-center font-mono text-2xl font-black text-navy-950 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur sm:h-24 sm:text-4xl'
+                            : 'flex h-16 items-center justify-center rounded-2xl border border-slate-200 bg-white/60 text-center font-mono text-2xl font-black text-slate-300 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur sm:h-24 sm:text-4xl'
+                      }
+                    >
+                      {val}
+                    </div>
+                  ))}
+                </div>
+
+                {!drawStarted && (
+                  <div className="mt-10 text-center">
+                    <Button
+                      onClick={() => setDrawStarted(true)}
+                      variant="accent"
+                      size="lg"
+                      className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
+                    >
+                      <Play className="h-4 w-4" />
+                      Start the draw demo
+                    </Button>
+                  </div>
+                )}
+
+                {isComplete && state.winningTicketRef && (
+                  <div className="mx-auto mt-10 max-w-xl rounded-3xl border border-[#4E8F01]/15 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+                    <div className="flex flex-col gap-4 text-center sm:flex-row sm:items-center sm:text-left">
+                      <div className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#A8E368]/35 text-[#4E8F01] sm:mx-0">
+                        <Trophy className="h-7 w-7" />
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                          Winning ticket
+                        </p>
+                        <p className="mt-1 font-mono text-2xl font-black tracking-wider text-navy-950">
+                          {state.winningTicketRef}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          <aside className="space-y-4">
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
             >
-              surewina.ng/results
-            </Link>{' '}
-            for verification.
-          </p>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                Verification status
+              </p>
 
-          <div className="mt-6 flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-white/40">
-            <ShieldCheck className="h-3.5 w-3.5 text-[#A8E368]" />
-            Licensed · NLRC #NL/2025/0241
-          </div>
+              <div className="mt-5 space-y-3">
+                <StageItem
+                  active={activeStage === 'committed'}
+                  done={drawStarted || isComplete}
+                  title="Seed committed"
+                  body="Hash published before draw execution."
+                />
+                <StageItem
+                  active={drawStarted && !isComplete}
+                  done={isComplete}
+                  title="Tickets sorted"
+                  body="All valid references enter deterministic ordering."
+                />
+                <StageItem
+                  active={drawStarted && !isComplete}
+                  done={isComplete}
+                  title="RNG running"
+                  body="Committed seed selects the winning index."
+                />
+                <StageItem
+                  active={activeStage === 'locked'}
+                  done={isComplete}
+                  title="Winner locked"
+                  body="Winning reference becomes permanent."
+                />
+              </div>
+            </Card>
+
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                Draw details
+              </p>
+
+              <div className="mt-5 space-y-4">
+                <DetailRow label="Draw date" value={formatDrawDate(state.scheduledAt)} />
+                <DetailRow label="Draw time" value={formatDrawTime(state.scheduledAt)} />
+                <DetailRow label="Prize value" value={formatNaira(state.prizeValueNgn)} />
+                <DetailRow label="Tickets sold" value={state.ticketsSold.toLocaleString()} />
+              </div>
+            </Card>
+
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+            >
+              <div className="mb-3 flex items-center gap-2 text-[#4E8F01]">
+                <Hash className="h-4 w-4" />
+                <p className="text-[10px] font-black uppercase tracking-[0.16em]">
+                  Seed hash
+                </p>
+              </div>
+
+              <p className="break-all rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4 font-mono text-xs leading-relaxed text-slate-700">
+                {state.seedHash}
+              </p>
+
+              <p className="mt-4 text-xs leading-relaxed text-slate-500">
+                The seed was committed before the draw. After the draw, the original seed
+                can be revealed and matched against this hash.
+              </p>
+
+              <Link
+                href={`/results/${drawCode}`}
+                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+              >
+                View result archive
+                <Sparkles className="h-4 w-4" />
+              </Link>
+            </Card>
+          </aside>
         </div>
       </Container>
-    </section>
+    </main>
+  );
+}
+
+function StageItem({
+  active,
+  done,
+  title,
+  body,
+}: {
+  active?: boolean;
+  done?: boolean;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div
+      className={
+        done
+          ? 'rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4'
+          : active
+            ? 'rounded-2xl border border-[#4E8F01]/25 bg-[#A8E368]/15 p-4'
+            : 'rounded-2xl border border-slate-100 bg-white p-4'
+      }
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={
+            done
+              ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
+              : active
+                ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#A8E368] text-navy-950'
+                : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-400'
+          }
+        >
+          {done ? <Check className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+        </div>
+
+        <div>
+          <p className="text-sm font-black text-navy-950">{title}</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">{body}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0">
+      <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </span>
+      <span className="text-right text-sm font-black text-navy-950">{value}</span>
+    </div>
   );
 }

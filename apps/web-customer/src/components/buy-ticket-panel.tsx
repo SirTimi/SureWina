@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Minus, Plus, Lock } from 'lucide-react';
+import { Lock, Minus, Plus, Ticket } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import type { DrawPublic } from '@surewina/types';
@@ -18,66 +18,93 @@ export function BuyTicketPanel({ draw }: BuyTicketPanelProps) {
   const ticketsToNextEntry = isJackpot ? null : 10 - (quantity % 10);
 
   return (
-    <Card variant="default" className="p-6 sticky top-6">
-      <h2 className="font-display font-semibold text-xl text-ink-950">Buy a ticket</h2>
-      <p className="text-sm text-ink-500 mt-1">
+    <Card
+      variant="default"
+      className="rounded-3xl border-slate-200 bg-white/95 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur"
+    >
+      <div className="mb-5 inline-flex items-center gap-2 rounded-sm bg-[#4E8F01] px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-white">
+        <Ticket className="h-4 w-4" />
+        Secure checkout
+      </div>
+
+      <h2 className="font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
+        Buy tickets
+      </h2>
+
+      <p className="mt-2 text-sm leading-relaxed text-slate-500">
         You&apos;ll get a unique ticket reference by SMS within 30 seconds.
       </p>
 
-      <div className="mt-5">
-        <label className="block text-sm font-medium text-ink-700 mb-2">
+      <div className="mt-6">
+        <label className="mb-2 block text-sm font-black text-navy-950">
           How many tickets?
         </label>
-        <div className="flex items-stretch border border-ink-200 rounded-md overflow-hidden">
+
+        <div className="flex overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-[#4E8F01] focus-within:ring-2 focus-within:ring-[#A8E368]/35">
           <button
             type="button"
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            className="px-4 bg-ink-50 hover:bg-ink-100 transition-colors"
+            className="px-4 text-[#4E8F01] transition hover:bg-[#A8E368]/15"
             aria-label="Decrease quantity"
           >
-            <Minus className="w-4 h-4 text-ink-700" />
+            <Minus className="h-4 w-4" />
           </button>
+
           <input
             type="number"
             value={quantity}
             onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-            className="flex-1 text-center font-display text-lg font-semibold tabular-nums bg-white outline-none"
+            className="h-12 flex-1 bg-white text-center font-display text-xl font-black tabular-nums text-navy-950 outline-none"
             min={1}
           />
+
           <button
             type="button"
             onClick={() => setQuantity((q) => q + 1)}
-            className="px-4 bg-ink-50 hover:bg-ink-100 transition-colors"
+            className="px-4 text-[#4E8F01] transition hover:bg-[#A8E368]/15"
             aria-label="Increase quantity"
           >
-            <Plus className="w-4 h-4 text-ink-700" />
+            <Plus className="h-4 w-4" />
           </button>
         </div>
+
         {ticketsToNextEntry !== null && ticketsToNextEntry < 10 && (
-          <p className="text-xs text-amber-700 mt-2">
+          <p className="mt-2 text-xs font-semibold text-[#4E8F01]">
             {ticketsToNextEntry} more for a free Saturday jackpot entry
           </p>
         )}
       </div>
 
-      <div className="mt-5 pt-5 border-t border-ink-100 flex items-baseline justify-between">
-        <span className="text-sm text-ink-500">Total</span>
-        <span className="font-display text-2xl font-bold text-ink-950 tabular-nums">
-          {formatNaira(total)}
-        </span>
+      <div className="mt-6 rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-5">
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm font-bold text-slate-500">Total</span>
+          <span className="font-display text-3xl font-black text-navy-950 tabular-nums">
+            {formatNaira(total)}
+          </span>
+        </div>
+
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          {quantity.toLocaleString()} ticket{quantity === 1 ? '' : 's'} ×{' '}
+          {formatNaira(draw.ticketPriceNgn)}
+        </p>
       </div>
 
-      <Link href={`/draws/${draw.drawCode}/buy?qty=${quantity}`} className="block mt-5">
-        <Button variant="accent" size="lg" fullWidth>
+      <Link href={`/draws/${draw.drawCode}/buy?qty=${quantity}`} className="mt-5 block">
+        <Button
+          variant="accent"
+          size="lg"
+          fullWidth
+          className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+        >
           Continue to checkout
         </Button>
       </Link>
 
-      <p className="text-xs text-ink-500 mt-3 flex items-start gap-1.5">
-        <Lock className="w-3 h-3 mt-0.5 flex-shrink-0" />
+      <p className="mt-4 flex items-start gap-1.5 text-xs leading-relaxed text-slate-500">
+        <Lock className="mt-0.5 h-3 w-3 shrink-0 text-[#4E8F01]" />
         <span>
           By continuing you confirm you are 18 or older and accept the{' '}
-          <Link href="/terms" className="underline hover:text-navy-700">
+          <Link href="/terms" className="font-bold text-[#4E8F01] underline">
             raffle rules
           </Link>
           .

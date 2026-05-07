@@ -27,6 +27,8 @@ export default async function HomePage() {
 
   const dailyDraw = drawsWithStats.find((d) => d.draw.drawType === 'DAILY_STANDARD');
 
+  const homepageDraws = drawsWithStats.slice(0, 2);
+
   return (
     <>
       <HomeHero
@@ -52,7 +54,7 @@ export default async function HomePage() {
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {drawsWithStats.map(({ draw, ticketsSold }) => (
+            {homepageDraws.map(({ draw, ticketsSold }) => (
               <DrawCard key={draw.drawCode} draw={draw} ticketsSold={ticketsSold} />
             ))}
           </div>
