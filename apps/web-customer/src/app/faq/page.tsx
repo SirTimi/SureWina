@@ -146,7 +146,7 @@ export default function FaqPage() {
         subtitle="Honest answers to the things real players want to know. If yours isn't here, tell us at help@surewina.ng and we'll add it."
       />
 
-      <Container size="lg" className="max-w-[1180px] py-12 lg:py-16">
+      <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[260px_1fr]">
           <aside className="lg:sticky lg:top-6 lg:self-start">
             <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">

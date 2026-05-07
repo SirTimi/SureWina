@@ -74,7 +74,7 @@ export default function AuditPage() {
         backLabel="Back to how it works"
       />
 
-      <Container size="lg" className="max-w-[1180px] py-12 lg:py-16">
+      <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
         {/* TL;DR card */}
         <div className="mb-12 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[

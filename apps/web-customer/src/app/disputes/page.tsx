@@ -69,7 +69,7 @@ export default function DisputesPage() {
         subtitle="Every player has the right to a fair, fast resolution. Here's exactly how to raise an issue and what happens next at each step."
       />
 
-      <Container size="lg" className="max-w-[1180px] py-12 lg:py-16">
+      <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
         {/* Promise card */}
         <div className="mb-12 overflow-hidden rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/60 to-white p-6 sm:p-8">
           <div className="flex items-start gap-4">
