@@ -18,7 +18,6 @@ const footerGroups = [
       { label: 'Audit method', href: '/audit' },
       { label: 'RNG seed hashes', href: '/audit#seed-hashes' },
       { label: 'Public archive', href: '/results' },
-      { label: 'Responsible play', href: '/responsible-play' },
     ],
   },
   {

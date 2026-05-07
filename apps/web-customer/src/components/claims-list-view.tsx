@@ -1,16 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Trophy, Package, Banknote, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Badge, Button, Card, EmptyState } from '@surewina/ui';
+import {
+  AlertCircle,
+  ArrowRight,
+  Banknote,
+  CheckCircle2,
+  Clock,
+  Inbox,
+  Package,
+  Search,
+  Trophy,
+} from 'lucide-react';
+import { Badge, Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import type { DashboardClaim, PrizeClaimStatus } from '@surewina/types';
 import { api } from '@/lib/api';
 import { drawTypeShortLabel, formatDrawDate } from '@/lib/draw-helpers';
 
 const statusLabel: Record<PrizeClaimStatus, string> = {
-  NOTIFIED: 'Awaiting your selection',
+  NOTIFIED: 'Awaiting selection',
   SELECTION_MADE: 'Selection confirmed',
   KYC_PENDING: 'KYC required',
   KYC_CLEARED: 'KYC cleared',
@@ -22,7 +32,10 @@ const statusLabel: Record<PrizeClaimStatus, string> = {
   REVERTED_TO_PRODUCT: 'Reverted to product',
 };
 
-const statusVariant: Record<PrizeClaimStatus, 'live' | 'verified' | 'warning' | 'closed' | 'jackpot' | 'daily'> = {
+const statusVariant: Record<
+  PrizeClaimStatus,
+  'live' | 'verified' | 'warning' | 'closed' | 'jackpot' | 'daily'
+> = {
   NOTIFIED: 'warning',
   SELECTION_MADE: 'live',
   KYC_PENDING: 'warning',
@@ -35,73 +48,33 @@ const statusVariant: Record<PrizeClaimStatus, 'live' | 'verified' | 'warning' | 
   REVERTED_TO_PRODUCT: 'live',
 };
 
-const TIMELINE: { id: 'won' | 'selected' | 'kyc' | 'fulfilled'; label: string }[] = [
-  { id: 'won', label: 'Won' },
-  { id: 'selected', label: 'Selection made' },
-  { id: 'kyc', label: 'KYC cleared' },
-  { id: 'fulfilled', label: 'Delivered' },
-];
-
-function getTimelineProgress(status: PrizeClaimStatus, claimType: 'PRODUCT' | 'CASH' | null) {
-  // Compute which steps are done, current, future
-  const stepStates: Record<typeof TIMELINE[number]['id'], 'done' | 'current' | 'future'> = {
-    won: 'done',
-    selected: 'future',
-    kyc: 'future',
-    fulfilled: 'future',
-  };
-
-  if (status === 'NOTIFIED') {
-    stepStates.selected = 'current';
-    return stepStates;
-  }
-
-  stepStates.selected = 'done';
-
-  if (claimType === 'PRODUCT') {
-    // Product path skips KYC
-    if (status === 'SELECTION_MADE' || status === 'PRODUCT_BOOKED') {
-      stepStates.kyc = 'done';
-      stepStates.fulfilled = 'current';
-    } else if (status === 'DISPATCHED') {
-      stepStates.kyc = 'done';
-      stepStates.fulfilled = 'current';
-    } else if (status === 'DELIVERED') {
-      stepStates.kyc = 'done';
-      stepStates.fulfilled = 'done';
-    }
-  } else if (claimType === 'CASH') {
-    if (status === 'KYC_PENDING') stepStates.kyc = 'current';
-    else if (status === 'KYC_CLEARED') {
-      stepStates.kyc = 'done';
-      stepStates.fulfilled = 'current';
-    } else if (status === 'CASH_PAID') {
-      stepStates.kyc = 'done';
-      stepStates.fulfilled = 'done';
-    }
-  }
-
-  if (status === 'FORFEITED') {
-    stepStates.selected = 'done';
-    stepStates.kyc = 'future';
-    stepStates.fulfilled = 'future';
-  }
-
-  return stepStates;
-}
+const actionStatuses: PrizeClaimStatus[] = ['NOTIFIED', 'KYC_PENDING'];
 
 function formatDeadline(iso: string): string {
   const ms = new Date(iso).getTime() - Date.now();
+
   if (ms <= 0) return 'Past deadline';
+
   const days = Math.floor(ms / (24 * 60 * 60 * 1000));
   if (days >= 1) return `${days} day${days === 1 ? '' : 's'} left`;
+
   const hours = Math.floor(ms / (60 * 60 * 1000));
   return `${hours} hour${hours === 1 ? '' : 's'} left`;
+}
+
+function isClaimComplete(claim: DashboardClaim) {
+  return claim.fulfilledAt !== null || claim.status === 'CASH_PAID' || claim.status === 'DELIVERED';
+}
+
+function isClaimActive(claim: DashboardClaim) {
+  return !isClaimComplete(claim) && claim.status !== 'FORFEITED';
 }
 
 export function ClaimsListView() {
   const [claims, setClaims] = useState<DashboardClaim[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'active' | 'completed' | 'all'>('active');
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     api.dashboard
@@ -110,213 +83,356 @@ export function ClaimsListView() {
       .catch((err) => setError(err.message ?? 'Could not load claims.'));
   }, []);
 
+  const sortedClaims = useMemo(() => {
+    if (!claims) return null;
+
+    return [...claims].sort((a, b) => {
+      const aActive = isClaimActive(a);
+      const bActive = isClaimActive(b);
+
+      if (aActive !== bActive) return aActive ? -1 : 1;
+
+      return b.drawDate.localeCompare(a.drawDate);
+    });
+  }, [claims]);
+
+  const filteredClaims = useMemo(() => {
+    if (!sortedClaims) return null;
+
+    const q = query.trim().toLowerCase();
+
+    return sortedClaims.filter((claim) => {
+      const matchesFilter =
+        filter === 'all'
+          ? true
+          : filter === 'active'
+            ? isClaimActive(claim)
+            : !isClaimActive(claim);
+
+      if (!matchesFilter) return false;
+
+      if (!q) return true;
+
+      return (
+        claim.claimId.toLowerCase().includes(q) ||
+        claim.ticketRef.toLowerCase().includes(q) ||
+        claim.prizeDescription.toLowerCase().includes(q)
+      );
+    });
+  }, [sortedClaims, filter, query]);
+
+  const counts = useMemo(() => {
+    const list = claims ?? [];
+
+    return {
+      active: list.filter(isClaimActive).length,
+      completed: list.filter((claim) => !isClaimActive(claim)).length,
+      all: list.length,
+      actionNeeded: list.filter((claim) => actionStatuses.includes(claim.status)).length,
+    };
+  }, [claims]);
+
   if (error) {
     return (
-      <Card variant="default" className="p-8 text-center">
-        <p className="text-danger font-medium">{error}</p>
+      <Card
+        variant="default"
+        className="rounded-2xl border-red-100 bg-white p-6 text-center shadow-sm"
+      >
+        <AlertCircle className="mx-auto h-6 w-6 text-red-600" />
+        <p className="mt-3 text-sm font-bold text-red-600">{error}</p>
       </Card>
     );
   }
-
-  if (!claims) {
-    return (
-      <div className="space-y-3">
-        {[1, 2].map((i) => (
-          <div key={i} className="h-40 bg-ink-100 rounded-lg animate-pulse" />
-        ))}
-      </div>
-    );
-  }
-
-  if (claims.length === 0) {
-    return (
-      <Card variant="default">
-        <EmptyState
-          icon={<Trophy className="w-12 h-12" />}
-          title="No prizes claimed yet"
-          description="When you win a draw, your prize claim will appear here. We'll guide you through choosing product or cash, and track every step until your prize is delivered."
-          action={
-            <Link href="/">
-              <Button variant="primary">Browse active draws</Button>
-            </Link>
-          }
-        />
-      </Card>
-    );
-  }
-
-  // Sort: in-progress first, then completed by most recent
-  const sorted = [...claims].sort((a, b) => {
-    const aActive = a.fulfilledAt === null;
-    const bActive = b.fulfilledAt === null;
-    if (aActive !== bActive) return aActive ? -1 : 1;
-    return b.drawDate.localeCompare(a.drawDate);
-  });
 
   return (
-    <div className="space-y-4">
-      {sorted.map((claim) => (
-        <ClaimCard key={claim.claimId} claim={claim} />
-      ))}
+    <div>
+      <Card
+        variant="default"
+        className="mb-4 rounded-2xl border-slate-200 bg-white p-3 shadow-sm"
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex rounded-lg bg-slate-100 p-1">
+              <FilterButton
+                active={filter === 'active'}
+                onClick={() => setFilter('active')}
+                label="Active"
+                count={counts.active}
+              />
+
+              <FilterButton
+                active={filter === 'completed'}
+                onClick={() => setFilter('completed')}
+                label="Completed"
+                count={counts.completed}
+              />
+
+              <FilterButton
+                active={filter === 'all'}
+                onClick={() => setFilter('all')}
+                label="All"
+                count={counts.all}
+              />
+            </div>
+
+            <p className="text-sm text-slate-500">
+              <span className="font-mono font-bold text-navy-950">
+                {(filteredClaims?.length ?? counts[filter]).toLocaleString()}
+              </span>{' '}
+              claim{(filteredClaims?.length ?? counts[filter]) === 1 ? '' : 's'}
+              {counts.actionNeeded > 0 && (
+                <>
+                  {' '}
+                  ·{' '}
+                  <span className="font-bold text-[#4E8F01]">
+                    {counts.actionNeeded} need{counts.actionNeeded === 1 ? 's' : ''} action
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
+
+          <div className="relative w-full md:max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search claim, ticket, or prize..."
+              className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-navy-950 outline-none transition placeholder:text-slate-400 focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+            />
+          </div>
+        </div>
+      </Card>
+
+      {!filteredClaims ? (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className={
+                i < 3
+                  ? 'h-24 animate-pulse border-b border-slate-100 bg-white'
+                  : 'h-24 animate-pulse bg-white'
+              }
+            />
+          ))}
+        </div>
+      ) : filteredClaims.length === 0 ? (
+        <EmptyClaimsState filter={filter} hasSearch={query.trim().length > 0} />
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {filteredClaims.map((claim, index) => (
+            <ClaimRow
+              key={claim.claimId}
+              claim={claim}
+              isLast={index === filteredClaims.length - 1}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function ClaimCard({ claim }: { claim: DashboardClaim }) {
+function ClaimRow({ claim, isLast }: { claim: DashboardClaim; isLast: boolean }) {
   const isJackpot = claim.drawType === 'SATURDAY_JACKPOT';
   const isProduct = claim.claimType === 'PRODUCT';
   const isCash = claim.claimType === 'CASH';
-  const isComplete = claim.fulfilledAt !== null;
+  const isComplete = isClaimComplete(claim);
   const isForfeited = claim.status === 'FORFEITED';
-  const stepStates = getTimelineProgress(claim.status, claim.claimType);
+  const needsAction = actionStatuses.includes(claim.status);
+
+  const actionHref =
+    claim.status === 'NOTIFIED'
+      ? `/claim/${claim.claimId}`
+      : claim.status === 'KYC_PENDING'
+        ? `/claim/${claim.claimId}/cash/kyc`
+        : `/dashboard/claims/${claim.claimId}`;
+
+  const actionLabel =
+    claim.status === 'NOTIFIED'
+      ? 'Choose prize'
+      : claim.status === 'KYC_PENDING'
+        ? 'Complete KYC'
+        : 'View claim';
 
   return (
-    <Card id={claim.claimId} variant="default" className="overflow-hidden">
-      <div className="p-6 border-b border-ink-100">
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="flex items-center gap-2 flex-wrap">
+    <div
+      id={claim.claimId}
+      className={
+        isLast
+          ? 'bg-white px-4 py-3.5'
+          : 'border-b border-slate-100 bg-white px-4 py-3.5'
+      }
+    >
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_140px_120px] md:items-center">
+        <div className="min-w-0">
+          <div className="mb-1.5 flex flex-wrap items-center gap-2">
             <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
               {drawTypeShortLabel[claim.drawType]}
             </Badge>
-            <Badge variant={statusVariant[claim.status]} withDot={!isComplete && !isForfeited}>
+
+            <Badge variant={statusVariant[claim.status]} withDot={needsAction || isClaimActive(claim)}>
               {statusLabel[claim.status]}
             </Badge>
+
             {isProduct && (
-              <span className="inline-flex items-center gap-1 text-xs text-ink-500">
-                <Package className="w-3 h-3" />
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500">
+                <Package className="h-3 w-3" />
                 Product
               </span>
             )}
+
             {isCash && (
-              <span className="inline-flex items-center gap-1 text-xs text-ink-500">
-                <Banknote className="w-3 h-3" />
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500">
+                <Banknote className="h-3 w-3" />
                 Cash
               </span>
             )}
+
+            {!isComplete && !isForfeited && (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-[#4E8F01]">
+                <Clock className="h-3 w-3" />
+                {formatDeadline(claim.claimDeadlineAt)}
+              </span>
+            )}
           </div>
-          {!isComplete && !isForfeited && (
-            <span className="inline-flex items-center gap-1 text-xs text-warning font-medium tabular-nums">
-              <Clock className="w-3 h-3" />
-              {formatDeadline(claim.claimDeadlineAt)}
+
+          <p className="truncate font-display text-[15px] font-black text-navy-950">
+            {claim.prizeDescription}
+          </p>
+
+          <p className="mt-0.5 text-xs text-slate-500">
+            Won {formatDrawDate(claim.drawDate)} · Ticket{' '}
+            <span className="font-mono font-semibold text-slate-700">
+              {claim.ticketRef}
             </span>
+          </p>
+
+          {claim.whtAmountNgn > 0 && (
+            <p className="mt-1 text-[11px] text-slate-400">
+              Gross {formatNaira(claim.grossPrizeValueNgn)} − WHT{' '}
+              {formatNaira(claim.whtAmountNgn)}
+            </p>
           )}
         </div>
 
-        <h3 className="font-display text-xl font-bold text-ink-950">
-          {claim.prizeDescription}
-        </h3>
-        <div className="flex items-baseline gap-3 mt-2">
-          <span className="font-display text-2xl font-bold text-amber-700 tabular-nums">
-            {formatNaira(claim.netPrizeValueNgn)}
-          </span>
-          {claim.whtAmountNgn > 0 && (
-            <span className="text-xs text-ink-500">
-              gross {formatNaira(claim.grossPrizeValueNgn)} − WHT {formatNaira(claim.whtAmountNgn)}
-            </span>
+        <div className="flex items-center justify-between gap-4 md:block md:text-right">
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+              Net value
+            </p>
+            <p className="mt-0.5 font-display text-base font-black text-navy-950">
+              {formatNaira(claim.netPrizeValueNgn)}
+            </p>
+          </div>
+
+          {isComplete && (
+            <CheckCircle2 className="h-4 w-4 text-[#4E8F01] md:ml-auto md:mt-1.5" />
+          )}
+
+          {needsAction && (
+            <AlertCircle className="h-4 w-4 text-amber-600 md:ml-auto md:mt-1.5" />
           )}
         </div>
-        <p className="text-xs text-ink-500 mt-2">
-          Won {formatDrawDate(claim.drawDate)} · Ticket{' '}
-          <span className="font-mono text-ink-700">{claim.ticketRef}</span>
-        </p>
+
+        <div className="md:text-right">
+          {needsAction ? (
+            <Link href={actionHref}>
+              <Button
+                variant="accent"
+                size="sm"
+                className="w-full rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79] md:w-auto"
+              >
+                {actionLabel}
+              </Button>
+            </Link>
+          ) : (
+            <Link
+              href={`/dashboard/claims/${claim.claimId}`}
+              className="inline-flex items-center gap-1 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+            >
+              View
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FilterButton({
+  active,
+  onClick,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        active
+          ? 'rounded-md bg-white px-4 py-2 text-sm font-bold text-navy-950 shadow-sm'
+          : 'rounded-md px-4 py-2 text-sm font-bold text-slate-500 transition hover:text-navy-950'
+      }
+    >
+      {label}
+      <span className="ml-2 font-mono text-xs text-slate-400">{count}</span>
+    </button>
+  );
+}
+
+function EmptyClaimsState({
+  filter,
+  hasSearch,
+}: {
+  filter: 'active' | 'completed' | 'all';
+  hasSearch: boolean;
+}) {
+  return (
+    <Card
+      variant="default"
+      className="rounded-2xl border-slate-200 bg-white p-8 text-center shadow-sm"
+    >
+      <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+        <Inbox className="h-5 w-5" />
       </div>
 
-      {!isForfeited && (
-        <div className="p-6 bg-ink-50/30">
-          <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold mb-4">
-            Claim timeline
-          </p>
-          <div className="flex items-start justify-between gap-2 sm:gap-4">
-            {TIMELINE.map((step, i) => {
-              const state = stepStates[step.id];
-              return (
-                <div key={step.id} className="flex-1 flex flex-col items-center text-center">
-                  <div
-                    className={
-                      state === 'done'
-                        ? 'w-8 h-8 rounded-full bg-success text-white inline-flex items-center justify-center'
-                        : state === 'current'
-                        ? 'w-8 h-8 rounded-full bg-amber-500 text-white inline-flex items-center justify-center ring-4 ring-amber-100'
-                        : 'w-8 h-8 rounded-full bg-white border-2 border-ink-200 inline-flex items-center justify-center'
-                    }
-                  >
-                    {state === 'done' ? (
-                      <CheckCircle2 className="w-4 h-4" />
-                    ) : state === 'current' ? (
-                      <span className="text-xs font-bold tabular-nums">{i + 1}</span>
-                    ) : (
-                      <span className="text-xs font-bold text-ink-300 tabular-nums">{i + 1}</span>
-                    )}
-                  </div>
-                  <p
-                    className={
-                      state === 'done'
-                        ? 'text-xs font-medium text-ink-950 mt-2'
-                        : state === 'current'
-                        ? 'text-xs font-semibold text-ink-950 mt-2'
-                        : 'text-xs text-ink-300 mt-2'
-                    }
-                  >
-                    {step.label}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <h2 className="mt-4 font-display text-xl font-black text-navy-950">
+        {hasSearch
+          ? 'No matching claims'
+          : filter === 'active'
+            ? 'No active claims'
+            : filter === 'completed'
+              ? 'No completed claims yet'
+              : 'No claims yet'}
+      </h2>
 
-      {/* Action footer */}
-      {claim.status === 'NOTIFIED' && (
-        <div className="p-5 border-t border-amber-100 bg-amber-50 flex items-center justify-between gap-3">
-          <div className="flex items-start gap-2 text-sm">
-            <AlertCircle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-ink-950">Action needed</p>
-              <p className="text-ink-700 text-xs mt-0.5">
-                Choose product or cash by{' '}
-                {formatDrawDate(claim.selectionDeadlineAt)}.
-              </p>
-            </div>
-          </div>
-          <Link href={`/claim/${claim.claimId}`}>
-            <Button variant="accent" size="md">
-              Claim my prize
-            </Button>
-          </Link>
-        </div>
-      )}
+      <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">
+        {hasSearch
+          ? 'Try another ticket reference, prize name, or claim ID.'
+          : filter === 'active'
+            ? 'When you win and have an active prize claim, it will appear here.'
+            : 'Claims will appear here after you win a draw.'}
+      </p>
 
-      {claim.status === 'KYC_PENDING' && (
-        <div className="p-5 border-t border-warning/20 bg-warning-bg flex items-center justify-between gap-3">
-          <div className="flex items-start gap-2 text-sm">
-            <AlertCircle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-ink-950">Complete KYC to receive cash</p>
-              <p className="text-ink-700 text-xs mt-0.5">
-                Upload ID + bank account to verify.
-              </p>
-            </div>
-          </div>
-          <Link href={`/claim/${claim.claimId}/cash/kyc`}>
-            <Button variant="primary" size="md">
-              Complete KYC
-            </Button>
-          </Link>
-        </div>
-      )}
-
-      {isComplete && (
-        <div className="p-5 border-t border-ink-100 text-xs text-ink-500 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-success" />
-          <span>Fulfilled on {formatDrawDate(claim.fulfilledAt!)}</span>
-        </div>
-      )}
-
-      {isForfeited && (
-        <div className="p-5 border-t border-ink-100 text-xs text-ink-500">
-          This prize was forfeited because the claim window expired without a selection.
-        </div>
+      {!hasSearch && filter === 'all' && (
+        <Link href="/draws" className="mt-5 inline-block">
+          <Button
+            variant="accent"
+            className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+          >
+            Browse active draws
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
       )}
     </Card>
   );
