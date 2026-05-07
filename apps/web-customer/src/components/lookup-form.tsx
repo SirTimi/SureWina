@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, AlertCircle, Search } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Search } from 'lucide-react';
 import { Badge, Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { api } from '@/lib/api';
@@ -31,6 +31,7 @@ export function LookupForm({ initialRef = '' }: LookupFormProps) {
     }
 
     setResult({ status: 'loading' });
+
     try {
       const data = await api.tickets.lookup({ ticketRef: ref.trim() });
       setResult({ status: 'success', data });
@@ -41,11 +42,11 @@ export function LookupForm({ initialRef = '' }: LookupFormProps) {
             ? 'No ticket matches this reference. Check the format and try again.'
             : err.message
           : 'Something went wrong. Try again.';
+
       setResult({ status: 'error', message });
     }
   };
 
-  // Auto-lookup on mount if initialRef provided
   if (initialRef && result.status === 'idle') {
     startTransition(() => {
       handleLookup(initialRef);
@@ -58,66 +59,87 @@ export function LookupForm({ initialRef = '' }: LookupFormProps) {
   };
 
   return (
-    <>
-      {/* Form card */}
-      <Card variant="default" className="p-6 mb-6">
+    <div>
+      <Card
+        variant="default"
+        className="mb-6 rounded-2xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
+      >
         <form onSubmit={handleSubmit}>
           <label
             htmlFor="ticket-ref"
-            className="block text-sm font-medium text-ink-700 mb-2"
+            className="mb-2 block text-sm font-black text-navy-950"
           >
             Ticket reference
           </label>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              id="ticket-ref"
-              type="text"
-              value={ticketRef}
-              onChange={(e) => setTicketRef(e.target.value.toUpperCase())}
-              placeholder="SW-XXXX-XXXX"
-              className="flex-1 h-11 px-4 bg-white border border-ink-200 rounded-md font-mono text-base focus:outline-none focus:ring-2 focus:ring-navy-700 focus:border-transparent"
-              autoComplete="off"
-              spellCheck={false}
-            />
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4E8F01]" />
+
+              <input
+                id="ticket-ref"
+                type="text"
+                value={ticketRef}
+                onChange={(e) => setTicketRef(e.target.value.toUpperCase())}
+                placeholder="SW-XXXX-XXXX"
+                className="h-12 w-full rounded-sm border border-slate-200 bg-white pl-11 pr-4 font-mono text-base text-navy-950 outline-none transition placeholder:text-slate-400 focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/35"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+
             <Button
               type="submit"
               variant="primary"
               size="md"
               isLoading={result.status === 'loading'}
+              className="rounded-sm !border-transparent bg-[#4E8F01] px-7 font-bold text-white hover:!border-transparent hover:bg-[#3f7601]"
             >
-              {result.status === 'loading' ? 'Checking' : 'Check'}
+              {result.status === 'loading' ? 'Checking' : 'Check ticket'}
             </Button>
           </div>
-          <p className="text-xs text-ink-500 mt-2">
-            Format: <span className="font-mono">SW-XXXX-XXXX</span> (find it in your SMS receipt)
+
+          <p className="mt-3 text-xs leading-relaxed text-slate-500">
+            Format:{' '}
+            <span className="font-mono font-semibold text-navy-950">SW-XXXX-XXXX</span>{' '}
+            — find it in your SMS receipt.
           </p>
         </form>
       </Card>
 
-      {/* Result panel */}
       {result.status === 'error' && <ErrorPanel message={result.message} />}
       {result.status === 'success' && <ResultPanel data={result.data} />}
-    </>
+    </div>
   );
 }
 
 function ErrorPanel({ message }: { message: string }) {
   return (
-    <Card variant="default" className="border-danger-bg overflow-hidden">
-      <div className="bg-danger-bg p-4 flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="font-semibold text-sm text-ink-950 mb-1">Ticket not found</p>
-          <p className="text-sm text-ink-700">{message}</p>
-          <p className="text-xs text-ink-500 mt-3">
-            Tickets are issued in the format <span className="font-mono">SW-XXXX-XXXX</span>.
-            Check your SMS receipt for the exact reference, or contact{' '}
-            <a href="mailto:help@surewina.ng" className="underline hover:text-navy-700">
-              help@surewina.ng
-            </a>
-            .
-          </p>
+    <Card
+      variant="default"
+      className="overflow-hidden rounded-2xl border-red-100 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
+    >
+      <div className="border-b border-red-100 bg-red-50 p-5">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+
+          <div>
+            <p className="text-sm font-black text-navy-950">Ticket not found</p>
+            <p className="mt-1 text-sm leading-relaxed text-slate-700">{message}</p>
+          </div>
         </div>
+      </div>
+
+      <div className="p-5">
+        <p className="text-xs leading-relaxed text-slate-500">
+          Tickets are issued in the format{' '}
+          <span className="font-mono font-semibold text-navy-950">SW-XXXX-XXXX</span>.
+          Check your SMS receipt for the exact reference, or contact{' '}
+          <a href="mailto:help@surewina.ng" className="font-bold text-[#4E8F01] underline">
+            help@surewina.ng
+          </a>
+          .
+        </p>
       </div>
     </Card>
   );
@@ -129,34 +151,47 @@ function ResultPanel({ data }: { data: LookupTicketResponse }) {
 
   if (isWinner) {
     return (
-      <Card variant="default" className="overflow-hidden border-success-bg">
-        <div className="bg-success-bg p-5">
+      <Card
+        variant="default"
+        className="overflow-hidden rounded-2xl border-[#A8E368]/50 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
+      >
+        <div className="bg-[#A8E368]/25 p-5">
           <div className="flex items-start gap-3">
-            <CheckCircle2 className="w-6 h-6 text-success flex-shrink-0 mt-0.5" />
+            <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-[#4E8F01]" />
+
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-success font-semibold">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
                 Winning ticket
               </p>
-              <h2 className="font-display text-xl font-bold text-ink-950 mt-0.5">
-                You won - {ticket.drawCode}
+              <h2 className="mt-0.5 font-display text-xl font-black text-navy-950">
+                You won — {ticket.drawCode}
               </h2>
-              <p className="font-mono text-sm text-ink-700 mt-1">{ticket.ticketRef}</p>
+              <p className="mt-1 font-mono text-sm text-slate-700">
+                {ticket.ticketRef}
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="p-6 grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-2 gap-4 p-6 text-sm">
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold mb-1">
+            <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
               Draw
             </p>
-            <p className="text-ink-700">
-              {drawTypeLabel[ticket.ticketType === 'JACKPOT' ? 'SATURDAY_JACKPOT' : 'DAILY_STANDARD']}{' '}
+            <p className="text-slate-700">
+              {
+                drawTypeLabel[
+                  ticket.ticketType === 'JACKPOT'
+                    ? 'SATURDAY_JACKPOT'
+                    : 'DAILY_STANDARD'
+                ]
+              }{' '}
               · {formatDrawDate(ticket.createdAt)}
             </p>
           </div>
+
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold mb-1">
+            <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
               Status
             </p>
             <Badge variant="verified" withDot>
@@ -166,15 +201,20 @@ function ResultPanel({ data }: { data: LookupTicketResponse }) {
         </div>
 
         {claimUrl && (
-          <div className="border-t border-amber-100 bg-amber-50 p-5 flex items-center justify-between gap-4">
+          <div className="flex flex-col justify-between gap-4 border-t border-[#4E8F01]/10 bg-[#F8FAF4] p-5 sm:flex-row sm:items-center">
             <div className="text-sm">
-              <p className="font-semibold text-amber-700">Sign in to claim.</p>
-              <p className="text-ink-700 mt-0.5">
-                We&apos;ll verify your phone matches the ticket and pay out within 24 hours.
+              <p className="font-black text-navy-950">Sign in to claim.</p>
+              <p className="mt-0.5 text-slate-600">
+                We&apos;ll verify your phone matches the ticket and process the payout.
               </p>
             </div>
+
             <Link href={claimUrl}>
-              <Button variant="accent" size="md">
+              <Button
+                variant="accent"
+                size="md"
+                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+              >
                 Sign in to claim
               </Button>
             </Link>
@@ -184,40 +224,31 @@ function ResultPanel({ data }: { data: LookupTicketResponse }) {
     );
   }
 
-  // Non-winning ticket
   return (
-    <Card variant="default" className="overflow-hidden">
-      <div className="bg-ink-50 p-5">
-        <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
+    <Card
+      variant="default"
+      className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
+    >
+      <div className="border-b border-slate-100 bg-[#F8FAF4] p-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
           Ticket found
         </p>
-        <p className="font-mono text-lg text-ink-950 mt-1">{ticket.ticketRef}</p>
+        <p className="mt-1 font-mono text-lg font-black text-navy-950">
+          {ticket.ticketRef}
+        </p>
       </div>
 
-      <div className="p-6 space-y-4">
+      <div className="space-y-4 p-6">
         <div className="grid grid-cols-2 gap-4 text-sm">
+          <ResultDetail label="Draw" value={ticket.drawCode} />
+          <ResultDetail
+            label="Ticket type"
+            value={ticket.ticketType === 'JACKPOT' ? 'Jackpot' : 'Daily standard'}
+          />
+          <ResultDetail label="Face value" value={formatNaira(ticket.faceValueNgn)} />
+
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold mb-1">
-              Draw
-            </p>
-            <p className="text-ink-700">{ticket.drawCode}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold mb-1">
-              Ticket type
-            </p>
-            <p className="text-ink-700">
-              {ticket.ticketType === 'JACKPOT' ? 'Jackpot' : 'Daily standard'}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold mb-1">
-              Face value
-            </p>
-            <p className="text-ink-700 tabular-nums">{formatNaira(ticket.faceValueNgn)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold mb-1">
+            <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
               Status
             </p>
             <Badge variant={isAwaitingDraw ? 'live' : 'closed'} withDot={isAwaitingDraw}>
@@ -227,14 +258,26 @@ function ResultPanel({ data }: { data: LookupTicketResponse }) {
         </div>
 
         {!isAwaitingDraw && (
-          <div className="border-t border-ink-100 pt-4">
-            <p className="text-sm text-ink-700 leading-relaxed">
-              This ticket didn&apos;t win, but if it was a daily standard ticket it still counts
-              toward your next Saturday jackpot entry (every 10 daily tickets = 1 free entry).
+          <div className="border-t border-slate-100 pt-4">
+            <p className="text-sm leading-relaxed text-slate-600">
+              This ticket didn&apos;t win, but if it was a daily standard ticket it still
+              counts toward your next Saturday jackpot entry: every 10 daily tickets = 1
+              free entry.
             </p>
           </div>
         )}
       </div>
     </Card>
+  );
+}
+
+function ResultDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">
+        {label}
+      </p>
+      <p className="text-sm text-slate-700">{value}</p>
+    </div>
   );
 }

@@ -1,134 +1,220 @@
 import Link from 'next/link';
-import { ExternalLink, Search } from 'lucide-react';
-import { Badge, Card, Container, Stat } from '@surewina/ui';
+import { ArrowRight, ExternalLink, Search, ShieldCheck } from 'lucide-react';
+import { Badge, Card, Container } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { api } from '@/lib/api';
-import { drawTypeLabel, formatDrawDateShort, formatDrawTime } from '@/lib/draw-helpers';
+import { formatDrawDateShort, formatDrawTime } from '@/lib/draw-helpers';
 
 export default async function ResultsPage() {
   const { results } = await api.draws.listResults({ pageSize: 20 });
 
   return (
-    <Container size="lg" className="py-10">
-      <div className="mb-8">
-        <h1 className="font-display text-4xl font-bold text-ink-950">Past results</h1>
-        <p className="text-base text-ink-500 mt-2 max-w-2xl">
-          Every draw, every winning ticket reference, every seed hash. Searchable. Permanent.
-          We never publish names.
-        </p>
-      </div>
+    <>
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pt-32 pb-20 sm:pt-36 sm:pb-24 lg:pt-40 lg:pb-28">
+        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
+        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-[#4E8F01]/10 blur-3xl" />
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <Stat label="Draws since launch" value="247" />
-        <Stat
-          label="Paid out in 2026 YTD"
-          value={formatNaira(86420000)}
-        />
-        <Stat label="Seed hashes verified" value="100%" />
-        <Stat label="Median payout time" value="12.4h" />
-      </div>
+        <Container size="lg" className="relative max-w-[1400px]">
+          <div className="max-w-4xl">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+              <ShieldCheck className="h-4 w-4 text-white" />
+              Public archive · no hidden winners
+            </div>
 
-      {/* Search and filters */}
-      <Card variant="default" className="p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
-            <Search className="w-4 h-4 text-ink-300 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by ticket ref, prize, or date..."
-              className="w-full h-10 pl-10 pr-3 bg-white border border-ink-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-navy-700 focus:border-transparent"
-            />
+            <h1 className="font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl lg:text-7xl">
+              Past results.
+              <br />
+              <span className="text-[#4E8F01]">Public forever.</span>
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
+              Every draw, every winning ticket reference, every seed hash. Searchable,
+              permanent, and privacy-safe. We never publish winner names.
+            </p>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <button className="h-10 px-4 bg-navy-800 text-white text-sm font-medium rounded-md">
-              All draws
-            </button>
-            <button className="h-10 px-4 bg-white border border-ink-200 text-ink-700 text-sm font-medium rounded-md hover:bg-ink-50">
-              Daily
-            </button>
-            <button className="h-10 px-4 bg-white border border-ink-200 text-ink-700 text-sm font-medium rounded-md hover:bg-ink-50">
-              Saturday Jackpot
-            </button>
-            <button className="h-10 px-4 bg-white border border-ink-200 text-ink-700 text-sm font-medium rounded-md hover:bg-ink-50 inline-flex items-center gap-1">
-              Date range
-              <span className="text-xs">▾</span>
-            </button>
+        </Container>
+      </section>
+
+      <Container size="lg" className="max-w-[1400px] py-14">
+        {/* KPI strip */}
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <ResultStat label="Draws since launch" value="247" />
+          <ResultStat label="Paid out in 2026 YTD" value={formatNaira(86420000)} />
+          <ResultStat label="Seed hashes verified" value="100%" />
+          <ResultStat label="Median payout time" value="12.4h" />
+        </div>
+
+        {/* Search and filters */}
+        <Card
+          variant="default"
+          className="mt-8 rounded-2xl border-slate-200 bg-white p-4 shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
+        >
+          <div className="flex flex-col gap-3 lg:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4E8F01]" />
+              <input
+                type="text"
+                placeholder="Search by ticket ref, prize, or date..."
+                className="h-11 w-full rounded-sm border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-700 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/35"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button className="h-11 rounded-sm bg-[#4E8F01] px-4 text-sm font-bold text-white transition hover:bg-[#3f7601]">
+                All draws
+              </button>
+              <button className="h-11 rounded-sm border border-[#4E8F01]/20 bg-white px-4 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/15">
+                Daily
+              </button>
+              <button className="h-11 rounded-sm border border-[#4E8F01]/20 bg-white px-4 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/15">
+                Saturday Jackpot
+              </button>
+              <button className="inline-flex h-11 items-center gap-1 rounded-sm border border-[#4E8F01]/20 bg-white px-4 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/15">
+                Date range
+                <span className="text-xs">▾</span>
+              </button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Results table */}
+        <Card
+          variant="default"
+          className="mt-6 overflow-hidden rounded-2xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px]">
+              <thead>
+                <tr className="border-b border-slate-100 bg-[#A8E368]/10">
+                  <th className="px-5 py-4 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Date
+                  </th>
+                  <th className="px-5 py-4 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Prize
+                  </th>
+                  <th className="px-5 py-4 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Winning ticket
+                  </th>
+                  <th className="px-5 py-4 text-right text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Tickets sold
+                  </th>
+                  <th className="px-5 py-4 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Seed hash
+                  </th>
+                  <th className="px-5 py-4 text-right text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Verify
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {results.map((r, i) => {
+                  const isJackpot = r.drawType === 'SATURDAY_JACKPOT';
+
+                  return (
+                    <tr
+                      key={r.drawCode}
+                      className={
+                        i < results.length - 1
+                          ? 'border-b border-slate-100 transition hover:bg-[#A8E368]/10'
+                          : 'transition hover:bg-[#A8E368]/10'
+                      }
+                    >
+                      <td className="px-5 py-4 text-sm">
+                        {isJackpot ? (
+                          <div className="flex flex-col gap-1">
+                            <Badge variant="jackpot" className="self-start">
+                              Jackpot
+                            </Badge>
+                            <span className="font-mono text-xs text-slate-600">
+                              {formatDrawDateShort(r.executedAt)} ·{' '}
+                              {formatDrawTime(r.executedAt).replace(' WAT', '')}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="font-mono text-xs text-slate-600">
+                            {formatDrawDateShort(r.executedAt)} ·{' '}
+                            {formatDrawTime(r.executedAt).replace(' WAT', '')}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-5 py-4 text-sm font-semibold text-navy-950">
+                        {r.prizeDescription}
+                      </td>
+
+                      <td className="px-5 py-4 font-mono text-sm text-slate-700">
+                        {r.winnerTicketRef}
+                      </td>
+
+                      <td className="px-5 py-4 text-right text-sm tabular-nums text-slate-700">
+                        {r.totalTicketsSold.toLocaleString()}
+                      </td>
+
+                      <td className="px-5 py-4 font-mono text-sm text-slate-500">
+                        {r.rngSeedHash.slice(0, 8)}...
+                      </td>
+
+                      <td className="px-5 py-4 text-right">
+                        <Link
+                          href={`/results/${r.drawCode}`}
+                          className="inline-flex items-center gap-1 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+                        >
+                          Verify <ExternalLink className="h-3.5 w-3.5" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <div className="mt-8 rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-5">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <p className="text-sm font-black text-navy-950">
+                Want to understand how verification works?
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                We publish the seed hash before the draw and reveal the seed after the draw
+                so anyone can verify the outcome.
+              </p>
+            </div>
+
+            <Link
+              href="/audit"
+              className="inline-flex shrink-0 items-center gap-2 rounded-sm border border-[#4E8F01]/20 bg-white px-4 py-3 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/15"
+            >
+              Read audit method
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
-      </Card>
+      </Container>
+    </>
+  );
+}
 
-      {/* Results table */}
-      <Card variant="default" className="overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-ink-100 bg-ink-50/50">
-              <th className="text-left text-[10px] uppercase tracking-wider text-ink-500 font-semibold px-5 py-3">
-                Date
-              </th>
-              <th className="text-left text-[10px] uppercase tracking-wider text-ink-500 font-semibold px-5 py-3">
-                Prize
-              </th>
-              <th className="text-left text-[10px] uppercase tracking-wider text-ink-500 font-semibold px-5 py-3">
-                Winning ticket
-              </th>
-              <th className="text-right text-[10px] uppercase tracking-wider text-ink-500 font-semibold px-5 py-3">
-                Tickets sold
-              </th>
-              <th className="text-left text-[10px] uppercase tracking-wider text-ink-500 font-semibold px-5 py-3">
-                Seed hash
-              </th>
-              <th className="text-right text-[10px] uppercase tracking-wider text-ink-500 font-semibold px-5 py-3">
-                Verify
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((r, i) => {
-              const isJackpot = r.drawType === 'SATURDAY_JACKPOT';
-              return (
-                <tr
-                  key={r.drawCode}
-                  className={i < results.length - 1 ? 'border-b border-ink-100 hover:bg-ink-50/30 transition-colors' : 'hover:bg-ink-50/30 transition-colors'}
-                >
-                  <td className="px-5 py-4 text-sm">
-                    {isJackpot ? (
-                      <div className="flex flex-col gap-1">
-                        <Badge variant="jackpot" className="self-start">
-                          Jackpot
-                        </Badge>
-                        <span className="text-ink-700 text-xs font-mono">
-                          {formatDrawDateShort(r.executedAt)} · {formatDrawTime(r.executedAt).replace(' WAT', '')}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-ink-700 font-mono text-xs">
-                        {formatDrawDateShort(r.executedAt)} · {formatDrawTime(r.executedAt).replace(' WAT', '')}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4 text-sm text-ink-950">{r.prizeDescription}</td>
-                  <td className="px-5 py-4 text-sm font-mono text-ink-700">{r.winnerTicketRef}</td>
-                  <td className="px-5 py-4 text-sm text-ink-700 text-right tabular-nums">
-                    {r.totalTicketsSold.toLocaleString()}
-                  </td>
-                  <td className="px-5 py-4 text-sm font-mono text-ink-500">
-                    {r.rngSeedHash.slice(0, 8)}...
-                  </td>
-                  <td className="px-5 py-4 text-right">
-                    <Link
-                      href={`/results/${r.drawCode}`}
-                      className="text-sm text-navy-800 hover:text-navy-700 font-medium inline-flex items-center gap-1"
-                    >
-                      Verify <ExternalLink className="w-3 h-3" />
-                    </Link>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Card>
-    </Container>
+interface ResultStatProps {
+  label: string;
+  value: string;
+}
+
+function ResultStat({ label, value }: ResultStatProps) {
+  return (
+    <Card
+      variant="default"
+      className="rounded-2xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+    >
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+        {label}
+      </p>
+      <p className="mt-3 font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
+        {value}
+      </p>
+    </Card>
   );
 }
