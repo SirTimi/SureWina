@@ -27,7 +27,7 @@ const footerGroups = [
       { label: 'Terms', href: '/terms' },
       { label: 'Privacy', href: '/privacy' },
       { label: 'Disputes', href: '/disputes' },
-      { label: 'Support', href: '/support' },
+      { label: 'FAQ', href: '/faq' },
     ],
   },
 ];
