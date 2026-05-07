@@ -2,8 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Sparkles, Wallet } from 'lucide-react';
-import { Badge, Button, Card, Container, Stat } from '@surewina/ui';
+import {
+  AlertCircle,
+  ArrowRight,
+  ChevronRight,
+  Gift,
+  ShieldCheck,
+  Sparkles,
+  Ticket,
+  Trophy,
+  WalletCards,
+} from 'lucide-react';
+import { Badge, Button, Card, Container } from '@surewina/ui';
 import { formatNaira, formatPhoneForDisplay } from '@surewina/utils';
 import type { DashboardSummary } from '@surewina/types';
 import { api } from '@/lib/api';
@@ -11,13 +21,17 @@ import { drawTypeShortLabel, formatDrawDate, formatDrawTime } from '@/lib/draw-h
 
 function formatCountdown(iso: string): string {
   const ms = new Date(iso).getTime() - Date.now();
+
   if (ms <= 0) return 'Drawing now';
+
   const totalMins = Math.floor(ms / (60 * 1000));
   const days = Math.floor(totalMins / (60 * 24));
   const hours = Math.floor((totalMins % (60 * 24)) / 60);
   const minutes = totalMins % 60;
+
   if (days >= 1) return `${days}d ${hours}h`;
   if (hours >= 1) return `${hours}h ${minutes}m`;
+
   return `${minutes}m`;
 }
 
@@ -43,190 +57,402 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
 
   if (error) {
     return (
-      <Container size="lg" className="py-12">
-        <Card variant="default" className="p-8 text-center">
-          <p className="text-danger font-medium">{error}</p>
-        </Card>
-      </Container>
+      <main className="min-h-screen bg-[#F8FAF4]">
+        <Container size="lg" className="max-w-[1400px] py-12">
+          <Card
+            variant="default"
+            className="rounded-3xl border-red-100 bg-white p-8 text-center shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+          >
+            <AlertCircle className="mx-auto h-8 w-8 text-red-600" />
+            <p className="mt-3 text-sm font-bold text-red-600">{error}</p>
+          </Card>
+        </Container>
+      </main>
     );
   }
 
   if (!summary) {
     return (
-      <Container size="lg" className="py-12">
-        <div className="space-y-4">
-          <div className="h-8 w-48 bg-ink-100 rounded animate-pulse" />
-          <div className="h-32 bg-ink-100 rounded-lg animate-pulse" />
-        </div>
-      </Container>
+      <main className="min-h-screen bg-[#F8FAF4]">
+        <Container size="lg" className="max-w-[1400px] py-12">
+          <div className="space-y-4">
+            <div className="h-56 animate-pulse rounded-3xl bg-white" />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+              <div className="h-32 animate-pulse rounded-2xl bg-white" />
+              <div className="h-32 animate-pulse rounded-2xl bg-white" />
+              <div className="h-32 animate-pulse rounded-2xl bg-white" />
+              <div className="h-32 animate-pulse rounded-2xl bg-white" />
+            </div>
+          </div>
+        </Container>
+      </main>
     );
   }
 
-  const { user, activeTicketCount, activeDrawGroups, jackpot, totalSpentMonthlyNgn, monthlyLimitNgn, lifetimeWinningsNgn, lifetimeWinCount, lastWinAt } = summary;
-  const monthlySpentPercent = monthlyLimitNgn ? Math.min(100, (totalSpentMonthlyNgn / monthlyLimitNgn) * 100) : 0;
+  const {
+    user,
+    activeTicketCount,
+    activeDrawGroups,
+    jackpot,
+    totalSpentMonthlyNgn,
+    monthlyLimitNgn,
+    lifetimeWinningsNgn,
+    lifetimeWinCount,
+    lastWinAt,
+  } = summary;
+
+  const monthlySpentPercent = monthlyLimitNgn
+    ? Math.min(100, (totalSpentMonthlyNgn / monthlyLimitNgn) * 100)
+    : 0;
 
   return (
-    <Container size="lg" className="py-10">
-      {showWelcome && (
-        <div className="mb-6 bg-success-bg border border-success/20 rounded-md p-4 flex items-start justify-between gap-3">
-          <div>
-            <p className="font-semibold text-sm text-ink-950">Welcome to Surewina.</p>
-            <p className="text-sm text-ink-700 mt-0.5">
-              Your phone is verified. You can now track tickets, see claims, and manage your account.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowWelcome(false)}
-            className="text-ink-500 hover:text-ink-950 text-xs"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
+    <main className="min-h-screen bg-[#F8FAF4]">
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.36)_0%,rgba(168,227,104,0.18)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_52%,#A8E368_100%)] py-10">
+        <div className="absolute right-[-8%] top-1/2 hidden h-[420px] w-[420px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
+        <div className="absolute bottom-[-120px] left-[18%] h-72 w-72 rounded-full bg-[#4E8F01]/10 blur-3xl" />
 
-      <div className="mb-8">
-        <p className="text-sm text-ink-500">Welcome back</p>
-        <h1 className="font-display text-3xl font-bold text-ink-950 mt-1">
-          Hi, {user.displayName ?? formatPhoneForDisplay(user.phoneNumber)}
-        </h1>
-      </div>
+        <Container size="lg" className="relative max-w-[1400px]">
+          {showWelcome && (
+            <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-[#4E8F01]/15 bg-white/85 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                  <ShieldCheck className="h-4 w-4" />
+                </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <Stat
-          label="Active tickets"
-          value={activeTicketCount}
-          hint={`across ${activeDrawGroups.length} draw${activeDrawGroups.length === 1 ? '' : 's'}`}
-        />
-        <Stat
-          label="Saturday jackpot entries"
-          variant="highlight"
-          value={
-            <>
-              {jackpot.freeEntries}
-              <span className="text-base text-amber-700 font-medium ml-1">/ {jackpot.freeEntries === 1 ? '1 free' : `${jackpot.freeEntries} free`}</span>
-            </>
-          }
-          hint={
-            jackpot.ticketsToNextEntry === 10
-              ? `${jackpot.cumulativeCount} daily tickets earned`
-              : `${jackpot.ticketsToNextEntry} more daily ticket${jackpot.ticketsToNextEntry === 1 ? '' : 's'} for next free entry`
-          }
-        />
-        <Stat
-          label={`Total spent (${new Date().toLocaleDateString('en-NG', { month: 'long' })})`}
-          value={formatNaira(totalSpentMonthlyNgn)}
-          hint={
-            monthlyLimitNgn ? (
-              <span className="block">
-                of {formatNaira(monthlyLimitNgn)} monthly limit
-                <span className="block mt-2 h-1.5 bg-ink-100 rounded-full overflow-hidden">
-                  <span
-                    className="block h-full bg-navy-800 rounded-full"
-                    style={{ width: `${monthlySpentPercent}%` }}
-                  />
-                </span>
-              </span>
-            ) : (
-              <Link href="/dashboard/responsible-play" className="text-navy-800 hover:underline">
-                Set a limit →
-              </Link>
-            )
-          }
-        />
-        <Stat
-          label="Lifetime winnings"
-          value={formatNaira(lifetimeWinningsNgn)}
-          hint={
-            lifetimeWinCount === 0
-              ? 'No wins yet? keep going'
-              : `${lifetimeWinCount} prize${lifetimeWinCount === 1 ? '' : 's'} claimed${lastWinAt ? ` · ${formatDrawDate(lastWinAt).slice(0, 6)}` : ''}`
-          }
-        />
-      </div>
-
-      {/* Tickets section */}
-      <div className="mb-6 flex items-end justify-between">
-        <h2 className="font-display text-xl font-semibold text-ink-950">Your active draws</h2>
-        <Link
-          href="/dashboard/tickets"
-          className="text-sm text-navy-800 hover:text-navy-700 font-medium"
-        >
-          View all tickets →
-        </Link>
-      </div>
-
-      {activeDrawGroups.length === 0 ? (
-        <Card variant="default" className="p-10 text-center">
-          <p className="text-ink-500">No active tickets right now.</p>
-          <Link href="/" className="inline-block mt-4">
-            <Button variant="primary">Browse active draws</Button>
-          </Link>
-        </Card>
-      ) : (
-        <Card variant="default" className="overflow-hidden mb-8">
-          {activeDrawGroups.map((group, i) => {
-            const isJackpot = group.drawType === 'SATURDAY_JACKPOT';
-            return (
-              <Link
-                key={group.drawCode}
-                href={`/dashboard/tickets/${group.ticketRefs[0]}`}
-                className={
-                  i < activeDrawGroups.length - 1
-                    ? 'flex items-center justify-between gap-4 p-5 border-b border-ink-100 hover:bg-ink-50/50 transition-colors'
-                    : 'flex items-center justify-between gap-4 p-5 hover:bg-ink-50/50 transition-colors'
-                }
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
-                      {drawTypeShortLabel[group.drawType]}
-                    </Badge>
-                    <span className="text-xs text-ink-500">
-                      {formatDrawDate(group.drawScheduledAt)} · {formatDrawTime(group.drawScheduledAt)}
-                    </span>
-                  </div>
-                  <p className="font-display font-semibold text-ink-950 truncate">
-                    {group.drawPrizeDescription}
-                  </p>
-                  <p className="text-sm text-ink-500 mt-0.5 tabular-nums">
-                    {group.ticketCount} ticket{group.ticketCount === 1 ? '' : 's'}
-                    <span className="mx-1.5 text-ink-300">·</span>
-                    closes in {formatCountdown(group.drawScheduledAt)}
+                <div>
+                  <p className="text-sm font-black text-navy-950">Welcome to Surewina.</p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-slate-600">
+                    Your phone is verified. You can now track tickets, see claims, and
+                    manage your account.
                   </p>
                 </div>
-                <ChevronRight className="w-4 h-4 text-ink-300 flex-shrink-0" />
-              </Link>
-            );
-          })}
-        </Card>
-      )}
-
-      {/* Jackpot accumulation banner */}
-      {jackpot.ticketsToNextEntry < 10 && jackpot.ticketsToNextEntry > 0 && (
-        <Card variant="dark" className="p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-amber-500 flex-shrink-0 mt-1" />
-              <div>
-                <p className="font-display font-bold text-lg text-white">
-                  {jackpot.ticketsToNextEntry} more ticket{jackpot.ticketsToNextEntry === 1 ? '' : 's'},{' '}
-                  {jackpot.freeEntries === 0 ? 'your first free Saturday entry.' : 'one more free Saturday entry.'}
-                </p>
-                <p className="text-sm text-white/70 mt-1">
-                  Stack daily plays into the {formatNaira(4000000)} jackpot. No subscription, no obligation.
-                </p>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setShowWelcome(false)}
+                className="text-xs font-bold text-slate-500 transition hover:text-navy-950"
+              >
+                Dismiss
+              </button>
             </div>
-            <Link href="/" className="flex-shrink-0">
-              <Button variant="accent" size="md">
-                Buy daily tickets
-              </Button>
-            </Link>
+          )}
+
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+            <div>
+              <div className="mb-5 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+                <Sparkles className="h-4 w-4 text-white" />
+                Player dashboard
+              </div>
+
+              <h1 className="font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl">
+                Hi,{' '}
+                <span className="text-[#4E8F01]">
+                  {user.displayName ?? formatPhoneForDisplay(user.phoneNumber)}
+                </span>
+              </h1>
+
+              <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-700">
+                Track your active tickets, jackpot progress, responsible play limit, and
+                claim history from one place.
+              </p>
+            </div>
+
+            <Card
+              variant="default"
+              className="rounded-3xl border-[#4E8F01]/15 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                This month
+              </p>
+
+              <div className="mt-3 flex items-end justify-between gap-4">
+                <div>
+                  <p className="font-display text-3xl font-black tracking-[-0.04em] text-navy-950">
+                    {formatNaira(totalSpentMonthlyNgn)}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {monthlyLimitNgn
+                      ? `of ${formatNaira(monthlyLimitNgn)} limit`
+                      : 'No monthly limit set'}
+                  </p>
+                </div>
+
+                <WalletCards className="h-8 w-8 text-[#4E8F01]" />
+              </div>
+
+              {monthlyLimitNgn ? (
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-[#4E8F01]"
+                    style={{ width: `${monthlySpentPercent}%` }}
+                  />
+                </div>
+              ) : (
+                <Link
+                  href="/dashboard/responsible-play"
+                  className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+                >
+                  Set a limit
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              )}
+            </Card>
           </div>
-        </Card>
-      )}
-    </Container>
+        </Container>
+      </section>
+
+      <Container size="lg" className="max-w-[1400px] py-10 lg:py-12">
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <DashboardMetric
+            icon={<Ticket className="h-5 w-5" />}
+            label="Active tickets"
+            value={activeTicketCount.toLocaleString()}
+            hint={`Across ${activeDrawGroups.length} draw${
+              activeDrawGroups.length === 1 ? '' : 's'
+            }`}
+          />
+
+          <DashboardMetric
+            icon={<Sparkles className="h-5 w-5" />}
+            label="Saturday jackpot entries"
+            value={jackpot.freeEntries.toLocaleString()}
+            hint={
+              jackpot.ticketsToNextEntry === 10
+                ? `${jackpot.cumulativeCount} daily tickets earned`
+                : `${jackpot.ticketsToNextEntry} more daily ticket${
+                    jackpot.ticketsToNextEntry === 1 ? '' : 's'
+                  } for next free entry`
+            }
+            highlighted
+          />
+
+          <DashboardMetric
+            icon={<WalletCards className="h-5 w-5" />}
+            label={`Spent in ${new Date().toLocaleDateString('en-NG', {
+              month: 'long',
+            })}`}
+            value={formatNaira(totalSpentMonthlyNgn)}
+            hint={monthlyLimitNgn ? `${monthlySpentPercent.toFixed(0)}% of limit` : 'No limit set'}
+          />
+
+          <DashboardMetric
+            icon={<Trophy className="h-5 w-5" />}
+            label="Lifetime winnings"
+            value={formatNaira(lifetimeWinningsNgn)}
+            hint={
+              lifetimeWinCount === 0
+                ? 'No wins yet'
+                : `${lifetimeWinCount} prize${lifetimeWinCount === 1 ? '' : 's'} claimed${
+                    lastWinAt ? ` · ${formatDrawDate(lastWinAt).slice(0, 6)}` : ''
+                  }`
+            }
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <section>
+            <div className="mb-5 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                  Active draws
+                </p>
+                <h2 className="mt-1 font-display text-3xl font-black tracking-[-0.03em] text-navy-950">
+                  Your tickets in play.
+                </h2>
+              </div>
+
+              <Link
+                href="/dashboard/tickets"
+                className="hidden text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601] sm:inline-flex"
+              >
+                View all tickets →
+              </Link>
+            </div>
+
+            {activeDrawGroups.length === 0 ? (
+              <Card
+                variant="default"
+                className="rounded-3xl border-slate-200 bg-white p-10 text-center shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+              >
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#A8E368]/35 text-[#4E8F01]">
+                  <Ticket className="h-7 w-7" />
+                </div>
+
+                <p className="mt-4 font-display text-2xl font-black text-navy-950">
+                  No active tickets right now.
+                </p>
+
+                <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">
+                  Buy a ticket from any open draw and it will appear here immediately.
+                </p>
+
+                <Link href="/draws" className="mt-6 inline-block">
+                  <Button
+                    variant="accent"
+                    className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                  >
+                    Browse active draws
+                  </Button>
+                </Link>
+              </Card>
+            ) : (
+              <Card
+                variant="default"
+                className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+              >
+                {activeDrawGroups.map((group, i) => {
+                  const isJackpot = group.drawType === 'SATURDAY_JACKPOT';
+
+                  return (
+                    <Link
+                      key={group.drawCode}
+                      href={`/dashboard/tickets/${group.ticketRefs[0]}`}
+                      className={
+                        i < activeDrawGroups.length - 1
+                          ? 'flex items-center justify-between gap-4 border-b border-slate-100 p-5 transition hover:bg-[#A8E368]/10'
+                          : 'flex items-center justify-between gap-4 p-5 transition hover:bg-[#A8E368]/10'
+                      }
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
+                            {drawTypeShortLabel[group.drawType]}
+                          </Badge>
+
+                          <span className="text-xs font-medium text-slate-500">
+                            {formatDrawDate(group.drawScheduledAt)} ·{' '}
+                            {formatDrawTime(group.drawScheduledAt)}
+                          </span>
+                        </div>
+
+                        <p className="truncate font-display text-lg font-black text-navy-950">
+                          {group.drawPrizeDescription}
+                        </p>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                          {group.ticketCount} ticket{group.ticketCount === 1 ? '' : 's'}
+                          <span className="mx-1.5 text-slate-300">·</span>
+                          closes in {formatCountdown(group.drawScheduledAt)}
+                        </p>
+                      </div>
+
+                      <ChevronRight className="h-5 w-5 shrink-0 text-[#4E8F01]" />
+                    </Link>
+                  );
+                })}
+              </Card>
+            )}
+          </section>
+
+          <aside className="space-y-4">
+            <Card
+              variant="default"
+              className="overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-[#4E8F01] p-6 text-white shadow-[0_24px_70px_rgba(78,143,1,0.22)]"
+            >
+              <div className="inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
+                <Gift className="h-4 w-4" />
+                10-for-1 progress
+              </div>
+
+              <h3 className="mt-5 font-display text-3xl font-black tracking-[-0.04em] text-white">
+                {jackpot.freeEntries} free jackpot{' '}
+                {jackpot.freeEntries === 1 ? 'entry' : 'entries'}
+              </h3>
+
+              <p className="mt-3 text-sm leading-relaxed text-white/75">
+                {jackpot.ticketsToNextEntry === 10
+                  ? `${jackpot.cumulativeCount} daily tickets counted so far.`
+                  : `${jackpot.ticketsToNextEntry} more daily ticket${
+                      jackpot.ticketsToNextEntry === 1 ? '' : 's'
+                    } unlocks the next free Saturday jackpot entry.`}
+              </p>
+
+              <Link href="/draws" className="mt-6 inline-block">
+                <Button
+                  variant="accent"
+                  size="md"
+                  className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                >
+                  Buy daily tickets
+                </Button>
+              </Link>
+            </Card>
+
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                Responsible play
+              </p>
+
+              <h3 className="mt-2 font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
+                Keep it controlled.
+              </h3>
+
+              <p className="mt-3 text-sm leading-relaxed text-slate-500">
+                Set a spend limit or take a break if play starts feeling like pressure.
+              </p>
+
+              <Link
+                href="/dashboard/responsible-play"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+              >
+                Manage protection tools
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Card>
+          </aside>
+        </div>
+      </Container>
+    </main>
+  );
+}
+
+function DashboardMetric({
+  icon,
+  label,
+  value,
+  hint,
+  highlighted = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint: string;
+  highlighted?: boolean;
+}) {
+  return (
+    <Card
+      variant="default"
+      className={
+        highlighted
+          ? 'rounded-2xl border-[#4E8F01]/20 bg-[#A8E368]/15 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]'
+          : 'rounded-2xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]'
+      }
+    >
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+          {icon}
+        </div>
+
+        {highlighted && (
+          <span className="rounded-sm bg-[#4E8F01] px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white">
+            Bonus
+          </span>
+        )}
+      </div>
+
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+        {label}
+      </p>
+
+      <p className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-navy-950 tabular-nums">
+        {value}
+      </p>
+
+      <p className="mt-2 text-sm leading-relaxed text-slate-500">{hint}</p>
+    </Card>
   );
 }
