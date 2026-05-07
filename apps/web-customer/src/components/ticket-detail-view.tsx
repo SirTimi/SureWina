@@ -1,293 +1,369 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Trophy, Clock, Hash, Copy, Check } from 'lucide-react';
-import { Badge, Button, Card, EmptyState } from '@surewina/ui';
-import { formatNaira, getStateByCode } from '@surewina/utils';
-import type { GetTicketDetailResponse } from '@surewina/types';
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  AlertCircle,
+  ArrowRight,
+  ChevronRight,
+  Clock,
+  Inbox,
+  Search,
+  Trophy,
+} from 'lucide-react';
+import { Badge, Button, Card } from '@surewina/ui';
+import { formatNaira } from '@surewina/utils';
+import type { DashboardTicket } from '@surewina/types';
 import { api } from '@/lib/api';
 import { drawTypeShortLabel, formatDrawDate, formatDrawTime } from '@/lib/draw-helpers';
-import { SearchX } from 'lucide-react';
 
-interface TicketDetailViewProps {
-  ticketRef: string;
+type Filter = 'active' | 'past';
+
+interface TicketsListViewProps {
+  initialFilter: Filter;
+}
+
+interface DrawGroup {
+  drawCode: string;
+  drawType: DashboardTicket['drawType'];
+  drawPrizeDescription: string;
+  drawScheduledAt: string;
+  awaitingDraw: boolean;
+  tickets: DashboardTicket[];
+  hasWinner: boolean;
+}
+
+function groupTicketsByDraw(tickets: DashboardTicket[]): DrawGroup[] {
+  const groups = new Map<string, DrawGroup>();
+
+  for (const ticket of tickets) {
+    let group = groups.get(ticket.drawCode);
+
+    if (!group) {
+      group = {
+        drawCode: ticket.drawCode,
+        drawType: ticket.drawType,
+        drawPrizeDescription: ticket.drawPrizeDescription,
+        drawScheduledAt: ticket.drawScheduledAt,
+        awaitingDraw: ticket.awaitingDraw,
+        tickets: [],
+        hasWinner: false,
+      };
+
+      groups.set(ticket.drawCode, group);
+    }
+
+    group.tickets.push(ticket);
+
+    if (ticket.isWinner) {
+      group.hasWinner = true;
+    }
+  }
+
+  return Array.from(groups.values()).sort((a, b) =>
+    b.drawScheduledAt.localeCompare(a.drawScheduledAt),
+  );
 }
 
 function formatCountdown(iso: string): string {
   const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) return 'Drawing now';
+
+  if (ms <= 0) return 'drawing soon';
+
   const totalMins = Math.floor(ms / (60 * 1000));
   const days = Math.floor(totalMins / (60 * 24));
   const hours = Math.floor((totalMins % (60 * 24)) / 60);
   const minutes = totalMins % 60;
-  if (days >= 1) return `${days}d ${hours}h ${minutes}m`;
+
+  if (days >= 1) return `${days}d ${hours}h`;
   if (hours >= 1) return `${hours}h ${minutes}m`;
+
   return `${minutes}m`;
 }
 
-export function TicketDetailView({ ticketRef }: TicketDetailViewProps) {
-  const [data, setData] = useState<GetTicketDetailResponse | null>(null);
+export function TicketsListView({ initialFilter }: TicketsListViewProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [filter, setFilter] = useState<Filter>(initialFilter);
+  const [tickets, setTickets] = useState<DashboardTicket[] | null>(null);
+  const [counts, setCounts] = useState<{ active: number; past: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
-    api.dashboard
-      .getTicketDetail(ticketRef)
-      .then(setData)
-      .catch((err) =>
-        setError(err.message ?? 'Could not load this ticket.'),
-      );
-  }, [ticketRef]);
+    setTickets(null);
+    setError(null);
 
-  const copyRef = async () => {
-    try {
-      await navigator.clipboard.writeText(ticketRef);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // silent
+    api.dashboard
+      .listMyTickets({ filter, pageSize: 100 })
+      .then((res) => setTickets(res.tickets))
+      .catch((err) => setError(err.message ?? 'Could not load tickets.'));
+  }, [filter]);
+
+  useEffect(() => {
+    Promise.all([
+      api.dashboard.listMyTickets({ filter: 'active', pageSize: 1 }),
+      api.dashboard.listMyTickets({ filter: 'past', pageSize: 1 }),
+    ])
+      .then(([active, past]) => setCounts({ active: active.total, past: past.total }))
+      .catch(() => undefined);
+  }, []);
+
+  const groups = useMemo(() => (tickets ? groupTicketsByDraw(tickets) : null), [tickets]);
+
+  const filteredGroups = useMemo(() => {
+    if (!groups) return null;
+
+    const q = query.trim().toLowerCase();
+
+    if (!q) return groups;
+
+    return groups.filter((group) => {
+      return (
+        group.drawCode.toLowerCase().includes(q) ||
+        group.drawPrizeDescription.toLowerCase().includes(q) ||
+        group.tickets.some((ticket) => ticket.ticketRef.toLowerCase().includes(q))
+      );
+    });
+  }, [groups, query]);
+
+  const handleFilterChange = (next: Filter) => {
+    setFilter(next);
+
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (next === 'active') {
+      params.delete('filter');
+    } else {
+      params.set('filter', next);
     }
+
+    const qs = params.toString();
+    router.replace(`/dashboard/tickets${qs ? `?${qs}` : ''}`, { scroll: false });
   };
 
   if (error) {
     return (
-      <>
-        <Link
-          href="/dashboard/tickets"
-          className="inline-flex items-center gap-1 text-sm text-ink-500 hover:text-navy-800 mb-6"
-        >
-          <ChevronLeft className="w-3.5 h-3.5" />
-          Back to my tickets
-        </Link>
-        <Card variant="default">
-          <EmptyState
-            icon={<SearchX className="w-12 h-12" />}
-            title="Ticket not found"
-            description="This ticket reference doesn't match any of your purchases. The reference may be incorrect, or this ticket belongs to a different account."
-            action={
-              <Link href="/dashboard/tickets">
-                <Button variant="primary">View all tickets</Button>
-              </Link>
-            }
-          />
-        </Card>
-      </>
+      <Card
+        variant="default"
+        className="rounded-2xl border-red-100 bg-white p-6 text-center shadow-sm"
+      >
+        <AlertCircle className="mx-auto h-6 w-6 text-red-600" />
+        <p className="mt-3 text-sm font-bold text-red-600">{error}</p>
+      </Card>
     );
   }
-
-  if (!data) {
-    return (
-      <>
-        <div className="h-4 w-40 bg-ink-100 rounded animate-pulse mb-6" />
-        <div className="h-72 bg-ink-100 rounded-lg animate-pulse" />
-      </>
-    );
-  }
-
-  const { ticket, draw, siblingTickets, claimId } = data;
-  const isJackpot = ticket.drawType === 'SATURDAY_JACKPOT';
-  const state = getStateByCode(ticket.stateOfPlayCode);
 
   return (
-    <>
-      <Link
-        href="/dashboard/tickets"
-        className="inline-flex items-center gap-1 text-sm text-ink-500 hover:text-navy-800 mb-6"
+    <div>
+      <Card
+        variant="default"
+        className="mb-4 rounded-2xl border-slate-200 bg-white p-3 shadow-sm"
       >
-        <ChevronLeft className="w-3.5 h-3.5" />
-        Back to my tickets
-      </Link>
-
-      {/* Winner banner */}
-      {ticket.isWinner && (
-        <Card variant="default" className="overflow-hidden mb-6 border-amber-100">
-          <div className="bg-amber-50 p-6 flex items-start gap-4">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-500 flex-shrink-0">
-              <Trophy className="w-6 h-6 text-white" />
-            </div>
-            <div className="flex-1">
-              <p className="text-[10px] uppercase tracking-wider text-amber-700 font-semibold">
-                Winning ticket
-              </p>
-              <h2 className="font-display text-xl font-bold text-ink-950 mt-0.5">
-                You won {formatNaira(draw.prizeValueNgn)}
-              </h2>
-              <p className="text-sm text-ink-700 mt-1">
-                Prize: {ticket.drawPrizeDescription}
-              </p>
-            </div>
-            {claimId && (
-              <Link href={`/dashboard/claims#${claimId}`} className="flex-shrink-0">
-                <Button variant="accent" size="md">
-                  View claim
-                </Button>
-              </Link>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Ticket card */}
-      <Card variant="default" className="overflow-hidden mb-6">
-        <div className="p-6 border-b border-ink-100">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
-                {drawTypeShortLabel[ticket.drawType]}
-              </Badge>
-              {ticket.awaitingDraw && (
-                <Badge variant="live" withDot>
-                  Awaiting draw
-                </Badge>
-              )}
-              {!ticket.awaitingDraw && !ticket.isWinner && (
-                <Badge variant="closed">Did not win</Badge>
-              )}
-            </div>
-            {ticket.awaitingDraw && (
-              <span className="inline-flex items-center gap-1 text-sm text-ink-700 tabular-nums font-mono">
-                <Clock className="w-3.5 h-3.5" />
-                {formatCountdown(ticket.drawScheduledAt)}
-              </span>
-            )}
-          </div>
-
-          <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-            {ticket.awaitingDraw ? "You're playing for" : 'Draw was for'}
-          </p>
-          <h1 className="font-display text-2xl font-bold text-ink-950 mt-1">
-            {ticket.drawPrizeDescription}
-          </h1>
-          <p className="font-display text-xl font-bold text-amber-700 tabular-nums mt-2">
-            {formatNaira(draw.prizeValueNgn)}
-          </p>
-        </div>
-
-        <div className="bg-ink-50/50 p-6">
-          <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold mb-3">
-            Your ticket reference
-          </p>
-          <div className="flex items-center justify-between gap-3 bg-white border border-ink-100 rounded-md px-4 py-3">
-            <span className="font-mono text-base sm:text-lg text-ink-950 tracking-wide">
-              {ticket.ticketRef}
-            </span>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="inline-flex rounded-lg bg-slate-100 p-1">
             <button
               type="button"
-              onClick={copyRef}
+              onClick={() => handleFilterChange('active')}
               className={
-                copied
-                  ? 'inline-flex items-center gap-1.5 text-xs font-medium text-success'
-                  : 'inline-flex items-center gap-1.5 text-xs font-medium text-ink-500 hover:text-navy-800 transition-colors'
+                filter === 'active'
+                  ? 'rounded-md bg-white px-4 py-2 text-sm font-bold text-navy-950 shadow-sm'
+                  : 'rounded-md px-4 py-2 text-sm font-bold text-slate-500 transition hover:text-navy-950'
               }
             >
-              {copied ? (
-                <>
-                  <Check className="w-3 h-3" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3 h-3" />
-                  Copy
-                </>
+              Active
+              {counts?.active !== undefined && (
+                <span className="ml-2 font-mono text-xs text-slate-400">
+                  {counts.active}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleFilterChange('past')}
+              className={
+                filter === 'past'
+                  ? 'rounded-md bg-white px-4 py-2 text-sm font-bold text-navy-950 shadow-sm'
+                  : 'rounded-md px-4 py-2 text-sm font-bold text-slate-500 transition hover:text-navy-950'
+              }
+            >
+              Past
+              {counts?.past !== undefined && (
+                <span className="ml-2 font-mono text-xs text-slate-400">
+                  {counts.past}
+                </span>
               )}
             </button>
           </div>
-        </div>
 
-        <div className="p-6 grid grid-cols-2 gap-x-6 gap-y-5 text-sm">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-              Draw date
-            </p>
-            <p className="text-ink-950 mt-1 font-mono">
-              {formatDrawDate(ticket.drawScheduledAt)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-              Draw time
-            </p>
-            <p className="text-ink-950 mt-1 font-mono">
-              {formatDrawTime(ticket.drawScheduledAt)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-              Ticket type
-            </p>
-            <p className="text-ink-950 mt-1">
-              {ticket.ticketType === 'JACKPOT' ? 'Jackpot' : 'Daily standard'}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-              Face value
-            </p>
-            <p className="text-ink-950 mt-1 tabular-nums">
-              {formatNaira(ticket.faceValueNgn)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-              State of play
-            </p>
-            <p className="text-ink-950 mt-1">{state?.name ?? ticket.stateOfPlayCode}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-              Purchased
-            </p>
-            <p className="text-ink-950 mt-1">{formatDrawDate(ticket.createdAt)}</p>
+          <div className="relative w-full md:max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search ticket ref or prize..."
+              className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-navy-950 outline-none transition placeholder:text-slate-400 focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+            />
           </div>
         </div>
       </Card>
 
-      {/* Sibling tickets */}
-      {siblingTickets.length > 0 && (
-        <Card variant="default" className="overflow-hidden mb-6">
-          <div className="p-5 border-b border-ink-100">
-            <p className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-              Other tickets you hold for this draw
+      {!filteredGroups ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 animate-pulse rounded-2xl bg-white" />
+          ))}
+        </div>
+      ) : filteredGroups.length === 0 ? (
+        <EmptyTicketsState filter={filter} hasSearch={query.trim().length > 0} />
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {filteredGroups.map((group, index) => (
+            <TicketRow
+              key={group.drawCode}
+              group={group}
+              isLast={index === filteredGroups.length - 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TicketRow({ group, isLast }: { group: DrawGroup; isLast: boolean }) {
+  const isJackpot = group.drawType === 'SATURDAY_JACKPOT';
+  const totalValue = group.tickets.reduce((sum, ticket) => sum + ticket.faceValueNgn, 0);
+  const firstTicket = group.tickets[0];
+
+  return (
+    <Link
+      href={`/dashboard/tickets/${firstTicket.ticketRef}`}
+      className={
+        isLast
+          ? 'block bg-white px-5 py-4 transition hover:bg-[#F8FAF4]'
+          : 'block border-b border-slate-100 bg-white px-5 py-4 transition hover:bg-[#F8FAF4]'
+      }
+    >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_160px_32px] md:items-center">
+        <div className="min-w-0">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
+              {drawTypeShortLabel[group.drawType]}
+            </Badge>
+
+            {group.hasWinner && (
+              <Badge variant="verified" withDot>
+                Winner
+              </Badge>
+            )}
+
+            {group.awaitingDraw && !group.hasWinner && (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-[#4E8F01]">
+                <Clock className="h-3 w-3" />
+                {formatCountdown(group.drawScheduledAt)}
+              </span>
+            )}
+
+            {!group.awaitingDraw && !group.hasWinner && (
+              <span className="text-xs font-medium text-slate-400">Closed</span>
+            )}
+          </div>
+
+          <p className="truncate font-display text-base font-black text-navy-950">
+            {group.drawPrizeDescription}
+          </p>
+
+          <p className="mt-1 text-sm text-slate-500">
+            {group.tickets.length} ticket{group.tickets.length === 1 ? '' : 's'} ·{' '}
+            {formatDrawDate(group.drawScheduledAt)} · {formatDrawTime(group.drawScheduledAt)}
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {group.tickets.slice(0, 4).map((ticket) => (
+              <span
+                key={ticket.ticketRef}
+                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-600"
+              >
+                {ticket.ticketRef}
+              </span>
+            ))}
+
+            {group.tickets.length > 4 && (
+              <span className="px-1 py-0.5 text-[11px] font-semibold text-slate-400">
+                +{group.tickets.length - 4} more
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 md:block md:text-right">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+              Value
+            </p>
+            <p className="mt-1 font-display text-lg font-black text-navy-950">
+              {formatNaira(totalValue)}
             </p>
           </div>
-          <div className="p-5 space-y-2">
-            {siblingTickets.map((ref) => (
-              <Link
-                key={ref}
-                href={`/dashboard/tickets/${ref}`}
-                className="flex items-center justify-between gap-3 px-3 py-2 -mx-3 rounded hover:bg-ink-50 transition-colors"
-              >
-                <span className="font-mono text-sm text-ink-700">{ref}</span>
-                <ChevronLeft className="w-4 h-4 text-ink-300 rotate-180" />
-              </Link>
-            ))}
-          </div>
-        </Card>
-      )}
 
-      {/* Verifiability footer */}
-      {!ticket.awaitingDraw && (
-        <Card variant="default" className="p-5 bg-ink-50/30">
-          <div className="flex items-start gap-3">
-            <Hash className="w-4 h-4 text-navy-800 flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-semibold text-ink-950">This draw was audited</p>
-              <p className="text-ink-700 mt-1 leading-relaxed">
-                The RNG seed hash for this draw was committed before the draw and revealed after.
-                You can verify the draw on the public archive.
-              </p>
-              <Link
-                href={`/results/${ticket.drawCode}`}
-                className="inline-block mt-3 text-sm text-navy-800 hover:text-navy-700 font-medium"
-              >
-                View public result →
-              </Link>
-            </div>
-          </div>
-        </Card>
+          {group.hasWinner && (
+            <Trophy className="h-5 w-5 text-[#4E8F01] md:ml-auto md:mt-2" />
+          )}
+        </div>
+
+        <ChevronRight className="hidden h-4 w-4 text-slate-300 md:block" />
+      </div>
+    </Link>
+  );
+}
+
+function EmptyTicketsState({
+  filter,
+  hasSearch,
+}: {
+  filter: Filter;
+  hasSearch: boolean;
+}) {
+  return (
+    <Card
+      variant="default"
+      className="rounded-2xl border-slate-200 bg-white p-10 text-center shadow-sm"
+    >
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+        <Inbox className="h-6 w-6" />
+      </div>
+
+      <h2 className="mt-4 font-display text-xl font-black text-navy-950">
+        {hasSearch
+          ? 'No matching tickets'
+          : filter === 'active'
+            ? 'No active tickets'
+            : 'No past tickets yet'}
+      </h2>
+
+      <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">
+        {hasSearch
+          ? 'Try another ticket reference, prize name, or draw code.'
+          : filter === 'active'
+            ? "You don't have tickets in upcoming draws yet."
+            : 'Past tickets will appear here after their draw is completed.'}
+      </p>
+
+      {!hasSearch && filter === 'active' && (
+        <Link href="/draws" className="mt-6 inline-block">
+          <Button
+            variant="accent"
+            className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+          >
+            Browse active draws
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
       )}
-    </>
+    </Card>
   );
 }
