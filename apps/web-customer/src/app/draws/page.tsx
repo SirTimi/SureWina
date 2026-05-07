@@ -1,7 +1,14 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, ChevronRight, Sparkles } from 'lucide-react';
-import { Button, Container } from '@surewina/ui';
+import {
+  ArrowRight,
+  CalendarDays,
+  ChevronRight,
+  ShieldCheck,
+  Sparkles,
+  Trophy,
+} from 'lucide-react';
+import { Button, Card, Container } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { api } from '@/lib/api';
 import { DrawCard } from '@/components/draw-card';
@@ -15,7 +22,6 @@ export const metadata: Metadata = {
 export default async function DrawsPage() {
   const { draws } = await api.draws.listActive();
 
-  // Fetch ticketsSold for each draw in parallel
   const drawsWithStats = await Promise.all(
     draws.map(async (draw) => {
       try {
@@ -30,7 +36,6 @@ export default async function DrawsPage() {
   const dailyDraws = drawsWithStats.filter((d) => d.draw.drawType === 'DAILY_STANDARD');
   const jackpotDraws = drawsWithStats.filter((d) => d.draw.drawType === 'SATURDAY_JACKPOT');
 
-  // Sum the total prize value across all active draws
   const totalPrizePoolNgn = drawsWithStats.reduce(
     (sum, d) => sum + d.draw.prizeValueNgn,
     0,
@@ -39,100 +44,157 @@ export default async function DrawsPage() {
   return (
     <main>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-navy-950 via-navy-950 to-[#08152a] text-white">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#A8E368]/40 to-transparent" />
-        <div className="pointer-events-none absolute right-[-15%] top-[10%] h-[420px] w-[420px] rounded-full bg-[#A8E368]/8 blur-3xl" />
-        <div className="pointer-events-none absolute left-[-10%] bottom-[-10%] h-[300px] w-[300px] rounded-full bg-amber-500/8 blur-3xl" />
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pb-20 pt-32 sm:pb-24 sm:pt-36 lg:pb-28 lg:pt-40">
+        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
+        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-[#4E8F01]/10 blur-3xl" />
 
-        <Container size="lg" className="relative z-10 max-w-[1180px] py-14 lg:py-20">
+        <Container size="lg" className="relative max-w-[1400px]">
           <Link
             href="/"
-            className="mb-6 inline-flex items-center gap-1 text-sm text-white/60 transition hover:text-[#A8E368]"
+            className="mb-8 inline-flex items-center gap-1 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
           >
             <ChevronRight className="h-3.5 w-3.5 rotate-180" />
             Back to home
           </Link>
 
-          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#A8E368]">
-            Active draws
-          </div>
+          <div className="max-w-4xl">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+              <ShieldCheck className="h-4 w-4 text-white" />
+              Active draws · regulated and verifiable
+            </div>
 
-          <h1 className="mt-3 max-w-3xl font-display text-4xl font-black leading-[1.05] tracking-[-0.03em] sm:text-5xl lg:text-6xl">
-            Every prize currently up for grabs.
-          </h1>
+            <h1 className="font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl lg:text-7xl">
+              Every prize
+              <br />
+              <span className="text-[#4E8F01]">currently up for grabs.</span>
+            </h1>
 
-          <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/70 sm:text-lg">
-            Daily product draws plus the Saturday {formatNaira(4000000)} jackpot. One ticket
-            puts you in the running. Every draw publishes its RNG seed before it runs.
-          </p>
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
+              Daily product draws plus the Saturday {formatNaira(4000000)} jackpot.
+              One ticket puts you in the running. Every draw publishes its RNG seed
+              before it runs.
+            </p>
 
-          {/* Stat strip */}
-          <div className="mt-10 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
-            <Stat value={String(draws.length)} label="Open draws" />
-            <Stat value={String(dailyDraws.length)} label="Daily draws" />
-            <Stat value={String(jackpotDraws.length)} label="Jackpot draws" />
-            <Stat
-              value={formatNaira(totalPrizePoolNgn)}
-              label="Total prize pool"
-              wide
-            />
+            <div className="mt-10 grid max-w-4xl grid-cols-2 gap-4 md:grid-cols-4">
+              <Stat value={String(draws.length)} label="Open draws" />
+              <Stat value={String(dailyDraws.length)} label="Daily draws" />
+              <Stat value={String(jackpotDraws.length)} label="Jackpot draws" />
+              <Stat value={formatNaira(totalPrizePoolNgn)} label="Total prize pool" wide />
+            </div>
           </div>
         </Container>
       </section>
 
-      {/* Jackpot section (always first if any) */}
+      {/* Jackpot section */}
       {jackpotDraws.length > 0 && (
-        <Container size="lg" className="max-w-[1180px] py-12 lg:py-16">
-          <div className="mb-8 flex items-end justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-700">
-                <Sparkles className="h-3.5 w-3.5" />
-                The big one
-              </div>
-              <h2 className="mt-3 font-display text-3xl font-black text-navy-950 sm:text-4xl">
-                Saturday jackpot.
-              </h2>
-              <p className="mt-2 max-w-xl text-base text-slate-600">
-                Drawn live every Saturday at 21:00 WAT. Cash prize, paid to your bank within 24
-                hours of KYC clearance.
-              </p>
-            </div>
-          </div>
+        <section className="bg-white">
+          <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
+            <div className="mb-8 flex items-end justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-sm border border-[#4E8F01]/20 bg-[#A8E368]/20 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  The big one
+                </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {jackpotDraws.map(({ draw, ticketsSold }) => (
-              <DrawCard key={draw.drawCode} draw={draw} ticketsSold={ticketsSold} />
-            ))}
-          </div>
-        </Container>
+                <h2 className="mt-3 font-display text-3xl font-black tracking-[-0.03em] text-navy-950 sm:text-4xl">
+                  Saturday jackpot.
+                </h2>
+
+                <p className="mt-2 max-w-xl text-base leading-relaxed text-slate-600">
+                  Drawn live every Saturday at 21:00 WAT. Cash prize, paid to your bank
+                  within 24 hours of KYC clearance.
+                </p>
+              </div>
+            </div>
+
+            <Card
+              variant="default"
+              className="overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-[#F8FAF4] p-4 shadow-[0_24px_70px_rgba(15,23,42,0.07)] lg:p-5"
+            >
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(360px,0.55fr)] lg:items-stretch">
+                <div className="grid grid-cols-1">
+                  {jackpotDraws.map(({ draw, ticketsSold }) => (
+                    <DrawCard key={draw.drawCode} draw={draw} ticketsSold={ticketsSold} />
+                  ))}
+                </div>
+
+                <div className="relative overflow-hidden rounded-2xl bg-[#4E8F01] p-6 text-white lg:p-8">
+                  <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#A8E368]/30 blur-3xl" />
+                  <div className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+
+                  <div className="relative flex h-full flex-col justify-between">
+                    <div>
+                      <div className="inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
+                        <Trophy className="h-3.5 w-3.5" />
+                        Jackpot draw
+                      </div>
+
+                      <h3 className="mt-5 font-display text-3xl font-black leading-tight tracking-[-0.04em] text-white">
+                        One Saturday draw.
+                        <br />
+                        One major cash prize.
+                      </h3>
+
+                      <p className="mt-4 text-sm leading-relaxed text-white/75">
+                        The Saturday jackpot is the main weekly draw. Your ticket enters
+                        you into the {formatNaira(4000000)} cash prize pool, with results
+                        published publicly after the draw.
+                      </p>
+                    </div>
+
+                    <div className="mt-8 grid gap-3">
+                      <JackpotPoint
+                        icon={<CalendarDays className="h-4 w-4" />}
+                        title="Draw time"
+                        body="Every Saturday · 21:00 WAT"
+                      />
+                      <JackpotPoint
+                        icon={<ShieldCheck className="h-4 w-4" />}
+                        title="Verification"
+                        body="Seed hash published before the draw and revealed after."
+                      />
+                      <JackpotPoint
+                        icon={<Sparkles className="h-4 w-4" />}
+                        title="Payout"
+                        body="Paid to your verified bank account after claim checks."
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </Container>
+        </section>
       )}
 
       {/* Daily draws section */}
-      <section className="bg-gradient-to-b from-emerald-50/30 via-white to-white">
-        <Container size="lg" className="max-w-[1180px] py-12 lg:py-16">
+      <section className="bg-[#F8FAF4]">
+        <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
           <div className="mb-8 flex items-end justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700">
+              <div className="inline-flex items-center gap-2 rounded-sm border border-[#4E8F01]/20 bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
                 Daily product draws
               </div>
-              <h2 className="mt-3 font-display text-3xl font-black text-navy-950 sm:text-4xl">
+
+              <h2 className="mt-3 max-w-3xl font-display text-3xl font-black tracking-[-0.03em] text-navy-950 sm:text-4xl">
                 Tonight, tomorrow, and the rest of the week.
               </h2>
-              <p className="mt-2 max-w-xl text-base text-slate-600">
-                A new product prize every day. Tickets are ₦500 each. Buy 10 and earn one free
-                jackpot entry on us.
+
+              <p className="mt-2 max-w-xl text-base leading-relaxed text-slate-600">
+                A new product prize every day. Tickets are ₦500 each. Buy 10 and earn
+                one free jackpot entry on us.
               </p>
             </div>
           </div>
 
           {dailyDraws.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
               <p className="text-slate-500">
                 No daily draws are open right now. Check back soon.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {dailyDraws.map(({ draw, ticketsSold }) => (
                 <DrawCard key={draw.drawCode} draw={draw} ticketsSold={ticketsSold} />
               ))}
@@ -142,28 +204,39 @@ export default async function DrawsPage() {
       </section>
 
       {/* Bottom CTA */}
-      <Container size="lg" className="max-w-[1180px] py-12 lg:py-16">
-        <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-navy-950 via-navy-950 to-[#08152a] p-8 text-white sm:p-12">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.4fr_1fr] lg:items-center">
+      <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
+        <Card
+          variant="default"
+          className="overflow-hidden rounded-3xl border border-[#A8E368]/35 bg-[#4E8F01] p-8 text-white shadow-[0_24px_70px_rgba(78,143,1,0.22)] sm:p-12"
+        >
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.35fr_1fr] lg:items-center">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-sm border border-[#A8E368]/30 bg-[#A8E368]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#A8E368]">
+              <div className="inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-navy-950">
                 <Sparkles className="h-3.5 w-3.5" />
                 The 10-for-1 rule
               </div>
-              <h2 className="mt-3 font-display text-3xl font-black leading-tight sm:text-4xl">
+
+              <h2 className="mt-4 font-display text-3xl font-black leading-tight tracking-[-0.03em] text-white sm:text-4xl">
                 Stack 10 daily tickets, earn a free Saturday entry.
               </h2>
-              <p className="mt-3 max-w-md text-sm text-white/70">
-                Every 10 daily tickets you buy automatically earns one free entry into the next
-                Saturday jackpot. No subscription, no hidden math — your tally is on your
-                dashboard.
+
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-white/75">
+                Every 10 daily tickets you buy automatically earns one free entry into
+                the next Saturday jackpot. No subscription, no hidden math — your tally
+                is on your dashboard.
               </p>
+
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <Link href="/how-it-works">
-                  <Button variant="secondary" size="lg" className="rounded-sm">
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    className="rounded-sm border-white/20 bg-white/10 font-bold text-white hover:bg-white/15"
+                  >
                     See how it works
                   </Button>
                 </Link>
+
                 <Link href="/sign-in">
                   <Button
                     variant="accent"
@@ -177,31 +250,20 @@ export default async function DrawsPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#A8E368]">
+            <div className="rounded-2xl border border-white/15 bg-white/10 p-6 backdrop-blur">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A8E368]">
                 The math, simply
               </p>
-              <ul className="mt-4 space-y-3 text-sm text-white/80">
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#A8E368]" />
-                  <span>1 daily ticket = ₦500</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#A8E368]" />
-                  <span>10 daily tickets = ₦5,000 + 1 free jackpot entry</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#A8E368]" />
-                  <span>1 Saturday jackpot ticket alone = ₦5,000</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#A8E368]" />
-                  <span>Same price either way — but daily gives 10 chances first</span>
-                </li>
+
+              <ul className="mt-4 space-y-3 text-sm leading-relaxed text-white/80">
+                <MathItem>1 daily ticket = ₦500</MathItem>
+                <MathItem>10 daily tickets = ₦5,000 + 1 free jackpot entry</MathItem>
+                <MathItem>1 Saturday jackpot ticket alone = ₦5,000</MathItem>
+                <MathItem>Same price either way — but daily gives 10 chances first</MathItem>
               </ul>
             </div>
           </div>
-        </div>
+        </Card>
       </Container>
     </main>
   );
@@ -215,11 +277,54 @@ interface StatProps {
 
 function Stat({ value, label, wide }: StatProps) {
   return (
-    <div className={wide ? 'col-span-2 sm:col-span-1' : ''}>
-      <p className="font-display text-2xl font-black tabular-nums sm:text-3xl">{value}</p>
-      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
+    <Card
+      variant="default"
+      className={
+        wide
+          ? 'col-span-2 rounded-2xl border-[#4E8F01]/15 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur md:col-span-1'
+          : 'rounded-2xl border-[#4E8F01]/15 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur'
+      }
+    >
+      <p className="font-display text-2xl font-black tracking-[-0.03em] text-navy-950 tabular-nums sm:text-3xl">
+        {value}
+      </p>
+
+      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
         {label}
       </p>
+    </Card>
+  );
+}
+
+function JackpotPoint({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-[#A8E368] text-navy-950">
+          {icon}
+        </div>
+        <div>
+          <p className="text-sm font-black text-white">{title}</p>
+          <p className="mt-1 text-xs leading-relaxed text-white/65">{body}</p>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function MathItem({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2">
+      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#A8E368]" />
+      <span>{children}</span>
+    </li>
   );
 }
