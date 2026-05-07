@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
+  ArrowRight,
   Calendar,
   Camera,
   Check,
@@ -15,7 +16,7 @@ import {
   Phone,
   ShieldCheck,
 } from 'lucide-react';
-import { Button, Container } from '@surewina/ui';
+import { Button, Card, Container } from '@surewina/ui';
 import { getAllStatesSorted } from '@surewina/utils';
 import type { ClaimPath, CollectionPoint } from '@surewina/types';
 import { api } from '@/lib/api';
@@ -25,10 +26,22 @@ interface ClaimProductViewProps {
 }
 
 const REQUIRED_DOCS = [
-  { icon: CreditCard, text: 'Government-issued photo ID (NIN, voter card, driver licence, or passport)' },
-  { icon: Phone, text: 'The phone number you used to buy the ticket — we send a code on arrival' },
-  { icon: Package, text: 'Original SMS receipt with your ticket reference' },
-  { icon: ShieldCheck, text: 'Yourself — collection is in person, not by proxy' },
+  {
+    icon: CreditCard,
+    text: 'Government-issued photo ID such as NIN, voter card, driver licence, or passport.',
+  },
+  {
+    icon: Phone,
+    text: 'The phone number used to buy the ticket. We send a code when you arrive.',
+  },
+  {
+    icon: Package,
+    text: 'Original SMS receipt with your ticket reference.',
+  },
+  {
+    icon: ShieldCheck,
+    text: 'Collection must be in person. No proxy pickup.',
+  },
 ];
 
 export function ClaimProductView({ claimId }: ClaimProductViewProps) {
@@ -49,44 +62,52 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
       api.claims.getClaimPath(claimId).then((res) => res.claim),
       api.claims.listCollectionPoints().then((res) => res.points),
     ])
-      .then(([c, p]) => {
-        setClaim(c);
-        setPoints(p);
+      .then(([claimData, collectionPoints]) => {
+        setClaim(claimData);
+        setPoints(collectionPoints);
       })
       .catch((err) => setError(err.message ?? 'Could not load booking page.'));
   }, [claimId]);
 
-  // Refetch when state filter changes
   useEffect(() => {
     if (!claim) return;
+
     api.claims
       .listCollectionPoints({ stateCode: stateFilter || undefined })
       .then((res) => {
         setPoints(res.points);
-        // Clear selection if it's no longer in the list
-        if (selectedPointId && !res.points.find((p) => p.id === selectedPointId)) {
+
+        if (
+          selectedPointId &&
+          !res.points.find((point) => point.id === selectedPointId)
+        ) {
           setSelectedPointId('');
         }
-      });
-  }, [stateFilter]);
+      })
+      .catch((err) => setError(err.message ?? 'Could not load collection centres.'));
+  }, [claim, stateFilter, selectedPointId]);
 
   const handleBook = async () => {
     if (!selectedPointId) {
       setError('Pick a collection centre.');
       return;
     }
+
     if (claim?.isJackpot && !agreedToPhotoOp) {
       setError('Please confirm you agree to the photo-op for jackpot prizes.');
       return;
     }
+
     setError(null);
     setSubmitting(true);
+
     try {
       await api.claims.bookCollection({
         claimId,
         collectionPointId: selectedPointId,
         preferredDate,
       });
+
       setBookingDone(true);
       setTimeout(() => router.push(`/claim/${claimId}/status`), 1800);
     } catch (err) {
@@ -97,285 +118,518 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
 
   if (error && !claim) {
     return (
-      <Container size="md" className="py-16 text-center">
-        <h1 className="font-display text-2xl font-bold text-navy-950">Claim not found</h1>
-        <p className="mt-2 text-slate-500">{error}</p>
-        <Link href="/dashboard/claims" className="mt-6 inline-block">
-          <Button variant="primary">Back to my claims</Button>
-        </Link>
-      </Container>
+      <main className="min-h-screen bg-[#F8FAF4]">
+        <Container size="sm" className="py-20 text-center">
+          <Card
+            variant="default"
+            className="rounded-2xl border-red-100 bg-white p-8 shadow-sm"
+          >
+            <AlertCircle className="mx-auto h-8 w-8 text-red-600" />
+
+            <h1 className="mt-4 font-display text-2xl font-black text-navy-950">
+              Claim not found
+            </h1>
+
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">{error}</p>
+
+            <Link href="/dashboard/claims" className="mt-6 inline-block">
+              <Button
+                variant="accent"
+                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+              >
+                Back to my claims
+              </Button>
+            </Link>
+          </Card>
+        </Container>
+      </main>
     );
   }
 
   if (!claim) {
     return (
-      <Container size="md" className="py-16">
-        <div className="h-96 animate-pulse rounded-2xl bg-slate-100" />
-      </Container>
+      <main className="min-h-screen bg-[#F8FAF4]">
+        <Container size="lg" className="max-w-[1240px] pb-12 pt-28">
+          <div className="h-[520px] animate-pulse rounded-3xl bg-white" />
+        </Container>
+      </main>
     );
   }
 
   if (bookingDone) {
     return (
-      <Container size="sm" className="py-16 text-center">
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#A8E368]/30">
-          <Check className="h-10 w-10 text-[#4E8F01]" />
-        </div>
-        <h1 className="font-display text-3xl font-black text-navy-950">Collection booked.</h1>
-        <p className="mt-3 text-slate-600">
-          We sent the booking confirmation by SMS. Redirecting to your claim status…
-        </p>
-      </Container>
+      <main className="min-h-screen bg-[#F8FAF4]">
+        <Container size="lg" className="max-w-[1240px] pb-12 pt-28">
+          <div className="grid min-h-[520px] place-items-center">
+            <Card
+              variant="default"
+              className="w-full max-w-2xl overflow-hidden rounded-3xl border-slate-200 bg-white text-center shadow-sm"
+            >
+              <div className="relative overflow-hidden bg-[#4E8F01] px-8 py-10 text-white">
+                <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#A8E368]/25 blur-3xl" />
+                <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+
+                <div className="relative">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#A8E368] text-[#4E8F01]">
+                    <Check className="h-8 w-8" />
+                  </div>
+
+                  <p className="mt-6 text-[10px] font-black uppercase tracking-[0.16em] text-[#A8E368]">
+                    Booking confirmed
+                  </p>
+
+                  <h1 className="mt-2 font-display text-4xl font-black tracking-[-0.04em] text-white">
+                    Collection booked.
+                  </h1>
+
+                  <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/75">
+                    We sent your booking confirmation by SMS. You’ll be redirected to your
+                    claim status shortly.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                <SuccessCell label="Next step" value="Check status" />
+                <SuccessCell label="Confirmation" value="Sent by SMS" />
+                <SuccessCell label="Collection" value="Bring valid ID" />
+              </div>
+
+              <div className="flex flex-col items-center justify-center gap-3 border-t border-slate-100 bg-white px-6 py-5 sm:flex-row">
+                <Link href={`/claim/${claimId}/status`}>
+                  <Button
+                    variant="accent"
+                    className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                  >
+                    View claim status
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+
+                <Link
+                  href="/dashboard/claims"
+                  className="text-sm font-bold text-slate-500 transition hover:text-[#4E8F01]"
+                >
+                  Back to my claims
+                </Link>
+              </div>
+            </Card>
+          </div>
+        </Container>
+      </main>
     );
   }
 
-  const selectedPoint = points.find((p) => p.id === selectedPointId);
+  const selectedPoint = points.find((point) => point.id === selectedPointId);
 
   return (
-    <Container size="lg" className="max-w-[1180px] py-10">
-      <Link
-        href={`/claim/${claimId}`}
-        className="mb-6 inline-flex items-center gap-1 text-sm text-slate-500 transition hover:text-[#4E8F01]"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" />
-        Back to claim chooser
-      </Link>
+    <main className="min-h-screen bg-[#F8FAF4]">
+      <Container size="lg" className="max-w-[1240px] pb-12 pt-28">
+        <Link
+          href={`/claim/${claimId}`}
+          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Back to claim chooser
+        </Link>
 
-      <div className="mb-8 max-w-2xl">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700">
-          <Package className="h-3.5 w-3.5" />
-          Step 2 · Book your collection
-        </div>
-        <h1 className="font-display text-4xl font-black leading-tight tracking-[-0.02em] text-navy-950 sm:text-5xl">
-          Pick a collection centre.
-        </h1>
-        <p className="mt-3 text-base text-slate-600">
-          Your prize ({claim.prizeDescription}) is ready. Choose where and when to pick it up. We
-          recommend booking within 7 days of the draw.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-        {/* LEFT: pickers */}
-        <div className="space-y-6">
-          {/* State filter */}
-          <div>
-            <label
-              htmlFor="state-filter"
-              className="mb-2 block text-sm font-bold text-navy-950"
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <section className="min-w-0">
+            <Card
+              variant="default"
+              className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm"
             >
-              Filter by state
-            </label>
-            <select
-              id="state-filter"
-              value={stateFilter}
-              onChange={(e) => setStateFilter(e.target.value)}
-              className="w-full max-w-xs rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/40"
-            >
-              <option value="">All states ({points.length})</option>
-              {states.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div className="relative overflow-hidden bg-[#4E8F01] p-7 text-white sm:p-8">
+                <div className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-[#A8E368]/25 blur-3xl" />
+                <div className="absolute -bottom-24 left-1/3 h-60 w-60 rounded-full bg-white/10 blur-3xl" />
 
-          {/* Collection points */}
-          <div>
-            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
-              Available centres
-            </p>
-            {points.length === 0 ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center">
-                <MapPin className="mx-auto h-8 w-8 text-slate-300" />
-                <p className="mt-3 text-sm text-slate-500">
-                  No centres in this state. Try a different state or contact us — we&apos;ll
-                  arrange courier delivery.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {points.map((p) => {
-                  const isSelected = p.id === selectedPointId;
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setSelectedPointId(p.id)}
-                      className={`w-full rounded-2xl border-2 bg-white p-5 text-left transition-all ${
-                        isSelected
-                          ? 'border-[#4E8F01] shadow-[0_18px_50px_rgba(78,143,1,0.15)]'
-                          : 'border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                              isSelected
-                                ? 'bg-[#A8E368]/30 text-[#4E8F01]'
-                                : 'bg-slate-100 text-slate-500'
-                            }`}
-                          >
-                            <MapPin className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-navy-950">{p.name}</h3>
-                            <p className="mt-1 text-sm text-slate-600">{p.address}</p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              {p.city} · {p.openingHours}
-                            </p>
-                          </div>
-                        </div>
-                        {isSelected && (
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#4E8F01] text-white">
-                            <Check className="h-4 w-4" />
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                <div className="relative">
+                  <div className="mb-7 inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-navy-950">
+                    <Package className="h-4 w-4" />
+                    Product fulfilment
+                  </div>
 
-          {/* Date picker */}
-          <div>
-            <label
-              htmlFor="preferred-date"
-              className="mb-2 block text-sm font-bold text-navy-950"
-            >
-              Preferred collection date
-            </label>
-            <div className="relative max-w-xs">
-              <Calendar className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                id="preferred-date"
-                type="date"
-                value={preferredDate}
-                min={getDefaultDate()}
-                max={getMaxDate()}
-                onChange={(e) => setPreferredDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/40"
-              />
-            </div>
-            <p className="mt-2 text-xs text-slate-500">
-              Choose a date within the next 7 days. We&apos;ll confirm the exact time slot by SMS.
-            </p>
-          </div>
+                  <h1 className="max-w-3xl font-display text-4xl font-black leading-[1.02] tracking-[-0.04em] text-white sm:text-5xl">
+                    Book your collection.
+                  </h1>
 
-          {/* Photo-op T&C if jackpot */}
-          {claim.isJackpot && (
-            <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
-              <div className="flex items-start gap-3">
-                <Camera className="h-5 w-5 shrink-0 text-amber-700" />
-                <div className="flex-1">
-                  <h3 className="font-bold text-navy-950">Jackpot photo-op required</h3>
-                  <p className="mt-1 text-sm text-slate-700">
-                    For jackpot wins, we ask one short photo at handover for our public results
-                    archive. Your face is optional — most winners prefer the photo to focus on the
-                    cheque.
+                  <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/75 sm:text-base">
+                    Your prize,{' '}
+                    <span className="font-bold text-white">{claim.prizeDescription}</span>,
+                    is ready. Choose a collection centre and preferred pickup date.
                   </p>
-                  <label className="mt-3 inline-flex items-start gap-2 text-sm cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={agreedToPhotoOp}
-                      onChange={(e) => setAgreedToPhotoOp(e.target.checked)}
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-[#4E8F01] accent-[#4E8F01]"
-                    />
-                    <span className="text-slate-700">
-                      I understand and agree to the photo-op terms.
-                    </span>
-                  </label>
                 </div>
               </div>
-            </div>
-          )}
 
-          {error && (
-            <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4">
-              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
-              <p className="text-sm text-rose-900">{error}</p>
-            </div>
-          )}
+              <div className="grid grid-cols-1 divide-y divide-slate-100 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+                <SummaryCell
+                  label="Prize"
+                  value={claim.prizeDescription}
+                  subtle="Winning item"
+                />
 
-          <Button
-            onClick={handleBook}
-            isLoading={submitting}
-            disabled={!selectedPointId || submitting}
-            variant="accent"
-            size="lg"
-            className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
-          >
-            Confirm booking
-          </Button>
-        </div>
+                <SummaryCell
+                  label="Collection centres"
+                  value={points.length.toLocaleString()}
+                  subtle={stateFilter ? 'Matching selected state' : 'Available now'}
+                />
 
-        {/* RIGHT: what to bring */}
-        <aside className="lg:sticky lg:top-6 lg:self-start">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
-                What to bring on collection day
-              </p>
-            </div>
-            <ul className="space-y-3 p-5">
-              {REQUIRED_DOCS.map((d, i) => {
-                const Icon = d.icon;
-                return (
-                  <li key={i} className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-[#4E8F01]">
-                      <Icon className="h-4 w-4" />
+                <SummaryCell
+                  label="Preferred date"
+                  value={new Date(preferredDate).toLocaleDateString('en-NG', {
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                  subtle="Confirmation comes by SMS"
+                />
+              </div>
+            </Card>
+
+            <Card
+              variant="default"
+              className="mt-6 rounded-3xl border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+            >
+              <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+                <div>
+                  <label
+                    htmlFor="state-filter"
+                    className="mb-2 block text-sm font-bold text-navy-950"
+                  >
+                    Filter by state
+                  </label>
+
+                  <select
+                    id="state-filter"
+                    value={stateFilter}
+                    onChange={(e) => setStateFilter(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+                  >
+                    <option value="">All states ({points.length})</option>
+                    {states.map((state) => (
+                      <option key={state.code} value={state.code}>
+                        {state.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="preferred-date"
+                    className="mb-2 block text-sm font-bold text-navy-950"
+                  >
+                    Preferred collection date
+                  </label>
+
+                  <div className="relative">
+                    <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <input
+                      id="preferred-date"
+                      type="date"
+                      value={preferredDate}
+                      min={getDefaultDate()}
+                      max={getMaxDate()}
+                      onChange={(e) => setPreferredDate(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+                    />
+                  </div>
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    Choose a date within the next 7 days.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-3 text-[11px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                  Available centres
+                </p>
+
+                {points.length === 0 ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center">
+                    <MapPin className="mx-auto h-8 w-8 text-slate-300" />
+                    <p className="mt-3 text-sm text-slate-500">
+                      No centres in this state. Try a different state or contact support
+                      for delivery options.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-2xl border border-slate-200">
+                    {points.map((point, index) => {
+                      const isSelected = point.id === selectedPointId;
+                      const isLast = index === points.length - 1;
+
+                      return (
+                        <button
+                          key={point.id}
+                          type="button"
+                          onClick={() => setSelectedPointId(point.id)}
+                          className={
+                            isLast
+                              ? selectedCentreClass(isSelected, false)
+                              : selectedCentreClass(isSelected, true)
+                          }
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={
+                                isSelected
+                                  ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
+                                  : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-500'
+                              }
+                            >
+                              {isSelected ? (
+                                <Check className="h-5 w-5" />
+                              ) : (
+                                <MapPin className="h-5 w-5" />
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                                <h3 className="font-bold text-navy-950">{point.name}</h3>
+
+                                <span className="text-xs font-semibold text-slate-500">
+                                  {point.openingHours}
+                                </span>
+                              </div>
+
+                              <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                                {point.address}
+                              </p>
+
+                              <p className="mt-1 text-xs text-slate-500">{point.city}</p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {claim.isJackpot && (
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <Camera className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+
+                    <div className="flex-1">
+                      <h3 className="text-sm font-black text-navy-950">
+                        Jackpot photo-op required
+                      </h3>
+
+                      <p className="mt-1 text-sm leading-relaxed text-slate-700">
+                        For jackpot wins, we may take a short handover photo for the public
+                        results archive. Your face can be excluded if preferred.
+                      </p>
+
+                      <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={agreedToPhotoOp}
+                          onChange={(e) => setAgreedToPhotoOp(e.target.checked)}
+                          className="mt-1 h-4 w-4 rounded border-slate-300 text-[#4E8F01] accent-[#4E8F01]"
+                        />
+                        <span className="text-slate-700">
+                          I understand and agree to the photo-op terms.
+                        </span>
+                      </label>
                     </div>
-                    <span className="text-sm leading-snug text-slate-700">{d.text}</span>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-4">
-              <p className="text-xs text-slate-500">
-                Don&apos;t worry — we&apos;ll send a confirmation SMS with these instructions.
-                Forward it to anyone helping with logistics.
-              </p>
-            </div>
-          </div>
+                  </div>
+                </div>
+              )}
 
-          {selectedPoint && (
-            <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
+              {error && (
+                <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-4">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                  <p className="text-sm leading-relaxed text-red-700">{error}</p>
+                </div>
+              )}
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button
+                  onClick={handleBook}
+                  isLoading={submitting}
+                  disabled={!selectedPointId || submitting}
+                  variant="accent"
+                  size="lg"
+                  className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                >
+                  Confirm booking
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+
+                <p className="text-xs leading-relaxed text-slate-500">
+                  Confirmation instructions will be sent by SMS.
+                </p>
+              </div>
+            </Card>
+          </section>
+
+          <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
                 Booking summary
               </p>
-              <h3 className="mt-2 text-sm font-bold text-navy-950">{selectedPoint.name}</h3>
-              <p className="mt-1 text-xs text-slate-600">{selectedPoint.address}</p>
-              <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
-                Preferred date
-              </p>
-              <p className="mt-1 text-sm font-bold text-navy-950">
-                {new Date(preferredDate).toLocaleDateString('en-NG', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
+
+              {selectedPoint ? (
+                <>
+                  <h2 className="mt-3 font-display text-2xl font-black leading-tight text-navy-950">
+                    {selectedPoint.name}
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                    {selectedPoint.address}
+                  </p>
+
+                  <div className="mt-5 space-y-3 border-t border-slate-100 pt-4">
+                    <SummaryRow label="City" value={selectedPoint.city} />
+                    <SummaryRow
+                      label="Date"
+                      value={new Date(preferredDate).toLocaleDateString('en-NG', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    />
+                    <SummaryRow label="Hours" value={selectedPoint.openingHours} />
+                  </div>
+                </>
+              ) : (
+                <p className="mt-3 text-sm leading-relaxed text-slate-500">
+                  Select a centre to see your booking summary here.
+                </p>
+              )}
+            </Card>
+
+            <Card
+              variant="default"
+              className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm"
+            >
+              <div className="border-b border-slate-100 p-5">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                  What to bring
+                </p>
+              </div>
+
+              <ul className="space-y-3 p-5">
+                {REQUIRED_DOCS.map((doc, index) => {
+                  const Icon = doc.icon;
+
+                  return (
+                    <li key={index} className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/25 text-[#4E8F01]">
+                        <Icon className="h-4 w-4" />
+                      </div>
+
+                      <span className="text-sm leading-relaxed text-slate-600">
+                        {doc.text}
+                      </span>
+                    </li>
+                  );
                 })}
+              </ul>
+
+              <div className="border-t border-slate-100 bg-[#F8FAF4] px-5 py-4">
+                <p className="text-xs leading-relaxed text-slate-500">
+                  We’ll also send these instructions by SMS after booking.
+                </p>
+              </div>
+            </Card>
+
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+
+              <p className="font-display text-xl font-black text-navy-950">
+                Collection is verified.
               </p>
-            </div>
-          )}
-        </aside>
-      </div>
-    </Container>
+
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                Your ticket reference and identity are checked before the prize is released.
+              </p>
+            </Card>
+          </aside>
+        </div>
+      </Container>
+    </main>
   );
 }
 
+function SuccessCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="p-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+        {label}
+      </p>
+
+      <p className="mt-1 text-sm font-bold text-navy-950">{value}</p>
+    </div>
+  );
+}
+
+function SummaryCell({
+  label,
+  value,
+  subtle,
+}: {
+  label: string;
+  value: string;
+  subtle: string;
+}) {
+  return (
+    <div className="p-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+        {label}
+      </p>
+
+      <p className="mt-1 line-clamp-1 font-display text-xl font-black text-navy-950">
+        {value}
+      </p>
+
+      <p className="mt-1 text-xs text-slate-500">{subtle}</p>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-sm text-slate-500">{label}</span>
+      <span className="text-right text-sm font-bold text-navy-950">{value}</span>
+    </div>
+  );
+}
+
+function selectedCentreClass(isSelected: boolean, withBorder: boolean) {
+  const base =
+    'block w-full bg-white px-4 py-4 text-left transition hover:bg-[#F8FAF4]';
+
+  const border = withBorder ? ' border-b border-slate-100' : '';
+
+  if (isSelected) {
+    return `${base}${border} bg-[#A8E368]/10`;
+  }
+
+  return `${base}${border}`;
+}
+
 function getDefaultDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().split('T')[0];
 }
 
 function getMaxDate(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 7);
-  return d.toISOString().split('T')[0];
+  const date = new Date();
+  date.setDate(date.getDate() + 7);
+  return date.toISOString().split('T')[0];
 }

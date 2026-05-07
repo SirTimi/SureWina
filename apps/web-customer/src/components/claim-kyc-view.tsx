@@ -6,15 +6,17 @@ import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
   ArrowRight,
+  Banknote,
   Camera,
   Check,
   ChevronLeft,
   CreditCard,
   FileText,
+  Lock,
   ShieldCheck,
   Upload,
 } from 'lucide-react';
-import { Button, Container } from '@surewina/ui';
+import { Button, Card, Container } from '@surewina/ui';
 import type { ClaimKycStatus } from '@surewina/types';
 import { api } from '@/lib/api';
 
@@ -61,13 +63,14 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
       .catch((err) => setError(err.message ?? 'Could not load KYC status.'));
   }, [claimId]);
 
-  // Auto-advance on success
   const goToNextStep = (currentKyc: ClaimKycStatus) => {
     setKyc(currentKyc);
+
     if (currentKyc.status === 'COMPLETE') {
       router.push(`/claim/${claimId}/cash`);
       return;
     }
+
     if (step === 'docs' && currentKyc.documentUploaded) {
       setStep('bvn');
       router.replace(`/claim/${claimId}/cash/kyc?step=bvn`, { scroll: false });
@@ -75,113 +78,268 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
       setStep('bank');
       router.replace(`/claim/${claimId}/cash/kyc?step=bank`, { scroll: false });
     } else if (step === 'bank' && currentKyc.bankAccount) {
-      // Final — back to overview
       router.push(`/claim/${claimId}/cash`);
     }
   };
 
   if (error && !kyc) {
     return (
-      <Container size="sm" className="py-16 text-center">
-        <h1 className="font-display text-2xl font-bold text-navy-950">KYC unavailable</h1>
-        <p className="mt-2 text-slate-500">{error}</p>
-        <Link href={`/claim/${claimId}/cash`} className="mt-6 inline-block">
-          <Button variant="primary">Back to overview</Button>
-        </Link>
-      </Container>
+      <main className="min-h-screen bg-[#F8FAF4]">
+        <Container size="sm" className="py-20 text-center">
+          <Card
+            variant="default"
+            className="rounded-2xl border-red-100 bg-white p-8 shadow-sm"
+          >
+            <AlertCircle className="mx-auto h-8 w-8 text-red-600" />
+
+            <h1 className="mt-4 font-display text-2xl font-black text-navy-950">
+              KYC unavailable
+            </h1>
+
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">{error}</p>
+
+            <Link href={`/claim/${claimId}/cash`} className="mt-6 inline-block">
+              <Button
+                variant="accent"
+                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+              >
+                Back to overview
+              </Button>
+            </Link>
+          </Card>
+        </Container>
+      </main>
     );
   }
 
   if (!kyc) {
     return (
-      <Container size="sm" className="py-16">
-        <div className="h-96 animate-pulse rounded-2xl bg-slate-100" />
-      </Container>
+      <main className="min-h-screen bg-[#F8FAF4]">
+        <Container size="lg" className="max-w-[1240px] pb-12 pt-28">
+          <div className="h-[520px] animate-pulse rounded-3xl bg-white" />
+        </Container>
+      </main>
     );
   }
 
+  const daysRemaining = Math.max(
+    0,
+    Math.ceil(
+      (new Date(kyc.kycDeadlineAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+    ),
+  );
+
   return (
-    <Container size="sm" className="max-w-[640px] py-8 sm:py-10">
-      <Link
-        href={`/claim/${claimId}/cash`}
-        className="mb-5 inline-flex items-center gap-1 text-sm text-slate-500 transition hover:text-[#4E8F01]"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" />
-        Back to overview
-      </Link>
+    <main className="min-h-screen bg-[#F8FAF4]">
+      <Container size="lg" className="max-w-[1240px] pb-12 pt-28">
+        <Link
+          href={`/claim/${claimId}/cash`}
+          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Back to cash overview
+        </Link>
 
-      {/* Mini progress */}
-      <div className="mb-8 flex items-center gap-2">
-        <ProgressDot
-          label="ID + selfie"
-          state={kyc.documentUploaded ? 'done' : step === 'docs' ? 'current' : 'future'}
-          stepNum={1}
-        />
-        <ProgressLine done={kyc.documentUploaded} />
-        <ProgressDot
-          label="BVN"
-          state={kyc.bvnLast4 ? 'done' : step === 'bvn' ? 'current' : 'future'}
-          stepNum={2}
-        />
-        <ProgressLine done={!!kyc.bvnLast4} />
-        <ProgressDot
-          label="Bank"
-          state={kyc.bankAccount ? 'done' : step === 'bank' ? 'current' : 'future'}
-          stepNum={3}
-        />
-      </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <section className="min-w-0">
+            <Card
+              variant="default"
+              className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm"
+            >
+              <div className="border-b border-slate-100 bg-white p-6 sm:p-7">
+                <div className="mb-6">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                    Cash claim verification
+                  </p>
 
-      {step === 'docs' && (
-        <DocsForm claimId={claimId} onSuccess={goToNextStep} kyc={kyc} />
-      )}
-      {step === 'bvn' && (
-        <BvnForm claimId={claimId} onSuccess={goToNextStep} kyc={kyc} />
-      )}
-      {step === 'bank' && (
-        <BankForm claimId={claimId} onSuccess={goToNextStep} kyc={kyc} />
-      )}
-    </Container>
+                  <h1 className="mt-2 font-display text-3xl font-black leading-tight tracking-[-0.03em] text-navy-950 sm:text-4xl">
+                    {step === 'docs' && 'Upload your ID and selfie.'}
+                    {step === 'bvn' && 'Verify your BVN.'}
+                    {step === 'bank' && 'Link your bank account.'}
+                  </h1>
+
+                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-500">
+                    {step === 'docs' &&
+                      'We need a clear ID image and a selfie so the payout cannot be claimed by the wrong person.'}
+                    {step === 'bvn' &&
+                      'Your BVN helps confirm the identity behind the cash payout. We do not store it in plaintext.'}
+                    {step === 'bank' &&
+                      'Add the Nigerian bank account where the verified cash prize should be paid.'}
+                  </p>
+                </div>
+
+                <KycProgress kyc={kyc} step={step} />
+              </div>
+
+              <div className="p-6 sm:p-7">
+                {step === 'docs' && (
+                  <DocsForm claimId={claimId} onSuccess={goToNextStep} />
+                )}
+
+                {step === 'bvn' && (
+                  <BvnForm claimId={claimId} onSuccess={goToNextStep} />
+                )}
+
+                {step === 'bank' && (
+                  <BankForm claimId={claimId} onSuccess={goToNextStep} />
+                )}
+              </div>
+            </Card>
+          </section>
+
+          <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                Verification status
+              </p>
+
+              <div className="mt-5 space-y-3">
+                <StatusItem
+                  done={kyc.documentUploaded && kyc.selfieUploaded}
+                  active={step === 'docs'}
+                  title="ID and selfie"
+                  body="Confirm the person claiming matches the winning ticket."
+                />
+
+                <StatusItem
+                  done={!!kyc.bvnLast4}
+                  active={step === 'bvn'}
+                  title="BVN"
+                  body="Confirm identity before payout."
+                />
+
+                <StatusItem
+                  done={!!kyc.bankAccount}
+                  active={step === 'bank'}
+                  title="Bank account"
+                  body="Confirm where the cash should be paid."
+                />
+              </div>
+            </Card>
+
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                <Lock className="h-5 w-5" />
+              </div>
+
+              <p className="font-display text-xl font-black text-navy-950">
+                Your details are protected.
+              </p>
+
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                KYC details are used for prize verification and payout compliance. They
+                should not be used for marketing or public winner records.
+              </p>
+            </Card>
+
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                Deadline
+              </p>
+
+              <p className="mt-2 font-display text-3xl font-black text-navy-950">
+                {daysRemaining} day{daysRemaining === 1 ? '' : 's'}
+              </p>
+
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                Complete verification by{' '}
+                <span className="font-bold text-navy-950">
+                  {new Date(kyc.kycDeadlineAt).toLocaleDateString('en-NG', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </span>
+                .
+              </p>
+            </Card>
+          </aside>
+        </div>
+      </Container>
+    </main>
   );
 }
 
-function ProgressDot({
-  label,
-  state,
-  stepNum,
-}: {
-  label: string;
-  state: 'done' | 'current' | 'future';
-  stepNum: number;
-}) {
+function KycProgress({ kyc, step }: { kyc: ClaimKycStatus; step: SubStep }) {
+  const items = [
+    {
+      label: 'ID + selfie',
+      done: kyc.documentUploaded && kyc.selfieUploaded,
+      current: step === 'docs',
+    },
+    {
+      label: 'BVN',
+      done: !!kyc.bvnLast4,
+      current: step === 'bvn',
+    },
+    {
+      label: 'Bank',
+      done: !!kyc.bankAccount,
+      current: step === 'bank',
+    },
+  ];
+
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div
-        className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold transition ${
-          state === 'done'
-            ? 'border-[#4E8F01] bg-[#4E8F01] text-white'
-            : state === 'current'
-            ? 'border-[#4E8F01] bg-[#A8E368]/20 text-[#4E8F01]'
-            : 'border-slate-200 bg-white text-slate-400'
-        }`}
-      >
-        {state === 'done' ? <Check className="h-4 w-4" /> : stepNum}
-      </div>
-      <span
-        className={`text-[10px] font-bold uppercase tracking-wider ${
-          state === 'future' ? 'text-slate-400' : 'text-slate-700'
-        }`}
-      >
-        {label}
-      </span>
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      {items.map((item, index) => (
+        <div
+          key={item.label}
+          className={
+            item.done
+              ? 'rounded-2xl border border-[#4E8F01]/20 bg-[#A8E368]/15 p-4'
+              : item.current
+                ? 'rounded-2xl border border-[#4E8F01]/25 bg-[#F8FAF4] p-4'
+                : 'rounded-2xl border border-slate-200 bg-white p-4'
+          }
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className={
+                item.done
+                  ? 'flex h-8 w-8 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
+                  : item.current
+                    ? 'flex h-8 w-8 items-center justify-center rounded-sm bg-[#A8E368]/35 font-mono text-xs font-black text-[#4E8F01]'
+                    : 'flex h-8 w-8 items-center justify-center rounded-sm bg-slate-100 font-mono text-xs font-black text-slate-400'
+              }
+            >
+              {item.done ? <Check className="h-4 w-4" /> : index + 1}
+            </div>
+
+            <div>
+              <p
+                className={
+                  item.done || item.current
+                    ? 'text-sm font-black text-navy-950'
+                    : 'text-sm font-black text-slate-400'
+                }
+              >
+                {item.label}
+              </p>
+              <p
+                className={
+                  item.done
+                    ? 'text-xs font-medium text-[#4E8F01]'
+                    : item.current
+                      ? 'text-xs font-medium text-slate-500'
+                      : 'text-xs font-medium text-slate-400'
+                }
+              >
+                {item.done ? 'Done' : item.current ? 'Current' : 'Locked'}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
-  );
-}
-
-function ProgressLine({ done }: { done: boolean }) {
-  return (
-    <div
-      className={`mt-[-12px] h-0.5 flex-1 ${done ? 'bg-[#4E8F01]' : 'bg-slate-200'}`}
-    />
   );
 }
 
@@ -190,13 +348,11 @@ function ProgressLine({ done }: { done: boolean }) {
 function DocsForm({
   claimId,
   onSuccess,
-  kyc,
 }: {
   claimId: string;
   onSuccess: (k: ClaimKycStatus) => void;
-  kyc: ClaimKycStatus;
 }) {
-  const [docType, setDocType] = useState<typeof ID_TYPES[number]['value']>('NIN');
+  const [docType, setDocType] = useState<(typeof ID_TYPES)[number]['value']>('NIN');
   const [docFile, setDocFile] = useState<File | null>(null);
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -210,21 +366,26 @@ function DocsForm({
       setError('Upload a photo of your ID.');
       return;
     }
+
     if (!selfieFile) {
       setError('Take a selfie so we can confirm it matches your ID.');
       return;
     }
+
     setError(null);
     setSubmitting(true);
+
     try {
       const docBase64 = await fileToBase64(docFile);
       const selfieBase64 = await fileToBase64(selfieFile);
+
       const res = await api.claims.submitKycDocument({
         claimId,
         documentType: docType,
         documentImageBase64: docBase64,
         selfieImageBase64: selfieBase64,
       });
+
       onSuccess(res.kyc);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed. Try again.');
@@ -234,84 +395,84 @@ function DocsForm({
 
   return (
     <div>
-      <div className="mb-3 inline-flex items-center gap-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700">
-        <FileText className="h-3.5 w-3.5" />
-        Step 1 · ID and selfie
-      </div>
-      <h1 className="font-display text-3xl font-black leading-tight tracking-[-0.02em] text-navy-950 sm:text-4xl">
-        Upload your ID and a selfie.
-      </h1>
-      <p className="mt-3 text-sm text-slate-600">
-        Both images stay encrypted at rest. We auto-delete them 90 days after your prize is paid.
-      </p>
-
-      <div className="mt-8 space-y-5">
-        {/* ID type picker */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
         <div>
-          <label
-            htmlFor="docType"
-            className="mb-2 block text-sm font-bold text-navy-950"
-          >
-            Which ID are you uploading?
+          <label htmlFor="docType" className="mb-2 block text-sm font-bold text-navy-950">
+            ID type
           </label>
+
           <select
             id="docType"
             value={docType}
-            onChange={(e) => setDocType(e.target.value as typeof ID_TYPES[number]['value'])}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/40"
+            onChange={(e) => setDocType(e.target.value as (typeof ID_TYPES)[number]['value'])}
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
           >
-            {ID_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
+            {ID_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
               </option>
             ))}
           </select>
+
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            Use the same legal identity you will use for payout.
+          </p>
         </div>
 
-        {/* ID upload */}
+        <div className="rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4">
+          <p className="text-sm font-black text-navy-950">Before you upload</p>
+          <ul className="mt-2 space-y-1 text-xs leading-relaxed text-slate-600">
+            <li>• Use a clear image with all corners visible.</li>
+            <li>• Do not crop out your name or ID number.</li>
+            <li>• Upload JPG or PNG, maximum 5 MB.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <FileSlot
-          label="Photo of your ID (front)"
-          hint="JPG or PNG · clear, all corners visible · max 5 MB"
+          label="Photo of your ID"
+          hint="Clear front image · all corners visible"
           file={docFile}
-          onSelect={(f) => setDocFile(f)}
+          onSelect={setDocFile}
           icon={Upload}
           inputRef={docInputRef}
         />
 
-        {/* Selfie */}
         <FileSlot
           label="Selfie holding your ID"
-          hint="Hold the ID next to your face · plain background works best"
+          hint="Hold the ID near your face"
           file={selfieFile}
-          onSelect={(f) => setSelfieFile(f)}
+          onSelect={setSelfieFile}
           icon={Camera}
           inputRef={selfieInputRef}
           accept="image/*"
           capture="user"
         />
+      </div>
 
-        {error && (
-          <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4">
-            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
-            <p className="text-sm text-rose-900">{error}</p>
-          </div>
-        )}
+      {error && (
+        <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-4">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+          <p className="text-sm leading-relaxed text-red-700">{error}</p>
+        </div>
+      )}
 
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button
           onClick={handleSubmit}
           isLoading={submitting}
           disabled={submitting}
           variant="accent"
           size="lg"
-          fullWidth
-          className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
+          className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
         >
           Continue to BVN
           <ArrowRight className="h-4 w-4" />
         </Button>
 
-        <p className="text-center text-xs text-slate-500">
-          Your ID is reviewed within 1 hour. We&apos;ll SMS you when it&apos;s cleared.
+        <p className="text-xs leading-relaxed text-slate-500">
+          Review usually takes under 1 hour.
         </p>
       </div>
     </div>
@@ -322,7 +483,7 @@ interface FileSlotProps {
   label: string;
   hint: string;
   file: File | null;
-  onSelect: (f: File | null) => void;
+  onSelect: (file: File | null) => void;
   icon: typeof Upload;
   inputRef: React.RefObject<HTMLInputElement | null>;
   accept?: string;
@@ -334,38 +495,45 @@ function FileSlot({
   hint,
   file,
   onSelect,
-  icon,
+  icon: Icon,
   inputRef,
   accept = 'image/*',
   capture,
 }: FileSlotProps) {
-  const Icon = icon;
   return (
     <div>
       <p className="mb-2 block text-sm font-bold text-navy-950">{label}</p>
+
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className={`group flex w-full items-center gap-4 rounded-2xl border-2 border-dashed bg-white p-5 text-left transition hover:border-[#4E8F01] hover:bg-[#A8E368]/5 ${
-          file ? 'border-[#4E8F01] bg-[#A8E368]/10' : 'border-slate-300'
-        }`}
+        className={
+          file
+            ? 'group flex min-h-32 w-full items-center gap-4 rounded-2xl border border-[#4E8F01]/25 bg-[#A8E368]/10 p-5 text-left transition hover:bg-[#A8E368]/15'
+            : 'group flex min-h-32 w-full items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-left transition hover:border-[#4E8F01] hover:bg-[#F8FAF4]'
+        }
       >
         <div
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-            file ? 'bg-[#4E8F01] text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-[#A8E368]/30 group-hover:text-[#4E8F01]'
-          }`}
+          className={
+            file
+              ? 'flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
+              : 'flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-500 group-hover:bg-[#A8E368]/35 group-hover:text-[#4E8F01]'
+          }
         >
           {file ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
         </div>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-navy-950">
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-navy-950">
             {file ? file.name : 'Tap to upload'}
           </p>
-          <p className="mt-0.5 text-xs text-slate-500">
+
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">
             {file ? `${(file.size / 1024).toFixed(0)} KB · tap to change` : hint}
           </p>
         </div>
       </button>
+
       <input
         ref={inputRef}
         type="file"
@@ -383,11 +551,9 @@ function FileSlot({
 function BvnForm({
   claimId,
   onSuccess,
-  kyc,
 }: {
   claimId: string;
   onSuccess: (k: ClaimKycStatus) => void;
-  kyc: ClaimKycStatus;
 }) {
   const [bvn, setBvn] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -398,8 +564,10 @@ function BvnForm({
       setError('BVN must be exactly 11 digits.');
       return;
     }
+
     setError(null);
     setSubmitting(true);
+
     try {
       const res = await api.claims.submitKycBvn({ claimId, bvn });
       onSuccess(res.kyc);
@@ -410,68 +578,54 @@ function BvnForm({
   };
 
   return (
-    <div>
-      <div className="mb-3 inline-flex items-center gap-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700">
-        <ShieldCheck className="h-3.5 w-3.5" />
-        Step 2 · BVN
+    <div className="max-w-xl">
+      <label htmlFor="bvn" className="mb-2 block text-sm font-bold text-navy-950">
+        BVN number
+      </label>
+
+      <input
+        id="bvn"
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        maxLength={11}
+        value={bvn}
+        onChange={(e) => setBvn(e.target.value.replace(/\D/g, ''))}
+        placeholder="22123456789"
+        className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 font-mono text-xl tracking-wider text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+      />
+
+      <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+        <span>{bvn.length} / 11 digits</span>
+        <span>Dial *565*0# to retrieve it</span>
       </div>
-      <h1 className="font-display text-3xl font-black leading-tight tracking-[-0.02em] text-navy-950 sm:text-4xl">
-        Enter your Bank Verification Number.
-      </h1>
-      <p className="mt-3 text-sm text-slate-600">
-        Dial *565*0# from the phone tied to your bank account to retrieve your BVN if you
-        don&apos;t remember it. We only verify — we never store it in plaintext.
-      </p>
 
-      <div className="mt-8 space-y-5">
-        <div>
-          <label htmlFor="bvn" className="mb-2 block text-sm font-bold text-navy-950">
-            BVN (11 digits)
-          </label>
-          <input
-            id="bvn"
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={11}
-            value={bvn}
-            onChange={(e) => setBvn(e.target.value.replace(/\D/g, ''))}
-            placeholder="22123456789"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono text-lg tracking-wider text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/40"
-          />
-          <p className="mt-2 text-xs text-slate-500 tabular-nums">
-            {bvn.length} / 11 digits
-          </p>
+      {error && (
+        <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-4">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+          <p className="text-sm leading-relaxed text-red-700">{error}</p>
         </div>
+      )}
 
-        {error && (
-          <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4">
-            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
-            <p className="text-sm text-rose-900">{error}</p>
-          </div>
-        )}
-
-        <Button
-          onClick={handleSubmit}
-          isLoading={submitting}
-          disabled={submitting || bvn.length !== 11}
-          variant="accent"
-          size="lg"
-          fullWidth
-          className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
-        >
-          Verify BVN
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-          <p className="text-xs text-slate-600">
-            <span className="font-bold text-navy-950">Why we need this:</span> the Central Bank
-            mandates BVN verification for all financial payouts above ₦10,000. We check the BVN
-            matches the name on your ID — that&apos;s it.
-          </p>
-        </div>
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+        <p className="text-xs leading-relaxed text-slate-600">
+          <span className="font-bold text-navy-950">Why we need this:</span> BVN helps
+          verify that the payout account belongs to the same person claiming the prize.
+          Only verification details should be stored, not the full BVN in plaintext.
+        </p>
       </div>
+
+      <Button
+        onClick={handleSubmit}
+        isLoading={submitting}
+        disabled={submitting || bvn.length !== 11}
+        variant="accent"
+        size="lg"
+        className="mt-6 rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+      >
+        Verify BVN
+        <ArrowRight className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
@@ -481,11 +635,9 @@ function BvnForm({
 function BankForm({
   claimId,
   onSuccess,
-  kyc,
 }: {
   claimId: string;
   onSuccess: (k: ClaimKycStatus) => void;
-  kyc: ClaimKycStatus;
 }) {
   const [bankCode, setBankCode] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
@@ -497,12 +649,15 @@ function BankForm({
       setError('Pick your bank.');
       return;
     }
+
     if (!/^\d{10}$/.test(accountNumber)) {
       setError('Account number must be exactly 10 digits.');
       return;
     }
+
     setError(null);
     setSubmitting(true);
+
     try {
       const res = await api.claims.submitKycBank({ claimId, bankCode, accountNumber });
       onSuccess(res.kyc);
@@ -513,81 +668,117 @@ function BankForm({
   };
 
   return (
-    <div>
-      <div className="mb-3 inline-flex items-center gap-2 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700">
-        <CreditCard className="h-3.5 w-3.5" />
-        Step 3 · Bank account
-      </div>
-      <h1 className="font-display text-3xl font-black leading-tight tracking-[-0.02em] text-navy-950 sm:text-4xl">
-        Where should we send the money?
-      </h1>
-      <p className="mt-3 text-sm text-slate-600">
-        We resolve the account name automatically and only confirm if it matches the name on your
-        ID. Make sure it&apos;s the same person.
-      </p>
+    <div className="max-w-xl">
+      <div>
+        <label htmlFor="bankCode" className="mb-2 block text-sm font-bold text-navy-950">
+          Bank
+        </label>
 
-      <div className="mt-8 space-y-5">
-        <div>
-          <label htmlFor="bankCode" className="mb-2 block text-sm font-bold text-navy-950">
-            Bank
-          </label>
-          <select
-            id="bankCode"
-            value={bankCode}
-            onChange={(e) => setBankCode(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/40"
-          >
-            <option value="">Select your bank…</option>
-            {NIGERIAN_BANKS.map((b) => (
-              <option key={b.code} value={b.code}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label
-            htmlFor="accountNumber"
-            className="mb-2 block text-sm font-bold text-navy-950"
-          >
-            Account number (10 digits)
-          </label>
-          <input
-            id="accountNumber"
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={10}
-            value={accountNumber}
-            onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
-            placeholder="0123456789"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono text-lg tabular-nums tracking-wider text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/40"
-          />
-          <p className="mt-2 text-xs text-slate-500 tabular-nums">
-            {accountNumber.length} / 10 digits
-          </p>
-        </div>
-
-        {error && (
-          <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4">
-            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
-            <p className="text-sm text-rose-900">{error}</p>
-          </div>
-        )}
-
-        <Button
-          onClick={handleSubmit}
-          isLoading={submitting}
-          disabled={submitting || !bankCode || accountNumber.length !== 10}
-          variant="accent"
-          size="lg"
-          fullWidth
-          className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
+        <select
+          id="bankCode"
+          value={bankCode}
+          onChange={(e) => setBankCode(e.target.value)}
+          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
         >
-          Confirm bank and complete KYC
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+          <option value="">Select your bank…</option>
+          {NIGERIAN_BANKS.map((bank) => (
+            <option key={bank.code} value={bank.code}>
+              {bank.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mt-5">
+        <label
+          htmlFor="accountNumber"
+          className="mb-2 block text-sm font-bold text-navy-950"
+        >
+          Account number
+        </label>
+
+        <input
+          id="accountNumber"
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={10}
+          value={accountNumber}
+          onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
+          placeholder="0123456789"
+          className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 font-mono text-xl tracking-wider text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+        />
+
+        <p className="mt-2 text-xs text-slate-500">{accountNumber.length} / 10 digits</p>
+      </div>
+
+      {error && (
+        <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-4">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+          <p className="text-sm leading-relaxed text-red-700">{error}</p>
+        </div>
+      )}
+
+      <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+        <p className="text-xs leading-relaxed text-slate-600">
+          The bank account should belong to the verified winner. We may reject mismatched
+          account details.
+        </p>
+      </div>
+
+      <Button
+        onClick={handleSubmit}
+        isLoading={submitting}
+        disabled={submitting || !bankCode || accountNumber.length !== 10}
+        variant="accent"
+        size="lg"
+        className="mt-6 rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+      >
+        Confirm bank and complete KYC
+        <ArrowRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+function StatusItem({
+  done,
+  active,
+  title,
+  body,
+}: {
+  done: boolean;
+  active: boolean;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div
+      className={
+        done
+          ? 'rounded-2xl border border-[#4E8F01]/15 bg-[#A8E368]/10 p-4'
+          : active
+            ? 'rounded-2xl border border-[#4E8F01]/20 bg-[#F8FAF4] p-4'
+            : 'rounded-2xl border border-slate-100 bg-white p-4'
+      }
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={
+            done
+              ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
+              : active
+                ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]'
+                : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-400'
+          }
+        >
+          {done ? <Check className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+        </div>
+
+        <div>
+          <p className="text-sm font-black text-navy-950">{title}</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">{body}</p>
+        </div>
       </div>
     </div>
   );
@@ -596,8 +787,10 @@ function BankForm({
 async function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = reject;
+
     reader.readAsDataURL(file);
   });
 }

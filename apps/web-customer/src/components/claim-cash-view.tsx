@@ -13,7 +13,7 @@ import {
   FileText,
   ShieldCheck,
 } from 'lucide-react';
-import { Button, Container } from '@surewina/ui';
+import { Button, Card, Container } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import type { ClaimKycStatus, ClaimPath } from '@surewina/types';
 import { api } from '@/lib/api';
@@ -40,292 +40,424 @@ export function ClaimCashView({ claimId }: ClaimCashViewProps) {
 
   useEffect(() => {
     Promise.all([
-      api.claims.getClaimPath(claimId).then((r) => r.claim),
-      api.claims.getClaimKycStatus(claimId).then((r) => r.kyc),
+      api.claims.getClaimPath(claimId).then((res) => res.claim),
+      api.claims.getClaimKycStatus(claimId).then((res) => res.kyc),
     ])
-      .then(([c, k]) => {
-        setClaim(c);
-        setKyc(k);
+      .then(([claimData, kycData]) => {
+        setClaim(claimData);
+        setKyc(kycData);
       })
-      .catch((err) => setError(err.message ?? 'Could not load.'));
+      .catch((err) => setError(err.message ?? 'Could not load cash claim.'));
   }, [claimId]);
 
   if (error && !claim) {
     return (
-      <Container size="md" className="py-16 text-center">
-        <h1 className="font-display text-2xl font-bold text-navy-950">Claim not found</h1>
-        <p className="mt-2 text-slate-500">{error}</p>
-        <Link href="/dashboard/claims" className="mt-6 inline-block">
-          <Button variant="primary">Back to my claims</Button>
-        </Link>
-      </Container>
+      <main className="min-h-screen bg-[#F8FAF4]">
+        <Container size="sm" className="py-20 text-center">
+          <Card
+            variant="default"
+            className="rounded-2xl border-red-100 bg-white p-8 shadow-sm"
+          >
+            <AlertCircle className="mx-auto h-8 w-8 text-red-600" />
+
+            <h1 className="mt-4 font-display text-2xl font-black text-navy-950">
+              Claim not found
+            </h1>
+
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">{error}</p>
+
+            <Link href="/dashboard/claims" className="mt-6 inline-block">
+              <Button
+                variant="accent"
+                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+              >
+                Back to my claims
+              </Button>
+            </Link>
+          </Card>
+        </Container>
+      </main>
     );
   }
 
   if (!claim || !kyc) {
     return (
-      <Container size="md" className="py-16">
-        <div className="h-96 animate-pulse rounded-2xl bg-slate-100" />
-      </Container>
+      <main className="min-h-screen bg-[#F8FAF4]">
+        <Container size="lg" className="max-w-[1240px] pb-12 pt-28">
+          <div className="h-[520px] animate-pulse rounded-3xl bg-white" />
+        </Container>
+      </main>
     );
   }
 
   const steps = computeSteps(claimId, kyc);
-  const allComplete = steps.every((s) => s.state === 'done');
-  const nextStep = steps.find((s) => s.state === 'current');
+  const allComplete = steps.every((step) => step.state === 'done');
+  const nextStep = steps.find((step) => step.state === 'current');
 
-  // Days remaining until KYC deadline
   const daysRemaining = Math.max(
     0,
-    Math.ceil((new Date(kyc.kycDeadlineAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+    Math.ceil(
+      (new Date(kyc.kycDeadlineAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+    ),
   );
 
   return (
-    <Container size="lg" className="max-w-[1180px] py-10">
-      <Link
-        href={`/claim/${claimId}`}
-        className="mb-6 inline-flex items-center gap-1 text-sm text-slate-500 transition hover:text-[#4E8F01]"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" />
-        Back to claim chooser
-      </Link>
+    <main className="min-h-screen bg-[#F8FAF4]">
+      <Container size="lg" className="max-w-[1240px] pb-12 pt-28">
+        <Link
+          href={`/claim/${claimId}`}
+          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Back to claim chooser
+        </Link>
 
-      {/* Heading */}
-      <div className="mb-8 max-w-2xl">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-700">
-          <Banknote className="h-3.5 w-3.5" />
-          Step 2 · Cash conversion
-        </div>
-        <h1 className="font-display text-4xl font-black leading-tight tracking-[-0.02em] text-navy-950 sm:text-5xl">
-          {allComplete ? 'KYC complete.' : 'Verify your identity.'}
-        </h1>
-        <p className="mt-3 text-base text-slate-600">
-          {allComplete
-            ? 'Bank transfer queued. Net amount will hit your account within 24 hours.'
-            : 'Tier 1 KYC is required before we can pay cash. Four short steps — usually under 5 minutes.'}
-        </p>
-      </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <section>
+            <Card
+              variant="default"
+              className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm"
+            >
+              <div className="relative overflow-hidden bg-[#4E8F01] p-7 text-white sm:p-8">
+                <div className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-[#A8E368]/25 blur-3xl" />
+                <div className="absolute -bottom-24 left-1/3 h-60 w-60 rounded-full bg-white/10 blur-3xl" />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
-        {/* LEFT: Step list */}
-        <div className="space-y-3">
-          {steps.map((step, i) => {
-            const Icon = step.icon;
-            const isClickable = step.state === 'current' && step.href;
-
-            const card = (
-              <div
-                className={`flex items-start gap-4 rounded-2xl border-2 bg-white p-5 transition ${
-                  step.state === 'done'
-                    ? 'border-emerald-200 bg-emerald-50/40'
-                    : step.state === 'current'
-                    ? 'border-[#4E8F01] shadow-[0_18px_50px_rgba(78,143,1,0.15)]'
-                    : 'border-slate-200 opacity-70'
-                } ${isClickable ? 'hover:shadow-[0_24px_60px_rgba(15,23,42,0.1)]' : ''}`}
-              >
-                <div
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 ${
-                    step.state === 'done'
-                      ? 'border-[#4E8F01] bg-[#4E8F01] text-white'
-                      : step.state === 'current'
-                      ? 'border-[#4E8F01] bg-[#A8E368]/20 text-[#4E8F01]'
-                      : 'border-slate-200 bg-slate-50 text-slate-400'
-                  }`}
-                >
-                  {step.state === 'done' ? (
-                    <Check className="h-5 w-5" />
-                  ) : (
-                    <Icon className="h-5 w-5" />
-                  )}
-                </div>
-
-                <div className="flex-1">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p
-                      className={`text-[10px] font-bold uppercase tracking-[0.16em] ${
-                        step.state === 'done'
-                          ? 'text-emerald-700'
-                          : step.state === 'current'
-                          ? 'text-[#4E8F01]'
-                          : 'text-slate-400'
-                      }`}
-                    >
-                      Step {i + 1} of {steps.length}
-                    </p>
-                    {step.state === 'current' && (
-                      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-700">
-                        ← Continue here
-                      </span>
-                    )}
+                <div className="relative">
+                  <div className="mb-7 inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-navy-950">
+                    <Banknote className="h-4 w-4" />
+                    Cash conversion
                   </div>
-                  <h3
-                    className={`mt-1 font-bold ${
-                      step.state === 'future' ? 'text-slate-400' : 'text-navy-950'
-                    }`}
-                  >
-                    {step.title}
-                  </h3>
-                  <p
-                    className={`mt-1 text-sm ${
-                      step.state === 'future' ? 'text-slate-400' : 'text-slate-600'
-                    }`}
-                  >
-                    {step.description}
+
+                  <h1 className="max-w-3xl font-display text-4xl font-black leading-[1.02] tracking-[-0.04em] text-white sm:text-5xl">
+                    Verify your identity.
+                  </h1>
+
+                  <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/75 sm:text-base">
+                    Complete the required checks so we can pay your cash prize to a
+                    verified Nigerian bank account.
                   </p>
                 </div>
+              </div>
 
-                {isClickable && (
-                  <ArrowRight className="mt-3 h-5 w-5 shrink-0 text-[#4E8F01]" />
+              <div className="grid grid-cols-1 divide-y divide-slate-100 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+                <SummaryCell
+                  label="Net payout"
+                  value={formatNaira(claim.netCashIfChosenNgn)}
+                  subtle="Estimated amount to bank"
+                />
+
+                <SummaryCell
+                  label="Gross value"
+                  value={formatNaira(claim.grossPrizeValueNgn)}
+                  subtle="Before deductions"
+                />
+
+                <SummaryCell
+                  label="KYC deadline"
+                  value={`${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`}
+                  subtle="Remaining to complete"
+                />
+              </div>
+            </Card>
+
+            <div className="mt-6">
+              <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                    Verification steps
+                  </p>
+
+                  <h2 className="mt-1 font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
+                    Finish these four steps.
+                  </h2>
+                </div>
+
+                {nextStep && (
+                  <p className="text-sm text-slate-500">
+                    Continue with{' '}
+                    <span className="font-bold text-navy-950">{nextStep.title}</span>
+                  </p>
                 )}
               </div>
-            );
 
-            return isClickable && step.href ? (
-              <Link key={step.key} href={step.href}>
-                {card}
-              </Link>
-            ) : (
-              <div key={step.key}>{card}</div>
-            );
-          })}
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                {steps.map((step, index) => {
+                  const isLast = index === steps.length - 1;
 
-          {nextStep && nextStep.href && (
-            <Link href={nextStep.href} className="block pt-2">
-              <Button
-                variant="accent"
-                size="lg"
-                fullWidth
-                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
-              >
-                Continue: {nextStep.title}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          )}
+                  return (
+                    <StepRow
+                      key={step.key}
+                      step={step}
+                      index={index}
+                      total={steps.length}
+                      isLast={isLast}
+                    />
+                  );
+                })}
+              </div>
 
-          {allComplete && (
-            <Link href={`/claim/${claimId}/status`} className="block pt-2">
-              <Button
-                variant="accent"
-                size="lg"
-                fullWidth
-                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
-              >
-                View claim status
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          )}
-        </div>
+              {nextStep?.href && (
+                <Link href={nextStep.href} className="mt-5 inline-block">
+                  <Button
+                    variant="accent"
+                    size="lg"
+                    className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                  >
+                    Continue: {nextStep.title}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
 
-        {/* RIGHT: Payout summary + WHT explanation */}
-        <aside className="lg:sticky lg:top-6 lg:self-start space-y-4">
-          {/* Net amount card */}
-          <div className="overflow-hidden rounded-2xl border-2 border-amber-200 bg-amber-50/40 p-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-700">
-              You will receive
-            </p>
-            <p className="mt-2 font-display text-3xl font-black tabular-nums text-navy-950">
-              {formatNaira(claim.netCashIfChosenNgn)}
-            </p>
-            <div className="mt-4 space-y-2 border-t border-amber-200/50 pt-3 text-sm">
-              <Row
-                label="Gross prize value"
-                value={formatNaira(claim.grossPrizeValueNgn)}
-                tone="default"
-              />
-              <Row
-                label="WHT (10%)"
-                value={`− ${formatNaira(claim.estimatedWhtNgn)}`}
-                tone="muted"
-              />
-              <div className="my-2 border-t border-amber-200/50" />
-              <Row
-                label="Net to your bank"
-                value={formatNaira(claim.netCashIfChosenNgn)}
-                tone="emphasis"
-              />
+              {allComplete && (
+                <Link href={`/claim/${claimId}/status`} className="mt-5 inline-block">
+                  <Button
+                    variant="accent"
+                    size="lg"
+                    className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                  >
+                    View claim status
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              )}
             </div>
-          </div>
+          </section>
 
-          {/* WHT explainer */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
-                Why we deduct WHT
+          <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                Payout summary
               </p>
-            </div>
-            <div className="space-y-3 p-5 text-sm text-slate-600">
-              <p>
-                Nigerian law requires us to withhold 10% on lottery cash prizes over ₦10,000 and
-                remit it directly to the Federal Inland Revenue Service.
-              </p>
-              <p>
-                You receive a tax certificate by SMS and email after the transfer — keep it for
-                your records.
-              </p>
-            </div>
-          </div>
 
-          {/* Deadline warning */}
-          <div className="overflow-hidden rounded-2xl border border-rose-200 bg-rose-50/40 p-5">
-            <div className="flex items-start gap-3">
-              <Clock className="h-4 w-4 shrink-0 text-rose-600" />
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-rose-700">
-                  KYC deadline
-                </p>
-                <p className="mt-1 text-sm font-bold text-navy-950">
-                  {daysRemaining} day{daysRemaining === 1 ? '' : 's'} remaining
-                </p>
-                <p className="mt-1 text-xs text-slate-600">
-                  Complete all 4 steps by{' '}
+              <p className="mt-3 font-display text-4xl font-black tracking-[-0.04em] text-navy-950">
+                {formatNaira(claim.netCashIfChosenNgn)}
+              </p>
+
+              <p className="mt-1 text-sm text-slate-500">Estimated net amount</p>
+
+              <div className="mt-5 space-y-3 border-t border-slate-100 pt-4">
+                <MoneyRow
+                  label="Gross prize value"
+                  value={formatNaira(claim.grossPrizeValueNgn)}
+                />
+                <MoneyRow
+                  label="Estimated WHT"
+                  value={`− ${formatNaira(claim.estimatedWhtNgn)}`}
+                  muted
+                />
+                <MoneyRow
+                  label="Net to bank"
+                  value={formatNaira(claim.netCashIfChosenNgn)}
+                  strong
+                />
+              </div>
+            </Card>
+
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+
+              <p className="font-display text-xl font-black text-navy-950">
+                Why verification is required.
+              </p>
+
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                Cash prizes require identity and bank checks before payout. This protects
+                the winner, prevents wrong-account payments, and keeps the claim auditable.
+              </p>
+            </Card>
+
+            <Card
+              variant="default"
+              className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-amber-100 text-amber-700">
+                <Clock className="h-5 w-5" />
+              </div>
+
+              <p className="font-display text-xl font-black text-navy-950">
+                {daysRemaining} day{daysRemaining === 1 ? '' : 's'} remaining.
+              </p>
+
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                Complete all steps by{' '}
+                <span className="font-bold text-navy-950">
                   {new Date(kyc.kycDeadlineAt).toLocaleDateString('en-NG', {
                     day: 'numeric',
                     month: 'short',
                     year: 'numeric',
                   })}
-                  . Otherwise the prize defaults to product fulfilment.
-                </p>
-              </div>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </Container>
+                </span>
+                . If you miss the deadline, the prize may default to product fulfilment.
+              </p>
+            </Card>
+          </aside>
+        </div>
+      </Container>
+    </main>
   );
 }
 
-function Row({
+function StepRow({
+  step,
+  index,
+  total,
+  isLast,
+}: {
+  step: Step;
+  index: number;
+  total: number;
+  isLast: boolean;
+}) {
+  const Icon = step.icon;
+  const isClickable = step.state === 'current' && step.href;
+
+  const row = (
+    <div
+      className={
+        isLast
+          ? 'bg-white px-4 py-4 transition'
+          : 'border-b border-slate-100 bg-white px-4 py-4 transition'
+      }
+    >
+      <div className="flex items-center gap-4">
+        <div
+          className={
+            step.state === 'done'
+              ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
+              : step.state === 'current'
+                ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]'
+                : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-400'
+          }
+        >
+          {step.state === 'done' ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <p
+              className={
+                step.state === 'future'
+                  ? 'text-[10px] font-black uppercase tracking-[0.16em] text-slate-400'
+                  : 'text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]'
+              }
+            >
+              Step {index + 1} of {total}
+            </p>
+
+            {step.state === 'current' && (
+              <span className="rounded-sm bg-[#A8E368]/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#4E8F01]">
+                Continue here
+              </span>
+            )}
+
+            {step.state === 'done' && (
+              <span className="rounded-sm bg-[#4E8F01]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#4E8F01]">
+                Done
+              </span>
+            )}
+          </div>
+
+          <p
+            className={
+              step.state === 'future'
+                ? 'font-bold text-slate-400'
+                : 'font-bold text-navy-950'
+            }
+          >
+            {step.title}
+          </p>
+
+          <p
+            className={
+              step.state === 'future'
+                ? 'mt-0.5 text-sm text-slate-400'
+                : 'mt-0.5 text-sm text-slate-500'
+            }
+          >
+            {step.description}
+          </p>
+        </div>
+
+        {isClickable && <ArrowRight className="h-5 w-5 shrink-0 text-[#4E8F01]" />}
+      </div>
+    </div>
+  );
+
+  if (isClickable && step.href) {
+    return (
+      <Link href={step.href} className="block hover:bg-[#F8FAF4]">
+        {row}
+      </Link>
+    );
+  }
+
+  return row;
+}
+
+function SummaryCell({
   label,
   value,
-  tone,
+  subtle,
 }: {
   label: string;
   value: string;
-  tone: 'default' | 'muted' | 'emphasis';
+  subtle: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="p-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+        {label}
+      </p>
+
+      <p className="mt-1 font-display text-xl font-black text-navy-950">{value}</p>
+
+      <p className="mt-1 text-xs text-slate-500">{subtle}</p>
+    </div>
+  );
+}
+
+function MoneyRow({
+  label,
+  value,
+  muted = false,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
       <span
         className={
-          tone === 'emphasis'
+          strong
             ? 'text-sm font-bold text-navy-950'
-            : tone === 'muted'
-            ? 'text-sm text-slate-500'
-            : 'text-sm text-slate-700'
+            : muted
+              ? 'text-sm text-slate-500'
+              : 'text-sm text-slate-600'
         }
       >
         {label}
       </span>
+
       <span
-        className={`tabular-nums ${
-          tone === 'emphasis'
-            ? 'text-base font-black text-navy-950'
-            : tone === 'muted'
-            ? 'text-sm text-slate-500'
-            : 'text-sm font-semibold text-navy-950'
-        }`}
+        className={
+          strong
+            ? 'font-display text-lg font-black text-navy-950 tabular-nums'
+            : muted
+              ? 'text-sm font-semibold text-slate-500 tabular-nums'
+              : 'text-sm font-bold text-navy-950 tabular-nums'
+        }
       >
         {value}
       </span>
@@ -351,7 +483,7 @@ function computeSteps(claimId: string, kyc: ClaimKycStatus): Step[] {
     {
       key: 'bvn',
       title: 'Verify your BVN',
-      description: '11-digit Bank Verification Number — used to confirm your identity',
+      description: 'Used to confirm your identity before payout',
       icon: ShieldCheck,
       state: bvnDone ? 'done' : docsUploaded ? 'current' : 'future',
       href: `/claim/${claimId}/cash/kyc?step=bvn`,
@@ -367,7 +499,7 @@ function computeSteps(claimId: string, kyc: ClaimKycStatus): Step[] {
     {
       key: 'payout',
       title: 'Bank transfer',
-      description: 'Net amount paid within 24 hours of the final step',
+      description: 'Net amount is paid after the final step is cleared',
       icon: Banknote,
       state: allDone ? 'done' : bankDone ? 'current' : 'future',
     },
