@@ -1,4 +1,14 @@
-import { Phone, ShieldCheck, TimerReset, WalletCards } from 'lucide-react';
+import Link from 'next/link';
+import {
+  ArrowRight,
+  HeartHandshake,
+  LifeBuoy,
+  Lock,
+  Phone,
+  ShieldCheck,
+  TimerReset,
+  WalletCards,
+} from 'lucide-react';
 import { Card, Container } from '@surewina/ui';
 import { SpendLimitForm } from '@/components/spend-limit-form';
 import { TakeABreakForm } from '@/components/take-a-break-form';
@@ -24,8 +34,9 @@ export default function ResponsiblePlayPage() {
             </h1>
 
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
-              A raffle should be entertainment, not a financial plan. Set limits, take
-              a break, or block yourself completely. We enforce it server-side.
+              A raffle should be entertainment, not a financial plan. Set limits, take a
+              break, or block yourself completely. We enforce protection settings at the
+              system level.
             </p>
           </div>
         </Container>
@@ -33,60 +44,133 @@ export default function ResponsiblePlayPage() {
 
       <section className="bg-[#F8FAF4]">
         <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
-          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-            <InfoCard
-              icon={<WalletCards className="h-5 w-5" />}
-              title="Set spend limits"
-              body="Choose how much you are allowed to spend weekly or monthly."
-            />
-            <InfoCard
-              icon={<TimerReset className="h-5 w-5" />}
-              title="Take a break"
-              body="Pause yourself for a fixed period. No ticket purchase during the break."
-            />
-            <InfoCard
-              icon={<ShieldCheck className="h-5 w-5" />}
-              title="Server enforced"
-              body="Limits are enforced by the backend, not just hidden in the UI."
-            />
-          </div>
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[320px_minmax(0,1fr)]">
+            <aside className="lg:sticky lg:top-28 lg:self-start">
+              <Card
+                variant="default"
+                className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+              >
+                <div className="bg-[#4E8F01] p-6 text-white">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-[#A8E368] text-navy-950">
+                    <HeartHandshake className="h-6 w-6" />
+                  </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="space-y-6">
-              <SpendLimitForm />
-              <TakeABreakForm />
-            </div>
-
-            <aside className="self-start rounded-3xl border border-[#4E8F01]/15 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
-              <div className="flex items-start gap-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
-                  <Phone className="h-5 w-5" />
-                </div>
-
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
-                    Need to talk?
-                  </p>
-
-                  <h2 className="mt-2 font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
-                    Help is available.
+                  <h2 className="mt-5 font-display text-3xl font-black leading-tight tracking-[-0.03em]">
+                    Keep play under control.
                   </h2>
 
-                  <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                    The Federal Ministry of Health runs a free, confidential helpline
-                    for problem gambling.
-                  </p>
-
-                  <p className="mt-5 font-mono text-xl font-black text-[#4E8F01]">
-                    0800 GAMBLE
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    0800 426253 · 24/7 · free from Nigerian networks
+                  <p className="mt-4 text-sm leading-relaxed text-white/75">
+                    These tools exist for one reason: stop play from becoming pressure.
                   </p>
                 </div>
-              </div>
+
+                <div className="space-y-3 p-5">
+                  <ProtectionPoint
+                    icon={<WalletCards className="h-4 w-4" />}
+                    title="Spend limit"
+                    body="Set a weekly or monthly cap."
+                  />
+                  <ProtectionPoint
+                    icon={<TimerReset className="h-4 w-4" />}
+                    title="Take a break"
+                    body="Pause ticket purchases for a fixed period."
+                  />
+                  <ProtectionPoint
+                    icon={<Lock className="h-4 w-4" />}
+                    title="System enforced"
+                    body="Controls should be enforced beyond the UI."
+                  />
+                </div>
+              </Card>
+
+              <Card
+                variant="default"
+                className="mt-4 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.04)]"
+              >
+                <div className="p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                      <LifeBuoy className="h-5 w-5" />
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+                        Need support?
+                      </p>
+
+                      <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                        Contact support if you want help setting stronger restrictions on
+                        your account.
+                      </p>
+
+                      <Link
+                        href="/support"
+                        className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+                      >
+                        Contact support
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </Card>
             </aside>
+
+            <div className="min-w-0">
+              <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <InfoCard
+                  icon={<WalletCards className="h-5 w-5" />}
+                  title="Set spend limits"
+                  body="Choose the maximum you can spend in a week or month."
+                />
+                <InfoCard
+                  icon={<TimerReset className="h-5 w-5" />}
+                  title="Take a break"
+                  body="Pause your account for 7 days, 30 days, 6 months, or permanently."
+                />
+                <InfoCard
+                  icon={<ShieldCheck className="h-5 w-5" />}
+                  title="Protect yourself"
+                  body="Use these controls before things feel out of hand."
+                />
+              </div>
+
+              <div className="space-y-6">
+                <SpendLimitForm />
+                <TakeABreakForm />
+              </div>
+
+              <Card
+                variant="default"
+                className="mt-8 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-[#4E8F01] p-8 text-white shadow-[0_24px_70px_rgba(78,143,1,0.22)] sm:p-10"
+              >
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+                  <div>
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
+                      <Phone className="h-4 w-4" />
+                      Need to talk?
+                    </div>
+
+                    <h3 className="font-display text-3xl font-black tracking-[-0.03em] text-white">
+                      Help is available.
+                    </h3>
+
+                    <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/75">
+                      If play is starting to feel stressful, chasing losses, or affecting
+                      your money, talk to someone and use the exclusion tools immediately.
+                    </p>
+                  </div>
+
+                  <a
+                    href="mailto:help@surewina.ng"
+                    className="inline-flex items-center justify-center gap-2 rounded-sm bg-[#A8E368] px-4 py-3 text-sm font-bold text-navy-950 transition hover:bg-[#B7EF79]"
+                  >
+                    <LifeBuoy className="h-4 w-4" />
+                    help@surewina.ng
+                  </a>
+                </div>
+              </Card>
+            </div>
           </div>
         </Container>
       </section>
@@ -106,7 +190,7 @@ function InfoCard({
   return (
     <Card
       variant="default"
-      className="rounded-2xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+      className="rounded-2xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]"
     >
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
@@ -119,5 +203,30 @@ function InfoCard({
         </div>
       </div>
     </Card>
+  );
+}
+
+function ProtectionPoint({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+          {icon}
+        </div>
+
+        <div>
+          <p className="text-sm font-black text-navy-950">{title}</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">{body}</p>
+        </div>
+      </div>
+    </div>
   );
 }

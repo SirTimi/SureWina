@@ -1,5 +1,7 @@
 import { Metadata } from 'next';
-import { Container } from '@surewina/ui';
+import Link from 'next/link';
+import { Check, FileText, Mail, Scale, ShieldCheck } from 'lucide-react';
+import { Card, Container } from '@surewina/ui';
 import { LegalPageHeader } from '@/components/legal-page-header';
 
 export const metadata: Metadata = {
@@ -109,111 +111,204 @@ export default function TermsPage() {
         effectiveDate="01 May 2026"
       />
 
-      <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[260px_1fr]">
-          {/* TOC */}
-          <aside className="lg:sticky lg:top-6 lg:self-start">
-            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">
-              On this page
-            </p>
-            <nav className="space-y-1">
-              {sections.map((s) => (
-                <a
-                  key={s.id}
-                  href={`#${s.id}`}
-                  className="block rounded-lg px-3 py-2 text-sm text-slate-600 transition hover:bg-emerald-50 hover:text-[#4E8F01]"
-                >
-                  {s.title}
-                </a>
-              ))}
-            </nav>
-          </aside>
-
-          {/* Content */}
-          <article>
-            {/* Plain-language summary */}
-            <div className="mb-12 rounded-2xl border-2 border-emerald-200 bg-emerald-50/40 p-6 sm:p-7">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">
-                In plain English
-              </p>
-              <h2 className="mt-2 font-display text-xl font-bold text-navy-950">
-                The 60-second version
-              </h2>
-              <ul className="mt-4 space-y-2.5 text-sm text-slate-700">
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4E8F01]" />
-                  <span>You must be 18+ and in Nigeria to play.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4E8F01]" />
-                  <span>
-                    Tickets are non-refundable except if a draw is cancelled or you were
-                    accidentally double-charged.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4E8F01]" />
-                  <span>
-                    Draws are decided by a public, verifiable RNG. Anyone can audit the seed.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4E8F01]" />
-                  <span>
-                    Cash prizes have 10% WHT deducted (Nigerian law). Product prizes don&apos;t.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4E8F01]" />
-                  <span>
-                    You can convert product to cash (or vice versa) within 48 hours of choosing.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#4E8F01]" />
-                  <span>
-                    You can set spend caps and self-exclude any time. We enforce them server-side.
-                  </span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Sections */}
-            <div className="space-y-12">
-              {sections.map((s) => (
-                <section key={s.id} id={s.id} className="scroll-mt-6">
-                  <h2 className="font-display text-2xl font-black text-navy-950">{s.title}</h2>
-                  <div className="mt-4 space-y-4 text-sm leading-relaxed text-slate-700 sm:text-base">
-                    {s.body.map((p, i) => (
-                      <p key={i}>{p}</p>
-                    ))}
+      <section className="bg-[#F8FAF4]">
+        <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[320px_minmax(0,1fr)]">
+            <aside className="lg:sticky lg:top-28 lg:self-start">
+              <Card
+                variant="default"
+                className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+              >
+                <div className="border-b border-slate-100 bg-[#4E8F01] p-5 text-white">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-[#A8E368]" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em]">
+                      On this page
+                    </p>
                   </div>
-                </section>
-              ))}
-            </div>
 
-            <div className="mt-16 rounded-2xl border border-slate-200 bg-slate-50/50 p-6">
-              <p className="text-sm text-slate-600">
-                Questions about these terms? Email{' '}
-                <a
-                  href="mailto:legal@surewina.ng"
-                  className="font-semibold text-[#4E8F01] hover:underline"
-                >
-                  legal@surewina.ng
-                </a>
-                . For disputes, see our{' '}
-                <a
-                  href="/disputes"
-                  className="font-semibold text-[#4E8F01] hover:underline"
-                >
-                  Dispute Resolution
-                </a>{' '}
-                page.
-              </p>
-            </div>
-          </article>
-        </div>
-      </Container>
+                  <p className="mt-2 text-sm leading-relaxed text-white/70">
+                    Jump straight to the part of the agreement you care about.
+                  </p>
+                </div>
+
+                <nav className="max-h-[calc(100vh-220px)] space-y-1 overflow-y-auto p-3">
+                  {sections.map((s) => (
+                    <a
+                      key={s.id}
+                      href={`#${s.id}`}
+                      className="block rounded-sm px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-[#A8E368]/15 hover:text-[#4E8F01]"
+                    >
+                      {s.title}
+                    </a>
+                  ))}
+                </nav>
+              </Card>
+            </aside>
+
+            <article className="min-w-0">
+              <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <TermsMetric
+                  icon={<ShieldCheck className="h-5 w-5" />}
+                  title="18+ only"
+                  body="Players must be adults and resident in Nigeria."
+                />
+
+                <TermsMetric
+                  icon={<Scale className="h-5 w-5" />}
+                  title="Regulated draws"
+                  body="Every ticket is tied to one draw and one public result."
+                />
+
+                <TermsMetric
+                  icon={<Check className="h-5 w-5" />}
+                  title="Verifiable result"
+                  body="Draws use a public commit-reveal RNG process."
+                />
+              </div>
+
+              <Card
+                variant="default"
+                className="mb-8 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.06)]"
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-[0.72fr_1fr]">
+                  <div className="bg-[#4E8F01] p-7 text-white sm:p-8">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A8E368]">
+                      TLDR
+                    </p>
+
+                    <h2 className="mt-3 font-display text-3xl font-black leading-tight tracking-[-0.03em]">
+                      The 60-second version.
+                    </h2>
+
+                    <p className="mt-4 text-sm leading-relaxed text-white/75">
+                      This is the human-readable summary. The full legal wording still
+                      applies, but this tells you what actually matters.
+                    </p>
+                  </div>
+
+                  <div className="p-6 sm:p-8">
+                    <ul className="grid grid-cols-1 gap-3 text-sm leading-relaxed text-slate-700 sm:grid-cols-2">
+                      <SummaryItem>You must be 18+ and in Nigeria to play.</SummaryItem>
+                      <SummaryItem>
+                        Tickets are non-refundable except for cancelled draws or duplicate
+                        charges.
+                      </SummaryItem>
+                      <SummaryItem>
+                        Draws are decided by a public, verifiable RNG process.
+                      </SummaryItem>
+                      <SummaryItem>
+                        Cash prizes may have withholding tax deducted under Nigerian law.
+                      </SummaryItem>
+                      <SummaryItem>
+                        Product-to-cash conversion rules only apply within the stated window.
+                      </SummaryItem>
+                      <SummaryItem>
+                        Spend caps and self-exclusion are enforced server-side.
+                      </SummaryItem>
+                    </ul>
+                  </div>
+                </div>
+              </Card>
+
+              <div className="space-y-5">
+                {sections.map((s) => (
+                  <section
+                    key={s.id}
+                    id={s.id}
+                    className="scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.04)] sm:p-8"
+                  >
+                    <h2 className="font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
+                      {s.title}
+                    </h2>
+
+                    <div className="mt-5 space-y-4 text-sm leading-relaxed text-slate-700 sm:text-base">
+                      {s.body.map((p, i) => (
+                        <p key={i}>{p}</p>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+
+              <Card
+                variant="default"
+                className="mt-8 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+              >
+                <div className="grid grid-cols-1 gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                      Questions about these terms?
+                    </p>
+
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+                      For legal questions, email the legal team. For prize or ticket
+                      disputes, use the dispute resolution process so the issue is tracked
+                      properly.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <a
+                      href="mailto:legal@surewina.ng"
+                      className="inline-flex items-center justify-center gap-2 rounded-sm bg-[#4E8F01] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#3f7601]"
+                    >
+                      <Mail className="h-4 w-4" />
+                      legal@surewina.ng
+                    </a>
+
+                    <Link
+                      href="/disputes"
+                      className="inline-flex items-center justify-center rounded-sm border border-[#4E8F01]/20 bg-[#A8E368]/15 px-4 py-3 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/25"
+                    >
+                      Dispute resolution
+                    </Link>
+                  </div>
+                </div>
+              </Card>
+            </article>
+          </div>
+        </Container>
+      </section>
     </main>
+  );
+}
+
+function TermsMetric({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <Card
+      variant="default"
+      className="rounded-2xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+          {icon}
+        </div>
+
+        <div>
+          <h3 className="text-sm font-black text-navy-950">{title}</h3>
+          <p className="mt-1 text-sm leading-relaxed text-slate-500">{body}</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function SummaryItem({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2 rounded-2xl border border-[#4E8F01]/10 bg-[#F8FAF4] p-4">
+      <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#4E8F01] text-white">
+        <Check className="h-3 w-3" />
+      </span>
+      <span>{children}</span>
+    </li>
   );
 }
