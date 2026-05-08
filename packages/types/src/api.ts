@@ -438,3 +438,62 @@ export interface GetClaimStatusResponse {
   events: ClaimStatusEvent[];
   estimatedCompletionAt: string | null;
 }
+
+// === Agent ===
+
+export interface AgentMe {
+  agentId: string;
+  agentCode: string;
+  phoneNumber: string;
+  fullName: string;
+  email: string | null;
+  registeredStateCode: string;
+  status: 'PENDING_KYC' | 'ACTIVE' | 'SUSPENDED' | 'TERMINATED';
+  tier: 'BRONZE' | 'SILVER' | 'GOLD';
+  commissionRate: number;
+  isSuperAgent: boolean;
+  superAgentCode: string | null;
+  trainingCompletedAt: string | null;
+  agentAgreementSignedAt: string | null;
+  monthlyTicketCount: number;
+  /** Remittance owed right now (₦). */
+  remittanceOwedNgn: number;
+  /** Next remittance deadline (typically end-of-day). */
+  nextRemittanceDeadlineAt: string;
+  /** True if a remittance is overdue. */
+  remittanceOverdue: boolean;
+  bankAccount: {
+    bankName: string;
+    accountNumber: string; // last 4 only
+    accountName: string;
+  } | null;
+  createdAt: string;
+}
+
+export interface GetAgentMeResponse {
+  agent: AgentMe;
+}
+
+export interface RequestAgentOtpRequest {
+  phoneE164: string;
+}
+
+export interface RequestAgentOtpResponse {
+  challengeId: string;
+  channel: 'SMS';
+  expiresAt: string;
+  mockOtp?: string;
+}
+
+export interface VerifyAgentOtpRequest {
+  challengeId: string;
+  otp: string;
+}
+
+export interface VerifyAgentOtpResponse {
+  agent: AgentMe;
+  accessToken: string;
+  refreshToken: string;
+  /** True on the agent's very first sign-in. UI shows agent code prominently. */
+  isFirstSignIn: boolean;
+}
