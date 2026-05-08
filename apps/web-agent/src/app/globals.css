@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import '@surewina/ui/styles/tokens.css';
+@import '@surewina/ui/styles/globals.css';
+
+html {
+  background: #f8faf4;
+}
+
+body {
+  background: #f8faf4;
+}
