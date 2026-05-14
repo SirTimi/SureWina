@@ -105,7 +105,7 @@ export default function AdminSignInPage() {
             <h1 className="mt-3 font-display text-6xl font-black leading-[0.98] tracking-[-0.05em]">
               Run every draw.
               <br />
-              <span className="text-[#A8E368]">Audit</span> every cedi.
+              <span className="text-[#A8E368]">Audit</span> every naira.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-white/70">
               Sign in with your admin email, password, and your MFA code. Demo accounts
