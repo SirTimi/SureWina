@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import '@surewina/ui/styles/tokens.css';
+@import '@surewina/ui/styles/globals.css';
+
+html {
+  background: #f5f7fb;
+}
+
+body {
+  background: #f5f7fb;
+  color: #0b1220;
+}
+
+/* Slim scrollbars for dense data surfaces */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.12);
+  border-radius: 999px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.24);
+}
