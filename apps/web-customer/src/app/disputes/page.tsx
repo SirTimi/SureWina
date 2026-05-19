@@ -91,8 +91,8 @@ export default function DisputesPage() {
                 variant="default"
                 className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
               >
-                <div className="bg-[#4E8F01] p-6 text-white">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-[#A8E368] text-navy-950">
+                <div className="bg-navy-800 p-6 text-white">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-amber-500 text-navy-950">
                     <Scale className="h-6 w-6" />
                   </div>
 
@@ -128,11 +128,11 @@ export default function DisputesPage() {
             <div className="min-w-0">
               <Card
                 variant="default"
-                className="mb-8 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.06)]"
+                className="mb-8 overflow-hidden rounded-3xl border-navy-100 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.06)]"
               >
                 <div className="grid grid-cols-1 lg:grid-cols-[0.72fr_1fr]">
-                  <div className="bg-[#4E8F01] p-7 text-white sm:p-8">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A8E368]">
+                  <div className="bg-navy-800 p-7 text-white sm:p-8">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
                       Our promise
                     </p>
 
@@ -147,7 +147,7 @@ export default function DisputesPage() {
                   </div>
 
                   <div className="p-6 sm:p-8">
-                    <div className="rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-5">
+                    <div className="rounded-2xl border border-navy-100 bg-[#F8FAF4] p-5">
                       <p className="text-sm leading-relaxed text-slate-700">
                         If the dispute is over a prize claim and the audit log clearly
                         supports the player&apos;s position, we pay the prize first and
@@ -160,7 +160,7 @@ export default function DisputesPage() {
               </Card>
 
               <div className="mb-8">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                   Escalation ladder
                 </p>
 
@@ -175,7 +175,7 @@ export default function DisputesPage() {
               </div>
 
               <div className="relative space-y-4">
-                <div className="absolute left-6 top-8 hidden h-[calc(100%-4rem)] w-px bg-[#4E8F01]/15 sm:block" />
+                <div className="absolute left-6 top-8 hidden h-[calc(100%-4rem)] w-px bg-navy-50 sm:block" />
 
                 {ladderSteps.map((step) => (
                   <Card
@@ -184,14 +184,14 @@ export default function DisputesPage() {
                     className="relative overflow-hidden rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.04)] sm:p-7"
                   >
                     <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-                      <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] font-display text-xl font-black text-white">
+                      <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-navy-800 font-display text-xl font-black text-white">
                         {step.step}
                       </div>
 
                       <div className="flex-1">
                         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                           <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                               Within {step.duration}
                             </p>
 
@@ -213,7 +213,7 @@ export default function DisputesPage() {
               </div>
 
               <div className="mt-14">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                   Fast paths
                 </p>
 
@@ -232,9 +232,9 @@ export default function DisputesPage() {
                       key={i}
                       className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_34px_rgba(15,23,42,0.03)]"
                     >
-                      <summary className="flex cursor-pointer items-center justify-between gap-4 p-5 transition hover:bg-[#A8E368]/10">
+                      <summary className="flex cursor-pointer items-center justify-between gap-4 p-5 transition hover:bg-amber-50">
                         <h3 className="font-bold text-navy-950">{issue.title}</h3>
-                        <ChevronRight className="h-5 w-5 shrink-0 text-[#4E8F01] transition group-open:rotate-90" />
+                        <ChevronRight className="h-5 w-5 shrink-0 text-navy-700 transition group-open:rotate-90" />
                       </summary>
 
                       <div className="border-t border-slate-100 bg-[#F8FAF4] p-5">
@@ -249,11 +249,11 @@ export default function DisputesPage() {
 
               <Card
                 variant="default"
-                className="mt-10 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-[#4E8F01] p-8 text-white shadow-[0_24px_70px_rgba(78,143,1,0.22)] sm:p-10"
+                className="mt-10 overflow-hidden rounded-3xl border-navy-100 bg-navy-800 p-8 text-white shadow-[0_24px_70px_rgba(14,42,71,0.18)] sm:p-10"
               >
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
                   <div>
-                    <div className="mb-4 inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
                       <Phone className="h-4 w-4" />
                       Need help right now?
                     </div>
@@ -272,7 +272,7 @@ export default function DisputesPage() {
                     <Button
                       variant="accent"
                       size="lg"
-                      className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                      className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                     >
                       <Phone className="h-4 w-4" />
                       0700-SUREWINA
@@ -298,9 +298,9 @@ function QuickFact({
   body: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4">
+    <div className="rounded-2xl border border-navy-100 bg-[#F8FAF4] p-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
           {icon}
         </div>
 
@@ -322,7 +322,7 @@ function ContactButton({
     return (
       <a
         href={`mailto:${contact.value}`}
-        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-sm border border-[#4E8F01]/20 bg-[#A8E368]/15 px-4 py-2 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/25"
+        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-sm border border-navy-200 bg-amber-50 px-4 py-2 text-sm font-bold text-navy-700 transition hover:bg-amber-100"
       >
         <Mail className="h-4 w-4" />
         {contact.value}
@@ -335,7 +335,7 @@ function ContactButton({
       href={contact.value}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-sm border border-[#4E8F01]/20 bg-[#A8E368]/15 px-4 py-2 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/25"
+      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-sm border border-navy-200 bg-amber-50 px-4 py-2 text-sm font-bold text-navy-700 transition hover:bg-amber-100"
     >
       nlrc.gov.ng/complaints
       <ArrowRight className="h-4 w-4" />

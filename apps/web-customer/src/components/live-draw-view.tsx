@@ -78,7 +78,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
 
   if (!state) {
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pt-32">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pt-32">
         <Container size="lg" className="max-w-[1400px] pb-16">
           <div className="h-[520px] animate-pulse rounded-3xl border border-slate-200 bg-white/80 shadow-[0_28px_80px_rgba(15,23,42,0.08)]" />
         </Container>
@@ -96,14 +96,14 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
 
   return (
     <main className="min-h-screen bg-[#F8FAF4]">
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pb-12 pt-32 sm:pt-36 lg:pt-40">
-        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
-        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-[#4E8F01]/10 blur-3xl" />
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pb-12 pt-32 sm:pt-36 lg:pt-40">
+        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
+        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
 
         <Container size="lg" className="relative max-w-[1400px]">
           <Link
             href={`/draws/${drawCode}`}
-            className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+            className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to draw
@@ -115,7 +115,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
                 {drawTypeShortLabel[state.drawType]}
               </Badge>
 
-              <span className="inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+              <span className="inline-flex items-center gap-2 rounded-sm border border-white/30 bg-navy-700/90 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
                 <ShieldCheck className="h-4 w-4 text-white" />
                 Live draw · public verification
               </span>
@@ -126,7 +126,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
                 <>
                   Ready to
                   <br />
-                  <span className="text-[#4E8F01]">run the draw.</span>
+                  <span className="text-navy-700">run the draw.</span>
                 </>
               )}
 
@@ -134,7 +134,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
                 <>
                   Drawing in
                   <br />
-                  <span className="text-[#4E8F01]">{countdown}s.</span>
+                  <span className="text-navy-700">{countdown}s.</span>
                 </>
               )}
 
@@ -142,7 +142,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
                 <>
                   Winner
                   <br />
-                  <span className="text-[#4E8F01]">picked.</span>
+                  <span className="text-navy-700">picked.</span>
                 </>
               )}
             </h1>
@@ -171,7 +171,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
             <div className="border-b border-slate-100 bg-[#F8FAF4] px-6 py-5">
               <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                     Draw stage
                   </p>
                   <p className="mt-1 font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
@@ -179,14 +179,14 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
                   </p>
                 </div>
 
-                <div className="inline-flex items-center gap-2 rounded-sm bg-white px-3 py-2 text-xs font-bold text-[#4E8F01] shadow-sm">
+                <div className="inline-flex items-center gap-2 rounded-sm bg-white px-3 py-2 text-xs font-bold text-navy-700 shadow-sm">
                   <Ticket className="h-4 w-4" />
                   {state.ticketsSold.toLocaleString()} tickets sold
                 </div>
               </div>
             </div>
 
-            <div className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(168,227,104,0.32)_0%,rgba(168,227,104,0.14)_30%,transparent_62%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#A8E368_100%)] px-5 py-12 sm:px-8 sm:py-16">
+            <div className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(216,122,24,0.14)_0%,rgba(216,122,24,0.10)_30%,transparent_62%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#E8F0FB_100%)] px-5 py-12 sm:px-8 sm:py-16">
               <div className="mx-auto max-w-4xl">
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
                   {slotValues.map((val, i) => (
@@ -194,9 +194,9 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
                       key={`${i}-${val}`}
                       className={
                         isComplete
-                          ? 'flex h-16 items-center justify-center rounded-2xl border border-[#4E8F01]/25 bg-white text-center font-mono text-2xl font-black text-[#4E8F01] shadow-[0_18px_50px_rgba(78,143,1,0.18)] sm:h-24 sm:text-4xl'
+                          ? 'flex h-16 items-center justify-center rounded-2xl border border-navy-200 bg-white text-center font-mono text-2xl font-black text-navy-700 shadow-[0_18px_50px_rgba(14,42,71,0.16)] sm:h-24 sm:text-4xl'
                           : drawStarted
-                            ? 'flex h-16 items-center justify-center rounded-2xl border border-[#4E8F01]/15 bg-white/75 text-center font-mono text-2xl font-black text-navy-950 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur sm:h-24 sm:text-4xl'
+                            ? 'flex h-16 items-center justify-center rounded-2xl border border-navy-100 bg-white/75 text-center font-mono text-2xl font-black text-navy-950 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur sm:h-24 sm:text-4xl'
                             : 'flex h-16 items-center justify-center rounded-2xl border border-slate-200 bg-white/60 text-center font-mono text-2xl font-black text-slate-300 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur sm:h-24 sm:text-4xl'
                       }
                     >
@@ -211,7 +211,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
                       onClick={() => setDrawStarted(true)}
                       variant="accent"
                       size="lg"
-                      className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
+                      className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 shadow-[0_16px_34px_rgba(14,42,71,0.18)] hover:!border-transparent hover:bg-amber-400"
                     >
                       <Play className="h-4 w-4" />
                       Start the draw demo
@@ -220,14 +220,14 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
                 )}
 
                 {isComplete && state.winningTicketRef && (
-                  <div className="mx-auto mt-10 max-w-xl rounded-3xl border border-[#4E8F01]/15 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+                  <div className="mx-auto mt-10 max-w-xl rounded-3xl border border-navy-100 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
                     <div className="flex flex-col gap-4 text-center sm:flex-row sm:items-center sm:text-left">
-                      <div className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#A8E368]/35 text-[#4E8F01] sm:mx-0">
+                      <div className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-navy-50 text-navy-700 sm:mx-0">
                         <Trophy className="h-7 w-7" />
                       </div>
 
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                           Winning ticket
                         </p>
                         <p className="mt-1 font-mono text-2xl font-black tracking-wider text-navy-950">
@@ -246,7 +246,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Verification status
               </p>
 
@@ -282,7 +282,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Draw details
               </p>
 
@@ -298,14 +298,14 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
             >
-              <div className="mb-3 flex items-center gap-2 text-[#4E8F01]">
+              <div className="mb-3 flex items-center gap-2 text-navy-700">
                 <Hash className="h-4 w-4" />
                 <p className="text-[10px] font-black uppercase tracking-[0.16em]">
                   Seed hash
                 </p>
               </div>
 
-              <p className="break-all rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4 font-mono text-xs leading-relaxed text-slate-700">
+              <p className="break-all rounded-2xl border border-navy-100 bg-[#F8FAF4] p-4 font-mono text-xs leading-relaxed text-slate-700">
                 {state.seedHash}
               </p>
 
@@ -316,7 +316,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
 
               <Link
                 href={`/results/${drawCode}`}
-                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
               >
                 View result archive
                 <Sparkles className="h-4 w-4" />
@@ -344,9 +344,9 @@ function StageItem({
     <div
       className={
         done
-          ? 'rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4'
+          ? 'rounded-2xl border border-navy-100 bg-[#F8FAF4] p-4'
           : active
-            ? 'rounded-2xl border border-[#4E8F01]/25 bg-[#A8E368]/15 p-4'
+            ? 'rounded-2xl border border-navy-200 bg-amber-50 p-4'
             : 'rounded-2xl border border-slate-100 bg-white p-4'
       }
     >
@@ -354,9 +354,9 @@ function StageItem({
         <div
           className={
             done
-              ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
+              ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-navy-800 text-white'
               : active
-                ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#A8E368] text-navy-950'
+                ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-amber-500 text-navy-950'
                 : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-400'
           }
         >

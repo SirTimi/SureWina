@@ -31,7 +31,7 @@ export function RecentWinners({ winners }: RecentWinnersProps) {
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <div className="mb-2 inline-flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-[#4E8F01]" />
+            <Trophy className="h-6 w-6 text-navy-700" />
             <h2 className="font-display text-3xl font-black tracking-[-0.03em] text-navy-950">
               Recent winners
             </h2>
@@ -45,7 +45,7 @@ export function RecentWinners({ winners }: RecentWinnersProps) {
 
         <Link
           href="/results"
-          className="inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+          className="inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
         >
           Full results archive <span aria-hidden="true">→</span>
         </Link>
@@ -58,7 +58,7 @@ export function RecentWinners({ winners }: RecentWinnersProps) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px]">
             <thead>
-              <tr className="border-b border-slate-100 bg-[#A8E368]/10">
+              <tr className="border-b border-slate-100 bg-navy-50/40">
                 <th className="px-5 py-4 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">
                   Draw
                 </th>
@@ -86,8 +86,8 @@ export function RecentWinners({ winners }: RecentWinnersProps) {
                     key={w.winnerTicketRef}
                     className={
                       i < winners.length - 1
-                        ? 'border-b border-slate-100 transition hover:bg-[#A8E368]/10'
-                        : 'transition hover:bg-[#A8E368]/10'
+                        ? 'border-b border-slate-100 transition hover:bg-navy-50/40'
+                        : 'transition hover:bg-navy-50/40'
                     }
                   >
                     <td className="px-5 py-4 text-sm">
@@ -121,7 +121,7 @@ export function RecentWinners({ winners }: RecentWinnersProps) {
                     <td className="px-5 py-4 text-right">
                       <Link
                         href={`/results/${w.winnerTicketRef}`}
-                        className="inline-flex items-center gap-1 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+                        className="inline-flex items-center gap-1 text-sm font-bold text-emerald-700 transition hover:text-emerald-800"
                       >
                         Seed hash <ExternalLink className="h-3.5 w-3.5" />
                       </Link>

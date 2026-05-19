@@ -92,8 +92,8 @@ function PayBody() {
         backHref="/remittance"
       />
 
-      <Card className="rounded-3xl border-[#4E8F01]/15 bg-[#A8E368]/15 p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+      <Card className="rounded-3xl border-navy-100 bg-amber-50 p-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
           You owe
         </p>
         <p className="mt-1 font-display text-3xl font-black text-navy-950 tabular-nums">
@@ -101,7 +101,7 @@ function PayBody() {
         </p>
         <p className="mt-2 text-sm text-slate-700">
           Use reference{' '}
-          <span className="font-mono font-black text-[#4E8F01]">{reference}</span>{' '}
+          <span className="font-mono font-black text-navy-700">{reference}</span>{' '}
           when you transfer.
         </p>
       </Card>
@@ -123,7 +123,7 @@ function PayBody() {
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-              className="h-14 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-4 font-display text-xl font-black text-navy-950 tabular-nums outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+              className="h-14 w-full rounded-xl border border-slate-200 bg-white pl-8 pr-4 font-display text-xl font-black text-navy-950 tabular-nums outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
           </div>
 
@@ -140,7 +140,7 @@ function PayBody() {
               value={bankReceiptRef}
               onChange={(e) => setBankReceiptRef(e.target.value.toUpperCase())}
               placeholder="GTB-TRF-XXXXXX"
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 font-mono text-base font-bold text-navy-950 outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 font-mono text-base font-bold text-navy-950 outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
           </div>
           <p className="mt-2 text-xs text-slate-500">
@@ -162,7 +162,7 @@ function PayBody() {
           fullWidth
           isLoading={submitting}
           disabled={submitting}
-          className="rounded-sm !border-transparent bg-[#A8E368] font-black text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+          className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
         >
           <CheckCircle2 className="h-5 w-5" />
           Log payment
@@ -170,7 +170,7 @@ function PayBody() {
 
         <p className="text-center text-xs text-slate-500">
           Wrong reference?{' '}
-          <Link href="/remittance" className="font-bold text-[#4E8F01]">
+          <Link href="/remittance" className="font-bold text-navy-700">
             View bank instructions again
           </Link>
         </p>

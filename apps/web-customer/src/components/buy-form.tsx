@@ -85,7 +85,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         variant="default"
         className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
       >
-        <p className="mb-5 text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+        <p className="mb-5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
           Ticket quantity
         </p>
 
@@ -93,11 +93,11 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           How many tickets?
         </label>
 
-        <div className="flex max-w-xs overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-[#4E8F01] focus-within:ring-2 focus-within:ring-[#A8E368]/35">
+        <div className="flex max-w-xs overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-navy-700 focus-within:ring-2 focus-within:ring-amber-400/35">
           <button
             type="button"
             onClick={() => adjustQuantity(-1)}
-            className="px-4 text-[#4E8F01] transition hover:bg-[#A8E368]/15 disabled:opacity-50"
+            className="px-4 text-navy-700 transition hover:bg-amber-50 disabled:opacity-50"
             disabled={quantity <= 1}
             aria-label="Decrease"
           >
@@ -116,7 +116,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           <button
             type="button"
             onClick={() => adjustQuantity(1)}
-            className="px-4 text-[#4E8F01] transition hover:bg-[#A8E368]/15 disabled:opacity-50"
+            className="px-4 text-navy-700 transition hover:bg-amber-50 disabled:opacity-50"
             disabled={quantity >= 100}
             aria-label="Increase"
           >
@@ -127,8 +127,8 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         {errors.quantity && <FieldError message={errors.quantity.message} />}
 
         {draw.drawType === 'DAILY_STANDARD' && quantity >= 1 && (
-          <div className="mt-4 rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4">
-            <p className="text-sm font-bold text-[#4E8F01]">
+          <div className="mt-4 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-4">
+            <p className="text-sm font-bold text-navy-700">
               {10 - (quantity % 10) === 10
                 ? `${Math.floor(quantity / 10)} free Saturday jackpot ${
                     Math.floor(quantity / 10) === 1 ? 'entry' : 'entries'
@@ -143,7 +143,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         variant="default"
         className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
       >
-        <p className="mb-5 text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+        <p className="mb-5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
           Buyer details
         </p>
 
@@ -151,13 +151,13 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           Phone number
         </label>
 
-        <div className="flex max-w-md overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-[#4E8F01] focus-within:ring-2 focus-within:ring-[#A8E368]/35">
-          <span className="inline-flex items-center border-r border-slate-200 bg-[#F8FAF4] px-3 font-mono text-xs font-bold text-[#4E8F01]">
+        <div className="flex max-w-md overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-navy-700 focus-within:ring-2 focus-within:ring-amber-400/35">
+          <span className="inline-flex items-center border-r border-slate-200 bg-[#F8FAF4] px-3 font-mono text-xs font-bold text-navy-700">
             NG +234
           </span>
 
           <div className="relative flex-1">
-            <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4E8F01]" />
+            <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-700" />
             <input
               id="phone"
               type="tel"
@@ -181,7 +181,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         variant="default"
         className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
       >
-        <p className="mb-5 text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+        <p className="mb-5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
           Regulatory info
         </p>
 
@@ -195,7 +195,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         <select
           id="stateOfPlayCode"
           {...register('stateOfPlayCode')}
-          className="h-12 w-full max-w-md appearance-none rounded-sm border border-slate-200 bg-white bg-no-repeat px-3 pr-10 text-base text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/35"
+          className="h-12 w-full max-w-md appearance-none rounded-sm border border-slate-200 bg-white bg-no-repeat px-3 pr-10 text-base text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/35"
           style={{
             backgroundImage:
               "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%234E8F01' stroke-width='1.5' d='M1 1l5 5 5-5'/%3E%3C/svg%3E\")",
@@ -222,7 +222,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         variant="default"
         className="rounded-3xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] sm:p-6"
       >
-        <p className="mb-5 text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+        <p className="mb-5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
           Payment method
         </p>
 
@@ -237,15 +237,15 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
                 key={m.id}
                 className={
                   isSelected
-                    ? 'flex cursor-pointer items-start gap-3 rounded-sm border-2 border-[#4E8F01] bg-[#A8E368]/15 p-3 sm:p-4'
-                    : 'flex cursor-pointer items-start gap-3 rounded-sm border border-slate-200 bg-white p-3 transition hover:border-[#A8E368] sm:p-4'
+                    ? 'flex cursor-pointer items-start gap-3 rounded-sm border-2 border-navy-700 bg-amber-50 p-3 sm:p-4'
+                    : 'flex cursor-pointer items-start gap-3 rounded-sm border border-slate-200 bg-white p-3 transition hover:border-amber-500 sm:p-4'
                 }
               >
                 <input
                   type="radio"
                   value={m.id}
                   {...register('paymentMethod')}
-                  className="mt-1 h-4 w-4 shrink-0 accent-[#4E8F01]"
+                  className="mt-1 h-4 w-4 shrink-0 accent-navy-700"
                 />
 
                 <div className="flex min-w-0 flex-col gap-0.5">
@@ -268,18 +268,18 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           <input
             type="checkbox"
             {...register('ageConfirmed')}
-            className="mt-1 h-4 w-4 accent-[#4E8F01]"
+            className="mt-1 h-4 w-4 accent-navy-700"
           />
 
           <span className="text-sm leading-relaxed text-slate-700">
             I confirm I am 18 years or older and I accept the{' '}
-            <a href="/terms" className="font-bold text-[#4E8F01] underline" target="_blank">
+            <a href="/terms" className="font-bold text-navy-700 underline" target="_blank">
               raffle rules
             </a>{' '}
             and{' '}
             <a
               href="/privacy"
-              className="font-bold text-[#4E8F01] underline"
+              className="font-bold text-navy-700 underline"
               target="_blank"
             >
               privacy policy
@@ -303,7 +303,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           size="lg"
           fullWidth
           isLoading={isSubmitting}
-          className="mt-5 rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+          className="mt-5 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
         >
           {isSubmitting
             ? 'Starting payment…'
@@ -311,7 +311,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         </Button>
 
         <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-slate-500">
-          <Lock className="h-3 w-3 text-[#4E8F01]" />
+          <Lock className="h-3 w-3 text-navy-700" />
           Payment is processed by your gateway. We never store card details.
         </p>
       </Card>

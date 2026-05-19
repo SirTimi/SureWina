@@ -93,7 +93,7 @@ function Body({ id }: { id: string }) {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={4}
-            className="w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+            className="w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
           />
           <p className="mt-2 text-xs text-slate-500">
             {message.length} chars · {channel === 'SMS' ? `${Math.ceil(message.length / 160)} SMS segment(s)` : 'No segment limit'}
@@ -112,7 +112,7 @@ function Body({ id }: { id: string }) {
             variant="accent"
             isLoading={sending}
             onClick={send}
-            className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+            className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
           >
             <Send className="h-4 w-4" />
             Send via {channel}
@@ -140,8 +140,8 @@ function ChannelTile({
       onClick={onClick}
       className={
         active
-          ? 'flex items-center justify-center gap-2 rounded-md border-2 border-[#4E8F01] bg-[#A8E368]/15 p-3 text-sm font-black text-[#0B1220]'
-          : 'flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700 hover:border-[#4E8F01]/30'
+          ? 'flex items-center justify-center gap-2 rounded-md border-2 border-navy-700 bg-amber-50 p-3 text-sm font-black text-[#0B1220]'
+          : 'flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700 hover:border-navy-200'
       }
     >
       {icon}

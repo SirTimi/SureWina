@@ -84,7 +84,7 @@ function Body() {
                     <td className="px-4 py-2 text-right text-xs text-slate-500">
                       {(LEVY_RATE * 100).toFixed(1)}%
                     </td>
-                    <td className="px-4 py-2 text-right font-bold tabular-nums text-[#4E8F01]">
+                    <td className="px-4 py-2 text-right font-bold tabular-nums text-navy-700">
                       {formatNaira(levy)}
                     </td>
                   </tr>
@@ -96,7 +96,7 @@ function Body() {
                   {formatNaira(breakdown.reduce((s, b) => s + b.salesNgn, 0))}
                 </td>
                 <td className="px-4 py-2 text-right text-xs text-slate-500">—</td>
-                <td className="px-4 py-2 text-right tabular-nums text-[#4E8F01]">
+                <td className="px-4 py-2 text-right tabular-nums text-navy-700">
                   {formatNaira(
                     Math.round(
                       breakdown.reduce((s, b) => s + b.salesNgn, 0) * LEVY_RATE,

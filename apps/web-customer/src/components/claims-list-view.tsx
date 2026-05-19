@@ -184,7 +184,7 @@ export function ClaimsListView() {
                 <>
                   {' '}
                   ·{' '}
-                  <span className="font-bold text-[#4E8F01]">
+                  <span className="font-bold text-navy-700">
                     {counts.actionNeeded} need{counts.actionNeeded === 1 ? 's' : ''} action
                   </span>
                 </>
@@ -198,7 +198,7 @@ export function ClaimsListView() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search claim, ticket, or prize..."
-              className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-navy-950 outline-none transition placeholder:text-slate-400 focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+              className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-navy-950 outline-none transition placeholder:text-slate-400 focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
             />
           </div>
         </div>
@@ -291,7 +291,7 @@ function ClaimRow({ claim, isLast }: { claim: DashboardClaim; isLast: boolean })
             )}
 
             {!isComplete && !isForfeited && (
-              <span className="inline-flex items-center gap-1 text-xs font-bold text-[#4E8F01]">
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-navy-700">
                 <Clock className="h-3 w-3" />
                 {formatDeadline(claim.claimDeadlineAt)}
               </span>
@@ -328,7 +328,7 @@ function ClaimRow({ claim, isLast }: { claim: DashboardClaim; isLast: boolean })
           </div>
 
           {isComplete && (
-            <CheckCircle2 className="h-4 w-4 text-[#4E8F01] md:ml-auto md:mt-1.5" />
+            <CheckCircle2 className="h-4 w-4 text-navy-700 md:ml-auto md:mt-1.5" />
           )}
 
           {needsAction && (
@@ -342,7 +342,7 @@ function ClaimRow({ claim, isLast }: { claim: DashboardClaim; isLast: boolean })
               <Button
                 variant="accent"
                 size="sm"
-                className="w-full rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79] md:w-auto"
+                className="w-full rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400 md:w-auto"
               >
                 {actionLabel}
               </Button>
@@ -350,7 +350,7 @@ function ClaimRow({ claim, isLast }: { claim: DashboardClaim; isLast: boolean })
           ) : (
             <Link
               href={`/dashboard/claims/${claim.claimId}`}
-              className="inline-flex items-center gap-1 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+              className="inline-flex items-center gap-1 text-sm font-bold text-navy-700 transition hover:text-navy-800"
             >
               View
               <ArrowRight className="h-3.5 w-3.5" />
@@ -427,7 +427,7 @@ function EmptyClaimsState({
         <Link href="/draws" className="mt-5 inline-block">
           <Button
             variant="accent"
-            className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+            className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
           >
             Browse active draws
             <ArrowRight className="h-4 w-4" />

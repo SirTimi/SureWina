@@ -69,7 +69,7 @@ export function ClaimCashView({ claimId }: ClaimCashViewProps) {
             <Link href="/dashboard/claims" className="mt-6 inline-block">
               <Button
                 variant="accent"
-                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
               >
                 Back to my claims
               </Button>
@@ -106,7 +106,7 @@ export function ClaimCashView({ claimId }: ClaimCashViewProps) {
       <Container size="lg" className="max-w-[1240px] pb-12 pt-28">
         <Link
           href={`/claim/${claimId}`}
-          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
         >
           <ChevronLeft className="h-4 w-4" />
           Back to claim chooser
@@ -118,12 +118,12 @@ export function ClaimCashView({ claimId }: ClaimCashViewProps) {
               variant="default"
               className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm"
             >
-              <div className="relative overflow-hidden bg-[#4E8F01] p-7 text-white sm:p-8">
-                <div className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-[#A8E368]/25 blur-3xl" />
+              <div className="relative overflow-hidden bg-navy-800 p-7 text-white sm:p-8">
+                <div className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-emerald-50 blur-3xl" />
                 <div className="absolute -bottom-24 left-1/3 h-60 w-60 rounded-full bg-white/10 blur-3xl" />
 
                 <div className="relative">
-                  <div className="mb-7 inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-navy-950">
+                  <div className="mb-7 inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-navy-950">
                     <Banknote className="h-4 w-4" />
                     Cash conversion
                   </div>
@@ -163,7 +163,7 @@ export function ClaimCashView({ claimId }: ClaimCashViewProps) {
             <div className="mt-6">
               <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-navy-700">
                     Verification steps
                   </p>
 
@@ -201,7 +201,7 @@ export function ClaimCashView({ claimId }: ClaimCashViewProps) {
                   <Button
                     variant="accent"
                     size="lg"
-                    className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                    className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                   >
                     Continue: {nextStep.title}
                     <ArrowRight className="h-4 w-4" />
@@ -214,7 +214,7 @@ export function ClaimCashView({ claimId }: ClaimCashViewProps) {
                   <Button
                     variant="accent"
                     size="lg"
-                    className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                    className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                   >
                     View claim status
                     <ArrowRight className="h-4 w-4" />
@@ -229,7 +229,7 @@ export function ClaimCashView({ claimId }: ClaimCashViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Payout summary
               </p>
 
@@ -261,7 +261,7 @@ export function ClaimCashView({ claimId }: ClaimCashViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
             >
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                 <ShieldCheck className="h-5 w-5" />
               </div>
 
@@ -332,9 +332,9 @@ function StepRow({
         <div
           className={
             step.state === 'done'
-              ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
+              ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-800 text-white'
               : step.state === 'current'
-                ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]'
+                ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700'
                 : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-400'
           }
         >
@@ -347,20 +347,20 @@ function StepRow({
               className={
                 step.state === 'future'
                   ? 'text-[10px] font-black uppercase tracking-[0.16em] text-slate-400'
-                  : 'text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]'
+                  : 'text-[10px] font-black uppercase tracking-[0.16em] text-navy-700'
               }
             >
               Step {index + 1} of {total}
             </p>
 
             {step.state === 'current' && (
-              <span className="rounded-sm bg-[#A8E368]/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#4E8F01]">
+              <span className="rounded-sm bg-navy-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-navy-700">
                 Continue here
               </span>
             )}
 
             {step.state === 'done' && (
-              <span className="rounded-sm bg-[#4E8F01]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#4E8F01]">
+              <span className="rounded-sm bg-navy-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-navy-700">
                 Done
               </span>
             )}
@@ -387,7 +387,7 @@ function StepRow({
           </p>
         </div>
 
-        {isClickable && <ArrowRight className="h-5 w-5 shrink-0 text-[#4E8F01]" />}
+        {isClickable && <ArrowRight className="h-5 w-5 shrink-0 text-navy-700" />}
       </div>
     </div>
   );
@@ -414,7 +414,7 @@ function SummaryCell({
 }) {
   return (
     <div className="p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
         {label}
       </p>
 

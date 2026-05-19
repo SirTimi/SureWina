@@ -19,7 +19,7 @@ export default async function ProcessingPage({ params, searchParams }: Processin
 
   if (!session || !qty || !phone) {
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pt-32">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pt-32">
         <Container size="sm" className="pb-16">
           <Card
             variant="default"
@@ -35,7 +35,7 @@ export default async function ProcessingPage({ params, searchParams }: Processin
               <Button
                 variant="accent"
                 size="md"
-                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to checkout
@@ -48,7 +48,7 @@ export default async function ProcessingPage({ params, searchParams }: Processin
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pt-32">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pt-32">
       <Container size="sm" className="pb-16">
         <Suspense
           fallback={

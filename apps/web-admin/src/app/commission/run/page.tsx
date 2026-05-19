@@ -49,7 +49,7 @@ function Body() {
       <div className="mx-auto max-w-[760px] space-y-4 px-6 py-5">
         <SectionCard>
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-[#A8E368]/30 text-[#4E8F01]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-navy-50 text-navy-700">
               <PlayCircle className="h-6 w-6" />
             </div>
             <div>
@@ -80,7 +80,7 @@ function Body() {
             <Button
               variant="accent"
               onClick={() => setStage('CONFIRMING')}
-              className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+              className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
             >
               <PlayCircle className="h-4 w-4" />
               Start disbursement
@@ -112,7 +112,7 @@ function Body() {
               <Button
                 variant="accent"
                 onClick={run}
-                className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+                className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
               >
                 <PlayCircle className="h-4 w-4" />
                 Confirm and run
@@ -124,14 +124,14 @@ function Body() {
         {stage === 'RUNNING' && (
           <SectionCard title="Running…">
             <div className="flex items-center gap-3">
-              <RotateCw className="h-5 w-5 animate-spin text-[#4E8F01]" />
+              <RotateCw className="h-5 w-5 animate-spin text-navy-700" />
               <p className="text-sm font-bold text-[#0B1220]">
                 Processing {progress} of {accrued.length} entries
               </p>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-[#4E8F01] transition-all"
+                className="h-full rounded-full bg-navy-800 transition-all"
                 style={{ width: `${(progress / accrued.length) * 100}%` }}
               />
             </div>

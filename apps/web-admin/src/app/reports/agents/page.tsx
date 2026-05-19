@@ -88,7 +88,7 @@ function Body() {
               render: (a) => (
                 <Link
                   href={`/agents/${a.agentCode}`}
-                  className="font-bold text-[#0B1220] hover:text-[#4E8F01]"
+                  className="font-bold text-[#0B1220] hover:text-navy-700"
                 >
                   {a.fullName}
                 </Link>
@@ -111,7 +111,7 @@ function Body() {
               header: 'MTD sales',
               align: 'right',
               render: (a) => (
-                <span className="font-bold text-[#4E8F01]">
+                <span className="font-bold text-navy-700">
                   {formatNaira(a.monthlySalesNgn)}
                 </span>
               ),

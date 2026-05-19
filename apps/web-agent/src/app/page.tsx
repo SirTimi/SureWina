@@ -59,10 +59,10 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
 
   return (
     <main className="mx-auto max-w-[1180px] px-4 pb-10 pt-5">
-      <section className="rounded-3xl bg-[#4E8F01] p-5 text-white shadow-[0_24px_70px_rgba(78,143,1,0.18)] sm:p-6">
+      <section className="rounded-3xl bg-navy-800 p-5 text-white shadow-[0_24px_70px_rgba(14,42,71,0.16)] sm:p-6">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-center">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#A8E368]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">
               Agent dashboard
             </p>
 
@@ -81,7 +81,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
               variant="accent"
               size="lg"
               fullWidth
-              className="rounded-sm !border-transparent bg-[#A8E368] font-black text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+              className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
             >
               Sell ticket now
               <QrCode className="h-5 w-5" />
@@ -128,7 +128,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
         >
           <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Performance overview
               </p>
               <p className="mt-1 text-sm text-slate-500">
@@ -167,7 +167,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
                 No sales for this period yet.{' '}
                 <Link
                   href="/sell"
-                  className="font-bold text-[#4E8F01] underline-offset-2 hover:underline"
+                  className="font-bold text-navy-700 underline-offset-2 hover:underline"
                 >
                   Start a sale
                 </Link>
@@ -203,7 +203,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
 
           {sales.length > 8 && (
             <div className="border-t border-slate-100 p-3 text-center">
-              <Link href="/commission" className="text-sm font-bold text-[#4E8F01]">
+              <Link href="/commission" className="text-sm font-bold text-navy-700">
                 See full breakdown →
               </Link>
             </div>
@@ -215,11 +215,11 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
             variant="default"
             className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm"
           >
-            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
               <TrendingUp className="h-5 w-5" />
             </div>
 
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Tier progress
             </p>
 
@@ -229,7 +229,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
 
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-[#4E8F01]"
+                className="h-full rounded-full bg-navy-800"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -245,7 +245,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
             variant="default"
             className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm"
           >
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Fast actions
             </p>
 
@@ -293,7 +293,7 @@ function PeriodTabs({
           onClick={() => onChange(item.value)}
           className={
             value === item.value
-              ? 'rounded-sm bg-[#4E8F01] px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-white'
+              ? 'rounded-sm bg-navy-800 px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-white'
               : 'rounded-sm px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-slate-500'
           }
         >
@@ -337,7 +337,7 @@ function MetricCard({
         className={
           danger
             ? 'mb-3 flex h-9 w-9 items-center justify-center rounded-sm bg-red-50 text-red-600'
-            : 'mb-3 flex h-9 w-9 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]'
+            : 'mb-3 flex h-9 w-9 items-center justify-center rounded-sm bg-navy-50 text-navy-700'
         }
       >
         {icon}
@@ -360,10 +360,10 @@ function ActionLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="flex items-center justify-between rounded-sm border border-slate-200 bg-[#F8FAF4] px-3 py-3 text-sm font-bold text-navy-950 transition hover:border-[#4E8F01]/20 hover:bg-[#A8E368]/15"
+      className="flex items-center justify-between rounded-sm border border-slate-200 bg-[#F8FAF4] px-3 py-3 text-sm font-bold text-navy-950 transition hover:border-navy-200 hover:bg-amber-50"
     >
       {label}
-      <ArrowRight className="h-4 w-4 text-[#4E8F01]" />
+      <ArrowRight className="h-4 w-4 text-navy-700" />
     </Link>
   );
 }

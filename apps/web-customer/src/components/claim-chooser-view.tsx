@@ -81,7 +81,7 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
             <Link href="/dashboard/claims" className="mt-6 inline-block">
               <Button
                 variant="accent"
-                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
               >
                 Back to my claims
               </Button>
@@ -107,7 +107,7 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
       <Container size="lg" className="max-w-[1240px] py-12">
         <Link
           href={`/winners/${claimId}`}
-          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
         >
           <ChevronLeft className="h-4 w-4" />
           Back to win notification
@@ -119,12 +119,12 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
               variant="default"
               className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm"
             >
-              <div className="relative overflow-hidden bg-[#4E8F01] p-7 text-white sm:p-8">
-                <div className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-[#A8E368]/25 blur-3xl" />
+              <div className="relative overflow-hidden bg-navy-800 p-7 text-white sm:p-8">
+                <div className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-emerald-50 blur-3xl" />
                 <div className="absolute -bottom-24 left-1/3 h-60 w-60 rounded-full bg-white/10 blur-3xl" />
 
                 <div className="relative">
-                  <div className="mb-8 inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-navy-950">
+                  <div className="mb-8 inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-navy-950">
                     <Ticket className="h-4 w-4" />
                     Prize claim
                   </div>
@@ -232,7 +232,7 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Claim summary
               </p>
 
@@ -242,7 +242,7 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
                 <SummaryRow label="Estimated WHT" value={formatNaira(claim.estimatedWhtNgn)} />
               </div>
 
-              <div className="mt-5 rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4">
+              <div className="mt-5 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-4">
                 <p className="text-sm font-black text-navy-950">Selection deadline</p>
                 <p className="mt-1 text-sm text-slate-600">
                   Choose by{' '}
@@ -258,7 +258,7 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
             >
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                 <ShieldCheck className="h-5 w-5" />
               </div>
 
@@ -276,7 +276,7 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 What happens next?
               </p>
 
@@ -331,14 +331,14 @@ function PathCard({
       variant="default"
       className={
         isGreen
-          ? 'overflow-hidden rounded-3xl border-[#4E8F01]/20 bg-white shadow-sm transition hover:shadow-[0_18px_50px_rgba(15,23,42,0.07)]'
+          ? 'overflow-hidden rounded-3xl border-navy-200 bg-white shadow-sm transition hover:shadow-[0_18px_50px_rgba(15,23,42,0.07)]'
           : 'overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm transition hover:shadow-[0_18px_50px_rgba(15,23,42,0.07)]'
       }
     >
       <div
         className={
           isGreen
-            ? 'border-b border-[#4E8F01]/10 bg-[#F8FAF4] p-6'
+            ? 'border-b border-navy-100 bg-[#F8FAF4] p-6'
             : 'border-b border-slate-100 bg-white p-6'
         }
       >
@@ -346,7 +346,7 @@ function PathCard({
           <div
             className={
               isGreen
-                ? 'flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]'
+                ? 'flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700'
                 : 'flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-600'
             }
           >
@@ -357,7 +357,7 @@ function PathCard({
             <p
               className={
                 isGreen
-                  ? 'text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]'
+                  ? 'text-[10px] font-black uppercase tracking-[0.16em] text-navy-700'
                   : 'text-[10px] font-black uppercase tracking-[0.16em] text-slate-500'
               }
             >
@@ -401,7 +401,7 @@ function PathCard({
                 <HIcon
                   className={
                     isGreen
-                      ? 'mt-0.5 h-4 w-4 shrink-0 text-[#4E8F01]'
+                      ? 'mt-0.5 h-4 w-4 shrink-0 text-navy-700'
                       : 'mt-0.5 h-4 w-4 shrink-0 text-slate-500'
                   }
                 />
@@ -422,7 +422,7 @@ function PathCard({
           fullWidth
           className={
             isGreen
-              ? 'mt-6 rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]'
+              ? 'mt-6 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400'
               : 'mt-6 rounded-sm !border-transparent bg-navy-950 font-bold text-white hover:!border-transparent hover:bg-navy-900'
           }
         >
@@ -445,7 +445,7 @@ function SummaryCell({
 }) {
   return (
     <div className="p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
         {label}
       </p>
 
@@ -472,7 +472,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 function StepItem({ n, text }: { n: string; text: string }) {
   return (
     <li className="flex items-start gap-3">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 font-mono text-xs font-black text-[#4E8F01]">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-navy-50 font-mono text-xs font-black text-navy-700">
         {n}
       </span>
       <span className="pt-1 text-sm leading-relaxed text-slate-600">{text}</span>

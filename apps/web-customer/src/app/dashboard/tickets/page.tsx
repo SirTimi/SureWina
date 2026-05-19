@@ -14,7 +14,7 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
     <main className="min-h-screen bg-[#F8FAF4]">
       <Container size="lg" className="max-w-[1200px] py-10">
         <div className="mb-8 flex flex-col gap-2">
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-navy-700">
             Tickets
           </p>
 

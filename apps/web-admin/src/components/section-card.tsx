@@ -23,7 +23,7 @@ export function SectionCard({
         <header className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             {title && (
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-navy-700">
                 {title}
               </p>
             )}

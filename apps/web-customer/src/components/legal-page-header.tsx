@@ -20,21 +20,21 @@ export function LegalPageHeader({
   backLabel = 'Back to home',
 }: LegalPageHeaderProps) {
   return (
-    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pb-20 pt-32 sm:pb-24 sm:pt-36 lg:pb-28 lg:pt-40">
-      <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
-      <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-[#4E8F01]/10 blur-3xl" />
+    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pb-20 pt-32 sm:pb-24 sm:pt-36 lg:pb-28 lg:pt-40">
+      <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
+      <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
 
       <Container size="lg" className="relative max-w-[1400px]">
         <Link
           href={backHref}
-          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
         >
           <ArrowLeft className="h-4 w-4" />
           {backLabel}
         </Link>
 
         <div className="max-w-4xl">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-navy-700/90 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
             <ShieldCheck className="h-4 w-4 text-white" />
             {eyebrow}
           </div>
@@ -50,7 +50,7 @@ export function LegalPageHeader({
           {effectiveDate && (
             <p className="mt-6 max-w-2xl text-sm leading-relaxed text-slate-600">
               Effective from{' '}
-              <span className="font-mono font-black text-[#4E8F01]">
+              <span className="font-mono font-black text-navy-700">
                 {effectiveDate}
               </span>
               . Historical versions are kept in the public archive, so you can always

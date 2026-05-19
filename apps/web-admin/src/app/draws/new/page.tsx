@@ -69,8 +69,8 @@ function Body() {
                 }}
                 className={
                   drawType === type
-                    ? 'rounded-lg border-2 border-[#4E8F01] bg-[#A8E368]/15 p-3 text-left'
-                    : 'rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-[#4E8F01]/30'
+                    ? 'rounded-lg border-2 border-navy-700 bg-amber-50 p-3 text-left'
+                    : 'rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-navy-200'
                 }
               >
                 <p className="text-sm font-black text-[#0B1220]">
@@ -95,7 +95,7 @@ function Body() {
                 value={prize}
                 onChange={(e) => setPrize(e.target.value)}
                 placeholder="Samsung Galaxy A55 5G"
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </FormRow>
             <FormRow label="Prize value (₦)">
@@ -103,11 +103,11 @@ function Body() {
                 inputMode="numeric"
                 value={prizeValue}
                 onChange={(e) => setPrizeValue(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </FormRow>
             <FormRow label="Prize image">
-              <div className="flex h-32 cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-[#F8FAF4] text-slate-500 hover:border-[#4E8F01]/30">
+              <div className="flex h-32 cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-slate-200 bg-[#F8FAF4] text-slate-500 hover:border-navy-200">
                 <div className="text-center">
                   <ImageIcon className="mx-auto h-6 w-6" />
                   <p className="mt-2 text-xs">
@@ -124,7 +124,7 @@ function Body() {
                 inputMode="numeric"
                 value={ticketPrice}
                 onChange={(e) => setTicketPrice(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </FormRow>
             <FormRow label="Ticket cap">
@@ -132,7 +132,7 @@ function Body() {
                 inputMode="numeric"
                 value={ticketCap}
                 onChange={(e) => setTicketCap(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </FormRow>
             <FormRow label="Cutoff">
@@ -140,7 +140,7 @@ function Body() {
                 type="datetime-local"
                 value={cutoffAt}
                 onChange={(e) => setCutoffAt(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </FormRow>
             <FormRow label="Scheduled execution">
@@ -148,7 +148,7 @@ function Body() {
                 type="datetime-local"
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </FormRow>
           </SectionCard>
@@ -160,7 +160,7 @@ function Body() {
 
         <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="flex items-center gap-2 text-xs text-slate-500">
-            <Trophy className="h-4 w-4 text-[#4E8F01]" />
+            <Trophy className="h-4 w-4 text-navy-700" />
             Draws are created as <span className="font-bold text-[#0B1220]">DRAFT</span>{' '}
             until pre-checks pass.
           </div>
@@ -178,7 +178,7 @@ function Body() {
               type="submit"
               variant="accent"
               isLoading={submitting}
-              className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+              className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
             >
               Create draft draw
               <ArrowRight className="h-4 w-4" />
@@ -228,7 +228,7 @@ function CalendarPreview({ scheduledAt }: { scheduledAt: string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-[#F8FAF4] p-3">
       <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#0B1220]">
-        <Calendar className="h-4 w-4 text-[#4E8F01]" />
+        <Calendar className="h-4 w-4 text-navy-700" />
         {month}
       </div>
       <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
@@ -246,7 +246,7 @@ function CalendarPreview({ scheduledAt }: { scheduledAt: string }) {
                 day === null
                   ? 'h-9 rounded-md'
                   : isSelected
-                    ? 'flex h-9 items-center justify-center rounded-md bg-[#4E8F01] text-xs font-black text-white'
+                    ? 'flex h-9 items-center justify-center rounded-md bg-navy-800 text-xs font-black text-white'
                     : 'flex h-9 items-center justify-center rounded-md bg-white text-xs font-medium text-slate-600'
               }
             >

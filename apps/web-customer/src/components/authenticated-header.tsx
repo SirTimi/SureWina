@@ -58,7 +58,7 @@ export function AuthenticatedHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#4E8F01]/10 bg-white/90 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-navy-100 bg-white/90 backdrop-blur-xl">
       <Container
         size="lg"
         className="relative flex h-20 max-w-[1400px] items-center justify-between gap-6"
@@ -79,8 +79,8 @@ export function AuthenticatedHeader() {
                 href={item.href}
                 className={
                   isActive
-                    ? 'inline-flex items-center gap-2 rounded-sm bg-[#4E8F01] px-4 py-2.5 text-sm font-bold text-white shadow-sm'
-                    : 'inline-flex items-center gap-2 rounded-sm px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-[#A8E368]/15 hover:text-[#4E8F01]'
+                    ? 'inline-flex items-center gap-2 rounded-sm bg-navy-800 px-4 py-2.5 text-sm font-bold text-white shadow-sm'
+                    : 'inline-flex items-center gap-2 rounded-sm px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-amber-50 hover:text-navy-700'
                 }
               >
                 <Icon className="h-4 w-4" />
@@ -93,7 +93,7 @@ export function AuthenticatedHeader() {
         <div className="hidden items-center gap-2 sm:flex">
           <Link
             href="/draws"
-            className="inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-4 py-2.5 text-sm font-bold text-navy-950 transition hover:bg-[#B7EF79]"
+            className="inline-flex items-center gap-2 rounded-sm bg-amber-500 px-4 py-2.5 text-sm font-bold text-navy-950 transition hover:bg-amber-400"
           >
             <WalletCards className="h-4 w-4" />
             Buy tickets
@@ -101,7 +101,7 @@ export function AuthenticatedHeader() {
 
           <Link
             href="/dashboard/account"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-sm border border-slate-200 bg-white text-[#4E8F01] transition hover:bg-[#A8E368]/15"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-sm border border-slate-200 bg-white text-navy-700 transition hover:bg-amber-50"
             aria-label="Profile"
           >
             <User className="h-4 w-4" />
@@ -120,7 +120,7 @@ export function AuthenticatedHeader() {
         <div className="flex items-center gap-2 sm:hidden">
           <Link
             href="/draws"
-            className="rounded-sm bg-[#A8E368] px-4 py-2.5 text-sm font-bold text-navy-950"
+            className="rounded-sm bg-amber-500 px-4 py-2.5 text-sm font-bold text-navy-950"
           >
             Buy
           </Link>
@@ -151,8 +151,8 @@ export function AuthenticatedHeader() {
                     onClick={closeMenu}
                     className={
                       isActive
-                        ? 'flex items-center gap-3 rounded-xl bg-[#4E8F01] px-4 py-3 text-sm font-bold text-white'
-                        : 'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-[#F8FAF4] hover:text-[#4E8F01]'
+                        ? 'flex items-center gap-3 rounded-xl bg-navy-800 px-4 py-3 text-sm font-bold text-white'
+                        : 'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-[#F8FAF4] hover:text-navy-700'
                     }
                   >
                     <Icon className="h-4 w-4" />

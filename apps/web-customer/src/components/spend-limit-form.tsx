@@ -26,12 +26,12 @@ export function SpendLimitForm() {
     >
       <div className="border-b border-slate-100 bg-white p-6 sm:p-7">
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
             <WalletCards className="h-6 w-6" />
           </div>
 
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Spend limit
             </p>
 
@@ -48,7 +48,7 @@ export function SpendLimitForm() {
       </div>
 
       <div className="p-6 sm:p-7">
-        <div className="inline-flex flex-wrap gap-1 rounded-sm border border-[#4E8F01]/15 bg-[#F8FAF4] p-1">
+        <div className="inline-flex flex-wrap gap-1 rounded-sm border border-navy-100 bg-[#F8FAF4] p-1">
           {(['WEEKLY', 'MONTHLY', 'NONE'] as LimitPeriod[]).map((p) => (
             <button
               key={p}
@@ -61,8 +61,8 @@ export function SpendLimitForm() {
               }}
               className={
                 period === p
-                  ? 'rounded-sm bg-[#4E8F01] px-4 py-2 text-sm font-bold text-white shadow-sm'
-                  : 'rounded-sm px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-[#A8E368]/15 hover:text-[#4E8F01]'
+                  ? 'rounded-sm bg-navy-800 px-4 py-2 text-sm font-bold text-white shadow-sm'
+                  : 'rounded-sm px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-amber-50 hover:text-navy-700'
               }
             >
               {p === 'WEEKLY' ? 'Weekly' : p === 'MONTHLY' ? 'Monthly' : 'No limit'}
@@ -83,7 +83,7 @@ export function SpendLimitForm() {
                 </p>
               </div>
 
-              <div className="rounded-sm bg-[#A8E368]/20 px-3 py-2 text-xs font-bold text-[#4E8F01]">
+              <div className="rounded-sm bg-amber-50 px-3 py-2 text-xs font-bold text-navy-700">
                 {period === 'WEEKLY' ? 'Weekly control' : 'Monthly control'}
               </div>
             </div>
@@ -95,7 +95,7 @@ export function SpendLimitForm() {
               step={500}
               value={amount}
               onChange={(e) => setAmount(parseInt(e.target.value))}
-              className="mt-6 w-full accent-[#4E8F01]"
+              className="mt-6 w-full accent-navy-700"
             />
 
             <div className="mt-2 flex justify-between font-mono text-xs text-slate-500 tabular-nums">
@@ -103,9 +103,9 @@ export function SpendLimitForm() {
               <span>{formatNaira(range.max)}</span>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-5">
+            <div className="mt-6 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-5">
               <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#4E8F01] text-white">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-navy-800 text-white">
                   <Check className="h-3.5 w-3.5" />
                 </span>
 
@@ -137,7 +137,7 @@ export function SpendLimitForm() {
           <Button
             variant="primary"
             size="md"
-            className="rounded-sm !border-transparent bg-[#4E8F01] font-bold text-white hover:!border-transparent hover:bg-[#3f7601]"
+            className="rounded-sm !border-transparent bg-navy-800 font-bold text-white hover:!border-transparent hover:bg-navy-800"
           >
             Save limit
           </Button>

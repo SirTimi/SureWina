@@ -56,7 +56,7 @@ function Body({ id }: { id: string }) {
             <input
               value={prize}
               onChange={(e) => setPrize(e.target.value)}
-              className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+              className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
           </FormRow>
           <FormRow label="Ticket cap">
@@ -64,7 +64,7 @@ function Body({ id }: { id: string }) {
               inputMode="numeric"
               value={ticketCap}
               onChange={(e) => setTicketCap(e.target.value.replace(/\D/g, ''))}
-              className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+              className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
           </FormRow>
           <FormRow label="Cutoff">
@@ -72,7 +72,7 @@ function Body({ id }: { id: string }) {
               type="datetime-local"
               value={cutoffAt}
               onChange={(e) => setCutoffAt(e.target.value)}
-              className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+              className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
           </FormRow>
           <FormRow label="Scheduled execution">
@@ -80,7 +80,7 @@ function Body({ id }: { id: string }) {
               type="datetime-local"
               value={scheduledAt}
               onChange={(e) => setScheduledAt(e.target.value)}
-              className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+              className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
           </FormRow>
         </SectionCard>
@@ -91,7 +91,7 @@ function Body({ id }: { id: string }) {
             onChange={(e) => setReason(e.target.value)}
             rows={3}
             placeholder="Why is this change being made?"
-            className="w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+            className="w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
           />
           <p className="mt-2 flex items-center gap-1 text-xs text-slate-500">
             <GitCommit className="h-3 w-3" /> Saved as a new version with this note.
@@ -119,7 +119,7 @@ function Body({ id }: { id: string }) {
               isLoading={saving}
               disabled={!reason.trim()}
               variant="accent"
-              className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01] disabled:!bg-slate-200 disabled:text-slate-500"
+              className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900 disabled:!bg-slate-200 disabled:text-slate-500"
             >
               <Save className="h-4 w-4" />
               Save new version

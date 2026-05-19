@@ -40,7 +40,7 @@ function Body() {
         rightSlot={
           <Button
             variant="accent"
-            className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+            className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
           >
             <Save className="h-4 w-4" />
             Save template
@@ -67,11 +67,11 @@ function Body() {
                       onClick={() => select(t)}
                       className={
                         isActive
-                          ? 'flex w-full items-start gap-2 bg-[#A8E368]/15 p-3 text-left'
+                          ? 'flex w-full items-start gap-2 bg-amber-50 p-3 text-left'
                           : 'flex w-full items-start gap-2 p-3 text-left hover:bg-[#F8FAF4]'
                       }
                     >
-                      <Icon className="mt-0.5 h-4 w-4 text-[#4E8F01]" />
+                      <Icon className="mt-0.5 h-4 w-4 text-navy-700" />
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-[#0B1220]">{t.name}</p>
                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
@@ -92,7 +92,7 @@ function Body() {
               <input
                 value={draft.subject}
                 onChange={(e) => setDraft((d) => ({ ...d, subject: e.target.value }))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </SectionCard>
           )}
@@ -102,7 +102,7 @@ function Body() {
               value={draft.body}
               onChange={(e) => setDraft((d) => ({ ...d, body: e.target.value }))}
               rows={8}
-              className="w-full rounded-md border border-slate-200 p-3 font-mono text-sm outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+              className="w-full rounded-md border border-slate-200 p-3 font-mono text-sm outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
             <p className="mt-2 text-xs text-slate-500">
               {draft.body.length} characters

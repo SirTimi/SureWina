@@ -58,7 +58,7 @@ function Body({ id }: { id: string }) {
                   className="flex items-center justify-between gap-3 p-4"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#A8E368]/30 text-[#4E8F01]">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-navy-50 text-navy-700">
                       <FileText className="h-4 w-4" />
                     </div>
                     <div>
@@ -70,7 +70,7 @@ function Body({ id }: { id: string }) {
                   </div>
                   <button
                     type="button"
-                    className="text-xs font-black uppercase tracking-[0.14em] text-[#4E8F01]"
+                    className="text-xs font-black uppercase tracking-[0.14em] text-navy-700"
                   >
                     Open
                   </button>
@@ -121,7 +121,7 @@ function Body({ id }: { id: string }) {
             onChange={(e) => setNote(e.target.value)}
             rows={3}
             placeholder="Reason / SMS message to send (will be templated)…"
-            className="mt-3 w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+            className="mt-3 w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
           />
 
           <div className="mt-3 flex items-center justify-end gap-2">
@@ -131,7 +131,7 @@ function Body({ id }: { id: string }) {
             <Button
               variant="accent"
               disabled={!outcome || !note.trim()}
-              className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01] disabled:!bg-slate-200 disabled:text-slate-500"
+              className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900 disabled:!bg-slate-200 disabled:text-slate-500"
             >
               <CheckCircle2 className="h-4 w-4" />
               Submit decision

@@ -70,13 +70,13 @@ export function ProcessingPanel({
       variant="default"
       className="overflow-hidden rounded-3xl border-slate-200 bg-white/95 p-8 text-center shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur sm:p-10"
     >
-      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#A8E368]/25">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#4E8F01] text-white">
+      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-navy-800 text-white">
           <CreditCard className="h-6 w-6" />
         </div>
       </div>
 
-      <div className="mb-5 inline-flex items-center gap-2 rounded-sm bg-[#4E8F01] px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-white">
+      <div className="mb-5 inline-flex items-center gap-2 rounded-sm bg-navy-800 px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-white">
         <ShieldCheck className="h-4 w-4" />
         Secure processing
       </div>
@@ -101,16 +101,16 @@ export function ProcessingPanel({
               key={s}
               className={
                 isActive
-                  ? 'flex items-center gap-3 rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-3 text-sm font-bold text-navy-950'
+                  ? 'flex items-center gap-3 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-3 text-sm font-bold text-navy-950'
                   : isDone
-                    ? 'flex items-center gap-3 rounded-2xl border border-[#4E8F01]/15 bg-white p-3 text-sm font-bold text-[#4E8F01]'
+                    ? 'flex items-center gap-3 rounded-2xl border border-navy-100 bg-white p-3 text-sm font-bold text-navy-700'
                     : 'flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 text-sm text-slate-400'
               }
             >
               {isActive ? (
-                <Loader2 className="h-4 w-4 animate-spin text-[#4E8F01]" />
+                <Loader2 className="h-4 w-4 animate-spin text-navy-700" />
               ) : isDone ? (
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#4E8F01] text-white">
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-navy-800 text-white">
                   <Check className="h-3 w-3" />
                 </span>
               ) : (

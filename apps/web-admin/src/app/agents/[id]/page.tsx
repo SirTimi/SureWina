@@ -101,7 +101,7 @@ function Body({ id }: { id: string }) {
               {series.map((s) => (
                 <div key={s.day} className="flex flex-1 flex-col items-center gap-1">
                   <div
-                    className="w-full rounded-sm bg-[#4E8F01]"
+                    className="w-full rounded-sm bg-navy-800"
                     style={{ height: `${(s.value / maxV) * 100}%` }}
                   />
                   <p className="text-[9px] text-slate-400">{s.day + 1}</p>
@@ -191,7 +191,7 @@ function Body({ id }: { id: string }) {
                   <td className="px-4 py-2 text-xs text-slate-500">{c.date}</td>
                   <td className="px-4 py-2 text-right tabular-nums">{formatNaira(c.basisNgn)}</td>
                   <td className="px-4 py-2 text-right">{(c.rate * 100).toFixed(0)}%</td>
-                  <td className="px-4 py-2 text-right font-bold tabular-nums text-[#4E8F01]">
+                  <td className="px-4 py-2 text-right font-bold tabular-nums text-navy-700">
                     {formatNaira(c.commissionNgn)}
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums">
@@ -234,7 +234,7 @@ function Body({ id }: { id: string }) {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Reason for record…"
-              className="w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+              className="w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
             <div className="mt-3 flex items-center justify-end gap-2">
               <Button
@@ -272,7 +272,7 @@ function Stat({
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-[#A8E368]/30 text-[#4E8F01]">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-navy-50 text-navy-700">
         <Icon className="h-4 w-4" />
       </div>
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">

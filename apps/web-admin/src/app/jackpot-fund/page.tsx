@@ -96,7 +96,7 @@ function Body() {
                     <>
                       <div className="flex h-1/2 w-full flex-col justify-end">
                         <div
-                          className="w-full rounded-sm bg-[#4E8F01]"
+                          className="w-full rounded-sm bg-navy-800"
                           style={{ height: `${h}%` }}
                         />
                       </div>

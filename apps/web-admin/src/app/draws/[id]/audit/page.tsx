@@ -60,7 +60,7 @@ function Body({ id }: { id: string }) {
           <Button
             variant="accent"
             onClick={download}
-            className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+            className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
           >
             <Download className="h-4 w-4" />
             Export audit report (PDF)
@@ -92,7 +92,7 @@ function Body({ id }: { id: string }) {
 
           <SectionCard title="Winner">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#A8E368]/30 text-[#4E8F01]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-navy-50 text-navy-700">
                 <Trophy className="h-5 w-5" />
               </div>
               <div>
@@ -147,7 +147,7 @@ function Body({ id }: { id: string }) {
                       <div className="inline-flex w-full max-w-[160px] items-center gap-2">
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                           <div
-                            className="h-full rounded-full bg-[#4E8F01]"
+                            className="h-full rounded-full bg-navy-800"
                             style={{ width: `${pct}%` }}
                           />
                         </div>

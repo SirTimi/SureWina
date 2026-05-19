@@ -46,7 +46,7 @@ function Body() {
         rightSlot={
           <Link
             href="/remittance/reconcile"
-            className="inline-flex items-center gap-2 rounded-md bg-[#4E8F01] px-4 py-2 text-sm font-black text-white hover:bg-[#3a6a01]"
+            className="inline-flex items-center gap-2 rounded-md bg-navy-800 px-4 py-2 text-sm font-black text-white hover:bg-navy-900"
           >
             <ListChecks className="h-4 w-4" />
             Manual reconciliation
@@ -109,7 +109,7 @@ function Body() {
                 <div>
                   <Link
                     href={`/agents/${r.agentCode}`}
-                    className="font-bold text-[#0B1220] hover:text-[#4E8F01]"
+                    className="font-bold text-[#0B1220] hover:text-navy-700"
                   >
                     {r.agentName}
                   </Link>

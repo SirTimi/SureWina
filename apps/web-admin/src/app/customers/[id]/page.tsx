@@ -108,7 +108,7 @@ function Body({ id }: { id: string }) {
                       <td className="px-4 py-2">
                         <Link
                           href={`/tickets/${t.ticketRef}`}
-                          className="font-mono text-sm font-black text-[#0B1220] hover:text-[#4E8F01]"
+                          className="font-mono text-sm font-black text-[#0B1220] hover:text-navy-700"
                         >
                           {t.ticketRef}
                         </Link>
@@ -159,7 +159,7 @@ function Body({ id }: { id: string }) {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={4}
-            className="w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+            className="w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
           />
         </SectionCard>
       </div>
@@ -178,7 +178,7 @@ function Stat({
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-[#A8E368]/30 text-[#4E8F01]">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-navy-50 text-navy-700">
         <Icon className="h-4 w-4" />
       </div>
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">

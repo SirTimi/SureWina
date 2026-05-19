@@ -79,13 +79,13 @@ function KanbanCard({ claim }: { claim: Claim }) {
   return (
     <Link
       href={`/claims/${claim.claimId}`}
-      className="block rounded-md border border-black/5 bg-white p-3 shadow-sm transition hover:border-[#4E8F01]/30 hover:shadow-md"
+      className="block rounded-md border border-black/5 bg-white p-3 shadow-sm transition hover:border-navy-200 hover:shadow-md"
     >
       <p className="font-mono text-xs font-black text-[#0B1220]">{claim.ticketRef}</p>
       <p className="mt-1 truncate text-sm font-bold text-[#0B1220]">
         {claim.prizeDescription}
       </p>
-      <p className="text-xs font-bold tabular-nums text-[#4E8F01]">
+      <p className="text-xs font-bold tabular-nums text-navy-700">
         {formatNaira(claim.prizeValueNgn)}
       </p>
       <p className="mt-1 font-mono text-[10px] text-slate-500">

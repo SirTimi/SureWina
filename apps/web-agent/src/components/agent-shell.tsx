@@ -97,8 +97,8 @@ export function AgentShell({ children }: AgentShellProps) {
       )}
 
       {online && pendingSync > 0 && (
-        <div className="border-b border-[#4E8F01]/15 bg-[#A8E368]/20 px-4 py-2">
-          <div className="mx-auto flex max-w-[1180px] items-center gap-2 text-xs font-bold text-[#4E8F01]">
+        <div className="border-b border-navy-100 bg-amber-50 px-4 py-2">
+          <div className="mx-auto flex max-w-[1180px] items-center gap-2 text-xs font-bold text-navy-700">
             <RotateCw className="h-3.5 w-3.5 animate-spin" />
             Syncing {pendingSync} queued sale{pendingSync > 1 ? 's' : ''}…
           </div>

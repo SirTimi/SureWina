@@ -47,7 +47,7 @@ function CustomersBody() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by phone…"
-            className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-bold text-navy-950 outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+            className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-bold text-navy-950 outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
           />
         </div>
       </Card>
@@ -75,7 +75,7 @@ function CustomersBody() {
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                     <Phone className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">

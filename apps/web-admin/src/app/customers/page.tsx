@@ -45,7 +45,7 @@ function Body() {
               render: (c) => (
                 <Link
                   href={`/customers/${c.customerId}`}
-                  className="font-mono text-sm font-bold text-[#0B1220] hover:text-[#4E8F01]"
+                  className="font-mono text-sm font-bold text-[#0B1220] hover:text-navy-700"
                 >
                   {c.phoneE164}
                 </Link>

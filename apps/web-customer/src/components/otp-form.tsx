@@ -131,20 +131,20 @@ export function OtpForm({ challengeId, phoneE164, nextPath, mockOtp }: OtpFormPr
       className="rounded-3xl border-slate-200 bg-white/95 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur sm:p-8"
     >
       <div className="mb-8 flex items-center gap-2">
-        <div className="h-1 w-16 rounded-full bg-[#4E8F01]" />
-        <div className="h-1 w-16 rounded-full bg-[#4E8F01]" />
+        <div className="h-1 w-16 rounded-full bg-navy-800" />
+        <div className="h-1 w-16 rounded-full bg-navy-800" />
       </div>
 
       <Link
         href={`/sign-in${nextPath !== '/dashboard' ? `?next=${encodeURIComponent(nextPath)}` : ''}`}
-        className="mb-6 inline-flex items-center gap-1 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+        className="mb-6 inline-flex items-center gap-1 text-sm font-bold text-navy-700 transition hover:text-navy-800"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Use a different number
       </Link>
 
       <div className="mb-8">
-        <div className="mb-5 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/90 px-4 py-2 text-sm font-semibold text-white shadow-sm">
+        <div className="mb-5 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-navy-800/90 px-4 py-2 text-sm font-semibold text-white shadow-sm">
           <ShieldCheck className="h-4 w-4 text-white" />
           Verify your phone
         </div>
@@ -162,8 +162,8 @@ export function OtpForm({ challengeId, phoneE164, nextPath, mockOtp }: OtpFormPr
       </div>
 
       {activeMockOtp && (
-        <div className="mb-6 rounded-sm border border-[#A8E368]/40 bg-[#A8E368]/15 p-3 text-xs">
-          <span className="font-black text-[#4E8F01]">Dev mode:</span>{' '}
+        <div className="mb-6 rounded-sm border border-amber-500/40 bg-amber-50 p-3 text-xs">
+          <span className="font-black text-navy-700">Dev mode:</span>{' '}
           <span className="text-slate-700">
             Use code{' '}
             <span className="font-mono font-black text-navy-950">{activeMockOtp}</span> or{' '}
@@ -188,7 +188,7 @@ export function OtpForm({ challengeId, phoneE164, nextPath, mockOtp }: OtpFormPr
             onKeyDown={(e) => handleKeyDown(idx, e)}
             onPaste={handlePaste}
             disabled={isVerifying}
-            className="h-14 w-12 rounded-sm border-2 border-slate-200 bg-white text-center font-display text-2xl font-black tabular-nums text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/35 disabled:opacity-50 sm:h-16 sm:w-14"
+            className="h-14 w-12 rounded-sm border-2 border-slate-200 bg-white text-center font-display text-2xl font-black tabular-nums text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/35 disabled:opacity-50 sm:h-16 sm:w-14"
             autoComplete="one-time-code"
             aria-label={`Digit ${idx + 1}`}
           />
@@ -215,7 +215,7 @@ export function OtpForm({ challengeId, phoneE164, nextPath, mockOtp }: OtpFormPr
             <button
               type="button"
               onClick={handleResend}
-              className="font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+              className="font-bold text-navy-700 transition hover:text-navy-800"
             >
               Resend code
             </button>
@@ -223,9 +223,9 @@ export function OtpForm({ challengeId, phoneE164, nextPath, mockOtp }: OtpFormPr
         </p>
 
         <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
-          <Phone className="h-3 w-3 text-[#4E8F01]" />
+          <Phone className="h-3 w-3 text-navy-700" />
           Still nothing?{' '}
-          <a href="tel:0700SUREWINA" className="font-bold text-[#4E8F01] hover:text-[#3f7601]">
+          <a href="tel:0700SUREWINA" className="font-bold text-navy-700 hover:text-navy-800">
             Call 0700-SUREWINA
           </a>{' '}
           for a voice OTP.

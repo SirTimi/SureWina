@@ -63,7 +63,7 @@ function Body() {
           <Button
             variant="accent"
             onClick={downloadPack}
-            className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+            className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
           >
             <Download className="h-4 w-4" />
             Generate pack
@@ -82,7 +82,7 @@ function Body() {
         <SectionCard title="Headline narrative">
           <p className="text-sm leading-relaxed text-[#0B1220]">
             Surewina processed{' '}
-            <span className="font-bold text-[#4E8F01]">
+            <span className="font-bold text-navy-700">
               {formatNaira(pnl.revenueNgn)}
             </span>{' '}
             of ticket revenue this month across{' '}

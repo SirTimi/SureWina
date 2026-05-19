@@ -16,12 +16,15 @@
   --color-amber-700: 164 90 18;
 
   /* === Semantic === */
-  --color-success-100: 215 237 226;
-  --color-success-500: 31 141 90;
-  --color-warning-100: 246 232 201;
-  --color-warning-500: 136 120 10;
-  --color-danger-100: 242 208 217;
-  --color-danger-500: 136 52 52;
+  /* Success: bright emerald — used as the platform-wide green for PAID, ACTIVE,
+     DELIVERED, positive deltas, and seed-hash verification. Green appears ONLY
+     in success contexts. Anything brand-related is navy + amber. */
+  --color-success-100: 209 250 229;
+  --color-success-500: 22 163 74;
+  --color-warning-100: 254 243 199;
+  --color-warning-500: 217 119 6;
+  --color-danger-100: 254 226 226;
+  --color-danger-500: 220 38 38;
 
   /* === Neutrals · Warm-leaning === */
   --color-ink-50: 241 242 245;

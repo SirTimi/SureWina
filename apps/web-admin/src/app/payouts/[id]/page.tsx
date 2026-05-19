@@ -104,7 +104,7 @@ function Body({ id }: { id: string }) {
               onChange={(e) => setBankRef(e.target.value.toUpperCase())}
               placeholder="GTB-PAYOUT-XXXXXX"
               disabled={payout.status === 'PAID'}
-              className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30 disabled:bg-slate-50"
+              className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30 disabled:bg-slate-50"
             />
           </label>
 
@@ -113,7 +113,7 @@ function Body({ id }: { id: string }) {
               <Button
                 variant="accent"
                 onClick={approve}
-                className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+                className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 Approve payout
@@ -123,7 +123,7 @@ function Body({ id }: { id: string }) {
               <Button
                 variant="accent"
                 onClick={markPaid}
-                className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+                className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
               >
                 <CreditCard className="h-4 w-4" />
                 Mark paid & generate WHT cert
@@ -146,7 +146,7 @@ function Body({ id }: { id: string }) {
           {payout.whtCertificateNo ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#A8E368]/30 text-[#4E8F01]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-navy-50 text-navy-700">
                   <FileSignature className="h-5 w-5" />
                 </div>
                 <div>

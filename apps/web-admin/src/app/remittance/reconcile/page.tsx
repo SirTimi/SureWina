@@ -64,7 +64,7 @@ function Body() {
                 value={bankRef}
                 onChange={(e) => setBankRef(e.target.value.toUpperCase())}
                 placeholder="GTB-TRF-XXXXXX"
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </label>
             <label className="block">
@@ -75,14 +75,14 @@ function Body() {
                 inputMode="numeric"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </label>
             <div className="flex items-end">
               <Button
                 type="submit"
                 variant="accent"
-                className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+                className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
               >
                 <Search className="h-4 w-4" />
                 Search
@@ -93,8 +93,8 @@ function Body() {
 
         {match && !done && (
           <SectionCard title="Probable match">
-            <div className="rounded-xl border border-[#4E8F01]/15 bg-[#A8E368]/15 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+            <div className="rounded-xl border border-navy-100 bg-amber-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
                 Suggested match
               </p>
               <p className="mt-1 font-display text-lg font-black text-[#0B1220]">
@@ -108,7 +108,7 @@ function Body() {
                 <Button
                   variant="accent"
                   onClick={reconcile}
-                  className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+                  className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
                 >
                   <ListChecks className="h-4 w-4" />
                   Reconcile

@@ -28,21 +28,21 @@ export function SiteHeader() {
 
         <nav className="hidden items-center gap-8 text-[14px] font-[600] text-navy-950 md:flex">
           {navItems.map((item) => (
-            <Link key={item.href} href={item.href} className="transition hover:text-[#4E8F01]">
+            <Link key={item.href} href={item.href} className="transition hover:text-navy-700">
               {item.label}
             </Link>
           ))}
 
           <Link
             href="/sign-in"
-            className="border-l border-navy-950/10 pl-7 transition hover:text-[#4E8F01]"
+            className="border-l border-navy-950/10 pl-7 transition hover:text-navy-700"
           >
             Sign in
           </Link>
 
           <Link
             href="/draws"
-            className="rounded-sm bg-[#4E8F01] px-5 py-3 font-bold text-white transition hover:bg-[#3f7601]"
+            className="rounded-sm bg-amber-500 px-5 py-3 font-bold text-navy-900 transition hover:bg-amber-400"
           >
             Buy a ticket
           </Link>
@@ -51,7 +51,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-2 md:hidden">
           <Link
             href="/draws"
-            className="rounded-sm bg-[#4E8F01] px-4 py-2.5 text-sm font-bold text-white"
+            className="rounded-sm bg-amber-500 px-4 py-2.5 text-sm font-bold text-navy-900"
           >
             Buy
           </Link>
@@ -75,7 +75,7 @@ export function SiteHeader() {
                   key={item.href}
                   href={item.href}
                   onClick={closeMenu}
-                  className="block rounded-xl px-4 py-3 text-sm font-bold text-navy-950 transition hover:bg-[#F8FAF4] hover:text-[#4E8F01]"
+                  className="block rounded-xl px-4 py-3 text-sm font-bold text-navy-950 transition hover:bg-navy-50 hover:text-navy-700"
                 >
                   {item.label}
                 </Link>
@@ -94,7 +94,7 @@ export function SiteHeader() {
               <Link
                 href="/draws"
                 onClick={closeMenu}
-                className="inline-flex items-center justify-center rounded-sm bg-[#A8E368] px-4 py-3 text-sm font-bold text-navy-950"
+                className="inline-flex items-center justify-center rounded-sm bg-amber-500 px-4 py-3 text-sm font-bold text-navy-900"
               >
                 Buy ticket
               </Link>

@@ -84,7 +84,7 @@ function Body({ id }: { id: string }) {
             <ol className="space-y-3">
               {events.map((e, i) => (
                 <li key={i} className="flex items-start gap-3">
-                  <div className="mt-1.5 h-2 w-2 rounded-full bg-[#4E8F01]" />
+                  <div className="mt-1.5 h-2 w-2 rounded-full bg-navy-800" />
                   <div>
                     <p className="text-sm font-bold text-[#0B1220]">{e.label}</p>
                     <p className="text-xs text-slate-500">
@@ -110,7 +110,7 @@ function Body({ id }: { id: string }) {
               {Array.from({ length: claim.contactAttempts }).map((_, i) => (
                 <li key={i} className="flex items-start justify-between gap-3 p-3">
                   <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-[#4E8F01]" />
+                    <Phone className="h-4 w-4 text-navy-700" />
                     <p className="text-sm">
                       {i === 0 ? 'SMS auto-sent' : `Call attempt ${i}`}
                     </p>
@@ -143,7 +143,7 @@ function Stat({
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-[#A8E368]/30 text-[#4E8F01]">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-navy-50 text-navy-700">
         <Icon className="h-4 w-4" />
       </div>
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">

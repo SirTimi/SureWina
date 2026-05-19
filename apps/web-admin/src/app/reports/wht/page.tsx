@@ -78,7 +78,7 @@ function Body() {
               render: (p) => (
                 <Link
                   href={`/payouts/${p.payoutId}`}
-                  className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-[0.14em] text-[#4E8F01] hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline"
                 >
                   <FileSignature className="h-3 w-3" />
                   Open

@@ -34,7 +34,7 @@ function ProfileBody({ agent }: { agent: AgentMe }) {
 
       <Card className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#4E8F01] text-2xl font-black text-white">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-navy-800 text-2xl font-black text-white">
             {agent.fullName
               .split(' ')
               .map((p) => p[0])
@@ -42,7 +42,7 @@ function ProfileBody({ agent }: { agent: AgentMe }) {
               .join('')}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Agent
             </p>
             <p className="mt-1 font-display text-2xl font-black text-navy-950">
@@ -58,7 +58,7 @@ function ProfileBody({ agent }: { agent: AgentMe }) {
                 {agent.status}
               </span>
               {agent.isSuperAgent && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-[#4E8F01]/30 bg-[#A8E368]/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-navy-200 bg-navy-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
                   Super-agent
                 </span>
               )}
@@ -104,11 +104,11 @@ function ProfileBody({ agent }: { agent: AgentMe }) {
 
       <Card className="mt-3 rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
             <Banknote className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Settlement bank
             </p>
             {agent.bankAccount ? (
@@ -142,7 +142,7 @@ function InfoCard({
 }) {
   return (
     <Card className="rounded-2xl border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
         {icon}
       </div>
       <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">

@@ -69,7 +69,7 @@ export function TicketDetailView({ ticketRef }: TicketDetailViewProps) {
     <div>
       <Link
         href="/dashboard/tickets"
-        className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+        className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to tickets
@@ -103,7 +103,7 @@ export function TicketDetailView({ ticketRef }: TicketDetailViewProps) {
               {ticket.drawPrizeDescription}
             </h1>
 
-            <p className="mt-2 font-mono text-sm font-bold text-[#4E8F01]">
+            <p className="mt-2 font-mono text-sm font-bold text-navy-700">
               {ticket.ticketRef}
             </p>
           </div>
@@ -151,7 +151,7 @@ export function TicketDetailView({ ticketRef }: TicketDetailViewProps) {
 
             {siblingTickets.length > 0 && (
               <div className="mt-6 rounded-2xl border border-slate-200 bg-[#F8FAF4] p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
                   Other tickets in this draw
                 </p>
 
@@ -178,7 +178,7 @@ export function TicketDetailView({ ticketRef }: TicketDetailViewProps) {
               <Link href={`/dashboard/claims/${claimId}`} className="mt-5 inline-block">
                 <Button
                   variant="accent"
-                  className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                  className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                 >
                   <Trophy className="h-4 w-4" />
                   View claim
@@ -193,7 +193,7 @@ export function TicketDetailView({ ticketRef }: TicketDetailViewProps) {
             variant="default"
             className="rounded-2xl border-slate-200 bg-white p-5 shadow-sm"
           >
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Face value
             </p>
 
@@ -206,7 +206,7 @@ export function TicketDetailView({ ticketRef }: TicketDetailViewProps) {
             variant="default"
             className="rounded-2xl border-slate-200 bg-white p-5 shadow-sm"
           >
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Prize value
             </p>
 
@@ -219,7 +219,7 @@ export function TicketDetailView({ ticketRef }: TicketDetailViewProps) {
             variant="default"
             className="rounded-2xl border-slate-200 bg-white p-5 shadow-sm"
           >
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
               <ShieldCheck className="h-5 w-5" />
             </div>
 
@@ -236,10 +236,10 @@ export function TicketDetailView({ ticketRef }: TicketDetailViewProps) {
           {ticket.isWinner && (
             <Card
               variant="default"
-              className="rounded-2xl border-[#4E8F01]/15 bg-[#F8FAF4] p-5 shadow-sm"
+              className="rounded-2xl border-navy-100 bg-[#F8FAF4] p-5 shadow-sm"
             >
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#4E8F01]" />
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-navy-700" />
 
                 <div>
                   <p className="text-sm font-black text-navy-950">Winning ticket</p>
@@ -269,7 +269,7 @@ function DetailCell({
 }) {
   return (
     <div className="border-b border-slate-100 p-5 last:border-b-0 sm:border-r sm:even:border-r-0">
-      <div className="mb-2 flex items-center gap-2 text-[#4E8F01]">
+      <div className="mb-2 flex items-center gap-2 text-navy-700">
         {icon}
         <p className="text-[10px] font-black uppercase tracking-[0.14em]">{label}</p>
       </div>

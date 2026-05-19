@@ -77,7 +77,7 @@ function Body({ id }: { id: string }) {
             <Button
               variant="accent"
               onClick={() => resolve('RESOLVED')}
-              className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+              className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
             >
               <Check className="h-4 w-4" />
               Mark resolved
@@ -117,7 +117,7 @@ function Body({ id }: { id: string }) {
           </ol>
 
           <div className="border-t border-slate-100 p-4">
-            <p className="mb-2 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+            <p className="mb-2 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
               <MessageSquarePlus className="h-3 w-3" />
               Reply
             </p>
@@ -126,7 +126,7 @@ function Body({ id }: { id: string }) {
               onChange={(e) => setReply(e.target.value)}
               rows={3}
               placeholder="Write a reply to the customer…"
-              className="w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+              className="w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
             <div className="mt-2 flex items-center justify-between">
               <p className="text-xs text-slate-500">
@@ -136,7 +136,7 @@ function Body({ id }: { id: string }) {
                 variant="accent"
                 onClick={send}
                 disabled={!reply.trim()}
-                className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01] disabled:!bg-slate-200 disabled:text-slate-500"
+                className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900 disabled:!bg-slate-200 disabled:text-slate-500"
               >
                 <Send className="h-4 w-4" />
                 Send reply

@@ -34,7 +34,7 @@ export function PageHeader({
                 {c.href ? (
                   <Link
                     href={c.href}
-                    className="font-bold text-[#4E8F01] hover:underline"
+                    className="font-bold text-navy-700 hover:underline"
                   >
                     {c.label}
                   </Link>
@@ -50,7 +50,7 @@ export function PageHeader({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             {eyebrow && (
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-navy-700">
                 {eyebrow}
               </p>
             )}

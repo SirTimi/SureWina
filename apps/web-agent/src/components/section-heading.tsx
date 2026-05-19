@@ -21,7 +21,7 @@ export function SectionHeading({
       {backHref && (
         <Link
           href={backHref}
-          className="mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-[#4E8F01] hover:text-[#3a6a01]"
+          className="mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-navy-700 hover:text-navy-900"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Back
@@ -31,7 +31,7 @@ export function SectionHeading({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           {eyebrow && (
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               {eyebrow}
             </p>
           )}

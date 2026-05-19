@@ -101,7 +101,7 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
             <Link href={`/claim/${claimId}/cash`} className="mt-6 inline-block">
               <Button
                 variant="accent"
-                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
               >
                 Back to overview
               </Button>
@@ -134,7 +134,7 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
       <Container size="lg" className="max-w-[1240px] pb-12 pt-28">
         <Link
           href={`/claim/${claimId}/cash`}
-          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
         >
           <ChevronLeft className="h-4 w-4" />
           Back to cash overview
@@ -148,7 +148,7 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
             >
               <div className="border-b border-slate-100 bg-white p-6 sm:p-7">
                 <div className="mb-6">
-                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-navy-700">
                     Cash claim verification
                   </p>
 
@@ -192,7 +192,7 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Verification status
               </p>
 
@@ -224,7 +224,7 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
             >
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                 <Lock className="h-5 w-5" />
               </div>
 
@@ -242,7 +242,7 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Deadline
               </p>
 
@@ -295,9 +295,9 @@ function KycProgress({ kyc, step }: { kyc: ClaimKycStatus; step: SubStep }) {
           key={item.label}
           className={
             item.done
-              ? 'rounded-2xl border border-[#4E8F01]/20 bg-[#A8E368]/15 p-4'
+              ? 'rounded-2xl border border-navy-200 bg-amber-50 p-4'
               : item.current
-                ? 'rounded-2xl border border-[#4E8F01]/25 bg-[#F8FAF4] p-4'
+                ? 'rounded-2xl border border-navy-200 bg-[#F8FAF4] p-4'
                 : 'rounded-2xl border border-slate-200 bg-white p-4'
           }
         >
@@ -305,9 +305,9 @@ function KycProgress({ kyc, step }: { kyc: ClaimKycStatus; step: SubStep }) {
             <div
               className={
                 item.done
-                  ? 'flex h-8 w-8 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
+                  ? 'flex h-8 w-8 items-center justify-center rounded-sm bg-navy-800 text-white'
                   : item.current
-                    ? 'flex h-8 w-8 items-center justify-center rounded-sm bg-[#A8E368]/35 font-mono text-xs font-black text-[#4E8F01]'
+                    ? 'flex h-8 w-8 items-center justify-center rounded-sm bg-navy-50 font-mono text-xs font-black text-navy-700'
                     : 'flex h-8 w-8 items-center justify-center rounded-sm bg-slate-100 font-mono text-xs font-black text-slate-400'
               }
             >
@@ -327,7 +327,7 @@ function KycProgress({ kyc, step }: { kyc: ClaimKycStatus; step: SubStep }) {
               <p
                 className={
                   item.done
-                    ? 'text-xs font-medium text-[#4E8F01]'
+                    ? 'text-xs font-medium text-navy-700'
                     : item.current
                       ? 'text-xs font-medium text-slate-500'
                       : 'text-xs font-medium text-slate-400'
@@ -405,7 +405,7 @@ function DocsForm({
             id="docType"
             value={docType}
             onChange={(e) => setDocType(e.target.value as (typeof ID_TYPES)[number]['value'])}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
           >
             {ID_TYPES.map((type) => (
               <option key={type.value} value={type.value}>
@@ -419,7 +419,7 @@ function DocsForm({
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4">
+        <div className="rounded-2xl border border-navy-100 bg-[#F8FAF4] p-4">
           <p className="text-sm font-black text-navy-950">Before you upload</p>
           <ul className="mt-2 space-y-1 text-xs leading-relaxed text-slate-600">
             <li>• Use a clear image with all corners visible.</li>
@@ -465,7 +465,7 @@ function DocsForm({
           disabled={submitting}
           variant="accent"
           size="lg"
-          className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+          className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
         >
           Continue to BVN
           <ArrowRight className="h-4 w-4" />
@@ -509,15 +509,15 @@ function FileSlot({
         onClick={() => inputRef.current?.click()}
         className={
           file
-            ? 'group flex min-h-32 w-full items-center gap-4 rounded-2xl border border-[#4E8F01]/25 bg-[#A8E368]/10 p-5 text-left transition hover:bg-[#A8E368]/15'
-            : 'group flex min-h-32 w-full items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-left transition hover:border-[#4E8F01] hover:bg-[#F8FAF4]'
+            ? 'group flex min-h-32 w-full items-center gap-4 rounded-2xl border border-navy-200 bg-amber-50 p-5 text-left transition hover:bg-amber-50'
+            : 'group flex min-h-32 w-full items-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-left transition hover:border-navy-700 hover:bg-[#F8FAF4]'
         }
       >
         <div
           className={
             file
-              ? 'flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
-              : 'flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-500 group-hover:bg-[#A8E368]/35 group-hover:text-[#4E8F01]'
+              ? 'flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-navy-800 text-white'
+              : 'flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-500 group-hover:bg-navy-50 group-hover:text-navy-700'
           }
         >
           {file ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
@@ -592,7 +592,7 @@ function BvnForm({
         value={bvn}
         onChange={(e) => setBvn(e.target.value.replace(/\D/g, ''))}
         placeholder="22123456789"
-        className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 font-mono text-xl tracking-wider text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+        className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 font-mono text-xl tracking-wider text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
       />
 
       <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
@@ -621,7 +621,7 @@ function BvnForm({
         disabled={submitting || bvn.length !== 11}
         variant="accent"
         size="lg"
-        className="mt-6 rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+        className="mt-6 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
       >
         Verify BVN
         <ArrowRight className="h-4 w-4" />
@@ -678,7 +678,7 @@ function BankForm({
           id="bankCode"
           value={bankCode}
           onChange={(e) => setBankCode(e.target.value)}
-          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
         >
           <option value="">Select your bank…</option>
           {NIGERIAN_BANKS.map((bank) => (
@@ -706,7 +706,7 @@ function BankForm({
           value={accountNumber}
           onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
           placeholder="0123456789"
-          className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 font-mono text-xl tracking-wider text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+          className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 font-mono text-xl tracking-wider text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
         />
 
         <p className="mt-2 text-xs text-slate-500">{accountNumber.length} / 10 digits</p>
@@ -732,7 +732,7 @@ function BankForm({
         disabled={submitting || !bankCode || accountNumber.length !== 10}
         variant="accent"
         size="lg"
-        className="mt-6 rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+        className="mt-6 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
       >
         Confirm bank and complete KYC
         <ArrowRight className="h-4 w-4" />
@@ -756,9 +756,9 @@ function StatusItem({
     <div
       className={
         done
-          ? 'rounded-2xl border border-[#4E8F01]/15 bg-[#A8E368]/10 p-4'
+          ? 'rounded-2xl border border-navy-100 bg-amber-50 p-4'
           : active
-            ? 'rounded-2xl border border-[#4E8F01]/20 bg-[#F8FAF4] p-4'
+            ? 'rounded-2xl border border-navy-200 bg-[#F8FAF4] p-4'
             : 'rounded-2xl border border-slate-100 bg-white p-4'
       }
     >
@@ -766,9 +766,9 @@ function StatusItem({
         <div
           className={
             done
-              ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
+              ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-navy-800 text-white'
               : active
-                ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]'
+                ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700'
                 : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-400'
           }
         >

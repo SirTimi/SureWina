@@ -23,12 +23,12 @@ export function TakeABreakForm() {
     >
       <div className="border-b border-slate-100 bg-white p-6 sm:p-7">
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
             <PauseCircle className="h-6 w-6" />
           </div>
 
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Self-exclusion
             </p>
 
@@ -53,8 +53,8 @@ export function TakeABreakForm() {
               onClick={() => setSelected(opt.value)}
               className={
                 selected === opt.value
-                  ? 'rounded-2xl border-2 border-[#4E8F01] bg-[#A8E368]/15 p-4 text-left'
-                  : 'rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-[#A8E368] hover:bg-[#F8FAF4]'
+                  ? 'rounded-2xl border-2 border-navy-700 bg-amber-50 p-4 text-left'
+                  : 'rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-amber-500 hover:bg-[#F8FAF4]'
               }
             >
               <span className="block text-sm font-black text-navy-950">
@@ -68,9 +68,9 @@ export function TakeABreakForm() {
         </div>
 
         {selected && selected !== 'permanent' && (
-          <div className="mt-6 rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-5">
+          <div className="mt-6 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-5">
             <div className="flex items-start gap-3">
-              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#4E8F01]" />
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-navy-700" />
 
               <p className="text-sm leading-relaxed text-slate-700">
                 You selected a{' '}
@@ -104,7 +104,7 @@ export function TakeABreakForm() {
             variant="primary"
             size="md"
             disabled={!selected}
-            className="rounded-sm !border-transparent bg-[#4E8F01] font-bold text-white hover:!border-transparent hover:bg-[#3f7601] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-sm !border-transparent bg-navy-800 font-bold text-white hover:!border-transparent hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Activate break
           </Button>

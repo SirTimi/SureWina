@@ -56,7 +56,7 @@ function BroadcastBody() {
 
       <Card className="mt-4 overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
             Pick a template
           </p>
         </div>
@@ -69,11 +69,11 @@ function BroadcastBody() {
               onClick={() => setMessage(tpl.text)}
               className={
                 message === tpl.text
-                  ? 'rounded-2xl border-2 border-[#4E8F01] bg-[#A8E368]/15 p-3 text-left'
-                  : 'rounded-2xl border border-slate-200 bg-white p-3 text-left hover:border-[#4E8F01]/30'
+                  ? 'rounded-2xl border-2 border-navy-700 bg-amber-50 p-3 text-left'
+                  : 'rounded-2xl border border-slate-200 bg-white p-3 text-left hover:border-navy-200'
               }
             >
-              <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+              <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
                 <Sparkles className="h-3 w-3" />
                 {tpl.label}
               </p>
@@ -83,14 +83,14 @@ function BroadcastBody() {
         </div>
 
         <div className="border-t border-slate-100 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
             Message preview
           </p>
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={4}
-            className="mt-2 w-full rounded-xl border border-slate-200 bg-[#F8FAF4] p-3 text-sm font-medium text-navy-950 outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+            className="mt-2 w-full rounded-xl border border-slate-200 bg-[#F8FAF4] p-3 text-sm font-medium text-navy-950 outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
           />
           <p className="mt-2 text-xs text-slate-500">
             All broadcasts must use approved templates per WhatsApp Business policy.
@@ -106,7 +106,7 @@ function BroadcastBody() {
           <Button
             variant="accent"
             disabled
-            className="rounded-sm !border-transparent bg-[#A8E368]/40 font-black text-navy-950/50"
+            className="rounded-sm !border-transparent bg-amber-500/40 font-black text-navy-950/50"
           >
             <MessageCircle className="h-4 w-4" />
             Send (Phase 2)

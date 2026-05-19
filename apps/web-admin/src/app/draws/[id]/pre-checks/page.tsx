@@ -107,7 +107,7 @@ function Body({ id }: { id: string }) {
             variant="accent"
             onClick={run}
             isLoading={running}
-            className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+            className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
           >
             {running ? (
               <RotateCw className="h-4 w-4 animate-spin" />

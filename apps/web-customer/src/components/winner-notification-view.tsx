@@ -50,16 +50,16 @@ export function WinnerNotificationView({ claimId }: WinnerNotificationViewProps)
     <section className="relative overflow-hidden bg-gradient-to-b from-navy-950 via-navy-950 to-[#08152a] text-white">
       {/* Confetti pattern */}
       <div className="pointer-events-none absolute inset-0 opacity-30">
-        <div className="absolute left-[8%] top-[12%] h-2 w-2 rotate-12 rounded-sm bg-[#A8E368]" />
+        <div className="absolute left-[8%] top-[12%] h-2 w-2 rotate-12 rounded-sm bg-amber-500" />
         <div className="absolute left-[18%] top-[34%] h-1.5 w-3 rotate-45 rounded-sm bg-amber-400" />
         <div className="absolute left-[28%] top-[18%] h-2 w-2 rotate-12 rounded-sm bg-violet-400" />
-        <div className="absolute right-[14%] top-[22%] h-2 w-2 -rotate-12 rounded-sm bg-[#A8E368]" />
+        <div className="absolute right-[14%] top-[22%] h-2 w-2 -rotate-12 rounded-sm bg-amber-500" />
         <div className="absolute right-[24%] top-[42%] h-1.5 w-3 rotate-12 rounded-sm bg-amber-400" />
         <div className="absolute right-[8%] top-[64%] h-2 w-2 -rotate-45 rounded-sm bg-violet-400" />
-        <div className="absolute left-[48%] top-[8%] h-1.5 w-3 rotate-12 rounded-sm bg-[#A8E368]" />
+        <div className="absolute left-[48%] top-[8%] h-1.5 w-3 rotate-12 rounded-sm bg-amber-500" />
       </div>
 
-      <div className="pointer-events-none absolute right-[-20%] top-[10%] h-[600px] w-[600px] rounded-full bg-[#A8E368]/8 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-20%] top-[10%] h-[600px] w-[600px] rounded-full bg-amber-50 blur-3xl" />
       <div className="pointer-events-none absolute left-[-10%] top-[50%] h-[400px] w-[400px] rounded-full bg-amber-500/10 blur-3xl" />
 
       <Container size="md" className="relative z-10 max-w-[820px] py-16 lg:py-24">
@@ -72,7 +72,7 @@ export function WinnerNotificationView({ claimId }: WinnerNotificationViewProps)
         <h1 className="font-display text-5xl font-black leading-[1.02] tracking-[-0.04em] sm:text-6xl">
           Congratulations.
         </h1>
-        <p className="mt-3 font-display text-3xl font-bold text-[#A8E368] sm:text-4xl">
+        <p className="mt-3 font-display text-3xl font-bold text-amber-400 sm:text-4xl">
           You won {drawTypeShortLabel[notification.drawType].toLowerCase()}.
         </p>
 
@@ -84,7 +84,7 @@ export function WinnerNotificationView({ claimId }: WinnerNotificationViewProps)
 
         {/* Prize card */}
         <div className="mt-10 overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
-          <div className="border-b border-white/10 px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8E368]">
+          <div className="border-b border-white/10 px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400">
             Your prize
           </div>
 
@@ -110,7 +110,7 @@ export function WinnerNotificationView({ claimId }: WinnerNotificationViewProps)
                   ? 'Guaranteed cash prize · paid to verified bank account within 24 hours of KYC clearance'
                   : 'Brand new, sealed retail · shipped or collected within 3 working days'}
               </p>
-              <p className="mt-4 font-display text-3xl font-black text-[#A8E368]">
+              <p className="mt-4 font-display text-3xl font-black text-amber-400">
                 Value {formatNaira(notification.grossPrizeValueNgn)}
               </p>
             </div>
@@ -156,7 +156,7 @@ export function WinnerNotificationView({ claimId }: WinnerNotificationViewProps)
               <Button
                 variant="accent"
                 size="lg"
-                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
+                className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 shadow-[0_16px_34px_rgba(14,42,71,0.18)] hover:!border-transparent hover:bg-amber-400"
               >
                 Claim my prize
                 <ArrowRight className="h-4 w-4" />
@@ -179,7 +179,7 @@ export function WinnerNotificationView({ claimId }: WinnerNotificationViewProps)
         {/* Trust footer */}
         <div className="mt-10 flex flex-col items-center gap-3 border-t border-white/10 pt-8 text-center sm:flex-row sm:justify-center sm:gap-6">
           <div className="inline-flex items-center gap-2 text-xs text-white/60">
-            <ShieldCheck className="h-4 w-4 text-[#A8E368]" />
+            <ShieldCheck className="h-4 w-4 text-amber-400" />
             Licensed by NLRC · Licence #NL/2025/0241
           </div>
           <span className="hidden text-white/20 sm:inline">·</span>

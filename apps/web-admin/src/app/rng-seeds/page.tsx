@@ -41,7 +41,7 @@ function Body() {
               render: (r) => (
                 <Link
                   href={`/draws/${r.drawCode}/audit`}
-                  className="font-mono text-sm font-black text-[#0B1220] hover:text-[#4E8F01]"
+                  className="font-mono text-sm font-black text-[#0B1220] hover:text-navy-700"
                 >
                   {r.drawCode}
                 </Link>

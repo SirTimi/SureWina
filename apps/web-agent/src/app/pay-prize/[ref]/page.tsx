@@ -87,12 +87,12 @@ function RefBody({ ref_ }: { ref_: string }) {
 
           <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
             <Link href="/pay-prize">
-              <Button variant="secondary" className="rounded-sm border-[#4E8F01]/20 bg-white text-[#4E8F01]">
+              <Button variant="secondary" className="rounded-sm border-navy-200 bg-white text-navy-700">
                 Pay another prize
               </Button>
             </Link>
             <Link href="/">
-              <Button variant="accent" className="rounded-sm !border-transparent bg-[#A8E368] font-black text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]">
+              <Button variant="accent" className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400">
                 Back to dashboard
               </Button>
             </Link>
@@ -115,7 +115,7 @@ function RefBody({ ref_ }: { ref_: string }) {
         <div
           className={
             result.isWinner
-              ? 'bg-[#4E8F01] p-5 text-white'
+              ? 'bg-navy-800 p-5 text-white'
               : 'bg-slate-900 p-5 text-white'
           }
         >
@@ -143,8 +143,8 @@ function RefBody({ ref_ }: { ref_: string }) {
 
         <div className="p-5">
           {result.isWinner && result.prizeValueNgn !== null && (
-            <div className="rounded-2xl border border-[#4E8F01]/15 bg-[#A8E368]/15 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <div className="rounded-2xl border border-navy-100 bg-amber-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Prize amount
               </p>
               <p className="mt-1 font-display text-3xl font-black text-navy-950 tabular-nums">
@@ -202,7 +202,7 @@ function RefBody({ ref_ }: { ref_: string }) {
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   placeholder="080…"
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-bold text-navy-950 outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base font-bold text-navy-950 outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
                 />
               </div>
 
@@ -211,7 +211,7 @@ function RefBody({ ref_ }: { ref_: string }) {
                   type="checkbox"
                   checked={confirmed}
                   onChange={(e) => setConfirmed(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-[#4E8F01] focus:ring-[#A8E368]"
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-navy-700 focus:ring-amber-400"
                 />
                 <p className="text-sm leading-relaxed text-slate-700">
                   I verified the customer&apos;s identity and confirm I am paying the prize
@@ -226,7 +226,7 @@ function RefBody({ ref_ }: { ref_: string }) {
                 disabled={!confirmed || submitting}
                 isLoading={submitting}
                 onClick={pay}
-                className="mt-5 rounded-sm !border-transparent bg-[#A8E368] font-black text-navy-950 hover:!border-transparent hover:bg-[#B7EF79] disabled:!bg-slate-200 disabled:text-slate-400"
+                className="mt-5 rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400 disabled:!bg-slate-200 disabled:text-slate-400"
               >
                 <CheckCircle2 className="h-5 w-5" />
                 Confirm & log payment
@@ -266,7 +266,7 @@ function MethodChip({
       onClick={onClick}
       className={
         selected
-          ? 'flex items-center justify-center gap-2 rounded-2xl border-2 border-[#4E8F01] bg-[#A8E368]/15 px-4 py-3 text-sm font-black text-navy-950'
+          ? 'flex items-center justify-center gap-2 rounded-2xl border-2 border-navy-700 bg-amber-50 px-4 py-3 text-sm font-black text-navy-950'
           : 'flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700'
       }
     >

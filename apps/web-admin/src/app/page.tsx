@@ -68,7 +68,7 @@ function DashboardBody() {
         rightSlot={
           <Link
             href="/draws/new"
-            className="inline-flex items-center gap-2 rounded-md bg-[#4E8F01] px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-[#3a6a01]"
+            className="inline-flex items-center gap-2 rounded-md bg-navy-800 px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-navy-900"
           >
             <Trophy className="h-4 w-4" />
             New draw
@@ -125,7 +125,7 @@ function DashboardBody() {
             rightSlot={
               <Link
                 href="/draws"
-                className="text-xs font-black uppercase tracking-[0.14em] text-[#4E8F01] hover:underline"
+                className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline"
               >
                 Open list →
               </Link>
@@ -173,7 +173,7 @@ function DashboardBody() {
                           </p>
                           <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                             <div
-                              className="h-full rounded-full bg-[#4E8F01]"
+                              className="h-full rounded-full bg-navy-800"
                               style={{ width: `${pct}%` }}
                             />
                           </div>
@@ -188,7 +188,7 @@ function DashboardBody() {
                         <td className="px-4 py-3 text-right">
                           <Link
                             href={`/draws/${d.drawCode}`}
-                            className="text-xs font-black uppercase tracking-[0.14em] text-[#4E8F01] hover:underline"
+                            className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline"
                           >
                             Open
                           </Link>
@@ -217,7 +217,7 @@ function DashboardBody() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {chain.map((c, i) => (
-                    <tr key={i} className={i === 0 ? 'bg-[#A8E368]/10' : ''}>
+                    <tr key={i} className={i === 0 ? 'bg-amber-50' : ''}>
                       <td className="px-3 py-2 font-mono">
                         {new Date(c.at).toLocaleTimeString('en-NG', {
                           hour: '2-digit',
@@ -246,7 +246,7 @@ function DashboardBody() {
           rightSlot={
             <Link
               href="/tickets?status=FAILED"
-              className="text-xs font-black uppercase tracking-[0.14em] text-[#4E8F01] hover:underline"
+              className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline"
             >
               Open all
             </Link>
@@ -310,15 +310,15 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold text-[#0B1220] shadow-sm transition hover:border-[#4E8F01]/30 hover:bg-[#F8FAF4]"
+      className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold text-[#0B1220] shadow-sm transition hover:border-navy-200 hover:bg-[#F8FAF4]"
     >
       <span className="flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[#A8E368]/30 text-[#4E8F01]">
+        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-navy-50 text-navy-700">
           <Icon className="h-4 w-4" />
         </span>
         {label}
       </span>
-      <span className="text-xs text-[#4E8F01]">→</span>
+      <span className="text-xs text-navy-700">→</span>
     </Link>
   );
 }

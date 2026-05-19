@@ -56,7 +56,7 @@ function LookupBody() {
                 if (error) setError(null);
               }}
               placeholder="SW-XXXX-XXXX"
-              className="h-14 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-center font-mono text-xl font-black tracking-[0.18em] text-navy-950 outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+              className="h-14 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-center font-mono text-xl font-black tracking-[0.18em] text-navy-950 outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
           </div>
 
@@ -72,7 +72,7 @@ function LookupBody() {
             variant="accent"
             size="lg"
             fullWidth
-            className="mt-5 rounded-sm !border-transparent bg-[#A8E368] font-black text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+            className="mt-5 rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
           >
             Look up ticket
             <ArrowRight className="h-5 w-5" />
@@ -90,7 +90,7 @@ function LookupBody() {
               key={r}
               type="button"
               onClick={() => setRef(r)}
-              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left font-mono text-xs font-black text-navy-950 hover:border-[#4E8F01]/30"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left font-mono text-xs font-black text-navy-950 hover:border-navy-200"
             >
               {r}
             </button>

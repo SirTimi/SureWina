@@ -178,12 +178,12 @@ export default function FaqPage() {
                 variant="default"
                 className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
               >
-                <div className="border-b border-slate-100 bg-[#4E8F01] p-5 text-white">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-[#A8E368] text-navy-950">
+                <div className="border-b border-slate-100 bg-navy-800 p-5 text-white">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-amber-500 text-navy-950">
                     <CircleHelp className="h-6 w-6" />
                   </div>
 
-                  <p className="mt-5 text-[10px] font-black uppercase tracking-[0.16em] text-[#A8E368]">
+                  <p className="mt-5 text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">
                     FAQ categories
                   </p>
 
@@ -200,7 +200,7 @@ export default function FaqPage() {
                       <Link
                         key={cat.id}
                         href={`#${cat.id}`}
-                        className="flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-[#A8E368]/15 hover:text-[#4E8F01]"
+                        className="flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-amber-50 hover:text-navy-700"
                       >
                         <Icon className="h-4 w-4 shrink-0" />
                         {cat.title}
@@ -212,9 +212,9 @@ export default function FaqPage() {
 
               <Card
                 variant="default"
-                className="mt-4 rounded-3xl border-[#4E8F01]/15 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]"
+                className="mt-4 rounded-3xl border-navy-100 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]"
               >
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                   Fast answers
                 </p>
 
@@ -222,7 +222,7 @@ export default function FaqPage() {
                   {featuredQuestions.map((q) => (
                     <div
                       key={q}
-                      className="rounded-2xl border border-[#4E8F01]/10 bg-[#F8FAF4] p-3 text-sm font-semibold text-navy-950"
+                      className="rounded-2xl border border-navy-100 bg-[#F8FAF4] p-3 text-sm font-semibold text-navy-950"
                     >
                       {q}
                     </div>
@@ -261,12 +261,12 @@ export default function FaqPage() {
                       className="scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)] sm:p-6"
                     >
                       <div className="mb-5 flex items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                           <Icon className="h-5 w-5" />
                         </div>
 
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                             {cat.questions.length} questions
                           </p>
                           <h2 className="font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
@@ -281,9 +281,9 @@ export default function FaqPage() {
                             key={i}
                             className="group overflow-hidden rounded-2xl border border-slate-200 bg-white"
                           >
-                            <summary className="flex cursor-pointer items-center justify-between gap-4 p-5 transition hover:bg-[#A8E368]/10">
+                            <summary className="flex cursor-pointer items-center justify-between gap-4 p-5 transition hover:bg-amber-50">
                               <h3 className="font-bold text-navy-950">{qa.q}</h3>
-                              <ChevronRight className="h-5 w-5 shrink-0 text-[#4E8F01] transition group-open:rotate-90" />
+                              <ChevronRight className="h-5 w-5 shrink-0 text-navy-700 transition group-open:rotate-90" />
                             </summary>
 
                             <div className="border-t border-slate-100 bg-[#F8FAF4] p-5">
@@ -301,11 +301,11 @@ export default function FaqPage() {
 
               <Card
                 variant="default"
-                className="mt-8 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-[#4E8F01] p-8 text-white shadow-[0_24px_70px_rgba(78,143,1,0.22)] sm:p-10"
+                className="mt-8 overflow-hidden rounded-3xl border-navy-100 bg-navy-800 p-8 text-white shadow-[0_24px_70px_rgba(14,42,71,0.18)] sm:p-10"
               >
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
                   <div>
-                    <div className="mb-4 inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
                       <Mail className="h-4 w-4" />
                       Still stuck?
                     </div>
@@ -323,7 +323,7 @@ export default function FaqPage() {
                   <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
                     <a
                       href="mailto:help@surewina.ng"
-                      className="inline-flex items-center justify-center gap-2 rounded-sm bg-[#A8E368] px-4 py-3 text-sm font-bold text-navy-950 transition hover:bg-[#B7EF79]"
+                      className="inline-flex items-center justify-center gap-2 rounded-sm bg-amber-500 px-4 py-3 text-sm font-bold text-navy-950 transition hover:bg-amber-400"
                     >
                       <Mail className="h-4 w-4" />
                       help@surewina.ng
@@ -362,7 +362,7 @@ function FaqMetric({
       className="rounded-2xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]"
     >
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
           {icon}
         </div>
 

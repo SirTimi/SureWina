@@ -22,7 +22,7 @@ export function BuyTicketPanel({ draw }: BuyTicketPanelProps) {
       variant="default"
       className="rounded-3xl border-slate-200 bg-white/95 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur"
     >
-      <div className="mb-5 inline-flex items-center gap-2 rounded-sm bg-[#4E8F01] px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-white">
+      <div className="mb-5 inline-flex items-center gap-2 rounded-sm bg-navy-800 px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-white">
         <Ticket className="h-4 w-4" />
         Secure checkout
       </div>
@@ -40,11 +40,11 @@ export function BuyTicketPanel({ draw }: BuyTicketPanelProps) {
           How many tickets?
         </label>
 
-        <div className="flex overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-[#4E8F01] focus-within:ring-2 focus-within:ring-[#A8E368]/35">
+        <div className="flex overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-navy-700 focus-within:ring-2 focus-within:ring-amber-400/35">
           <button
             type="button"
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            className="px-4 text-[#4E8F01] transition hover:bg-[#A8E368]/15"
+            className="px-4 text-navy-700 transition hover:bg-amber-50"
             aria-label="Decrease quantity"
           >
             <Minus className="h-4 w-4" />
@@ -61,7 +61,7 @@ export function BuyTicketPanel({ draw }: BuyTicketPanelProps) {
           <button
             type="button"
             onClick={() => setQuantity((q) => q + 1)}
-            className="px-4 text-[#4E8F01] transition hover:bg-[#A8E368]/15"
+            className="px-4 text-navy-700 transition hover:bg-amber-50"
             aria-label="Increase quantity"
           >
             <Plus className="h-4 w-4" />
@@ -69,13 +69,13 @@ export function BuyTicketPanel({ draw }: BuyTicketPanelProps) {
         </div>
 
         {ticketsToNextEntry !== null && ticketsToNextEntry < 10 && (
-          <p className="mt-2 text-xs font-semibold text-[#4E8F01]">
+          <p className="mt-2 text-xs font-semibold text-navy-700">
             {ticketsToNextEntry} more for a free Saturday jackpot entry
           </p>
         )}
       </div>
 
-      <div className="mt-6 rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-5">
+      <div className="mt-6 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-5">
         <div className="flex items-baseline justify-between">
           <span className="text-sm font-bold text-slate-500">Total</span>
           <span className="font-display text-3xl font-black text-navy-950 tabular-nums">
@@ -94,17 +94,17 @@ export function BuyTicketPanel({ draw }: BuyTicketPanelProps) {
           variant="accent"
           size="lg"
           fullWidth
-          className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+          className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
         >
           Continue to checkout
         </Button>
       </Link>
 
       <p className="mt-4 flex items-start gap-1.5 text-xs leading-relaxed text-slate-500">
-        <Lock className="mt-0.5 h-3 w-3 shrink-0 text-[#4E8F01]" />
+        <Lock className="mt-0.5 h-3 w-3 shrink-0 text-navy-700" />
         <span>
           By continuing you confirm you are 18 or older and accept the{' '}
-          <Link href="/terms" className="font-bold text-[#4E8F01] underline">
+          <Link href="/terms" className="font-bold text-navy-700 underline">
             raffle rules
           </Link>
           .
