@@ -125,7 +125,7 @@ export function Sidebar() {
                     href={item.href}
                     className={
                       active
-                        ? 'flex items-center gap-3 rounded-lg bg-amber-800 px-3 py-2 text-sm font-bold text-white shadow-[0_8px_22px_rgba(78,143,1,0.35)]'
+                        ? 'flex items-center gap-3 rounded-lg bg-[#f9cb0b] px-3 py-2 text-sm font-bold text-white shadow-[0_8px_22px_rgba(78,143,1,0.35)]'
                         : 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition hover:bg-white/5 hover:text-white'
                     }
                   >

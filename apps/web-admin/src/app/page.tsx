@@ -68,7 +68,7 @@ function DashboardBody() {
         rightSlot={
           <Link
             href="/draws/new"
-            className="inline-flex items-center gap-2 rounded-md bg-navy-800 px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-navy-900"
+            className="inline-flex items-center gap-2 rounded-md bg-[#f9cb0b] px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-navy-900"
           >
             <Trophy className="h-4 w-4" />
             New draw
