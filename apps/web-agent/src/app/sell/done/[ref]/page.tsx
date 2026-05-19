@@ -58,9 +58,9 @@ function DoneBody({ ref_ }: { ref_: string }) {
         }
       />
 
-      <Card className="overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-white shadow-[0_24px_70px_rgba(78,143,1,0.14)]">
-        <div className="bg-[#4E8F01] px-5 py-6 text-center text-white">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A8E368]">
+      <Card className="overflow-hidden rounded-3xl border-navy-100 bg-white shadow-[0_24px_70px_rgba(14,42,71,0.12)]">
+        <div className="bg-navy-800 px-5 py-6 text-center text-white">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
             Ticket reference
           </p>
           <p className="mt-3 font-mono text-3xl font-black tracking-[0.18em] sm:text-4xl md:text-5xl">
@@ -87,8 +87,8 @@ function DoneBody({ ref_ }: { ref_: string }) {
             </div>
           )}
 
-          <div className="flex items-start gap-2 rounded-2xl border border-[#4E8F01]/15 bg-[#A8E368]/15 p-3 text-navy-950">
-            <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-[#4E8F01]" />
+          <div className="flex items-start gap-2 rounded-2xl border border-navy-100 bg-amber-50 p-3 text-navy-950">
+            <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
             <p className="text-sm leading-relaxed">
               Tell the customer: <span className="font-black">&ldquo;Your Surewina ticket is{' '}
               {chunkRef(ref_)}. Keep it safe — you&apos;ll need it to claim.&rdquo;</span>
@@ -112,7 +112,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
             variant="accent"
             size="lg"
             fullWidth
-            className="rounded-sm !border-transparent bg-[#A8E368] font-black text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+            className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
           >
             <QrCode className="h-5 w-5" />
             Start new sale
@@ -123,7 +123,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
             variant="secondary"
             size="lg"
             fullWidth
-            className="rounded-sm border-[#4E8F01]/20 bg-white text-[#4E8F01] hover:bg-[#F8FAF4]"
+            className="rounded-sm border-navy-200 bg-white text-navy-700 hover:bg-[#F8FAF4]"
           >
             Back to dashboard
           </Button>

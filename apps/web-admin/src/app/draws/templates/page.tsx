@@ -73,7 +73,7 @@ function Body() {
         rightSlot={
           <Button
             variant="accent"
-            className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+            className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
           >
             <Plus className="h-4 w-4" />
             New template
@@ -86,7 +86,7 @@ function Body() {
           <SectionCard key={t.id}>
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#A8E368]/30 text-[#4E8F01]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-navy-50 text-navy-700">
                   <Repeat className="h-5 w-5" />
                 </div>
                 <div>

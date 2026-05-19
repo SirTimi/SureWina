@@ -110,12 +110,12 @@ export default function AuditPage() {
                 variant="default"
                 className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
               >
-                <div className="border-b border-slate-100 bg-[#4E8F01] p-5 text-white">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-[#A8E368] text-navy-950">
+                <div className="border-b border-slate-100 bg-navy-800 p-5 text-white">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-amber-500 text-navy-950">
                     <ShieldCheck className="h-6 w-6" />
                   </div>
 
-                  <p className="mt-5 text-[10px] font-black uppercase tracking-[0.16em] text-[#A8E368]">
+                  <p className="mt-5 text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">
                     Audit method
                   </p>
 
@@ -130,9 +130,9 @@ export default function AuditPage() {
                     <a
                       key={stage.n}
                       href={`#stage-${stage.n}`}
-                      className="flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-[#A8E368]/15 hover:text-[#4E8F01]"
+                      className="flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-amber-50 hover:text-navy-700"
                     >
-                      <span className="font-mono text-xs font-black text-[#4E8F01]">
+                      <span className="font-mono text-xs font-black text-navy-700">
                         {stage.n}
                       </span>
                       {stage.title}
@@ -143,9 +143,9 @@ export default function AuditPage() {
 
               <Card
                 variant="default"
-                className="mt-4 rounded-3xl border-[#4E8F01]/15 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]"
+                className="mt-4 rounded-3xl border-navy-100 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]"
               >
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                   Quick test
                 </p>
 
@@ -165,7 +165,7 @@ export default function AuditPage() {
                     variant="default"
                     className="rounded-2xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]"
                   >
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                       {item.title}
                     </p>
                     <p className="mt-2 text-sm leading-relaxed text-slate-600">
@@ -177,11 +177,11 @@ export default function AuditPage() {
 
               <Card
                 variant="default"
-                className="mb-8 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.06)]"
+                className="mb-8 overflow-hidden rounded-3xl border-navy-100 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.06)]"
               >
                 <div className="grid grid-cols-1 lg:grid-cols-[0.72fr_1fr]">
-                  <div className="bg-[#4E8F01] p-7 text-white sm:p-8">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A8E368]">
+                  <div className="bg-navy-800 p-7 text-white sm:p-8">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
                       The core idea
                     </p>
 
@@ -196,7 +196,7 @@ export default function AuditPage() {
                   </div>
 
                   <div className="p-6 sm:p-8">
-                    <div className="rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-5">
+                    <div className="rounded-2xl border border-navy-100 bg-[#F8FAF4] p-5">
                       <p className="text-sm leading-relaxed text-slate-700">
                         This does not ask players to “just trust us.” It creates a trail:
                         what was committed before the draw, what was revealed after the
@@ -215,7 +215,7 @@ export default function AuditPage() {
               </Card>
 
               <div className="mb-8">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                   Verification flow
                 </p>
 
@@ -230,7 +230,7 @@ export default function AuditPage() {
               </div>
 
               <div className="relative space-y-4">
-                <div className="absolute left-6 top-8 hidden h-[calc(100%-4rem)] w-px bg-[#4E8F01]/15 sm:block" />
+                <div className="absolute left-6 top-8 hidden h-[calc(100%-4rem)] w-px bg-navy-50 sm:block" />
 
                 {stages.map((stage) => {
                   const Icon = stage.icon;
@@ -243,14 +243,14 @@ export default function AuditPage() {
                       className="relative scroll-mt-28 overflow-hidden rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.04)] sm:p-7"
                     >
                       <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-                        <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] font-display text-xl font-black text-white">
+                        <div className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-sm bg-navy-800 font-display text-xl font-black text-white">
                           {stage.n}
                         </div>
 
                         <div className="flex-1">
                           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                             <div>
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                                 {stage.when}
                               </p>
 
@@ -259,7 +259,7 @@ export default function AuditPage() {
                               </h3>
                             </div>
 
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                               <Icon className="h-5 w-5" />
                             </div>
                           </div>
@@ -268,8 +268,8 @@ export default function AuditPage() {
                             {stage.description}
                           </p>
 
-                          <div className="mt-5 rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4">
-                            <p className="mb-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                          <div className="mt-5 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-4">
+                            <p className="mb-1 text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                               Technical record
                             </p>
                             <p className="font-mono text-xs leading-relaxed text-slate-700">
@@ -285,11 +285,11 @@ export default function AuditPage() {
 
               <Card
                 variant="default"
-                className="mt-10 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+                className="mt-10 overflow-hidden rounded-3xl border-navy-100 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
               >
                 <div className="grid grid-cols-1 gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                       Verify a published draw
                     </p>
 
@@ -307,7 +307,7 @@ export default function AuditPage() {
                     <Button
                       variant="accent"
                       size="lg"
-                      className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                      className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                     >
                       Open results archive
                       <ArrowRight className="h-4 w-4" />
@@ -318,11 +318,11 @@ export default function AuditPage() {
 
               <Card
                 variant="default"
-                className="mt-5 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-[#4E8F01] p-8 text-white shadow-[0_24px_70px_rgba(78,143,1,0.22)] sm:p-10"
+                className="mt-5 overflow-hidden rounded-3xl border-navy-100 bg-navy-800 p-8 text-white shadow-[0_24px_70px_rgba(14,42,71,0.18)] sm:p-10"
               >
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
                   <div>
-                    <div className="mb-4 inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
                       <ShieldCheck className="h-4 w-4" />
                       Found an inconsistency?
                     </div>
@@ -356,8 +356,8 @@ export default function AuditPage() {
 
 function AuditCheck({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-2 rounded-2xl border border-[#4E8F01]/10 bg-white p-4 text-sm leading-relaxed text-slate-700">
-      <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#4E8F01] text-white">
+    <li className="flex items-start gap-2 rounded-2xl border border-navy-100 bg-white p-4 text-sm leading-relaxed text-slate-700">
+      <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-navy-800 text-white">
         <Check className="h-3 w-3" />
       </span>
       <span>{children}</span>

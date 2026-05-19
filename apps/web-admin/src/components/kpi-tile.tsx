@@ -28,7 +28,7 @@ export function KpiTile({
   } as const;
 
   const iconTones = {
-    default: 'bg-[#A8E368]/30 text-[#4E8F01]',
+    default: 'bg-navy-50 text-navy-700',
     success: 'bg-emerald-100 text-emerald-700',
     warning: 'bg-amber-100 text-amber-700',
     danger: 'bg-red-100 text-red-700',

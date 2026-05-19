@@ -117,7 +117,7 @@ function Body() {
                 onChange={(e) => setNote(e.target.value)}
                 rows={3}
                 placeholder="Triage note (added to compliance audit log)…"
-                className="mt-3 w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="mt-3 w-full rounded-md border border-slate-200 p-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
               <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
                 <Button

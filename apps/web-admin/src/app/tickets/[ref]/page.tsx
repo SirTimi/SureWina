@@ -78,7 +78,7 @@ function Body({ ref_ }: { ref_: string }) {
                 {t.agentCode ? (
                   <Link
                     href={`/agents/${t.agentCode}`}
-                    className="font-mono text-sm font-bold text-[#4E8F01] hover:underline"
+                    className="font-mono text-sm font-bold text-navy-700 hover:underline"
                   >
                     {t.agentCode}
                   </Link>
@@ -89,7 +89,7 @@ function Body({ ref_ }: { ref_: string }) {
               <Field label="Draw">
                 <Link
                   href={`/draws/${t.drawCode}`}
-                  className="font-mono text-sm font-bold text-[#4E8F01] hover:underline"
+                  className="font-mono text-sm font-bold text-navy-700 hover:underline"
                 >
                   {t.drawCode}
                 </Link>
@@ -104,7 +104,7 @@ function Body({ ref_ }: { ref_: string }) {
                 const Icon = e.icon;
                 return (
                   <li key={i} className="flex items-start gap-3 p-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#A8E368]/30 text-[#4E8F01]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-navy-50 text-navy-700">
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">

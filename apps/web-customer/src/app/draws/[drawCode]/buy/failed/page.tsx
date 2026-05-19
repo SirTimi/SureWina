@@ -23,7 +23,7 @@ export default async function FailedPage({ params, searchParams }: FailedPagePro
     : 'Your payment did not go through.';
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pt-32">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pt-32">
       <Container size="sm" className="pb-16">
         <Card
           variant="default"
@@ -33,7 +33,7 @@ export default async function FailedPage({ params, searchParams }: FailedPagePro
             <AlertCircle className="h-9 w-9 text-red-600" />
           </div>
 
-          <div className="mb-5 inline-flex items-center gap-2 rounded-sm bg-[#4E8F01] px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-white">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-sm bg-navy-800 px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-white">
             <ShieldCheck className="h-4 w-4" />
             No ticket issued
           </div>
@@ -46,7 +46,7 @@ export default async function FailedPage({ params, searchParams }: FailedPagePro
             {message}
           </p>
 
-          <div className="mt-7 rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-5 text-left">
+          <div className="mt-7 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-5 text-left">
             <p className="mb-3 text-sm font-black text-navy-950">Don&apos;t worry:</p>
 
             <ul className="space-y-2 text-sm leading-relaxed text-slate-600">
@@ -61,7 +61,7 @@ export default async function FailedPage({ params, searchParams }: FailedPagePro
               <Button
                 variant="accent"
                 size="md"
-                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
               >
                 <RotateCw className="h-4 w-4" />
                 Try again
@@ -72,7 +72,7 @@ export default async function FailedPage({ params, searchParams }: FailedPagePro
               <Button
                 variant="secondary"
                 size="md"
-                className="rounded-sm border-[#4E8F01]/20 bg-white font-bold text-[#4E8F01] hover:bg-[#A8E368]/15"
+                className="rounded-sm border-navy-200 bg-white font-bold text-navy-700 hover:bg-amber-50"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to draw
@@ -82,7 +82,7 @@ export default async function FailedPage({ params, searchParams }: FailedPagePro
 
           <p className="mt-7 text-xs text-slate-500">
             Stuck? Email{' '}
-            <a href="mailto:help@surewina.ng" className="font-bold text-[#4E8F01] underline">
+            <a href="mailto:help@surewina.ng" className="font-bold text-navy-700 underline">
               help@surewina.ng
             </a>{' '}
             or call <span className="font-mono font-bold text-navy-950">0700-SUREWINA</span>.
@@ -96,7 +96,7 @@ export default async function FailedPage({ params, searchParams }: FailedPagePro
 function SafeItem({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex gap-2">
-      <span className="shrink-0 font-black text-[#4E8F01]">✓</span>
+      <span className="shrink-0 font-black text-navy-700">✓</span>
       <span>{children}</span>
     </li>
   );

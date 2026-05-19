@@ -58,7 +58,7 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
 
     return {
       label: `${hours}h ${minutes}m left`,
-      className: 'bg-[#A8E368]/25 text-[#4E8F01] border-[#4E8F01]/10',
+      className: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     };
   }, [agent.nextRemittanceDeadlineAt, agent.remittanceOverdue]);
 
@@ -69,7 +69,7 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#4E8F01]/10 bg-white/95 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-navy-100 bg-white/95 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between gap-3 px-4">
         <Link href="/" aria-label="Surewina agent home" className="shrink-0">
           <Logo />
@@ -88,8 +88,8 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
                 href={item.href}
                 className={
                   active
-                    ? 'inline-flex items-center gap-2 rounded-sm bg-[#4E8F01] px-3 py-2 text-sm font-bold text-white'
-                    : 'inline-flex items-center gap-2 rounded-sm px-3 py-2 text-sm font-bold text-slate-600 hover:bg-[#A8E368]/15 hover:text-[#4E8F01]'
+                    ? 'inline-flex items-center gap-2 rounded-sm bg-navy-800 px-3 py-2 text-sm font-bold text-white'
+                    : 'inline-flex items-center gap-2 rounded-sm px-3 py-2 text-sm font-bold text-slate-600 hover:bg-amber-50 hover:text-navy-700'
                 }
               >
                 <Icon className="h-4 w-4" />
@@ -109,8 +109,8 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
             </p>
           </div>
 
-          <div className="rounded-sm bg-[#4E8F01] px-3 py-2 text-white">
-            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A8E368]">
+          <div className="rounded-sm bg-navy-800 px-3 py-2 text-white">
+            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-400">
               Tier
             </p>
             <p className="text-xs font-black">{agent.tier}</p>
@@ -167,7 +167,7 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
                   onClick={() => setOpen(false)}
                   className={
                     active
-                      ? 'flex items-center gap-2 rounded-sm bg-[#4E8F01] px-3 py-3 text-sm font-bold text-white'
+                      ? 'flex items-center gap-2 rounded-sm bg-navy-800 px-3 py-3 text-sm font-bold text-white'
                       : 'flex items-center gap-2 rounded-sm bg-[#F8FAF4] px-3 py-3 text-sm font-bold text-slate-700'
                   }
                 >

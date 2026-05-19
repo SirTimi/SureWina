@@ -18,7 +18,7 @@ export function BuySummary({ draw }: BuySummaryProps) {
         variant="default"
         className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.10)]"
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(168,227,104,0.34)_0%,rgba(168,227,104,0.18)_26%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#A8E368_100%)]">
+        <div className="relative aspect-[4/3] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(22,89,150,0.10)_0%,rgba(22,89,150,0.06)_26%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#E8F0FB_100%)]">
           <div className="absolute left-4 top-4 z-20 flex gap-2">
             <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
               {drawTypeShortLabel[draw.drawType]}
@@ -49,7 +49,7 @@ export function BuySummary({ draw }: BuySummaryProps) {
                 {isJackpot ? 'Prize' : 'Prize value'}
               </p>
 
-              <p className="mt-1 font-display text-lg font-black text-[#4E8F01] tabular-nums">
+              <p className="mt-1 font-display text-lg font-black text-navy-700 tabular-nums">
                 {formatNaira(draw.prizeValueNgn)}
               </p>
             </div>
@@ -60,7 +60,7 @@ export function BuySummary({ draw }: BuySummaryProps) {
               </p>
 
               <p className="mt-1 inline-flex items-center gap-1 font-mono text-lg font-black text-navy-950 tabular-nums">
-                <Clock className="h-3.5 w-3.5 text-[#4E8F01]" />
+                <Clock className="h-3.5 w-3.5 text-navy-700" />
                 {formatCountdown(draw.cutoffAt)}
               </p>
             </div>
@@ -72,7 +72,7 @@ export function BuySummary({ draw }: BuySummaryProps) {
         variant="default"
         className="rounded-3xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
       >
-        <h3 className="mb-4 text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+        <h3 className="mb-4 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
           Why you can trust this purchase
         </h3>
 
@@ -103,7 +103,7 @@ function TrustItem({
 }) {
   return (
     <li className="flex items-start gap-2">
-      <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/25 text-[#4E8F01]">
+      <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-emerald-50 text-emerald-700">
         {icon}
       </span>
       <span>{children}</span>

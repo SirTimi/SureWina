@@ -42,14 +42,14 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
 
   return (
     <main>
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pb-12 pt-32 sm:pt-36 lg:pt-40">
-        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
-        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-[#4E8F01]/10 blur-3xl" />
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pb-12 pt-32 sm:pt-36 lg:pt-40">
+        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
+        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
 
         <Container size="lg" className="relative max-w-[1400px]">
           <Link
             href="/draws"
-            className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+            className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to active draws
@@ -66,7 +66,7 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
                   Live · selling now
                 </Badge>
 
-                <span className="inline-flex items-center gap-2 rounded-sm bg-white/80 px-3 py-1.5 text-xs font-bold text-[#4E8F01] shadow-sm backdrop-blur">
+                <span className="inline-flex items-center gap-2 rounded-sm bg-white/80 px-3 py-1.5 text-xs font-bold text-navy-700 shadow-sm backdrop-blur">
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Regulated draw
                 </span>
@@ -108,7 +108,7 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
                 variant="default"
                 className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.07)]"
               >
-                <div className="relative min-h-[440px] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(168,227,104,0.34)_0%,rgba(168,227,104,0.18)_26%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#A8E368_100%)]">
+                <div className="relative min-h-[440px] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(22,89,150,0.10)_0%,rgba(22,89,150,0.06)_26%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#E8F0FB_100%)]">
                   <div className="absolute left-6 top-6 z-20 flex gap-2">
                     <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
                       {drawTypeShortLabel[draw.drawType]}
@@ -156,7 +156,7 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
               >
                 <div className="mb-5 flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
                       Live demand
                     </p>
                     <h2 className="mt-1 font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
@@ -164,7 +164,7 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
                     </h2>
                   </div>
 
-                  <div className="hidden rounded-sm bg-[#A8E368]/25 px-3 py-2 text-xs font-bold text-[#4E8F01] sm:block">
+                  <div className="hidden rounded-sm bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 sm:block">
                     Updated 12s ago
                   </div>
                 </div>
@@ -173,7 +173,7 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
                   <>
                     <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full rounded-full bg-[#4E8F01] transition-all"
+                        className="h-full rounded-full bg-navy-800 transition-all"
                         style={{ width: `${soldPercentage}%` }}
                       />
                     </div>
@@ -220,7 +220,7 @@ function DetailStat({ label, value, mono }: DetailStatProps) {
   return (
     <Card
       variant="default"
-      className="rounded-2xl border-[#4E8F01]/15 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur"
+      className="rounded-2xl border-navy-100 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur"
     >
       <p
         className={
@@ -231,7 +231,7 @@ function DetailStat({ label, value, mono }: DetailStatProps) {
       >
         {value}
       </p>
-      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
         {label}
       </p>
     </Card>
@@ -249,7 +249,7 @@ function InfoCell({
 }) {
   return (
     <div className="border-b border-slate-100 p-5 last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
-      <div className="mb-2 flex items-center gap-2 text-[#4E8F01]">
+      <div className="mb-2 flex items-center gap-2 text-navy-700">
         {icon}
         <p className="text-[10px] font-black uppercase tracking-[0.14em]">{title}</p>
       </div>

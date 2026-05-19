@@ -55,13 +55,7 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
               {isJackpot ? 'Guaranteed prize' : 'Prize value'}
             </p>
-            <p
-              className={
-                isJackpot
-                  ? 'mt-1 font-display text-2xl font-black text-[#4E8F01] tabular-nums'
-                  : 'mt-1 font-display text-2xl font-black text-[#4E8F01] tabular-nums'
-              }
-            >
+            <p className="mt-1 font-display text-2xl font-black text-emerald-700 tabular-nums">
               {formatNaira(draw.prizeValueNgn)}
             </p>
           </div>
@@ -86,11 +80,7 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
           ) : null}
 
           <Link href={`/draws/${draw.drawCode}`}>
-            <Button
-              variant={isJackpot ? 'accent' : 'primary'}
-              size="sm"
-              className="rounded-lg !border-transparent bg-[#a8e368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
-            >
+            <Button variant="accent" size="sm" className="rounded-lg font-bold">
               Buy ticket {formatNaira(draw.ticketPriceNgn)}
             </Button>
           </Link>

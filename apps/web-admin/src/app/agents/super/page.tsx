@@ -51,11 +51,11 @@ function Body() {
               header: 'Super-agent',
               render: (a) => (
                 <div className="flex items-start gap-2">
-                  <Crown className="mt-0.5 h-4 w-4 text-[#4E8F01]" />
+                  <Crown className="mt-0.5 h-4 w-4 text-navy-700" />
                   <div>
                     <Link
                       href={`/agents/${a.agentCode}`}
-                      className="font-bold text-[#0B1220] hover:text-[#4E8F01]"
+                      className="font-bold text-[#0B1220] hover:text-navy-700"
                     >
                       {a.fullName}
                     </Link>
@@ -133,7 +133,7 @@ function Body() {
                   <td className="px-4 py-2 text-right tabular-nums">
                     {t.minMonthlyTickets}
                   </td>
-                  <td className="px-4 py-2 text-right font-bold tabular-nums text-[#4E8F01]">
+                  <td className="px-4 py-2 text-right font-bold tabular-nums text-navy-700">
                     {(t.rate * 100).toFixed(0)}%
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums">

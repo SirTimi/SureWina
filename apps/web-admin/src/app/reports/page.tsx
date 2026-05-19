@@ -93,12 +93,12 @@ export default function ReportsHubPage() {
                   <Link
                     key={r.href}
                     href={r.href}
-                    className="group flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#4E8F01]/30 hover:shadow-md"
+                    className="group flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-navy-200 hover:shadow-md"
                   >
-                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-[#A8E368]/30 text-[#4E8F01]">
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-navy-50 text-navy-700">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <p className="text-base font-black text-[#0B1220] group-hover:text-[#4E8F01]">
+                    <p className="text-base font-black text-[#0B1220] group-hover:text-navy-700">
                       {r.label}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">{r.description}</p>
@@ -108,7 +108,7 @@ export default function ReportsHubPage() {
             </div>
 
             <div className="mt-6 flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#4E8F01]" />
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
               <p className="text-slate-500">
                 All reports are role-gated. Compliance officers can see everything except finance disbursements; finance officers see everything except KYC document content; operators see all.
               </p>

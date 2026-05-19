@@ -74,7 +74,7 @@ export function LookupForm({ initialRef = '' }: LookupFormProps) {
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4E8F01]" />
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-700" />
 
               <input
                 id="ticket-ref"
@@ -82,7 +82,7 @@ export function LookupForm({ initialRef = '' }: LookupFormProps) {
                 value={ticketRef}
                 onChange={(e) => setTicketRef(e.target.value.toUpperCase())}
                 placeholder="SW-XXXX-XXXX"
-                className="h-12 w-full rounded-sm border border-slate-200 bg-white pl-11 pr-4 font-mono text-base text-navy-950 outline-none transition placeholder:text-slate-400 focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/35"
+                className="h-12 w-full rounded-sm border border-slate-200 bg-white pl-11 pr-4 font-mono text-base text-navy-950 outline-none transition placeholder:text-slate-400 focus:border-navy-700 focus:ring-2 focus:ring-amber-400/35"
                 autoComplete="off"
                 spellCheck={false}
               />
@@ -93,7 +93,7 @@ export function LookupForm({ initialRef = '' }: LookupFormProps) {
               variant="primary"
               size="md"
               isLoading={result.status === 'loading'}
-              className="rounded-sm !border-transparent bg-[#4E8F01] px-7 font-bold text-white hover:!border-transparent hover:bg-[#3f7601]"
+              className="rounded-sm !border-transparent bg-navy-800 px-7 font-bold text-white hover:!border-transparent hover:bg-navy-800"
             >
               {result.status === 'loading' ? 'Checking' : 'Check ticket'}
             </Button>
@@ -135,7 +135,7 @@ function ErrorPanel({ message }: { message: string }) {
           Tickets are issued in the format{' '}
           <span className="font-mono font-semibold text-navy-950">SW-XXXX-XXXX</span>.
           Check your SMS receipt for the exact reference, or contact{' '}
-          <a href="mailto:help@surewina.ng" className="font-bold text-[#4E8F01] underline">
+          <a href="mailto:help@surewina.ng" className="font-bold text-navy-700 underline">
             help@surewina.ng
           </a>
           .
@@ -153,14 +153,14 @@ function ResultPanel({ data }: { data: LookupTicketResponse }) {
     return (
       <Card
         variant="default"
-        className="overflow-hidden rounded-2xl border-[#A8E368]/50 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
+        className="overflow-hidden rounded-2xl border-amber-500/50 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
       >
-        <div className="bg-[#A8E368]/25 p-5">
+        <div className="bg-emerald-50 p-5">
           <div className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-[#4E8F01]" />
+            <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-navy-700" />
 
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
                 Winning ticket
               </p>
               <h2 className="mt-0.5 font-display text-xl font-black text-navy-950">
@@ -201,7 +201,7 @@ function ResultPanel({ data }: { data: LookupTicketResponse }) {
         </div>
 
         {claimUrl && (
-          <div className="flex flex-col justify-between gap-4 border-t border-[#4E8F01]/10 bg-[#F8FAF4] p-5 sm:flex-row sm:items-center">
+          <div className="flex flex-col justify-between gap-4 border-t border-navy-100 bg-[#F8FAF4] p-5 sm:flex-row sm:items-center">
             <div className="text-sm">
               <p className="font-black text-navy-950">Sign in to claim.</p>
               <p className="mt-0.5 text-slate-600">
@@ -213,7 +213,7 @@ function ResultPanel({ data }: { data: LookupTicketResponse }) {
               <Button
                 variant="accent"
                 size="md"
-                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
               >
                 Sign in to claim
               </Button>
@@ -230,7 +230,7 @@ function ResultPanel({ data }: { data: LookupTicketResponse }) {
       className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
     >
       <div className="border-b border-slate-100 bg-[#F8FAF4] p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
           Ticket found
         </p>
         <p className="mt-1 font-mono text-lg font-black text-navy-950">

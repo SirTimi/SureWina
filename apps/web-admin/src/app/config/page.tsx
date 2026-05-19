@@ -36,7 +36,7 @@ function Body() {
         rightSlot={
           <Button
             variant="accent"
-            className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+            className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
           >
             <Save className="h-4 w-4" />
             Save changes
@@ -52,7 +52,7 @@ function Body() {
                 inputMode="numeric"
                 value={dailyPrice}
                 onChange={(e) => setDailyPrice(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Saturday jackpot ticket (₦)">
@@ -60,7 +60,7 @@ function Body() {
                 inputMode="numeric"
                 value={jackpotPrice}
                 onChange={(e) => setJackpotPrice(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
           </div>
@@ -73,7 +73,7 @@ function Body() {
                 type="time"
                 value={dailyCutoff}
                 onChange={(e) => setDailyCutoff(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Saturday jackpot cutoff (WAT)">
@@ -81,7 +81,7 @@ function Body() {
                 type="time"
                 value={jackpotCutoff}
                 onChange={(e) => setJackpotCutoff(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Agent remittance deadline (WAT)">
@@ -89,7 +89,7 @@ function Body() {
                 type="time"
                 value={remitDeadline}
                 onChange={(e) => setRemitDeadline(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Remittance grace window (minutes)">
@@ -97,7 +97,7 @@ function Body() {
                 inputMode="numeric"
                 value={graceMinutes}
                 onChange={(e) => setGraceMinutes(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
           </div>
@@ -109,14 +109,14 @@ function Body() {
               <input
                 value={whtRate}
                 onChange={(e) => setWhtRate(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="State Games Board levy (decimal)">
               <input
                 value={stateLevy}
                 onChange={(e) => setStateLevy(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
           </div>
@@ -129,23 +129,23 @@ function Body() {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Link
               href="/config/templates"
-              className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-[#0B1220] hover:border-[#4E8F01]/30 hover:bg-[#F8FAF4]"
+              className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-[#0B1220] hover:border-navy-200 hover:bg-[#F8FAF4]"
             >
               <span className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-[#4E8F01]" />
+                <Bell className="h-4 w-4 text-navy-700" />
                 Notification templates
               </span>
-              <span className="text-xs text-[#4E8F01]">→</span>
+              <span className="text-xs text-navy-700">→</span>
             </Link>
             <Link
               href="/agents/super"
-              className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-[#0B1220] hover:border-[#4E8F01]/30 hover:bg-[#F8FAF4]"
+              className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-[#0B1220] hover:border-navy-200 hover:bg-[#F8FAF4]"
             >
               <span className="flex items-center gap-2">
-                <Settings2 className="h-4 w-4 text-[#4E8F01]" />
+                <Settings2 className="h-4 w-4 text-navy-700" />
                 Commission tiers
               </span>
-              <span className="text-xs text-[#4E8F01]">→</span>
+              <span className="text-xs text-navy-700">→</span>
             </Link>
           </div>
         </SectionCard>

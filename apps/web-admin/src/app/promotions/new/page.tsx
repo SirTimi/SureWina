@@ -55,8 +55,8 @@ function Body() {
                 onClick={() => setType(t)}
                 className={
                   type === t
-                    ? 'flex items-center justify-center gap-2 rounded-md border-2 border-[#4E8F01] bg-[#A8E368]/15 p-3 text-sm font-black text-[#0B1220]'
-                    : 'flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700 hover:border-[#4E8F01]/30'
+                    ? 'flex items-center justify-center gap-2 rounded-md border-2 border-navy-700 bg-amber-50 p-3 text-sm font-black text-[#0B1220]'
+                    : 'flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700 hover:border-navy-200'
                 }
               >
                 <Tag className="h-4 w-4" />
@@ -73,7 +73,7 @@ function Body() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Easter weekend boost"
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Promo code">
@@ -81,7 +81,7 @@ function Body() {
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder="EASTER25"
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field
@@ -97,7 +97,7 @@ function Body() {
                 inputMode="numeric"
                 value={value}
                 onChange={(e) => setValue(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Redemption cap">
@@ -105,7 +105,7 @@ function Body() {
                 inputMode="numeric"
                 value={cap}
                 onChange={(e) => setCap(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Starts at">
@@ -113,7 +113,7 @@ function Body() {
                 type="datetime-local"
                 value={startsAt}
                 onChange={(e) => setStartsAt(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Ends at">
@@ -121,7 +121,7 @@ function Body() {
                 type="datetime-local"
                 value={endsAt}
                 onChange={(e) => setEndsAt(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
           </div>
@@ -139,7 +139,7 @@ function Body() {
             variant="accent"
             disabled={!name.trim() || !code.trim()}
             onClick={() => router.push('/promotions')}
-            className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01] disabled:!bg-slate-200 disabled:text-slate-500"
+            className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900 disabled:!bg-slate-200 disabled:text-slate-500"
           >
             Create as DRAFT
             <ArrowRight className="h-4 w-4" />

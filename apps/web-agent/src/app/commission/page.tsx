@@ -63,7 +63,7 @@ function CommissionBody() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
             Today
           </p>
           <p className="mt-2 font-display text-3xl font-black text-navy-950 tabular-nums">
@@ -76,7 +76,7 @@ function CommissionBody() {
         </Card>
 
         <Card className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
             Month-to-date
           </p>
           <p className="mt-2 font-display text-3xl font-black text-navy-950 tabular-nums">
@@ -89,7 +89,7 @@ function CommissionBody() {
         </Card>
 
         <Card className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
             Current rate
           </p>
           <p className="mt-2 font-display text-3xl font-black text-navy-950 tabular-nums">
@@ -101,11 +101,11 @@ function CommissionBody() {
 
       <Card className="mt-4 rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
             <Trophy className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Tier progress
             </p>
             <p className="mt-1 font-display text-xl font-black text-navy-950">
@@ -115,7 +115,7 @@ function CommissionBody() {
             </p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
               <div
-                className="h-full rounded-full bg-[#4E8F01]"
+                className="h-full rounded-full bg-navy-800"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -129,7 +129,7 @@ function CommissionBody() {
       <Card className="mt-4 rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Statements
             </p>
             <p className="mt-1 text-sm text-slate-500">
@@ -140,7 +140,7 @@ function CommissionBody() {
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               variant="secondary"
-              className="rounded-sm border-[#4E8F01]/20 bg-white text-[#4E8F01]"
+              className="rounded-sm border-navy-200 bg-white text-navy-700"
               onClick={() => download('daily')}
             >
               <Download className="h-4 w-4" />
@@ -148,7 +148,7 @@ function CommissionBody() {
             </Button>
             <Button
               variant="accent"
-              className="rounded-sm !border-transparent bg-[#A8E368] font-black text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+              className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
               onClick={() => download('monthly')}
             >
               <Download className="h-4 w-4" />
@@ -161,14 +161,14 @@ function CommissionBody() {
       <Card className="mt-4 overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 p-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Daily breakdown
             </p>
             <p className="mt-1 text-sm text-slate-500">
               Last 30 days of sales and commission.
             </p>
           </div>
-          <TrendingUp className="h-5 w-5 text-[#4E8F01]" />
+          <TrendingUp className="h-5 w-5 text-navy-700" />
         </div>
 
         <div className="hidden grid-cols-4 gap-3 border-b border-slate-100 bg-[#F8FAF4] px-4 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 sm:grid">
@@ -196,7 +196,7 @@ function CommissionBody() {
               <p className="text-right text-sm font-bold text-slate-700 tabular-nums">
                 {formatNaira(e.salesNgn)}
               </p>
-              <p className="text-right font-display text-sm font-black text-[#4E8F01] tabular-nums">
+              <p className="text-right font-display text-sm font-black text-navy-700 tabular-nums">
                 {formatNaira(e.commissionNgn)}
               </p>
             </div>

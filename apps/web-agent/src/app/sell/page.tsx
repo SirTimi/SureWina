@@ -47,10 +47,10 @@ function PickDrawBody() {
         backHref="/"
       />
 
-      <Card className="rounded-3xl border-[#4E8F01]/20 bg-[#4E8F01] p-5 text-white shadow-[0_18px_48px_rgba(78,143,1,0.18)]">
+      <Card className="rounded-3xl border-navy-200 bg-navy-800 p-5 text-white shadow-[0_18px_48px_rgba(14,42,71,0.16)]">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#A8E368]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">
               Recommended · Today&apos;s daily
             </p>
             <h2 className="mt-2 font-display text-2xl font-black leading-tight">
@@ -61,7 +61,7 @@ function PickDrawBody() {
               {formatCutoff(todays.cutoffAt)}
             </p>
           </div>
-          <Star className="h-6 w-6 text-[#A8E368]" />
+          <Star className="h-6 w-6 text-amber-400" />
         </div>
 
         <Button
@@ -69,7 +69,7 @@ function PickDrawBody() {
           size="lg"
           fullWidth
           onClick={() => startSale(todays)}
-          className="mt-5 rounded-sm !border-transparent bg-[#A8E368] font-black text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+          className="mt-5 rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
         >
           Use today&apos;s daily
           <ArrowRight className="h-5 w-5" />
@@ -89,10 +89,10 @@ function PickDrawBody() {
                 key={draw.drawCode}
                 type="button"
                 onClick={() => startSale(draw)}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-[#4E8F01]/30 hover:bg-[#F8FAF4]"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-navy-200 hover:bg-[#F8FAF4]"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/30 text-[#4E8F01]">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                     <Ticket className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
@@ -106,7 +106,7 @@ function PickDrawBody() {
                     </p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-[#4E8F01]" />
+                <ArrowRight className="h-4 w-4 shrink-0 text-navy-700" />
               </button>
             ))}
         </div>
@@ -114,7 +114,7 @@ function PickDrawBody() {
 
       <p className="mt-6 text-center text-xs text-slate-400">
         Need help?{' '}
-        <Link href="/training" className="font-bold text-[#4E8F01]">
+        <Link href="/training" className="font-bold text-navy-700">
           Watch the sale flow video
         </Link>
       </p>

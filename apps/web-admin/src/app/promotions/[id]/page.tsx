@@ -66,7 +66,7 @@ function Body({ id }: { id: string }) {
             </Button>
             <Button
               variant="accent"
-              className="rounded-md !border-transparent bg-[#4E8F01] font-black text-white hover:!border-transparent hover:bg-[#3a6a01]"
+              className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
             >
               <Save className="h-4 w-4" />
               Save
@@ -82,14 +82,14 @@ function Body({ id }: { id: string }) {
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Code">
               <input
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Type">{promo.type.replace(/_/g, ' ')}</Field>
@@ -97,14 +97,14 @@ function Body({ id }: { id: string }) {
               <input
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Cap (max redemptions)">
               <input
                 value={cap}
                 onChange={(e) => setCap(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
               />
             </Field>
             <Field label="Window">
@@ -130,7 +130,7 @@ function Body({ id }: { id: string }) {
           </p>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
-              className="h-full rounded-full bg-[#4E8F01]"
+              className="h-full rounded-full bg-navy-800"
               style={{ width: `${pct}%` }}
             />
           </div>

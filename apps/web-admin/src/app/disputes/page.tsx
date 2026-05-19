@@ -45,7 +45,7 @@ function Body() {
                 <div>
                   <Link
                     href={`/disputes/${d.disputeId}`}
-                    className="font-bold text-[#0B1220] hover:text-[#4E8F01]"
+                    className="font-bold text-[#0B1220] hover:text-navy-700"
                   >
                     {d.subject}
                   </Link>

@@ -45,7 +45,7 @@ function Body() {
                 <div>
                   <Link
                     href={`/kyc/review/${k.kycCaseId}`}
-                    className="font-mono text-sm font-black text-[#0B1220] hover:text-[#4E8F01]"
+                    className="font-mono text-sm font-black text-[#0B1220] hover:text-navy-700"
                   >
                     {k.kycCaseId}
                   </Link>

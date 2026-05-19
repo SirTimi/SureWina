@@ -49,7 +49,7 @@ function TrainingBody() {
               />
             </div>
             <div className="p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Module
               </p>
               <h2 className="mt-1 font-display text-2xl font-black text-navy-950">
@@ -68,7 +68,7 @@ function TrainingBody() {
                   <button
                     type="button"
                     onClick={() => markDone(active.id)}
-                    className="inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-4 py-2 text-sm font-black text-navy-950 hover:bg-[#B7EF79]"
+                    className="inline-flex items-center gap-2 rounded-sm bg-amber-500 px-4 py-2 text-sm font-black text-navy-950 hover:bg-amber-400"
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     Mark as complete
@@ -86,7 +86,7 @@ function TrainingBody() {
         <aside>
           <Card className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Modules
               </p>
             </div>
@@ -99,7 +99,7 @@ function TrainingBody() {
                   onClick={() => setActive(m)}
                   className={
                     isActive
-                      ? 'flex w-full items-start gap-3 border-b border-slate-100 bg-[#A8E368]/15 px-4 py-3 text-left last:border-b-0'
+                      ? 'flex w-full items-start gap-3 border-b border-slate-100 bg-amber-50 px-4 py-3 text-left last:border-b-0'
                       : 'flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-[#F8FAF4]'
                   }
                 >
@@ -107,7 +107,7 @@ function TrainingBody() {
                     className={
                       m.completedAt
                         ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-emerald-50 text-emerald-600'
-                        : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/30 text-[#4E8F01]'
+                        : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700'
                     }
                   >
                     {m.completedAt ? (

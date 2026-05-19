@@ -42,7 +42,7 @@ export function AdminShell({ children, requireAuth = true }: AdminShellProps) {
   if (checking || !session) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F5F7FB]">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-[#4E8F01]" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-navy-700" />
       </div>
     );
   }

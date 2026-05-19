@@ -37,7 +37,7 @@ function Body() {
             </Link>
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-md bg-[#4E8F01] px-4 py-2 text-sm font-black text-white hover:bg-[#3a6a01]"
+              className="inline-flex items-center gap-2 rounded-md bg-navy-800 px-4 py-2 text-sm font-black text-white hover:bg-navy-900"
             >
               <Plus className="h-4 w-4" />
               Invite user

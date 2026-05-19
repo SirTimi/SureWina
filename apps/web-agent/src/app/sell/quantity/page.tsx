@@ -75,11 +75,11 @@ function QuantityBody() {
 
       <Card className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
             <Ticket className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Draw
             </p>
             <p className="mt-1 truncate font-display text-base font-black text-navy-950">
@@ -99,8 +99,8 @@ function QuantityBody() {
               onClick={() => setQuantity(q)}
               className={
                 quantity === q
-                  ? 'rounded-2xl border-2 border-[#4E8F01] bg-[#A8E368]/15 py-3 text-base font-black text-navy-950'
-                  : 'rounded-2xl border border-slate-200 bg-white py-3 text-base font-bold text-slate-700 hover:border-[#4E8F01]/30'
+                  ? 'rounded-2xl border-2 border-navy-700 bg-amber-50 py-3 text-base font-black text-navy-950'
+                  : 'rounded-2xl border border-slate-200 bg-white py-3 text-base font-bold text-slate-700 hover:border-navy-200'
               }
             >
               {q}
@@ -131,7 +131,7 @@ function QuantityBody() {
           <button
             type="button"
             onClick={() => setQuantity((q) => Math.min(50, q + 1))}
-            className="flex h-12 w-12 items-center justify-center rounded-sm bg-[#4E8F01] text-white"
+            className="flex h-12 w-12 items-center justify-center rounded-sm bg-navy-800 text-white"
             aria-label="Increase quantity"
           >
             <Plus className="h-5 w-5" />
@@ -156,7 +156,7 @@ function QuantityBody() {
                 if (phoneError) setPhoneError(null);
               }}
               placeholder="080… or +234…"
-              className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-base font-bold text-navy-950 outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-base font-bold text-navy-950 outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
           </div>
           {phoneError && (
@@ -184,7 +184,7 @@ function QuantityBody() {
           size="lg"
           fullWidth
           onClick={next}
-          className="rounded-sm !border-transparent bg-[#A8E368] font-black text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+          className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
         >
           Continue
           <ArrowRight className="h-5 w-5" />

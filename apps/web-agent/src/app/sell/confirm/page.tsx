@@ -127,11 +127,11 @@ function ConfirmBody() {
 
       <Card className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3 border-b border-slate-100 pb-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
             <Ticket className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Draw
             </p>
             <p className="mt-1 truncate font-display text-base font-black text-navy-950">
@@ -147,8 +147,8 @@ function ConfirmBody() {
           <Row label="Your commission" value={formatNaira(commission)} hint="10% (Silver tier)" />
         </div>
 
-        <div className="mt-4 rounded-2xl bg-[#4E8F01]/8 bg-[#A8E368]/15 p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+        <div className="mt-4 rounded-2xl bg-navy-50 bg-amber-50 p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
             Total to collect
           </p>
           <p className="mt-1 font-display text-4xl font-black text-navy-950 tabular-nums">
@@ -172,7 +172,7 @@ function ConfirmBody() {
           isLoading={submitting}
           disabled={submitting}
           onClick={confirm}
-          className="rounded-sm !border-transparent bg-[#A8E368] font-black text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+          className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
         >
           <CheckCircle2 className="h-5 w-5" />
           Confirm sale · {formatNaira(total)}

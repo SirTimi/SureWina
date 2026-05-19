@@ -99,7 +99,7 @@ export default function AdminSignInPage() {
 
         <div className="grid flex-1 grid-cols-1 items-center gap-10 lg:grid-cols-[1fr_440px]">
           <section className="hidden lg:block">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#A8E368]">
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-400">
               Operator console
             </p>
             <h1 className="mt-3 font-display text-6xl font-black leading-[0.98] tracking-[-0.05em]">
@@ -113,15 +113,15 @@ export default function AdminSignInPage() {
             </p>
             <ul className="mt-8 max-w-md space-y-3 text-sm text-white/75">
               <li className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-[#A8E368]" />
+                <Shield className="h-4 w-4 text-amber-400" />
                 Role-based access for operators, finance, compliance, support
               </li>
               <li className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-[#A8E368]" />
+                <Shield className="h-4 w-4 text-amber-400" />
                 Every action ends up in the audit log
               </li>
               <li className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-[#A8E368]" />
+                <Shield className="h-4 w-4 text-amber-400" />
                 MFA required for all admin sessions
               </li>
             </ul>
@@ -132,7 +132,7 @@ export default function AdminSignInPage() {
             className="rounded-3xl border-white/10 bg-white p-6 text-[#0B1220] shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
           >
             <div className="mb-5">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-[#A8E368]/35 text-[#4E8F01]">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-navy-50 text-navy-700">
                 {step === 'mfa' ? (
                   <Lock className="h-6 w-6" />
                 ) : (
@@ -157,7 +157,7 @@ export default function AdminSignInPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@surewina.ng"
-                    className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-[#0B1220] outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                    className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-[#0B1220] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
                   />
                 </Field>
                 <Field label="Password">
@@ -166,7 +166,7 @@ export default function AdminSignInPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-[#0B1220] outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                    className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-[#0B1220] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
                   />
                 </Field>
                 {error && <ErrorMsg>{error}</ErrorMsg>}
@@ -175,7 +175,7 @@ export default function AdminSignInPage() {
                   variant="accent"
                   size="lg"
                   fullWidth
-                  className="rounded-md !border-transparent bg-[#A8E368] font-black text-[#0B1220] hover:!border-transparent hover:bg-[#B7EF79]"
+                  className="rounded-md !border-transparent bg-amber-500 font-black text-[#0B1220] hover:!border-transparent hover:bg-amber-400"
                 >
                   Continue
                   <ArrowRight className="h-4 w-4" />
@@ -189,7 +189,7 @@ export default function AdminSignInPage() {
                     value={mfa}
                     onChange={(e) => setMfa(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="000000"
-                    className="h-14 w-full rounded-lg border border-slate-200 bg-white px-3 text-center font-mono text-2xl font-black tracking-[0.24em] text-[#0B1220] outline-none focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                    className="h-14 w-full rounded-lg border border-slate-200 bg-white px-3 text-center font-mono text-2xl font-black tracking-[0.24em] text-[#0B1220] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
                   />
                 </Field>
                 <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
@@ -201,7 +201,7 @@ export default function AdminSignInPage() {
                   variant="accent"
                   size="lg"
                   fullWidth
-                  className="rounded-md !border-transparent bg-[#A8E368] font-black text-[#0B1220] hover:!border-transparent hover:bg-[#B7EF79]"
+                  className="rounded-md !border-transparent bg-amber-500 font-black text-[#0B1220] hover:!border-transparent hover:bg-amber-400"
                 >
                   Verify & sign in
                   <ArrowRight className="h-4 w-4" />
@@ -226,7 +226,7 @@ export default function AdminSignInPage() {
                     key={opt.role}
                     type="button"
                     onClick={() => quickSignIn(opt)}
-                    className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-xs hover:border-[#4E8F01]/30 hover:bg-[#F8FAF4]"
+                    className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-xs hover:border-navy-200 hover:bg-[#F8FAF4]"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-[#0B1220]">
@@ -236,7 +236,7 @@ export default function AdminSignInPage() {
                         {opt.description}
                       </p>
                     </div>
-                    <ArrowRight className="h-3.5 w-3.5 text-[#4E8F01]" />
+                    <ArrowRight className="h-3.5 w-3.5 text-navy-700" />
                   </button>
                 ))}
               </div>

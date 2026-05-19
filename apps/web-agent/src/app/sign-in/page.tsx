@@ -72,12 +72,12 @@ export default function AgentSignInPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_75%_20%,rgba(168,227,104,0.32),transparent_42%),linear-gradient(135deg,#ffffff_0%,#F8FAF4_55%,#A8E368_140%)] px-4 py-6">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_75%_20%,rgba(216,122,24,0.14),transparent_42%),linear-gradient(135deg,#ffffff_0%,#F8FAF4_55%,#E8F0FB_140%)] px-4 py-6">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-[1100px] flex-col">
         <div className="flex h-16 items-center justify-between">
           <Logo />
 
-          <div className="hidden items-center gap-2 rounded-sm border border-[#4E8F01]/10 bg-white/80 px-3 py-2 text-xs font-bold text-[#4E8F01] shadow-sm sm:flex">
+          <div className="hidden items-center gap-2 rounded-sm border border-navy-100 bg-white/80 px-3 py-2 text-xs font-bold text-navy-700 shadow-sm sm:flex">
             <ShieldCheck className="h-4 w-4" />
             Agent portal
           </div>
@@ -85,7 +85,7 @@ export default function AgentSignInPage() {
 
         <div className="grid flex-1 grid-cols-1 items-center gap-8 lg:grid-cols-[1fr_420px]">
           <section className="hidden lg:block">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#4E8F01]">
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-navy-700">
               Sell tickets faster
             </p>
 
@@ -110,7 +110,7 @@ export default function AgentSignInPage() {
             className="rounded-3xl border-slate-200 bg-white/95 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6"
           >
             <div className="mb-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                 {challengeId ? <Lock className="h-6 w-6" /> : <Phone className="h-6 w-6" />}
               </div>
 
@@ -137,7 +137,7 @@ export default function AgentSignInPage() {
                   onChange={(event) => setPhone(event.target.value)}
                   placeholder="+234..."
                   inputMode="tel"
-                  className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 text-base font-bold text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                  className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 text-base font-bold text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
                 />
 
                 {error && <ErrorMessage message={error} />}
@@ -149,7 +149,7 @@ export default function AgentSignInPage() {
                   variant="accent"
                   size="lg"
                   fullWidth
-                  className="mt-5 rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                  className="mt-5 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                 >
                   Send OTP
                   <ArrowRight className="h-4 w-4" />
@@ -169,13 +169,13 @@ export default function AgentSignInPage() {
                   }
                   placeholder="000000"
                   inputMode="numeric"
-                  className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 text-center font-mono text-2xl font-black tracking-[0.24em] text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/30"
+                  className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 text-center font-mono text-2xl font-black tracking-[0.24em] text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
                 />
 
                 {mockOtp && (
-                  <div className="mt-3 rounded-xl border border-[#4E8F01]/15 bg-[#F8FAF4] px-3 py-2 text-sm text-slate-600">
+                  <div className="mt-3 rounded-xl border border-navy-100 bg-[#F8FAF4] px-3 py-2 text-sm text-slate-600">
                     Demo OTP:{' '}
-                    <span className="font-mono font-black text-[#4E8F01]">{mockOtp}</span>
+                    <span className="font-mono font-black text-navy-700">{mockOtp}</span>
                   </div>
                 )}
 
@@ -188,7 +188,7 @@ export default function AgentSignInPage() {
                   variant="accent"
                   size="lg"
                   fullWidth
-                  className="mt-5 rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                  className="mt-5 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                 >
                   Verify and enter
                   <ArrowRight className="h-4 w-4" />
@@ -217,8 +217,8 @@ export default function AgentSignInPage() {
 
 function SignInStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#4E8F01]/10 bg-white/80 p-4">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+    <div className="rounded-2xl border border-navy-100 bg-white/80 p-4">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
         {label}
       </p>
       <p className="mt-1 font-display text-2xl font-black text-navy-950">{value}</p>

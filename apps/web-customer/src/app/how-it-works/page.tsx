@@ -11,13 +11,13 @@ export default async function HowItWorksPage() {
   return (
     <>
       {/* Hero */}
-<section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pt-32 pb-18 sm:pt-36 sm:pb-24 lg:pt-25 lg:pb-28">
-  <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
-  <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-[#4E8F01]/10 blur-3xl" />
+<section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pt-32 pb-18 sm:pt-36 sm:pb-24 lg:pt-25 lg:pb-28">
+  <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
+  <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
 
   <Container size="lg" className="relative max-w-[1400px]">
     <div className="max-w-4xl">
-      <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+      <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-navy-700/90 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
         <ShieldCheck className="h-4 w-4 text-white" />
         Regulated, audited, and provable
       </div>
@@ -25,7 +25,7 @@ export default async function HowItWorksPage() {
       <h1 className="font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl lg:text-7xl">
         How Surewina
         <br />
-        <span className="text-[#4E8F01]">works</span>
+        <span className="text-navy-700">works</span>
       </h1>
 
       <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
@@ -39,7 +39,7 @@ export default async function HowItWorksPage() {
             <Button
               variant="accent"
               size="lg"
-              className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
+              className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 shadow-[0_16px_34px_rgba(14,42,71,0.18)] hover:!border-transparent hover:bg-amber-400"
             >
               Buy a ticket for {formatNaira(dailyDraw.ticketPriceNgn)}
               <ArrowRight className="h-4 w-4" />
@@ -51,7 +51,7 @@ export default async function HowItWorksPage() {
           <Button
             variant="secondary"
             size="lg"
-            className="rounded-sm border-[#4E8F01]/20 bg-white/90 font-bold text-[#4E8F01] shadow-sm backdrop-blur hover:bg-white"
+            className="rounded-sm border-navy-200 bg-white/90 font-bold text-navy-700 shadow-sm backdrop-blur hover:bg-white"
           >
             See audit method
           </Button>
@@ -87,11 +87,11 @@ export default async function HowItWorksPage() {
       </Container>
 
       {/* Why our draws can't be rigged */}
-      <section className="my-10 border-y border-[#4E8F01]/10 bg-[#F8FAF4] py-16 sm:py-20">
+      <section className="my-10 border-y border-navy-100 bg-[#F8FAF4] py-16 sm:py-20">
         <Container size="lg" className="max-w-[1400px]">
           <div className="grid grid-cols-1 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)] lg:grid-cols-[0.95fr_1.05fr]">
             <div className="p-8 sm:p-12">
-              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
                 Verifiable RNG
               </p>
 
@@ -119,18 +119,18 @@ export default async function HowItWorksPage() {
 
               <Link
                 href="/audit"
-                className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+                className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
               >
                 Read the full audit method <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
 
-            <div className="bg-[#4E8F01] p-8 sm:p-12">
+            <div className="bg-navy-800 p-8 sm:p-12">
               <pre className="w-full overflow-x-auto rounded-2xl border border-white/15 bg-white/10 p-6 font-mono text-xs leading-relaxed text-white/90 backdrop-blur sm:text-sm">
                 <span className="text-white/50"># 02 May 2026 · 00:00 WAT</span>
                 {'\n'}
                 seed_commit:{'\n'}
-                <span className="text-[#A8E368]">9f4c2b8e1a7d6f30c5e9b2148a6d4f7c</span>
+                <span className="text-amber-400">9f4c2b8e1a7d6f30c5e9b2148a6d4f7c</span>
                 {'\n\n'}
                 <span className="text-white/50"># 02 May 2026 · 20:00 WAT</span>
                 {'\n'}
@@ -138,12 +138,12 @@ export default async function HowItWorksPage() {
                 {'\n'}
                 winning_index: <span className="text-white">2,194</span>
                 {'\n'}
-                winning_ticket: <span className="text-[#A8E368]">SW-04AB-9LK2</span>
+                winning_ticket: <span className="text-amber-400">SW-04AB-9LK2</span>
                 {'\n\n'}
                 <span className="text-white/50"># 02 May 2026 · 20:01 WAT</span>
                 {'\n'}
                 seed_reveal:{'\n'}
-                <span className="text-[#A8E368]">4a1f...verified ✓</span>
+                <span className="text-amber-400">4a1f...verified ✓</span>
               </pre>
             </div>
           </div>
@@ -190,7 +190,7 @@ export default async function HowItWorksPage() {
       <Container size="lg" className="max-w-[1400px] pb-16">
         <Card
           variant="default"
-          className="overflow-hidden rounded-3xl border border-[#A8E368]/35 bg-[#4E8F01] p-10 text-center text-white shadow-[0_24px_70px_rgba(78,143,1,0.22)] sm:p-12"
+          className="overflow-hidden rounded-3xl border border-navy-200 bg-navy-800 p-10 text-center text-white shadow-[0_24px_70px_rgba(14,42,71,0.18)] sm:p-12"
         >
           <h2 className="font-display text-3xl font-black tracking-[-0.03em] text-white sm:text-4xl">
             Ready to play?
@@ -199,7 +199,7 @@ export default async function HowItWorksPage() {
           {dailyDraw && (
             <p className="mb-6 mt-3 text-base text-white/75">
               One ticket is {formatNaira(dailyDraw.ticketPriceNgn)}. Today&apos;s draw
-              closes in <span className="font-mono text-[#A8E368]">6 hours</span>.
+              closes in <span className="font-mono text-amber-400">6 hours</span>.
             </p>
           )}
 
@@ -208,7 +208,7 @@ export default async function HowItWorksPage() {
               <Button
                 variant="accent"
                 size="lg"
-                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
               >
                 Buy a ticket for {formatNaira(dailyDraw.ticketPriceNgn)}
               </Button>
@@ -230,9 +230,9 @@ function StepCard({ number, title, description }: StepCardProps) {
   return (
     <Card
       variant="default"
-      className="group min-h-[210px] rounded-2xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)] transition hover:-translate-y-1 hover:border-[#A8E368]/60"
+      className="group min-h-[210px] rounded-2xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)] transition hover:-translate-y-1 hover:border-amber-500/60"
     >
-      <p className="mb-4 font-display text-3xl font-black tabular-nums text-[#4E8F01]">
+      <p className="mb-4 font-display text-3xl font-black tabular-nums text-navy-700">
         {number}
       </p>
       <h3 className="mb-2 font-display text-base font-black text-navy-950">
@@ -255,7 +255,7 @@ function WinnerCard({ label, title, items }: WinnerCardProps) {
       variant="default"
       className="rounded-2xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
     >
-      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
         {label}
       </p>
 
@@ -264,7 +264,7 @@ function WinnerCard({ label, title, items }: WinnerCardProps) {
       <ul className="space-y-2 text-sm leading-relaxed text-slate-600">
         {items.map((item) => (
           <li key={item} className="flex gap-2">
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#4E8F01]" />
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
             <span>{item}</span>
           </li>
         ))}

@@ -40,8 +40,8 @@ export function HowDrawWorks({ seedHash, seedCommittedAt }: HowDrawWorksProps) {
       className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
     >
       <div className="mb-6 flex items-center gap-2">
-        <Shield className="h-4 w-4 text-[#4E8F01]" />
-        <h2 className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+        <Shield className="h-4 w-4 text-navy-700" />
+        <h2 className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
           How this draw works
         </h2>
       </div>
@@ -53,10 +53,10 @@ export function HowDrawWorks({ seedHash, seedCommittedAt }: HowDrawWorksProps) {
           return (
             <div
               key={item.title}
-              className="rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-4"
+              className="rounded-2xl border border-navy-100 bg-[#F8FAF4] p-4"
             >
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                   <Icon className="h-5 w-5" />
                 </div>
 
@@ -74,9 +74,9 @@ export function HowDrawWorks({ seedHash, seedCommittedAt }: HowDrawWorksProps) {
 
       {seedHash && (
         <div className="mt-6 border-t border-slate-100 pt-5">
-          <div className="flex flex-col justify-between gap-4 rounded-2xl border border-[#4E8F01]/15 bg-white p-4 sm:flex-row sm:items-start">
+          <div className="flex flex-col justify-between gap-4 rounded-2xl border border-navy-100 bg-white p-4 sm:flex-row sm:items-start">
             <div className="min-w-0">
-              <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+              <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
                 <Hash className="mr-1 inline h-3 w-3" />
                 Tonight&apos;s seed hash{' '}
                 {seedCommittedAt && (
@@ -91,7 +91,7 @@ export function HowDrawWorks({ seedHash, seedCommittedAt }: HowDrawWorksProps) {
 
             <a
               href="#"
-              className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+              className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-navy-700 transition hover:text-navy-800"
             >
               Verify <ExternalLink className="h-3.5 w-3.5" />
             </a>

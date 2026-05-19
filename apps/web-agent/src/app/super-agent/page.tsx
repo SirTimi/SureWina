@@ -43,13 +43,13 @@ function SuperAgentBody() {
         backHref="/"
       />
 
-      <Card className="rounded-3xl border-[#4E8F01]/15 bg-gradient-to-br from-[#4E8F01] to-[#3a6a01] p-5 text-white shadow-[0_24px_60px_rgba(78,143,1,0.18)]">
+      <Card className="rounded-3xl border-navy-100 bg-gradient-to-br from-navy-800 to-navy-900 p-5 text-white shadow-[0_24px_60px_rgba(14,42,71,0.16)]">
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur">
             <Crown className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#A8E368]">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">
               Network overview
             </p>
             <p className="mt-1 font-display text-2xl font-black leading-tight">
@@ -81,11 +81,11 @@ function SuperAgentBody() {
       <Card className="mt-4 overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
               <Network className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Sub-agents
               </p>
               <p className="mt-1 text-sm text-slate-500">
@@ -107,10 +107,10 @@ function SuperAgentBody() {
               <Link
                 key={sub.agentCode}
                 href={`/super-agent/${sub.agentCode}`}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-[#4E8F01]/30 hover:bg-[#F8FAF4]"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-navy-200 hover:bg-[#F8FAF4]"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#A8E368]/35 font-black text-[#4E8F01]">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-50 font-black text-navy-700">
                     {sub.fullName
                       .split(' ')
                       .map((p) => p[0])
@@ -139,7 +139,7 @@ function SuperAgentBody() {
                   </div>
                 </div>
 
-                <ArrowRight className="h-4 w-4 shrink-0 text-[#4E8F01]" />
+                <ArrowRight className="h-4 w-4 shrink-0 text-navy-700" />
               </Link>
             ))
           )}
@@ -152,7 +152,7 @@ function SuperAgentBody() {
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur">
-      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A8E368]">
+      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-400">
         {label}
       </p>
       <p className="mt-1 truncate font-display text-xl font-black text-white">{value}</p>

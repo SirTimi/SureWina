@@ -135,7 +135,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
             <Link href="/dashboard/claims" className="mt-6 inline-block">
               <Button
                 variant="accent"
-                className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
               >
                 Back to my claims
               </Button>
@@ -165,16 +165,16 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
               variant="default"
               className="w-full max-w-2xl overflow-hidden rounded-3xl border-slate-200 bg-white text-center shadow-sm"
             >
-              <div className="relative overflow-hidden bg-[#4E8F01] px-8 py-10 text-white">
-                <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#A8E368]/25 blur-3xl" />
+              <div className="relative overflow-hidden bg-navy-800 px-8 py-10 text-white">
+                <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-emerald-50 blur-3xl" />
                 <div className="absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
 
                 <div className="relative">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#A8E368] text-[#4E8F01]">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500 text-navy-700">
                     <Check className="h-8 w-8" />
                   </div>
 
-                  <p className="mt-6 text-[10px] font-black uppercase tracking-[0.16em] text-[#A8E368]">
+                  <p className="mt-6 text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">
                     Booking confirmed
                   </p>
 
@@ -199,7 +199,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
                 <Link href={`/claim/${claimId}/status`}>
                   <Button
                     variant="accent"
-                    className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                    className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                   >
                     View claim status
                     <ArrowRight className="h-4 w-4" />
@@ -208,7 +208,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
 
                 <Link
                   href="/dashboard/claims"
-                  className="text-sm font-bold text-slate-500 transition hover:text-[#4E8F01]"
+                  className="text-sm font-bold text-slate-500 transition hover:text-navy-700"
                 >
                   Back to my claims
                 </Link>
@@ -227,7 +227,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
       <Container size="lg" className="max-w-[1240px] pb-12 pt-28">
         <Link
           href={`/claim/${claimId}`}
-          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+          className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
         >
           <ChevronLeft className="h-4 w-4" />
           Back to claim chooser
@@ -239,12 +239,12 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
               variant="default"
               className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm"
             >
-              <div className="relative overflow-hidden bg-[#4E8F01] p-7 text-white sm:p-8">
-                <div className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-[#A8E368]/25 blur-3xl" />
+              <div className="relative overflow-hidden bg-navy-800 p-7 text-white sm:p-8">
+                <div className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-emerald-50 blur-3xl" />
                 <div className="absolute -bottom-24 left-1/3 h-60 w-60 rounded-full bg-white/10 blur-3xl" />
 
                 <div className="relative">
-                  <div className="mb-7 inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-navy-950">
+                  <div className="mb-7 inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-navy-950">
                     <Package className="h-4 w-4" />
                     Product fulfilment
                   </div>
@@ -302,7 +302,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
                     id="state-filter"
                     value={stateFilter}
                     onChange={(e) => setStateFilter(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
                   >
                     <option value="">All states ({points.length})</option>
                     {states.map((state) => (
@@ -331,7 +331,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
                       min={getDefaultDate()}
                       max={getMaxDate()}
                       onChange={(e) => setPreferredDate(e.target.value)}
-                      className="h-11 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-navy-950 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
                     />
                   </div>
 
@@ -342,7 +342,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
               </div>
 
               <div>
-                <p className="mb-3 text-[11px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                <p className="mb-3 text-[11px] font-black uppercase tracking-[0.16em] text-navy-700">
                   Available centres
                 </p>
 
@@ -375,7 +375,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
                             <div
                               className={
                                 isSelected
-                                  ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#4E8F01] text-white'
+                                  ? 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-800 text-white'
                                   : 'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-slate-500'
                               }
                             >
@@ -429,7 +429,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
                           type="checkbox"
                           checked={agreedToPhotoOp}
                           onChange={(e) => setAgreedToPhotoOp(e.target.checked)}
-                          className="mt-1 h-4 w-4 rounded border-slate-300 text-[#4E8F01] accent-[#4E8F01]"
+                          className="mt-1 h-4 w-4 rounded border-slate-300 text-navy-700 accent-navy-700"
                         />
                         <span className="text-slate-700">
                           I understand and agree to the photo-op terms.
@@ -454,7 +454,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
                   disabled={!selectedPointId || submitting}
                   variant="accent"
                   size="lg"
-                  className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                  className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                 >
                   Confirm booking
                   <ArrowRight className="h-4 w-4" />
@@ -472,7 +472,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Booking summary
               </p>
 
@@ -511,7 +511,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
               className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm"
             >
               <div className="border-b border-slate-100 p-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                   What to bring
                 </p>
               </div>
@@ -522,7 +522,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
 
                   return (
                     <li key={index} className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/25 text-[#4E8F01]">
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-emerald-50 text-emerald-700">
                         <Icon className="h-4 w-4" />
                       </div>
 
@@ -545,7 +545,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm"
             >
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                 <ShieldCheck className="h-5 w-5" />
               </div>
 
@@ -567,7 +567,7 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
 function SuccessCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
         {label}
       </p>
 
@@ -587,7 +587,7 @@ function SummaryCell({
 }) {
   return (
     <div className="p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
         {label}
       </p>
 
@@ -616,7 +616,7 @@ function selectedCentreClass(isSelected: boolean, withBorder: boolean) {
   const border = withBorder ? ' border-b border-slate-100' : '';
 
   if (isSelected) {
-    return `${base}${border} bg-[#A8E368]/10`;
+    return `${base}${border} bg-amber-50`;
   }
 
   return `${base}${border}`;

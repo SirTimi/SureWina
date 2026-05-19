@@ -68,12 +68,12 @@ export function SignInForm({ nextPath }: SignInFormProps) {
       className="rounded-3xl border-slate-200 bg-white/95 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur sm:p-8"
     >
       <div className="mb-8 flex items-center gap-2">
-        <div className="h-1 w-16 rounded-full bg-[#4E8F01]" />
-        <div className="h-1 w-16 rounded-full bg-[#A8E368]/45" />
+        <div className="h-1 w-16 rounded-full bg-navy-800" />
+        <div className="h-1 w-16 rounded-full bg-amber-500/45" />
       </div>
 
       <div className="mb-8">
-        <div className="mb-5 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/90 px-4 py-2 text-sm font-semibold text-white shadow-sm">
+        <div className="mb-5 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-navy-800/90 px-4 py-2 text-sm font-semibold text-white shadow-sm">
           <Lock className="h-4 w-4 text-white" />
           Passwordless sign in
         </div>
@@ -92,13 +92,13 @@ export function SignInForm({ nextPath }: SignInFormProps) {
           Phone number
         </label>
 
-        <div className="flex overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-[#4E8F01] focus-within:ring-2 focus-within:ring-[#A8E368]/35">
-          <span className="inline-flex items-center border-r border-slate-200 bg-[#F8FAF4] px-3 font-mono text-xs font-bold text-[#4E8F01]">
+        <div className="flex overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-navy-700 focus-within:ring-2 focus-within:ring-amber-400/35">
+          <span className="inline-flex items-center border-r border-slate-200 bg-[#F8FAF4] px-3 font-mono text-xs font-bold text-navy-700">
             NG +234
           </span>
 
           <div className="relative flex-1">
-            <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4E8F01]" />
+            <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-700" />
             <input
               id="phone"
               type="tel"
@@ -131,7 +131,7 @@ export function SignInForm({ nextPath }: SignInFormProps) {
           size="lg"
           fullWidth
           isLoading={isSubmitting}
-          className="mt-6 rounded-sm !border-transparent bg-[#4E8F01] font-bold text-white hover:!border-transparent hover:bg-[#3f7601]"
+          className="mt-6 rounded-sm !border-transparent bg-navy-800 font-bold text-white hover:!border-transparent hover:bg-navy-800"
         >
           {isSubmitting ? 'Sending code…' : 'Send code'}
           {!isSubmitting && <ArrowRight className="h-4 w-4" />}
@@ -139,7 +139,7 @@ export function SignInForm({ nextPath }: SignInFormProps) {
       </form>
 
       <p className="mt-6 flex items-start gap-1.5 text-xs leading-relaxed text-slate-500">
-        <Lock className="mt-0.5 h-3 w-3 shrink-0 text-[#4E8F01]" />
+        <Lock className="mt-0.5 h-3 w-3 shrink-0 text-navy-700" />
         <span>
           By continuing you confirm you are 18 or older. We never share your number with
           third parties.
@@ -148,7 +148,7 @@ export function SignInForm({ nextPath }: SignInFormProps) {
 
       <p className="mt-8 border-t border-slate-100 pt-6 text-center text-sm text-slate-500">
         Just want to buy a ticket?{' '}
-        <Link href="/" className="font-bold text-[#4E8F01] hover:text-[#3f7601]">
+        <Link href="/" className="font-bold text-navy-700 hover:text-navy-800">
           No account needed →
         </Link>
       </p>

@@ -144,9 +144,9 @@ export default function PrivacyPage() {
                 variant="default"
                 className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
               >
-                <div className="border-b border-slate-100 bg-[#4E8F01] p-5 text-white">
+                <div className="border-b border-slate-100 bg-navy-800 p-5 text-white">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-[#A8E368]" />
+                    <FileText className="h-4 w-4 text-amber-400" />
                     <p className="text-[10px] font-black uppercase tracking-[0.16em]">
                       Privacy policy
                     </p>
@@ -162,7 +162,7 @@ export default function PrivacyPage() {
                     <a
                       key={s.id}
                       href={`#${s.id}`}
-                      className="block rounded-sm px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-[#A8E368]/15 hover:text-[#4E8F01]"
+                      className="block rounded-sm px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-amber-50 hover:text-navy-700"
                     >
                       {s.title}
                     </a>
@@ -183,7 +183,7 @@ export default function PrivacyPage() {
                       className="rounded-2xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                           <Icon className="h-5 w-5" />
                         </div>
 
@@ -203,11 +203,11 @@ export default function PrivacyPage() {
 
               <Card
                 variant="default"
-                className="mb-8 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.06)]"
+                className="mb-8 overflow-hidden rounded-3xl border-navy-100 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.06)]"
               >
                 <div className="grid grid-cols-1 lg:grid-cols-[0.72fr_1fr]">
-                  <div className="bg-[#4E8F01] p-7 text-white sm:p-8">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A8E368]">
+                  <div className="bg-navy-800 p-7 text-white sm:p-8">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
                       Our privacy position
                     </p>
 
@@ -268,11 +268,11 @@ export default function PrivacyPage() {
 
               <Card
                 variant="default"
-                className="mt-8 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
+                className="mt-8 overflow-hidden rounded-3xl border-navy-100 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
               >
                 <div className="grid grid-cols-1 gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-center">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                       Privacy requests
                     </p>
 
@@ -285,7 +285,7 @@ export default function PrivacyPage() {
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <a
                       href="mailto:privacy@surewina.ng"
-                      className="inline-flex items-center justify-center gap-2 rounded-sm bg-[#4E8F01] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#3f7601]"
+                      className="inline-flex items-center justify-center gap-2 rounded-sm bg-navy-800 px-4 py-3 text-sm font-bold text-white transition hover:bg-navy-800"
                     >
                       <Mail className="h-4 w-4" />
                       privacy@surewina.ng
@@ -293,7 +293,7 @@ export default function PrivacyPage() {
 
                     <Link
                       href="/disputes"
-                      className="inline-flex items-center justify-center rounded-sm border border-[#4E8F01]/20 bg-[#A8E368]/15 px-4 py-3 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/25"
+                      className="inline-flex items-center justify-center rounded-sm border border-navy-200 bg-amber-50 px-4 py-3 text-sm font-bold text-navy-700 transition hover:bg-amber-100"
                     >
                       Open a dispute
                     </Link>
@@ -310,8 +310,8 @@ export default function PrivacyPage() {
 
 function PrivacySummaryItem({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex items-start gap-2 rounded-2xl border border-[#4E8F01]/10 bg-[#F8FAF4] p-4">
-      <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#4E8F01] text-white">
+    <li className="flex items-start gap-2 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-4">
+      <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-navy-800 text-white">
         <Check className="h-3 w-3" />
       </span>
       <span>{children}</span>

@@ -1,4 +1,4 @@
-import { ShieldCheck, Hash, Lock, Trophy, Users, BadgeCheck, Banknote, Sparkles } from 'lucide-react';
+import { Banknote, Sparkles, Trophy } from 'lucide-react';
 
 const items = [
   { icon: Sparkles, text: '₦4,000,000 up for grabs this Saturday' },
@@ -15,7 +15,7 @@ const items = [
 
 export function MarqueeBar() {
   return (
-    <div className="relative overflow-hidden border-y border-navy-950/8 bg-[#d3a601] py-4">
+    <div className="relative overflow-hidden border-y border-white/5 bg-navy-900 py-4">
       <style>
         {`
           @keyframes surewina-marquee {
@@ -37,9 +37,9 @@ export function MarqueeBar() {
               key={i}
               className="flex shrink-0 items-center gap-3 text-sm font-semibold uppercase tracking-[0.14em] text-white/80"
             >
-              <Icon className="h-4 w-4 text-[#A8E368]" />
+              <Icon className="h-4 w-4 text-amber-400" />
               <span>{item.text}</span>
-              <span aria-hidden className="text-[#A8E368]/40">●</span>
+              <span aria-hidden className="text-amber-400/60">●</span>
             </div>
           );
         })}

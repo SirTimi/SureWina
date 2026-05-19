@@ -52,7 +52,7 @@ function Body() {
                 <div>
                   <Link
                     href={`/draws/${d.drawCode}/audit`}
-                    className="font-bold text-[#0B1220] hover:text-[#4E8F01]"
+                    className="font-bold text-[#0B1220] hover:text-navy-700"
                   >
                     {d.prizeDescription}
                   </Link>
@@ -94,7 +94,7 @@ function Body() {
               render: (d) => (
                 <Link
                   href={`/draws/${d.drawCode}/audit`}
-                  className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-[0.14em] text-[#4E8F01] hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline"
                 >
                   <Download className="h-3 w-3" />
                   Pack

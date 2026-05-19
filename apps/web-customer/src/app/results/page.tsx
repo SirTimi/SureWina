@@ -11,13 +11,13 @@ export default async function ResultsPage() {
   return (
     <>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pt-32 pb-20 sm:pt-36 sm:pb-24 lg:pt-40 lg:pb-28">
-        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
-        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-[#4E8F01]/10 blur-3xl" />
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pt-32 pb-20 sm:pt-36 sm:pb-24 lg:pt-40 lg:pb-28">
+        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
+        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
 
         <Container size="lg" className="relative max-w-[1400px]">
           <div className="max-w-4xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-navy-700/90 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
               <ShieldCheck className="h-4 w-4 text-white" />
               Public archive · no hidden winners
             </div>
@@ -25,7 +25,7 @@ export default async function ResultsPage() {
             <h1 className="font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl lg:text-7xl">
               Past results.
               <br />
-              <span className="text-[#4E8F01]">Public forever.</span>
+              <span className="text-navy-700">Public forever.</span>
             </h1>
 
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
@@ -52,25 +52,25 @@ export default async function ResultsPage() {
         >
           <div className="flex flex-col gap-3 lg:flex-row">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4E8F01]" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-700" />
               <input
                 type="text"
                 placeholder="Search by ticket ref, prize, or date..."
-                className="h-11 w-full rounded-sm border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-700 outline-none transition focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/35"
+                className="h-11 w-full rounded-sm border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-700 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/35"
               />
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <button className="h-11 rounded-sm bg-[#4E8F01] px-4 text-sm font-bold text-white transition hover:bg-[#3f7601]">
+              <button className="h-11 rounded-sm bg-navy-800 px-4 text-sm font-bold text-white transition hover:bg-navy-800">
                 All draws
               </button>
-              <button className="h-11 rounded-sm border border-[#4E8F01]/20 bg-white px-4 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/15">
+              <button className="h-11 rounded-sm border border-navy-200 bg-white px-4 text-sm font-bold text-navy-700 transition hover:bg-amber-50">
                 Daily
               </button>
-              <button className="h-11 rounded-sm border border-[#4E8F01]/20 bg-white px-4 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/15">
+              <button className="h-11 rounded-sm border border-navy-200 bg-white px-4 text-sm font-bold text-navy-700 transition hover:bg-amber-50">
                 Saturday Jackpot
               </button>
-              <button className="inline-flex h-11 items-center gap-1 rounded-sm border border-[#4E8F01]/20 bg-white px-4 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/15">
+              <button className="inline-flex h-11 items-center gap-1 rounded-sm border border-navy-200 bg-white px-4 text-sm font-bold text-navy-700 transition hover:bg-amber-50">
                 Date range
                 <span className="text-xs">▾</span>
               </button>
@@ -86,7 +86,7 @@ export default async function ResultsPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px]">
               <thead>
-                <tr className="border-b border-slate-100 bg-[#A8E368]/10">
+                <tr className="border-b border-slate-100 bg-amber-50">
                   <th className="px-5 py-4 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">
                     Date
                   </th>
@@ -117,8 +117,8 @@ export default async function ResultsPage() {
                       key={r.drawCode}
                       className={
                         i < results.length - 1
-                          ? 'border-b border-slate-100 transition hover:bg-[#A8E368]/10'
-                          : 'transition hover:bg-[#A8E368]/10'
+                          ? 'border-b border-slate-100 transition hover:bg-amber-50'
+                          : 'transition hover:bg-amber-50'
                       }
                     >
                       <td className="px-5 py-4 text-sm">
@@ -159,7 +159,7 @@ export default async function ResultsPage() {
                       <td className="px-5 py-4 text-right">
                         <Link
                           href={`/results/${r.drawCode}`}
-                          className="inline-flex items-center gap-1 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+                          className="inline-flex items-center gap-1 text-sm font-bold text-navy-700 transition hover:text-navy-800"
                         >
                           Verify <ExternalLink className="h-3.5 w-3.5" />
                         </Link>
@@ -172,7 +172,7 @@ export default async function ResultsPage() {
           </div>
         </Card>
 
-        <div className="mt-8 rounded-2xl border border-[#4E8F01]/15 bg-[#F8FAF4] p-5">
+        <div className="mt-8 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-5">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
               <p className="text-sm font-black text-navy-950">
@@ -186,7 +186,7 @@ export default async function ResultsPage() {
 
             <Link
               href="/audit"
-              className="inline-flex shrink-0 items-center gap-2 rounded-sm border border-[#4E8F01]/20 bg-white px-4 py-3 text-sm font-bold text-[#4E8F01] transition hover:bg-[#A8E368]/15"
+              className="inline-flex shrink-0 items-center gap-2 rounded-sm border border-navy-200 bg-white px-4 py-3 text-sm font-bold text-navy-700 transition hover:bg-amber-50"
             >
               Read audit method
               <ArrowRight className="h-4 w-4" />
@@ -209,7 +209,7 @@ function ResultStat({ label, value }: ResultStatProps) {
       variant="default"
       className="rounded-2xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
     >
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#4E8F01]">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
         {label}
       </p>
       <p className="mt-3 font-display text-2xl font-black tracking-[-0.03em] text-navy-950">

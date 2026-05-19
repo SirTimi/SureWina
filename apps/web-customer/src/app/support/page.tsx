@@ -36,13 +36,13 @@ const supportRoutes = [
 export default function SupportPage() {
   return (
     <main>
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pb-20 pt-32 sm:pb-24 sm:pt-36 lg:pb-28 lg:pt-40">
-        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
-        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-[#4E8F01]/10 blur-3xl" />
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pb-20 pt-32 sm:pb-24 sm:pt-36 lg:pb-28 lg:pt-40">
+        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
+        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
 
         <Container size="lg" className="relative max-w-[1400px]">
           <div className="max-w-4xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-navy-700/90 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
               <ShieldCheck className="h-4 w-4 text-white" />
               Support
             </div>
@@ -50,7 +50,7 @@ export default function SupportPage() {
             <h1 className="font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl lg:text-7xl">
               We’ll help you
               <br />
-              <span className="text-[#4E8F01]">sort it out.</span>
+              <span className="text-navy-700">sort it out.</span>
             </h1>
 
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
@@ -73,7 +73,7 @@ export default function SupportPage() {
                   variant="default"
                   className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                     <Icon className="h-6 w-6" />
                   </div>
 
@@ -87,7 +87,7 @@ export default function SupportPage() {
 
                   <a
                     href={item.href}
-                    className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+                    className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
                   >
                     {item.action}
                     <ArrowRight className="h-4 w-4" />
@@ -99,11 +99,11 @@ export default function SupportPage() {
 
           <Card
             variant="default"
-            className="mt-8 overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-[#4E8F01] p-8 text-white shadow-[0_24px_70px_rgba(78,143,1,0.22)] sm:p-10"
+            className="mt-8 overflow-hidden rounded-3xl border-navy-100 bg-navy-800 p-8 text-white shadow-[0_24px_70px_rgba(14,42,71,0.18)] sm:p-10"
           >
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
-                <div className="mb-4 inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
                   <Phone className="h-4 w-4" />
                   Urgent claims line
                 </div>
@@ -122,7 +122,7 @@ export default function SupportPage() {
                 <Button
                   variant="accent"
                   size="lg"
-                  className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                  className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                 >
                   <Phone className="h-4 w-4" />
                   0700-SUREWINA
@@ -131,19 +131,19 @@ export default function SupportPage() {
             </div>
           </Card>
 
-          <div className="mt-8 rounded-2xl border border-[#4E8F01]/15 bg-white p-5">
+          <div className="mt-8 rounded-2xl border border-navy-100 bg-white p-5">
             <p className="text-sm leading-relaxed text-slate-600">
               For formal complaints, use the{' '}
               <Link
                 href="/disputes"
-                className="font-bold text-[#4E8F01] hover:underline"
+                className="font-bold text-navy-700 hover:underline"
               >
                 dispute resolution page
               </Link>
               . For data/privacy requests, email{' '}
               <a
                 href="mailto:privacy@surewina.ng"
-                className="font-bold text-[#4E8F01] hover:underline"
+                className="font-bold text-navy-700 hover:underline"
               >
                 privacy@surewina.ng
               </a>

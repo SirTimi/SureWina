@@ -52,7 +52,7 @@ function Body() {
             </Link>
             <Link
               href="/draws/new"
-              className="inline-flex items-center gap-2 rounded-md bg-[#4E8F01] px-4 py-2 text-sm font-black text-white hover:bg-[#3a6a01]"
+              className="inline-flex items-center gap-2 rounded-md bg-navy-800 px-4 py-2 text-sm font-black text-white hover:bg-navy-900"
             >
               <PlusCircle className="h-4 w-4" />
               New draw
@@ -95,7 +95,7 @@ function Body() {
                 <div>
                   <Link
                     href={`/draws/${d.drawCode}`}
-                    className="font-bold text-[#0B1220] hover:text-[#4E8F01]"
+                    className="font-bold text-[#0B1220] hover:text-navy-700"
                   >
                     {d.prizeDescription}
                   </Link>
@@ -157,7 +157,7 @@ function Body() {
               render: (d) => (
                 <Link
                   href={`/draws/${d.drawCode}`}
-                  className="text-xs font-black uppercase tracking-[0.14em] text-[#4E8F01] hover:underline"
+                  className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline"
                 >
                   Open →
                 </Link>

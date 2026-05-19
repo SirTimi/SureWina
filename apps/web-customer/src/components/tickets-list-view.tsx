@@ -232,7 +232,7 @@ export function TicketsListView({ initialFilter }: TicketsListViewProps) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search ticket ref or prize..."
-              className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-navy-950 outline-none transition placeholder:text-slate-400 focus:border-[#4E8F01] focus:ring-2 focus:ring-[#A8E368]/25"
+              className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-navy-950 outline-none transition placeholder:text-slate-400 focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
             />
           </div>
         </div>
@@ -296,7 +296,7 @@ function TicketRow({ group, isLast }: { group: DrawGroup; isLast: boolean }) {
             )}
 
             {group.awaitingDraw && !group.hasWinner && (
-              <span className="inline-flex items-center gap-1 text-xs font-bold text-[#4E8F01]">
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-navy-700">
                 <Clock className="h-3 w-3" />
                 {formatCountdown(group.drawScheduledAt)}
               </span>
@@ -345,7 +345,7 @@ function TicketRow({ group, isLast }: { group: DrawGroup; isLast: boolean }) {
           </div>
 
           {group.hasWinner && (
-            <Trophy className="h-4 w-4 text-[#4E8F01] md:ml-auto md:mt-1.5" />
+            <Trophy className="h-4 w-4 text-navy-700 md:ml-auto md:mt-1.5" />
           )}
         </div>
 
@@ -391,7 +391,7 @@ function EmptyTicketsState({
         <Link href="/draws" className="mt-5 inline-block">
           <Button
             variant="accent"
-            className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+            className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
           >
             Browse active draws
             <ArrowRight className="h-4 w-4" />

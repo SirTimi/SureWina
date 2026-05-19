@@ -107,15 +107,15 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
 
   return (
     <main className="min-h-screen bg-[#F8FAF4]">
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.36)_0%,rgba(168,227,104,0.18)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_52%,#A8E368_100%)] py-10">
-        <div className="absolute right-[-8%] top-1/2 hidden h-[420px] w-[420px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
-        <div className="absolute bottom-[-120px] left-[18%] h-72 w-72 rounded-full bg-[#4E8F01]/10 blur-3xl" />
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(22,89,150,0.10)_0%,rgba(22,89,150,0.06)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_52%,#E8F0FB_100%)] py-10">
+        <div className="absolute right-[-8%] top-1/2 hidden h-[420px] w-[420px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
+        <div className="absolute bottom-[-120px] left-[18%] h-72 w-72 rounded-full bg-navy-50 blur-3xl" />
 
         <Container size="lg" className="relative max-w-[1400px]">
           {showWelcome && (
-            <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-[#4E8F01]/15 bg-white/85 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur">
+            <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-navy-100 bg-white/85 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur">
               <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
                   <ShieldCheck className="h-4 w-4" />
                 </div>
 
@@ -140,14 +140,14 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
             <div>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-navy-700/90 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
                 <Sparkles className="h-4 w-4 text-white" />
                 Player dashboard
               </div>
 
               <h1 className="font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl">
                 Hi,{' '}
-                <span className="text-[#4E8F01]">
+                <span className="text-navy-700">
                   {user.displayName ?? formatPhoneForDisplay(user.phoneNumber)}
                 </span>
               </h1>
@@ -160,9 +160,9 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
 
             <Card
               variant="default"
-              className="rounded-3xl border-[#4E8F01]/15 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur"
+              className="rounded-3xl border-navy-100 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 This month
               </p>
 
@@ -178,20 +178,20 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                   </p>
                 </div>
 
-                <WalletCards className="h-8 w-8 text-[#4E8F01]" />
+                <WalletCards className="h-8 w-8 text-navy-700" />
               </div>
 
               {monthlyLimitNgn ? (
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-[#4E8F01]"
+                    className="h-full rounded-full bg-navy-800"
                     style={{ width: `${monthlySpentPercent}%` }}
                   />
                 </div>
               ) : (
                 <Link
                   href="/dashboard/responsible-play"
-                  className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+                  className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
                 >
                   Set a limit
                   <ArrowRight className="h-4 w-4" />
@@ -254,7 +254,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
           <section>
             <div className="mb-5 flex items-end justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                   Active draws
                 </p>
                 <h2 className="mt-1 font-display text-3xl font-black tracking-[-0.03em] text-navy-950">
@@ -264,7 +264,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
 
               <Link
                 href="/dashboard/tickets"
-                className="hidden text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601] sm:inline-flex"
+                className="hidden text-sm font-bold text-navy-700 transition hover:text-navy-800 sm:inline-flex"
               >
                 View all tickets →
               </Link>
@@ -275,7 +275,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                 variant="default"
                 className="rounded-3xl border-slate-200 bg-white p-10 text-center shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
               >
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#A8E368]/35 text-[#4E8F01]">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-navy-50 text-navy-700">
                   <Ticket className="h-7 w-7" />
                 </div>
 
@@ -290,7 +290,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                 <Link href="/draws" className="mt-6 inline-block">
                   <Button
                     variant="accent"
-                    className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                    className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                   >
                     Browse active draws
                   </Button>
@@ -310,8 +310,8 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                       href={`/dashboard/tickets/${group.ticketRefs[0]}`}
                       className={
                         i < activeDrawGroups.length - 1
-                          ? 'flex items-center justify-between gap-4 border-b border-slate-100 p-5 transition hover:bg-[#A8E368]/10'
-                          : 'flex items-center justify-between gap-4 p-5 transition hover:bg-[#A8E368]/10'
+                          ? 'flex items-center justify-between gap-4 border-b border-slate-100 p-5 transition hover:bg-amber-50'
+                          : 'flex items-center justify-between gap-4 p-5 transition hover:bg-amber-50'
                       }
                     >
                       <div className="min-w-0 flex-1">
@@ -337,7 +337,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                         </p>
                       </div>
 
-                      <ChevronRight className="h-5 w-5 shrink-0 text-[#4E8F01]" />
+                      <ChevronRight className="h-5 w-5 shrink-0 text-navy-700" />
                     </Link>
                   );
                 })}
@@ -348,9 +348,9 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
           <aside className="space-y-4">
             <Card
               variant="default"
-              className="overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-[#4E8F01] p-6 text-white shadow-[0_24px_70px_rgba(78,143,1,0.22)]"
+              className="overflow-hidden rounded-3xl border-navy-100 bg-navy-800 p-6 text-white shadow-[0_24px_70px_rgba(14,42,71,0.18)]"
             >
-              <div className="inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
+              <div className="inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
                 <Gift className="h-4 w-4" />
                 10-for-1 progress
               </div>
@@ -372,7 +372,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
                 <Button
                   variant="accent"
                   size="md"
-                  className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 hover:!border-transparent hover:bg-[#B7EF79]"
+                  className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
                 >
                   Buy daily tickets
                 </Button>
@@ -383,7 +383,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
               variant="default"
               className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
             >
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Responsible play
               </p>
 
@@ -397,7 +397,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
 
               <Link
                 href="/dashboard/responsible-play"
-                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
               >
                 Manage protection tools
                 <ArrowRight className="h-4 w-4" />
@@ -428,23 +428,23 @@ function DashboardMetric({
       variant="default"
       className={
         highlighted
-          ? 'rounded-2xl border-[#4E8F01]/20 bg-[#A8E368]/15 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]'
+          ? 'rounded-2xl border-navy-200 bg-amber-50 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]'
           : 'rounded-2xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.04)]'
       }
     >
       <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-[#A8E368]/35 text-[#4E8F01]">
+        <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
           {icon}
         </div>
 
         {highlighted && (
-          <span className="rounded-sm bg-[#4E8F01] px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white">
+          <span className="rounded-sm bg-navy-800 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white">
             Bonus
           </span>
         )}
       </div>
 
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
         {label}
       </p>
 

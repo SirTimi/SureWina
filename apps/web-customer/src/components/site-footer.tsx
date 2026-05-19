@@ -34,7 +34,7 @@ const footerGroups = [
 
 export function SiteFooter() {
   return (
-    <footer className="mt-20 bg-[#004D25] text-white">
+    <footer className="mt-20 bg-navy-900 text-white">
       <Container size="lg" className="max-w-[1400px] py-14">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-16">
           <div>
@@ -48,7 +48,7 @@ export function SiteFooter() {
             <div className="mt-7 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
                 <div className="flex items-start gap-3">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#A8E368]" />
+                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
                   <div>
                     <p className="text-sm font-black text-white">
                       Licensed operation
@@ -74,7 +74,7 @@ export function SiteFooter() {
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
             {footerGroups.map((group) => (
               <div key={group.title}>
-                <h3 className="text-xs font-black uppercase tracking-[0.14em] text-[#A8E368]">
+                <h3 className="text-xs font-black uppercase tracking-[0.14em] text-amber-400">
                   {group.title}
                 </h3>
 

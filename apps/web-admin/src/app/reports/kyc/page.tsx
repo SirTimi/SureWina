@@ -83,7 +83,7 @@ function Body() {
                       <div className="inline-flex w-full max-w-[160px] items-center gap-2">
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                           <div
-                            className="h-full rounded-full bg-[#4E8F01]"
+                            className="h-full rounded-full bg-navy-800"
                             style={{ width: `${pct}%` }}
                           />
                         </div>

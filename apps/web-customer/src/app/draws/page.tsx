@@ -44,21 +44,21 @@ export default async function DrawsPage() {
   return (
     <main>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(168,227,104,0.42)_0%,rgba(168,227,104,0.24)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#A8E368_100%)] pb-20 pt-32 sm:pb-24 sm:pt-36 lg:pb-28 lg:pt-40">
-        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-[#A8E368]/30 blur-3xl lg:block" />
-        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-[#4E8F01]/10 blur-3xl" />
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pb-20 pt-32 sm:pb-24 sm:pt-36 lg:pb-28 lg:pt-40">
+        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
+        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
 
         <Container size="lg" className="relative max-w-[1400px]">
           <Link
             href="/"
-            className="mb-8 inline-flex items-center gap-1 text-sm font-bold text-[#4E8F01] transition hover:text-[#3f7601]"
+            className="mb-8 inline-flex items-center gap-1 text-sm font-bold text-navy-700 transition hover:text-navy-800"
           >
             <ChevronRight className="h-3.5 w-3.5 rotate-180" />
             Back to home
           </Link>
 
           <div className="max-w-4xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-[#4E8F01]/85 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-navy-700/90 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur">
               <ShieldCheck className="h-4 w-4 text-white" />
               Active draws · regulated and verifiable
             </div>
@@ -66,7 +66,7 @@ export default async function DrawsPage() {
             <h1 className="font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl lg:text-7xl">
               Every prize
               <br />
-              <span className="text-[#4E8F01]">currently up for grabs.</span>
+              <span className="text-navy-700">currently up for grabs.</span>
             </h1>
 
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
@@ -91,7 +91,7 @@ export default async function DrawsPage() {
           <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
             <div className="mb-8 flex items-end justify-between gap-4">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-sm border border-[#4E8F01]/20 bg-[#A8E368]/20 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+                <div className="inline-flex items-center gap-2 rounded-sm border border-navy-200 bg-amber-50 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-navy-700">
                   <Sparkles className="h-3.5 w-3.5" />
                   The big one
                 </div>
@@ -109,7 +109,7 @@ export default async function DrawsPage() {
 
             <Card
               variant="default"
-              className="overflow-hidden rounded-3xl border-[#4E8F01]/15 bg-[#F8FAF4] p-4 shadow-[0_24px_70px_rgba(15,23,42,0.07)] lg:p-5"
+              className="overflow-hidden rounded-3xl border-navy-100 bg-[#F8FAF4] p-4 shadow-[0_24px_70px_rgba(15,23,42,0.07)] lg:p-5"
             >
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(360px,0.55fr)] lg:items-stretch">
                 <div className="grid grid-cols-1">
@@ -118,13 +118,13 @@ export default async function DrawsPage() {
                   ))}
                 </div>
 
-                <div className="relative overflow-hidden rounded-2xl bg-[#4E8F01] p-6 text-white lg:p-8">
-                  <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#A8E368]/30 blur-3xl" />
+                <div className="relative overflow-hidden rounded-2xl bg-navy-800 p-6 text-white lg:p-8">
+                  <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-navy-50 blur-3xl" />
                   <div className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
 
                   <div className="relative flex h-full flex-col justify-between">
                     <div>
-                      <div className="inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
+                      <div className="inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
                         <Trophy className="h-3.5 w-3.5" />
                         Jackpot draw
                       </div>
@@ -172,7 +172,7 @@ export default async function DrawsPage() {
         <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
           <div className="mb-8 flex items-end justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-sm border border-[#4E8F01]/20 bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+              <div className="inline-flex items-center gap-2 rounded-sm border border-navy-200 bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-navy-700">
                 Daily product draws
               </div>
 
@@ -207,11 +207,11 @@ export default async function DrawsPage() {
       <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
         <Card
           variant="default"
-          className="overflow-hidden rounded-3xl border border-[#A8E368]/35 bg-[#4E8F01] p-8 text-white shadow-[0_24px_70px_rgba(78,143,1,0.22)] sm:p-12"
+          className="overflow-hidden rounded-3xl border border-navy-200 bg-navy-800 p-8 text-white shadow-[0_24px_70px_rgba(14,42,71,0.18)] sm:p-12"
         >
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.35fr_1fr] lg:items-center">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-sm bg-[#A8E368] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-navy-950">
+              <div className="inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-navy-950">
                 <Sparkles className="h-3.5 w-3.5" />
                 The 10-for-1 rule
               </div>
@@ -241,7 +241,7 @@ export default async function DrawsPage() {
                   <Button
                     variant="accent"
                     size="lg"
-                    className="rounded-sm !border-transparent bg-[#A8E368] font-bold text-navy-950 shadow-[0_16px_34px_rgba(78,143,1,0.22)] hover:!border-transparent hover:bg-[#B7EF79]"
+                    className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 shadow-[0_16px_34px_rgba(14,42,71,0.18)] hover:!border-transparent hover:bg-amber-400"
                   >
                     Track my tickets
                     <ArrowRight className="h-4 w-4" />
@@ -251,7 +251,7 @@ export default async function DrawsPage() {
             </div>
 
             <div className="rounded-2xl border border-white/15 bg-white/10 p-6 backdrop-blur">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A8E368]">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
                 The math, simply
               </p>
 
@@ -281,15 +281,15 @@ function Stat({ value, label, wide }: StatProps) {
       variant="default"
       className={
         wide
-          ? 'col-span-2 rounded-2xl border-[#4E8F01]/15 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur md:col-span-1'
-          : 'rounded-2xl border-[#4E8F01]/15 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur'
+          ? 'col-span-2 rounded-2xl border-navy-100 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur md:col-span-1'
+          : 'rounded-2xl border-navy-100 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur'
       }
     >
       <p className="font-display text-2xl font-black tracking-[-0.03em] text-navy-950 tabular-nums sm:text-3xl">
         {value}
       </p>
 
-      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#4E8F01]">
+      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
         {label}
       </p>
     </Card>
@@ -308,7 +308,7 @@ function JackpotPoint({
   return (
     <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-[#A8E368] text-navy-950">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-amber-500 text-navy-950">
           {icon}
         </div>
         <div>
@@ -323,7 +323,7 @@ function JackpotPoint({
 function MathItem({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2">
-      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#A8E368]" />
+      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
       <span>{children}</span>
     </li>
   );

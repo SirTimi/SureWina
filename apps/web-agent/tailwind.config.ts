@@ -1,21 +1,15 @@
 import type { Config } from 'tailwindcss';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const surewinaPreset = require('@surewina/config/tailwind/preset');
 
 const config: Config = {
+  presets: [surewinaPreset],
   content: [
     './src/**/*.{ts,tsx}',
     '../../packages/ui/src/**/*.{ts,tsx}',
   ],
   theme: {
     extend: {
-      colors: {
-        paper: '#F8FAF4',
-        agent: {
-          green: '#4E8F01',
-          lime: '#A8E368',
-          dark: '#052E16',
-          ink: '#071526',
-        },
-      },
       fontFamily: {
         display: ['var(--font-display)', 'Inter', 'system-ui', 'sans-serif'],
       },

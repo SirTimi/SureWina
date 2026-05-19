@@ -100,7 +100,7 @@ export function Sidebar() {
       <div className="flex h-16 items-center gap-3 border-b border-white/5 px-5">
         <Logo />
         <div className="leading-tight">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A8E368]">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
             Admin
           </p>
           <p className="text-xs font-bold text-white/60">Operator console</p>
@@ -125,7 +125,7 @@ export function Sidebar() {
                     href={item.href}
                     className={
                       active
-                        ? 'flex items-center gap-3 rounded-lg bg-[#4E8F01] px-3 py-2 text-sm font-bold text-white shadow-[0_8px_22px_rgba(78,143,1,0.35)]'
+                        ? 'flex items-center gap-3 rounded-lg bg-navy-800 px-3 py-2 text-sm font-bold text-white shadow-[0_8px_22px_rgba(78,143,1,0.35)]'
                         : 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition hover:bg-white/5 hover:text-white'
                     }
                   >

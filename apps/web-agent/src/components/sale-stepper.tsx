@@ -20,9 +20,9 @@ export function SaleStepper({ step }: SaleStepperProps) {
             <div
               className={
                 isActive
-                  ? 'flex h-7 w-7 items-center justify-center rounded-full bg-[#4E8F01] text-xs font-black text-white shadow-[0_4px_18px_rgba(78,143,1,0.36)]'
+                  ? 'flex h-7 w-7 items-center justify-center rounded-full bg-navy-800 text-xs font-black text-white shadow-[0_4px_18px_rgba(14,42,71,0.30)]'
                   : isDone
-                    ? 'flex h-7 w-7 items-center justify-center rounded-full bg-[#A8E368] text-xs font-black text-navy-950'
+                    ? 'flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-xs font-black text-navy-950'
                     : 'flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-black text-slate-400'
               }
             >
@@ -31,7 +31,7 @@ export function SaleStepper({ step }: SaleStepperProps) {
             <p
               className={
                 isActive
-                  ? 'hidden text-[11px] font-black uppercase tracking-[0.14em] text-[#4E8F01] sm:block'
+                  ? 'hidden text-[11px] font-black uppercase tracking-[0.14em] text-navy-700 sm:block'
                   : 'hidden text-[11px] font-black uppercase tracking-[0.14em] text-slate-400 sm:block'
               }
             >
@@ -40,7 +40,7 @@ export function SaleStepper({ step }: SaleStepperProps) {
             {i < STEPS.length - 1 && (
               <div
                 className={
-                  step > s.num ? 'h-px w-6 bg-[#A8E368] sm:w-10' : 'h-px w-6 bg-slate-200 sm:w-10'
+                  step > s.num ? 'h-px w-6 bg-amber-500 sm:w-10' : 'h-px w-6 bg-slate-200 sm:w-10'
                 }
               />
             )}
