@@ -74,14 +74,14 @@ function Body({ id }: { id: string }) {
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
               Commit hash
             </p>
-            <p className="mt-1 break-all font-mono text-xs text-[#0B1220]">
+            <p className="mt-1 break-all font-mono text-xs text-[#1A1816]">
               <KeyRound className="mr-1 inline h-3 w-3" />
               {draw.rngSeedHashCommit ?? '—'}
             </p>
             <p className="mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
               Revealed seed
             </p>
-            <p className="mt-1 break-all font-mono text-xs text-[#0B1220]">
+            <p className="mt-1 break-all font-mono text-xs text-[#1A1816]">
               {draw.rngSeedReveal ?? 'Not yet revealed'}
             </p>
             <p className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">
@@ -172,7 +172,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   return (
     <div className="flex items-center justify-between text-sm">
       <dt className="text-slate-500">{label}</dt>
-      <dd className="font-bold text-[#0B1220] tabular-nums">{children}</dd>
+      <dd className="font-bold text-[#1A1816] tabular-nums">{children}</dd>
     </div>
   );
 }

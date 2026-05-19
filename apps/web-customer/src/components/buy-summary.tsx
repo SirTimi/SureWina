@@ -18,7 +18,7 @@ export function BuySummary({ draw }: BuySummaryProps) {
         variant="default"
         className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.10)]"
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(22,89,150,0.10)_0%,rgba(22,89,150,0.06)_26%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#E8F0FB_100%)]">
+        <div className="relative aspect-[4/3] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(1,58,168,0.10)_0%,rgba(1,58,168,0.06)_26%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#F2F5FB_100%)]">
           <div className="absolute left-4 top-4 z-20 flex gap-2">
             <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
               {drawTypeShortLabel[draw.drawType]}

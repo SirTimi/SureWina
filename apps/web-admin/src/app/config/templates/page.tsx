@@ -73,7 +73,7 @@ function Body() {
                     >
                       <Icon className="mt-0.5 h-4 w-4 text-navy-700" />
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-[#0B1220]">{t.name}</p>
+                        <p className="text-sm font-bold text-[#1A1816]">{t.name}</p>
                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
                           {t.channel}
                         </p>
@@ -112,7 +112,7 @@ function Body() {
           </SectionCard>
 
           <SectionCard title="Preview">
-            <p className="rounded-md border border-slate-200 bg-[#F8FAF4] p-3 font-mono text-sm text-[#0B1220]">
+            <p className="rounded-md border border-slate-200 bg-[#F8FAF4] p-3 font-mono text-sm text-[#1A1816]">
               {draft.body
                 .replace(/\{\{ticket_ref\}\}/g, 'SW-04AB-9LK2')
                 .replace(/\{\{prize\}\}/g, 'Samsung Galaxy A55 5G')

@@ -98,7 +98,7 @@ export default function ReportsHubPage() {
                     <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-navy-50 text-navy-700">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <p className="text-base font-black text-[#0B1220] group-hover:text-navy-700">
+                    <p className="text-base font-black text-[#1A1816] group-hover:text-navy-700">
                       {r.label}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">{r.description}</p>

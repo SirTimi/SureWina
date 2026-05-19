@@ -33,7 +33,7 @@ export function AdminHeader({ session }: AdminHeaderProps) {
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
             Surewina admin
           </p>
-          <p className="truncate text-sm font-bold text-[#0B1220]">
+          <p className="truncate text-sm font-bold text-[#1A1816]">
             {greeting()}, {session.fullName.split(' ')[0]}
           </p>
         </div>
@@ -61,11 +61,11 @@ export function AdminHeader({ session }: AdminHeaderProps) {
           </button>
 
           <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1220] text-xs font-black text-white">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1A1816] text-xs font-black text-white">
               {initials}
             </div>
             <div className="hidden text-right leading-tight md:block">
-              <p className="text-xs font-bold text-[#0B1220]">{session.fullName}</p>
+              <p className="text-xs font-bold text-[#1A1816]">{session.fullName}</p>
               <p className="text-[10px] text-slate-500">{session.email}</p>
             </div>
           </div>

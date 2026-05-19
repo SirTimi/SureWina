@@ -60,7 +60,7 @@ function Body({ id }: { id: string }) {
             )}
             <Button
               variant="secondary"
-              className="rounded-md border-slate-200 bg-white text-[#0B1220]"
+              className="rounded-md border-slate-200 bg-white text-[#1A1816]"
             >
               <Pencil className="h-4 w-4" />
               Edit notes
@@ -108,7 +108,7 @@ function Body({ id }: { id: string }) {
                       <td className="px-4 py-2">
                         <Link
                           href={`/tickets/${t.ticketRef}`}
-                          className="font-mono text-sm font-black text-[#0B1220] hover:text-navy-700"
+                          className="font-mono text-sm font-black text-[#1A1816] hover:text-navy-700"
                         >
                           {t.ticketRef}
                         </Link>
@@ -143,7 +143,7 @@ function Body({ id }: { id: string }) {
                   href={`/claims/${c.claimId}`}
                   className="block border-b border-slate-100 p-3 last:border-b-0 hover:bg-[#F8FAF4]"
                 >
-                  <p className="text-sm font-black text-[#0B1220]">{c.prizeDescription}</p>
+                  <p className="text-sm font-black text-[#1A1816]">{c.prizeDescription}</p>
                   <p className="font-mono text-xs text-slate-500">{c.ticketRef}</p>
                   <p className="mt-1">
                     <StatusPill tone={statusToTone(c.stage)}>{c.stage}</StatusPill>
@@ -184,7 +184,7 @@ function Stat({
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
         {label}
       </p>
-      <p className="mt-0.5 truncate font-display text-base font-black text-[#0B1220]">
+      <p className="mt-0.5 truncate font-display text-base font-black text-[#1A1816]">
         {children}
       </p>
     </div>

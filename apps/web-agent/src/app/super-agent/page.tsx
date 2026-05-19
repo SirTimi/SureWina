@@ -43,7 +43,7 @@ function SuperAgentBody() {
         backHref="/"
       />
 
-      <Card className="rounded-3xl border-navy-100 bg-gradient-to-br from-navy-800 to-navy-900 p-5 text-white shadow-[0_24px_60px_rgba(14,42,71,0.16)]">
+      <Card className="rounded-3xl border-navy-100 bg-gradient-to-br from-navy-800 to-navy-900 p-5 text-white shadow-[0_24px_60px_rgba(1,58,168,0.16)]">
         <div className="flex items-start gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur">
             <Crown className="h-6 w-6" />

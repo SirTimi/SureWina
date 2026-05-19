@@ -54,7 +54,7 @@ function Body({ id }: { id: string }) {
             <Link href={`/claims/${claim.claimId}/notify`}>
               <Button
                 variant="secondary"
-                className="rounded-md border-slate-200 bg-white text-[#0B1220]"
+                className="rounded-md border-slate-200 bg-white text-[#1A1816]"
               >
                 <BellRing className="h-4 w-4" />
                 Send notification
@@ -86,7 +86,7 @@ function Body({ id }: { id: string }) {
                 <li key={i} className="flex items-start gap-3">
                   <div className="mt-1.5 h-2 w-2 rounded-full bg-navy-800" />
                   <div>
-                    <p className="text-sm font-bold text-[#0B1220]">{e.label}</p>
+                    <p className="text-sm font-bold text-[#1A1816]">{e.label}</p>
                     <p className="text-xs text-slate-500">
                       {new Date(e.at!).toLocaleString('en-NG')}
                     </p>
@@ -96,7 +96,7 @@ function Body({ id }: { id: string }) {
               <li className="flex items-start gap-3 opacity-60">
                 <div className="mt-1.5 h-2 w-2 rounded-full border border-slate-300 bg-white" />
                 <div>
-                  <p className="text-sm font-bold text-[#0B1220]">Forfeit window</p>
+                  <p className="text-sm font-bold text-[#1A1816]">Forfeit window</p>
                   <p className="text-xs text-slate-500">
                     {new Date(claim.forfeitsAt).toLocaleString('en-NG')}
                   </p>
@@ -124,7 +124,7 @@ function Body({ id }: { id: string }) {
 
         {claim.notes && (
           <SectionCard title="Operator notes">
-            <p className="text-sm leading-relaxed text-[#0B1220]">{claim.notes}</p>
+            <p className="text-sm leading-relaxed text-[#1A1816]">{claim.notes}</p>
           </SectionCard>
         )}
       </div>
@@ -149,7 +149,7 @@ function Stat({
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
         {label}
       </p>
-      <p className="mt-0.5 truncate text-sm font-bold text-[#0B1220]">{children}</p>
+      <p className="mt-0.5 truncate text-sm font-bold text-[#1A1816]">{children}</p>
     </div>
   );
 }

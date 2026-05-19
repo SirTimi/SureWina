@@ -87,7 +87,7 @@ export default function AdminSignInPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0B1220] px-4 py-6 text-white">
+    <main className="min-h-screen bg-[#1A1816] px-4 py-6 text-white">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-[1100px] flex-col">
         <div className="flex h-16 items-center justify-between">
           <Logo />
@@ -129,7 +129,7 @@ export default function AdminSignInPage() {
 
           <Card
             variant="default"
-            className="rounded-3xl border-white/10 bg-white p-6 text-[#0B1220] shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
+            className="rounded-3xl border-white/10 bg-white p-6 text-[#1A1816] shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
           >
             <div className="mb-5">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-navy-50 text-navy-700">
@@ -157,7 +157,7 @@ export default function AdminSignInPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@surewina.ng"
-                    className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-[#0B1220] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
+                    className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-[#1A1816] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
                   />
                 </Field>
                 <Field label="Password">
@@ -166,7 +166,7 @@ export default function AdminSignInPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-[#0B1220] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
+                    className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-[#1A1816] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
                   />
                 </Field>
                 {error && <ErrorMsg>{error}</ErrorMsg>}
@@ -175,7 +175,7 @@ export default function AdminSignInPage() {
                   variant="accent"
                   size="lg"
                   fullWidth
-                  className="rounded-md !border-transparent bg-amber-500 font-black text-[#0B1220] hover:!border-transparent hover:bg-amber-400"
+                  className="rounded-md !border-transparent bg-amber-500 font-black text-[#1A1816] hover:!border-transparent hover:bg-amber-400"
                 >
                   Continue
                   <ArrowRight className="h-4 w-4" />
@@ -189,7 +189,7 @@ export default function AdminSignInPage() {
                     value={mfa}
                     onChange={(e) => setMfa(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="000000"
-                    className="h-14 w-full rounded-lg border border-slate-200 bg-white px-3 text-center font-mono text-2xl font-black tracking-[0.24em] text-[#0B1220] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
+                    className="h-14 w-full rounded-lg border border-slate-200 bg-white px-3 text-center font-mono text-2xl font-black tracking-[0.24em] text-[#1A1816] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
                   />
                 </Field>
                 <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
@@ -201,7 +201,7 @@ export default function AdminSignInPage() {
                   variant="accent"
                   size="lg"
                   fullWidth
-                  className="rounded-md !border-transparent bg-amber-500 font-black text-[#0B1220] hover:!border-transparent hover:bg-amber-400"
+                  className="rounded-md !border-transparent bg-amber-500 font-black text-[#1A1816] hover:!border-transparent hover:bg-amber-400"
                 >
                   Verify & sign in
                   <ArrowRight className="h-4 w-4" />
@@ -229,7 +229,7 @@ export default function AdminSignInPage() {
                     className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-xs hover:border-navy-200 hover:bg-[#F8FAF4]"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-[#0B1220]">
+                      <p className="truncate text-sm font-bold text-[#1A1816]">
                         {opt.fullName}
                       </p>
                       <p className="truncate text-xs text-slate-500">
@@ -251,7 +251,7 @@ export default function AdminSignInPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-bold text-[#0B1220]">{label}</span>
+      <span className="mb-1.5 block text-sm font-bold text-[#1A1816]">{label}</span>
       {children}
     </label>
   );

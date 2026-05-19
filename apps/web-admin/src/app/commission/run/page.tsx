@@ -53,7 +53,7 @@ function Body() {
               <PlayCircle className="h-6 w-6" />
             </div>
             <div>
-              <p className="font-display text-2xl font-black text-[#0B1220] tabular-nums">
+              <p className="font-display text-2xl font-black text-[#1A1816] tabular-nums">
                 {formatNaira(total)}
               </p>
               <p className="text-sm text-slate-500">
@@ -95,7 +95,7 @@ function Body() {
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-base font-black text-[#0B1220]">Final confirmation</p>
+                <p className="text-base font-black text-[#1A1816]">Final confirmation</p>
                 <p className="text-xs text-slate-500">
                   This action transfers {formatNaira(total)} to {new Set(accrued.map((a) => a.agentCode)).size} agents and cannot be undone.
                 </p>
@@ -125,7 +125,7 @@ function Body() {
           <SectionCard title="Running…">
             <div className="flex items-center gap-3">
               <RotateCw className="h-5 w-5 animate-spin text-navy-700" />
-              <p className="text-sm font-bold text-[#0B1220]">
+              <p className="text-sm font-bold text-[#1A1816]">
                 Processing {progress} of {accrued.length} entries
               </p>
             </div>
@@ -159,7 +159,7 @@ function Body() {
 function Check({ label, status }: { label: string; status: 'OK' | 'FAIL' }) {
   return (
     <li className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-[#F8FAF4] px-3 py-2 text-sm">
-      <span className="text-[#0B1220]">{label}</span>
+      <span className="text-[#1A1816]">{label}</span>
       <span
         className={
           status === 'OK'

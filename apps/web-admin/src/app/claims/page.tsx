@@ -81,8 +81,8 @@ function KanbanCard({ claim }: { claim: Claim }) {
       href={`/claims/${claim.claimId}`}
       className="block rounded-md border border-black/5 bg-white p-3 shadow-sm transition hover:border-navy-200 hover:shadow-md"
     >
-      <p className="font-mono text-xs font-black text-[#0B1220]">{claim.ticketRef}</p>
-      <p className="mt-1 truncate text-sm font-bold text-[#0B1220]">
+      <p className="font-mono text-xs font-black text-[#1A1816]">{claim.ticketRef}</p>
+      <p className="mt-1 truncate text-sm font-bold text-[#1A1816]">
         {claim.prizeDescription}
       </p>
       <p className="text-xs font-bold tabular-nums text-navy-700">

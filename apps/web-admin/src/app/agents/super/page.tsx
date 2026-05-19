@@ -55,7 +55,7 @@ function Body() {
                   <div>
                     <Link
                       href={`/agents/${a.agentCode}`}
-                      className="font-bold text-[#0B1220] hover:text-navy-700"
+                      className="font-bold text-[#1A1816] hover:text-navy-700"
                     >
                       {a.fullName}
                     </Link>
@@ -98,7 +98,7 @@ function Body() {
           rightSlot={
             <Button
               variant="secondary"
-              className="rounded-md border-slate-200 bg-white text-[#0B1220]"
+              className="rounded-md border-slate-200 bg-white text-[#1A1816]"
             >
               <Pencil className="h-4 w-4" />
               Edit tiers

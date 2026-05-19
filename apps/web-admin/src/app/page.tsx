@@ -158,7 +158,7 @@ function DashboardBody() {
                     return (
                       <tr key={d.drawCode}>
                         <td className="px-4 py-3">
-                          <p className="font-bold text-[#0B1220]">{d.prizeDescription}</p>
+                          <p className="font-bold text-[#1A1816]">{d.prizeDescription}</p>
                           <p className="font-mono text-xs text-slate-500">{d.drawCode}</p>
                         </td>
                         <td className="px-4 py-3">
@@ -310,7 +310,7 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold text-[#0B1220] shadow-sm transition hover:border-navy-200 hover:bg-[#F8FAF4]"
+      className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold text-[#1A1816] shadow-sm transition hover:border-navy-200 hover:bg-[#F8FAF4]"
     >
       <span className="flex items-center gap-2">
         <span className="flex h-8 w-8 items-center justify-center rounded-md bg-navy-50 text-navy-700">

@@ -17,10 +17,10 @@ const variantStyles: Record<ButtonVariant, string> = {
   primary:
     'bg-navy-800 text-white hover:bg-navy-700 active:bg-navy-900 border border-navy-800',
   // Accent = amber-500 = the ONE most important commercial CTA per page (e.g. "Buy a ticket")
-  // Navy text on yellow — best contrast on amber-500 and matches the brand direction
-  // (blue primary, yellow secondary, green as success-only).
+  // Dark navy text on bright yellow — design palette specifies darker golden #E0A916
+  // (amber-700) as the hover state, not a lighter yellow.
   accent:
-    'bg-amber-500 text-navy-900 hover:bg-amber-400 active:bg-amber-500 border border-amber-500',
+    'bg-amber-500 text-navy-900 hover:bg-amber-700 active:bg-amber-500 border border-amber-500',
   // Secondary = white-with-border default
   secondary:
     'bg-white text-ink-950 hover:bg-ink-50 active:bg-ink-100 border border-ink-200',

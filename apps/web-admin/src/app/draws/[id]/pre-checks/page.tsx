@@ -149,7 +149,7 @@ function Body({ id }: { id: string }) {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-black text-[#0B1220]">{c.label}</p>
+                <p className="text-sm font-black text-[#1A1816]">{c.label}</p>
                 <p className="mt-0.5 text-xs text-slate-500">{c.description}</p>
               </div>
               <span

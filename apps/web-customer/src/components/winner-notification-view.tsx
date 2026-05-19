@@ -64,7 +64,7 @@ export function WinnerNotificationView({ claimId }: WinnerNotificationViewProps)
 
       <Container size="md" className="relative z-10 max-w-[820px] py-16 lg:py-24">
         {/* Pill */}
-        <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-amber-300/20 bg-gradient-to-r from-amber-400 to-amber-500 px-5 py-2.5 text-sm font-bold uppercase tracking-[0.18em] text-navy-950 shadow-[0_8px_30px_rgba(245,158,11,0.25)]">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-sm border border-amber-300/20 bg-gradient-to-r from-amber-400 to-amber-500 px-5 py-2.5 text-sm font-bold uppercase tracking-[0.18em] text-navy-950 shadow-[0_8px_30px_rgba(249,203,11,0.25)]">
           <Sparkles className="h-4 w-4" />
           You won
         </div>
@@ -156,7 +156,7 @@ export function WinnerNotificationView({ claimId }: WinnerNotificationViewProps)
               <Button
                 variant="accent"
                 size="lg"
-                className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 shadow-[0_16px_34px_rgba(14,42,71,0.18)] hover:!border-transparent hover:bg-amber-400"
+                className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 shadow-[0_16px_34px_rgba(1,58,168,0.18)] hover:!border-transparent hover:bg-amber-400"
               >
                 Claim my prize
                 <ArrowRight className="h-4 w-4" />

@@ -19,7 +19,7 @@ export default async function ProcessingPage({ params, searchParams }: Processin
 
   if (!session || !qty || !phone) {
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pt-32">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(249,203,11,0.18)_0%,rgba(249,203,11,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#F2F5FB_100%)] pt-32">
         <Container size="sm" className="pb-16">
           <Card
             variant="default"
@@ -48,7 +48,7 @@ export default async function ProcessingPage({ params, searchParams }: Processin
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pt-32">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(249,203,11,0.18)_0%,rgba(249,203,11,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#F2F5FB_100%)] pt-32">
       <Container size="sm" className="pb-16">
         <Suspense
           fallback={

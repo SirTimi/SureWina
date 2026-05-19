@@ -42,7 +42,7 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
 
   return (
     <main>
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pb-12 pt-32 sm:pt-36 lg:pt-40">
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(249,203,11,0.18)_0%,rgba(249,203,11,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#F2F5FB_100%)] pb-12 pt-32 sm:pt-36 lg:pt-40">
         <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
         <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
 
@@ -108,7 +108,7 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
                 variant="default"
                 className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.07)]"
               >
-                <div className="relative min-h-[440px] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(22,89,150,0.10)_0%,rgba(22,89,150,0.06)_26%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#E8F0FB_100%)]">
+                <div className="relative min-h-[440px] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(1,58,168,0.10)_0%,rgba(1,58,168,0.06)_26%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#F2F5FB_100%)]">
                   <div className="absolute left-6 top-6 z-20 flex gap-2">
                     <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
                       {drawTypeShortLabel[draw.drawType]}

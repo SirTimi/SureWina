@@ -318,7 +318,7 @@ export default function AuditPage() {
 
               <Card
                 variant="default"
-                className="mt-5 overflow-hidden rounded-3xl border-navy-100 bg-navy-800 p-8 text-white shadow-[0_24px_70px_rgba(14,42,71,0.18)] sm:p-10"
+                className="mt-5 overflow-hidden rounded-3xl border-navy-100 bg-navy-800 p-8 text-white shadow-[0_24px_70px_rgba(1,58,168,0.18)] sm:p-10"
               >
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
                   <div>

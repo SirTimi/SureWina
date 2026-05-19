@@ -48,7 +48,7 @@ function Body() {
               key: 'cert',
               header: 'Certificate',
               render: (p) => (
-                <span className="font-mono text-xs font-black text-[#0B1220]">
+                <span className="font-mono text-xs font-black text-[#1A1816]">
                   {p.whtCertificateNo}
                 </span>
               ),
@@ -58,7 +58,7 @@ function Body() {
               header: 'Customer',
               render: (p) => (
                 <div>
-                  <p className="font-bold text-[#0B1220]">{p.customerName}</p>
+                  <p className="font-bold text-[#1A1816]">{p.customerName}</p>
                   <p className="font-mono text-xs text-slate-500">{p.customerPhoneE164}</p>
                 </div>
               ),
@@ -89,7 +89,7 @@ function Body() {
           toolbar={
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-[#0B1220]"
+              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-bold text-[#1A1816]"
             >
               <Download className="h-4 w-4" />
               Bulk export

@@ -54,7 +54,7 @@ function Body() {
           <Button
             variant="secondary"
             onClick={download}
-            className="rounded-md border-slate-200 bg-white text-[#0B1220]"
+            className="rounded-md border-slate-200 bg-white text-[#1A1816]"
           >
             <Download className="h-4 w-4" />
             Export CSV
@@ -71,7 +71,7 @@ function Body() {
               onClick={() => setPeriod(p)}
               className={
                 period === p
-                  ? 'rounded-md bg-[#0B1220] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white'
+                  ? 'rounded-md bg-[#1A1816] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white'
                   : 'rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 hover:bg-slate-50'
               }
             >
@@ -141,7 +141,7 @@ function Row({
             ? 'text-red-700'
             : positive
               ? 'text-emerald-700'
-              : 'text-[#0B1220]')
+              : 'text-[#1A1816]')
         }
       >
         {value < 0

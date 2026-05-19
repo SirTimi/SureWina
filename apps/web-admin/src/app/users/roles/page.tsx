@@ -142,7 +142,7 @@ function Body() {
               <tbody className="divide-y divide-slate-100">
                 {area.rows.map((row) => (
                   <tr key={row.label}>
-                    <td className="px-4 py-2 font-bold text-[#0B1220]">{row.label}</td>
+                    <td className="px-4 py-2 font-bold text-[#1A1816]">{row.label}</td>
                     {ROLES.map((r) => (
                       <td key={r} className="px-4 py-2 text-center">
                         <PermCell value={row.roles[r]} />

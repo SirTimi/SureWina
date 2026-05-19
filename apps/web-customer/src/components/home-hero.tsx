@@ -10,7 +10,7 @@ interface HomeHeroProps {
 
 export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps) {
   return (
-    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(22,89,150,0.10)_0%,rgba(22,89,150,0.05)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#F5F8FF_60%,#E8F0FB_100%)]">
+    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(1,58,168,0.10)_0%,rgba(1,58,168,0.05)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#F2F5FB_60%,#F2F5FB_100%)]">
       <style>
         {`
           @keyframes surewina-float {
@@ -63,7 +63,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
                 <Button
                   variant="accent"
                   size="lg"
-                  className="rounded-sm font-bold shadow-[0_16px_34px_rgba(216,122,24,0.28)]"
+                  className="rounded-sm font-bold shadow-[0_16px_34px_rgba(249,203,11,0.28)]"
                 >
                   Buy a ticket {formatNaira(primaryTicketPrice)}
                   <ArrowRight className="h-4 w-4" />

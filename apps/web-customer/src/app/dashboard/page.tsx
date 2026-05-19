@@ -107,7 +107,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
 
   return (
     <main className="min-h-screen bg-[#F8FAF4]">
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(22,89,150,0.10)_0%,rgba(22,89,150,0.06)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_52%,#E8F0FB_100%)] py-10">
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(1,58,168,0.10)_0%,rgba(1,58,168,0.06)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_52%,#F2F5FB_100%)] py-10">
         <div className="absolute right-[-8%] top-1/2 hidden h-[420px] w-[420px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
         <div className="absolute bottom-[-120px] left-[18%] h-72 w-72 rounded-full bg-navy-50 blur-3xl" />
 
@@ -348,7 +348,7 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
           <aside className="space-y-4">
             <Card
               variant="default"
-              className="overflow-hidden rounded-3xl border-navy-100 bg-navy-800 p-6 text-white shadow-[0_24px_70px_rgba(14,42,71,0.18)]"
+              className="overflow-hidden rounded-3xl border-navy-100 bg-navy-800 p-6 text-white shadow-[0_24px_70px_rgba(1,58,168,0.18)]"
             >
               <div className="inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
                 <Gift className="h-4 w-4" />

@@ -108,7 +108,7 @@ function Body({ ref_ }: { ref_: string }) {
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-[#0B1220]">{e.label}</p>
+                      <p className="text-sm font-bold text-[#1A1816]">{e.label}</p>
                       <p className="text-xs text-slate-500">
                         {new Date(e.at).toLocaleString('en-NG')}
                       </p>
@@ -130,7 +130,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <dt className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
         {label}
       </dt>
-      <dd className="mt-1 text-sm font-bold text-[#0B1220]">{children}</dd>
+      <dd className="mt-1 text-sm font-bold text-[#1A1816]">{children}</dd>
     </div>
   );
 }

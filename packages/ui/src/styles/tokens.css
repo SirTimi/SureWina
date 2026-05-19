@@ -1,39 +1,51 @@
 :root {
-  /* === Brand · Navy (primary scale) === */
-  --color-navy-50: 238 242 248;
-  --color-navy-100: 220 229 240;
-  --color-navy-500: 45 99 149;
-  --color-navy-700: 22 89 150;
-  --color-navy-800: 14 42 71;
-  --color-navy-900: 10 31 54;
-  --color-navy-950: 6 21 40;
+  /* === Brand · Blue (primary) ===
+     Hex values straight from the official palette:
+     - 800: #013AA8 PRIMARY brand surface (buttons, footer, hero)
+     - 700: #1F4FB0 hover / links / active state
+     - 500: #2859C2 accent (icons, highlights)
+     - 100: #B4C7E4 muted blue border (cards, dividers)
+     -  50: #F2F5FB light page background */
+  --color-navy-50: 242 245 251;
+  --color-navy-100: 180 199 228;
+  --color-navy-500: 40 89 194;
+  --color-navy-700: 31 79 176;
+  --color-navy-800: 1 58 168;
+  --color-navy-900: 1 46 134;
+  --color-navy-950: 1 35 102;
 
-  /* === Accent · Burnt Amber === */
-  --color-amber-50: 251 242 230;
-  --color-amber-100: 248 230 210;
-  --color-amber-400: 230 149 68;
-  --color-amber-500: 216 122 24;
-  --color-amber-700: 164 90 18;
+  /* === Accent · Yellow (CTA) ===
+     - 500: #F9CB0B PRIMARY CTA (Buy/Sell ticket)
+     - 700: #E0A916 CTA hover / warning badges
+     - 100: #F6D469 soft notification/warning surfaces */
+  --color-amber-50: 254 249 219;
+  --color-amber-100: 246 212 105;
+  --color-amber-400: 251 222 82;
+  --color-amber-500: 249 203 11;
+  --color-amber-700: 224 169 22;
 
-  /* === Semantic === */
-  /* Success: bright emerald — used as the platform-wide green for PAID, ACTIVE,
-     DELIVERED, positive deltas, and seed-hash verification. Green appears ONLY
-     in success contexts. Anything brand-related is navy + amber. */
-  --color-success-100: 209 250 229;
-  --color-success-500: 22 163 74;
-  --color-warning-100: 254 243 199;
-  --color-warning-500: 217 119 6;
+  /* === Semantic ===
+     Success is the ONLY green on the platform: #609E1E for PAID, ACTIVE,
+     DELIVERED, positive deltas, seed-hash verification. Warning is golden
+     yellow. Danger is red. */
+  --color-success-100: 145 204 66;
+  --color-success-500: 96 158 30;
+  --color-warning-100: 246 212 105;
+  --color-warning-500: 224 169 22;
   --color-danger-100: 254 226 226;
   --color-danger-500: 220 38 38;
 
-  /* === Neutrals · Warm-leaning === */
-  --color-ink-50: 241 242 245;
-  --color-ink-100: 228 230 234;
-  --color-ink-200: 201 205 211;
-  --color-ink-300: 165 170 178;
-  --color-ink-500: 90 104 105;
-  --color-ink-700: 53 58 66;
-  --color-ink-950: 8 15 20;
+  /* === Neutrals · Warm-leaning ===
+     - 950: #1A1816 dark text (headings/body)
+     - 500: #5E5F62 muted text (metadata)
+     - 300: #999EA7 neutral grey (disabled, secondary labels) */
+  --color-ink-50: 248 248 248;
+  --color-ink-100: 240 240 240;
+  --color-ink-200: 220 220 222;
+  --color-ink-300: 153 158 167;
+  --color-ink-500: 94 95 98;
+  --color-ink-700: 46 47 50;
+  --color-ink-950: 26 24 22;
 
   --color-paper: 250 250 247;
 
@@ -46,7 +58,8 @@
   --color-primary: var(--color-navy-800);
   --color-primary-foreground: 255 255 255;
   --color-accent: var(--color-amber-500);
-  --color-accent-foreground: 255 255 255;
+  /* Dark-blue text on yellow CTAs — better contrast than white-on-#F9CB0B. */
+  --color-accent-foreground: 1 46 134;
   --color-secondary: var(--color-ink-500);
   --color-secondary-foreground: 255 255 255;
   --color-success: var(--color-success-500);

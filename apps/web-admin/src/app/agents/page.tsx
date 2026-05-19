@@ -31,7 +31,7 @@ function Body() {
           <div className="flex items-center gap-2">
             <Link
               href="/agents/super"
-              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[#0B1220] hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[#1A1816] hover:bg-slate-50"
             >
               <GitBranch className="h-4 w-4" />
               Super-agents
@@ -65,7 +65,7 @@ function Body() {
                 <div>
                   <Link
                     href={`/agents/${a.agentCode}`}
-                    className="font-bold text-[#0B1220] hover:text-navy-700"
+                    className="font-bold text-[#1A1816] hover:text-navy-700"
                   >
                     {a.fullName}
                   </Link>

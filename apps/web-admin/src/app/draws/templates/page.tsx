@@ -90,7 +90,7 @@ function Body() {
                   <Repeat className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-base font-black text-[#0B1220]">{t.name}</p>
+                  <p className="text-base font-black text-[#1A1816]">{t.name}</p>
                   <p className="mt-1 text-xs text-slate-500">{t.cadence}</p>
                 </div>
               </div>
@@ -102,7 +102,7 @@ function Body() {
                 <button
                   type="button"
                   onClick={() => toggle(t.id)}
-                  className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-[#0B1220] hover:bg-slate-50"
+                  className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-[#1A1816] hover:bg-slate-50"
                 >
                   <Settings2 className="h-3.5 w-3.5" />
                   {t.enabled ? 'Pause' : 'Resume'}
@@ -131,7 +131,7 @@ function Body() {
                 {t.prizeRotation.map((p, i) => (
                   <span
                     key={i}
-                    className="rounded-md border border-slate-200 bg-[#F8FAF4] px-2.5 py-1 text-xs font-bold text-[#0B1220]"
+                    className="rounded-md border border-slate-200 bg-[#F8FAF4] px-2.5 py-1 text-xs font-bold text-[#1A1816]"
                   >
                     {p}
                   </span>
@@ -151,7 +151,7 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
         {label}
       </p>
-      <p className="mt-0.5 text-sm font-bold text-[#0B1220]">{children}</p>
+      <p className="mt-0.5 text-sm font-bold text-[#1A1816]">{children}</p>
     </div>
   );
 }

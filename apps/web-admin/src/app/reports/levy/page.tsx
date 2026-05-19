@@ -53,7 +53,7 @@ function Body() {
           <Button
             variant="secondary"
             onClick={download}
-            className="rounded-md border-slate-200 bg-white text-[#0B1220]"
+            className="rounded-md border-slate-200 bg-white text-[#1A1816]"
           >
             <Download className="h-4 w-4" />
             Export CSV

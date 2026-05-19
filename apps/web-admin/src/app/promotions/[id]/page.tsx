@@ -50,7 +50,7 @@ function Body({ id }: { id: string }) {
             <StatusPill tone={statusToTone(promo.status)}>{promo.status}</StatusPill>
             <Button
               variant="secondary"
-              className="rounded-md border-slate-200 bg-white text-[#0B1220]"
+              className="rounded-md border-slate-200 bg-white text-[#1A1816]"
             >
               {promo.status === 'ACTIVE' ? (
                 <>
@@ -147,7 +147,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
         {label}
       </span>
-      <span className="text-sm font-bold text-[#0B1220]">{children}</span>
+      <span className="text-sm font-bold text-[#1A1816]">{children}</span>
     </label>
   );
 }

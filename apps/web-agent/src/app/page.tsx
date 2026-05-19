@@ -59,7 +59,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
 
   return (
     <main className="mx-auto max-w-[1180px] px-4 pb-10 pt-5">
-      <section className="rounded-3xl bg-navy-800 p-5 text-white shadow-[0_24px_70px_rgba(14,42,71,0.16)] sm:p-6">
+      <section className="rounded-3xl bg-navy-800 p-5 text-white shadow-[0_24px_70px_rgba(1,58,168,0.16)] sm:p-6">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-center">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">

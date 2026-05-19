@@ -69,7 +69,7 @@ function Body({ id }: { id: string }) {
                       <FileText className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-[#0B1220]">{d.label}</p>
+                      <p className="text-sm font-bold text-[#1A1816]">{d.label}</p>
                       <p className="text-xs text-slate-500">
                         Uploaded{' '}
                         {new Date(d.uploadedAt).toLocaleDateString('en-NG', {
@@ -156,7 +156,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
         {label}
       </p>
-      <p className="mt-0.5 text-sm font-bold text-[#0B1220]">{children}</p>
+      <p className="mt-0.5 text-sm font-bold text-[#1A1816]">{children}</p>
     </div>
   );
 }

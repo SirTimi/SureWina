@@ -17,7 +17,7 @@ const items = [
 
 export function SignInTrustPanel() {
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-navy-800 p-10 text-white shadow-[0_28px_80px_rgba(14,42,71,0.18)]">
+    <div className="relative overflow-hidden rounded-3xl bg-navy-800 p-10 text-white shadow-[0_28px_80px_rgba(1,58,168,0.18)]">
       <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
       <div className="absolute -bottom-24 left-1/3 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
 

@@ -26,7 +26,7 @@ export function JackpotExplainer() {
 
       <Container size="lg" className="max-w-[1500px]">
         <div
-          className="relative ml-[calc(50%-50vw)] w-[calc(100vw-2.5rem)] max-w-[1220px] overflow-hidden rounded-r-[36px] border border-amber-400/30 bg-navy-800 py-8 pr-8 pl-12 text-white shadow-[0_28px_80px_rgba(14,42,71,0.32)] sm:w-[calc(100vw-4rem)] sm:py-10 sm:pr-10 sm:pl-16 lg:w-[calc(100vw-10rem)] lg:pl-20 xl:w-[calc(100vw-14rem)] 2xl:w-[1180px]"
+          className="relative ml-[calc(50%-50vw)] w-[calc(100vw-2.5rem)] max-w-[1220px] overflow-hidden rounded-r-[36px] border border-amber-400/30 bg-navy-800 py-8 pr-8 pl-12 text-white shadow-[0_28px_80px_rgba(1,58,168,0.32)] sm:w-[calc(100vw-4rem)] sm:py-10 sm:pr-10 sm:pl-16 lg:w-[calc(100vw-10rem)] lg:pl-20 xl:w-[calc(100vw-14rem)] 2xl:w-[1180px]"
           style={{ animation: 'giant-ticket-enter 900ms ease-out both' }}
         >
           <div className="absolute -right-10 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full bg-white" />

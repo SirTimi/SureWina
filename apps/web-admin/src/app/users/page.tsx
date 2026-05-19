@@ -30,7 +30,7 @@ function Body() {
           <div className="flex items-center gap-2">
             <Link
               href="/users/roles"
-              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[#0B1220] hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[#1A1816] hover:bg-slate-50"
             >
               <ShieldCheck className="h-4 w-4" />
               Roles & permissions
@@ -60,7 +60,7 @@ function Body() {
               header: 'User',
               render: (u) => (
                 <div>
-                  <p className="font-bold text-[#0B1220]">{u.fullName}</p>
+                  <p className="font-bold text-[#1A1816]">{u.fullName}</p>
                   <p className="text-xs text-slate-500">{u.email}</p>
                 </div>
               ),

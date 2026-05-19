@@ -80,19 +80,19 @@ function Body() {
         </div>
 
         <SectionCard title="Headline narrative">
-          <p className="text-sm leading-relaxed text-[#0B1220]">
+          <p className="text-sm leading-relaxed text-[#1A1816]">
             Surewina processed{' '}
             <span className="font-bold text-navy-700">
               {formatNaira(pnl.revenueNgn)}
             </span>{' '}
             of ticket revenue this month across{' '}
-            <span className="font-bold text-[#0B1220]">{draws.length}</span> executed
+            <span className="font-bold text-[#1A1816]">{draws.length}</span> executed
             draws.{' '}
             <span className="font-bold text-emerald-700">
               {agents.filter((a) => a.status === 'ACTIVE').length}
             </span>{' '}
             agents were active, serving{' '}
-            <span className="font-bold text-[#0B1220]">{customers.length}</span>{' '}
+            <span className="font-bold text-[#1A1816]">{customers.length}</span>{' '}
             customers. The net P&L was{' '}
             <span
               className={`font-bold ${pnl.netNgn >= 0 ? 'text-emerald-700' : 'text-red-700'}`}

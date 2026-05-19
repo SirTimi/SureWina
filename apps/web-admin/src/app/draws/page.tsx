@@ -45,7 +45,7 @@ function Body() {
           <div className="flex items-center gap-2">
             <Link
               href="/draws/templates"
-              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[#0B1220] hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[#1A1816] hover:bg-slate-50"
             >
               <Repeat className="h-4 w-4" />
               Recurring templates
@@ -70,7 +70,7 @@ function Body() {
               onClick={() => setStatus(s)}
               className={
                 status === s
-                  ? 'rounded-md bg-[#0B1220] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white'
+                  ? 'rounded-md bg-[#1A1816] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white'
                   : 'rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 hover:bg-slate-50'
               }
             >
@@ -95,7 +95,7 @@ function Body() {
                 <div>
                   <Link
                     href={`/draws/${d.drawCode}`}
-                    className="font-bold text-[#0B1220] hover:text-navy-700"
+                    className="font-bold text-[#1A1816] hover:text-navy-700"
                   >
                     {d.prizeDescription}
                   </Link>

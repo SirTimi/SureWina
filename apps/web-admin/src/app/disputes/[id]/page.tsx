@@ -111,7 +111,7 @@ function Body({ id }: { id: string }) {
                     })}
                   </p>
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-[#0B1220]">{m.body}</p>
+                <p className="mt-2 text-sm leading-relaxed text-[#1A1816]">{m.body}</p>
               </li>
             ))}
           </ol>

@@ -150,7 +150,7 @@ function Body({ id }: { id: string }) {
                   <FileSignature className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-mono text-sm font-black text-[#0B1220]">
+                  <p className="font-mono text-sm font-black text-[#1A1816]">
                     {payout.whtCertificateNo}
                   </p>
                   <p className="text-xs text-slate-500">
@@ -161,7 +161,7 @@ function Body({ id }: { id: string }) {
               <Button
                 variant="secondary"
                 onClick={downloadWht}
-                className="rounded-md border-slate-200 bg-white text-[#0B1220]"
+                className="rounded-md border-slate-200 bg-white text-[#1A1816]"
               >
                 <Download className="h-4 w-4" />
                 Download certificate
@@ -189,7 +189,7 @@ function Stat({
   tone?: 'default' | 'success' | 'danger';
 }) {
   const tones = {
-    default: 'bg-white border-slate-200 text-[#0B1220]',
+    default: 'bg-white border-slate-200 text-[#1A1816]',
     success: 'bg-emerald-50 border-emerald-200 text-emerald-900',
     danger: 'bg-red-50 border-red-200 text-red-900',
   } as const;

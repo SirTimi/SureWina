@@ -55,7 +55,7 @@ function Body() {
                 onClick={() => setType(t)}
                 className={
                   type === t
-                    ? 'flex items-center justify-center gap-2 rounded-md border-2 border-navy-700 bg-amber-50 p-3 text-sm font-black text-[#0B1220]'
+                    ? 'flex items-center justify-center gap-2 rounded-md border-2 border-navy-700 bg-amber-50 p-3 text-sm font-black text-[#1A1816]'
                     : 'flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700 hover:border-navy-200'
                 }
               >

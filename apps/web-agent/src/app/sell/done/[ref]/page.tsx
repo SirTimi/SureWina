@@ -58,7 +58,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
         }
       />
 
-      <Card className="overflow-hidden rounded-3xl border-navy-100 bg-white shadow-[0_24px_70px_rgba(14,42,71,0.12)]">
+      <Card className="overflow-hidden rounded-3xl border-navy-100 bg-white shadow-[0_24px_70px_rgba(1,58,168,0.12)]">
         <div className="bg-navy-800 px-5 py-6 text-center text-white">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
             Ticket reference

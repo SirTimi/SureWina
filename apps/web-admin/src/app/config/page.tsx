@@ -129,7 +129,7 @@ function Body() {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Link
               href="/config/templates"
-              className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-[#0B1220] hover:border-navy-200 hover:bg-[#F8FAF4]"
+              className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-[#1A1816] hover:border-navy-200 hover:bg-[#F8FAF4]"
             >
               <span className="flex items-center gap-2">
                 <Bell className="h-4 w-4 text-navy-700" />
@@ -139,7 +139,7 @@ function Body() {
             </Link>
             <Link
               href="/agents/super"
-              className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-[#0B1220] hover:border-navy-200 hover:bg-[#F8FAF4]"
+              className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-[#1A1816] hover:border-navy-200 hover:bg-[#F8FAF4]"
             >
               <span className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4 text-navy-700" />

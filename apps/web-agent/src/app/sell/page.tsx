@@ -47,7 +47,7 @@ function PickDrawBody() {
         backHref="/"
       />
 
-      <Card className="rounded-3xl border-navy-200 bg-navy-800 p-5 text-white shadow-[0_18px_48px_rgba(14,42,71,0.16)]">
+      <Card className="rounded-3xl border-navy-200 bg-navy-800 p-5 text-white shadow-[0_18px_48px_rgba(1,58,168,0.16)]">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">

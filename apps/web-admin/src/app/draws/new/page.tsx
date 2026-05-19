@@ -73,7 +73,7 @@ function Body() {
                     : 'rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-navy-200'
                 }
               >
-                <p className="text-sm font-black text-[#0B1220]">
+                <p className="text-sm font-black text-[#1A1816]">
                   {type.replace('_', ' ')}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
@@ -161,7 +161,7 @@ function Body() {
         <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <Trophy className="h-4 w-4 text-navy-700" />
-            Draws are created as <span className="font-bold text-[#0B1220]">DRAFT</span>{' '}
+            Draws are created as <span className="font-bold text-[#1A1816]">DRAFT</span>{' '}
             until pre-checks pass.
           </div>
 
@@ -227,7 +227,7 @@ function CalendarPreview({ scheduledAt }: { scheduledAt: string }) {
 
   return (
     <div className="rounded-lg border border-slate-200 bg-[#F8FAF4] p-3">
-      <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#0B1220]">
+      <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#1A1816]">
         <Calendar className="h-4 w-4 text-navy-700" />
         {month}
       </div>

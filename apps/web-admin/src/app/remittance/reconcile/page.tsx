@@ -97,7 +97,7 @@ function Body() {
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
                 Suggested match
               </p>
-              <p className="mt-1 font-display text-lg font-black text-[#0B1220]">
+              <p className="mt-1 font-display text-lg font-black text-[#1A1816]">
                 {match.agentCode} · {match.date}
               </p>
               <p className="mt-1 text-sm text-slate-600">

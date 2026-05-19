@@ -66,7 +66,7 @@ function Body() {
             {
               key: 'rule',
               header: 'Rule',
-              render: (f) => <span className="font-bold text-[#0B1220]">{f.rule}</span>,
+              render: (f) => <span className="font-bold text-[#1A1816]">{f.rule}</span>,
             },
             {
               key: 'phone',

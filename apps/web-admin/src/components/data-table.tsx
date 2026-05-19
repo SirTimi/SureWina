@@ -60,7 +60,7 @@ export function DataTable<T>({
               setPage(1);
             }}
             placeholder={searchPlaceholder}
-            className="h-9 w-full rounded-md border border-slate-200 bg-white pl-8 pr-3 text-sm font-medium text-[#0B1220] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
+            className="h-9 w-full rounded-md border border-slate-200 bg-white pl-8 pr-3 text-sm font-medium text-[#1A1816] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
           />
         </div>
 
@@ -114,7 +114,7 @@ export function DataTable<T>({
                     <td
                       key={col.key}
                       className={
-                        'px-4 py-3 text-sm text-[#0B1220] ' +
+                        'px-4 py-3 text-sm text-[#1A1816] ' +
                         (col.align === 'right'
                           ? 'text-right'
                           : col.align === 'center'

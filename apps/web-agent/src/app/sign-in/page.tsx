@@ -72,7 +72,7 @@ export default function AgentSignInPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_75%_20%,rgba(216,122,24,0.14),transparent_42%),linear-gradient(135deg,#ffffff_0%,#F8FAF4_55%,#E8F0FB_140%)] px-4 py-6">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_75%_20%,rgba(249,203,11,0.14),transparent_42%),linear-gradient(135deg,#ffffff_0%,#F8FAF4_55%,#F2F5FB_140%)] px-4 py-6">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-[1100px] flex-col">
         <div className="flex h-16 items-center justify-between">
           <Logo />

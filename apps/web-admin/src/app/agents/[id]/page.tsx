@@ -221,7 +221,7 @@ function Body({ id }: { id: string }) {
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-base font-black text-[#0B1220]">
+                <p className="text-base font-black text-[#1A1816]">
                   {actionOpen === 'suspend' ? 'Suspend agent' : 'Terminate agent'}
                 </p>
                 <p className="text-xs text-slate-500">
@@ -278,7 +278,7 @@ function Stat({
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
         {label}
       </p>
-      <p className="mt-0.5 truncate text-sm font-bold text-[#0B1220]">{children}</p>
+      <p className="mt-0.5 truncate text-sm font-bold text-[#1A1816]">{children}</p>
     </div>
   );
 }
@@ -289,7 +289,7 @@ function SmallStat({ label, value }: { label: string; value: string }) {
       <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
         {label}
       </p>
-      <p className="mt-0.5 truncate text-xs font-bold text-[#0B1220]">{value}</p>
+      <p className="mt-0.5 truncate text-xs font-bold text-[#1A1816]">{value}</p>
     </div>
   );
 }
@@ -300,7 +300,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
         {label}
       </p>
-      <p className="mt-0.5 text-sm font-bold text-[#0B1220]">{children}</p>
+      <p className="mt-0.5 text-sm font-bold text-[#1A1816]">{children}</p>
     </div>
   );
 }

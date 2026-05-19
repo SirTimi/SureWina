@@ -42,21 +42,21 @@ function Body({ id }: { id: string }) {
           <div className="flex items-center gap-2">
             <Link
               href={`/draws/${draw.drawCode}/pre-checks`}
-              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[#0B1220] hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[#1A1816] hover:bg-slate-50"
             >
               <FileCheck2 className="h-4 w-4" />
               Pre-checks
             </Link>
             <Link
               href={`/draws/${draw.drawCode}/audit`}
-              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[#0B1220] hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[#1A1816] hover:bg-slate-50"
             >
               <ShieldCheck className="h-4 w-4" />
               Audit report
             </Link>
             <Link
               href={`/draws/${draw.drawCode}/edit`}
-              className="inline-flex items-center gap-2 rounded-md bg-[#0B1220] px-4 py-2 text-sm font-black text-white hover:bg-black"
+              className="inline-flex items-center gap-2 rounded-md bg-[#1A1816] px-4 py-2 text-sm font-black text-white hover:bg-black"
             >
               <Pencil className="h-4 w-4" />
               Edit
@@ -167,7 +167,7 @@ function Body({ id }: { id: string }) {
                   <td className="px-4 py-2">
                     <Link
                       href={`/tickets/${t.ticketRef}`}
-                      className="font-mono text-sm font-black text-[#0B1220] hover:text-navy-700"
+                      className="font-mono text-sm font-black text-[#1A1816] hover:text-navy-700"
                     >
                       {t.ticketRef}
                     </Link>
@@ -196,7 +196,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <dt className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
         {label}
       </dt>
-      <dd className="mt-1 text-sm font-bold text-[#0B1220]">{children}</dd>
+      <dd className="mt-1 text-sm font-bold text-[#1A1816]">{children}</dd>
     </div>
   );
 }

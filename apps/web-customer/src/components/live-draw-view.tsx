@@ -78,7 +78,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
 
   if (!state) {
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pt-32">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_78%_28%,rgba(249,203,11,0.18)_0%,rgba(249,203,11,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#F2F5FB_100%)] pt-32">
         <Container size="lg" className="max-w-[1400px] pb-16">
           <div className="h-[520px] animate-pulse rounded-3xl border border-slate-200 bg-white/80 shadow-[0_28px_80px_rgba(15,23,42,0.08)]" />
         </Container>
@@ -96,7 +96,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
 
   return (
     <main className="min-h-screen bg-[#F8FAF4]">
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pb-12 pt-32 sm:pt-36 lg:pt-40">
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(249,203,11,0.18)_0%,rgba(249,203,11,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#F2F5FB_100%)] pb-12 pt-32 sm:pt-36 lg:pt-40">
         <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
         <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
 
@@ -186,7 +186,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
               </div>
             </div>
 
-            <div className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(216,122,24,0.14)_0%,rgba(216,122,24,0.10)_30%,transparent_62%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#E8F0FB_100%)] px-5 py-12 sm:px-8 sm:py-16">
+            <div className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(249,203,11,0.14)_0%,rgba(249,203,11,0.10)_30%,transparent_62%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#F2F5FB_100%)] px-5 py-12 sm:px-8 sm:py-16">
               <div className="mx-auto max-w-4xl">
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
                   {slotValues.map((val, i) => (
@@ -194,7 +194,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
                       key={`${i}-${val}`}
                       className={
                         isComplete
-                          ? 'flex h-16 items-center justify-center rounded-2xl border border-navy-200 bg-white text-center font-mono text-2xl font-black text-navy-700 shadow-[0_18px_50px_rgba(14,42,71,0.16)] sm:h-24 sm:text-4xl'
+                          ? 'flex h-16 items-center justify-center rounded-2xl border border-navy-200 bg-white text-center font-mono text-2xl font-black text-navy-700 shadow-[0_18px_50px_rgba(1,58,168,0.16)] sm:h-24 sm:text-4xl'
                           : drawStarted
                             ? 'flex h-16 items-center justify-center rounded-2xl border border-navy-100 bg-white/75 text-center font-mono text-2xl font-black text-navy-950 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur sm:h-24 sm:text-4xl'
                             : 'flex h-16 items-center justify-center rounded-2xl border border-slate-200 bg-white/60 text-center font-mono text-2xl font-black text-slate-300 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur sm:h-24 sm:text-4xl'
@@ -211,7 +211,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
                       onClick={() => setDrawStarted(true)}
                       variant="accent"
                       size="lg"
-                      className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 shadow-[0_16px_34px_rgba(14,42,71,0.18)] hover:!border-transparent hover:bg-amber-400"
+                      className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 shadow-[0_16px_34px_rgba(1,58,168,0.18)] hover:!border-transparent hover:bg-amber-400"
                     >
                       <Play className="h-4 w-4" />
                       Start the draw demo

@@ -47,7 +47,7 @@ function Body() {
           <Button
             variant="secondary"
             onClick={download}
-            className="rounded-md border-slate-200 bg-white text-[#0B1220]"
+            className="rounded-md border-slate-200 bg-white text-[#1A1816]"
           >
             <Download className="h-4 w-4" />
             Export CSV
@@ -87,7 +87,7 @@ function Body() {
               header: 'Actor',
               render: (r) => (
                 <div>
-                  <p className="text-xs font-bold text-[#0B1220]">{r.actorEmail}</p>
+                  <p className="text-xs font-bold text-[#1A1816]">{r.actorEmail}</p>
                   <p className="text-[10px] text-slate-500">{r.actorRole}</p>
                 </div>
               ),
@@ -95,7 +95,7 @@ function Body() {
             { key: 'action', header: 'Action', render: (r) => <span className="font-mono text-xs">{r.action}</span> },
             { key: 'resource', header: 'Resource', render: (r) => (
               <div>
-                <p className="text-xs font-bold text-[#0B1220]">{r.resourceType}</p>
+                <p className="text-xs font-bold text-[#1A1816]">{r.resourceType}</p>
                 <p className="font-mono text-[10px] text-slate-500">{r.resourceId}</p>
               </div>
             ) },

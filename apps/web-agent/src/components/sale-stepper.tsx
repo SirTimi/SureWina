@@ -20,7 +20,7 @@ export function SaleStepper({ step }: SaleStepperProps) {
             <div
               className={
                 isActive
-                  ? 'flex h-7 w-7 items-center justify-center rounded-full bg-navy-800 text-xs font-black text-white shadow-[0_4px_18px_rgba(14,42,71,0.30)]'
+                  ? 'flex h-7 w-7 items-center justify-center rounded-full bg-navy-800 text-xs font-black text-white shadow-[0_4px_18px_rgba(1,58,168,0.30)]'
                   : isDone
                     ? 'flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-xs font-black text-navy-950'
                     : 'flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-xs font-black text-slate-400'

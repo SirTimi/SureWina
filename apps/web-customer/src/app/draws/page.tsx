@@ -44,7 +44,7 @@ export default async function DrawsPage() {
   return (
     <main>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pb-20 pt-32 sm:pb-24 sm:pt-36 lg:pb-28 lg:pt-40">
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(249,203,11,0.18)_0%,rgba(249,203,11,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#F2F5FB_100%)] pb-20 pt-32 sm:pb-24 sm:pt-36 lg:pb-28 lg:pt-40">
         <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
         <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
 
@@ -207,7 +207,7 @@ export default async function DrawsPage() {
       <Container size="lg" className="max-w-[1400px] py-12 lg:py-16">
         <Card
           variant="default"
-          className="overflow-hidden rounded-3xl border border-navy-200 bg-navy-800 p-8 text-white shadow-[0_24px_70px_rgba(14,42,71,0.18)] sm:p-12"
+          className="overflow-hidden rounded-3xl border border-navy-200 bg-navy-800 p-8 text-white shadow-[0_24px_70px_rgba(1,58,168,0.18)] sm:p-12"
         >
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.35fr_1fr] lg:items-center">
             <div>
@@ -241,7 +241,7 @@ export default async function DrawsPage() {
                   <Button
                     variant="accent"
                     size="lg"
-                    className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 shadow-[0_16px_34px_rgba(14,42,71,0.18)] hover:!border-transparent hover:bg-amber-400"
+                    className="rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 shadow-[0_16px_34px_rgba(1,58,168,0.18)] hover:!border-transparent hover:bg-amber-400"
                   >
                     Track my tickets
                     <ArrowRight className="h-4 w-4" />
