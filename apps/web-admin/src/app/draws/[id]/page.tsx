@@ -74,7 +74,7 @@ function Body({ id }: { id: string }) {
               </Field>
               <Field label="Type">{draw.drawType.replace('_', ' ')}</Field>
               <Field label="Ticket price">{formatNaira(draw.ticketPriceNgn)}</Field>
-              <Field label="Prize value">{formatNaira(draw.prizeValueNgn)}</Field>
+              <Field label="Internal prize value">{formatNaira(draw.prizeValueNgn)}</Field>
               <Field label="Ticket cap">{draw.ticketCap.toLocaleString('en-NG')}</Field>
               <Field label="Created by">{draw.createdBy}</Field>
               <Field label="Cutoff">
@@ -152,7 +152,7 @@ function Body({ id }: { id: string }) {
           }
         >
           <table className="min-w-full text-sm">
-            <thead className="bg-[#F8FAF4] text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+            <thead className="bg-navy-50 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
               <tr>
                 <th className="px-4 py-2 text-left">Ticket</th>
                 <th className="px-4 py-2 text-left">Customer</th>

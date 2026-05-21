@@ -317,16 +317,17 @@ const draws: Draw[] = (() => {
     const isToday = i === 0;
     const isPast = i < 0;
     const isJackpot = (i + 14) % 7 === 6;
-    const prizeOptions = [
-      { d: 'Samsung Galaxy A55 5G', v: 420_000 },
-      { d: 'Hisense 55" U7 TV', v: 540_000 },
-      { d: 'LG OLED 65" TV', v: 1_100_000 },
-      { d: 'iPhone 15', v: 950_000 },
-      { d: 'Bajaj Boxer motorbike', v: 880_000 },
+    const dailyDrawOptions = [
+      { d: 'Sure Special', v: 420_000 },
+      { d: 'Sure Bonanza', v: 540_000 },
+      { d: 'Sure Geluu', v: 1_100_000 },
+      { d: 'Sure Bambam', v: 950_000 },
+      { d: 'Sure Jumbo', v: 880_000 },
+      { d: 'Sure Boom', v: 720_000 },
     ];
     const prize = isJackpot
-      ? { d: 'Saturday ₦4M jackpot', v: 4_000_000 }
-      : pick(prizeOptions, i + 7);
+      ? { d: 'Sure Jackpot', v: 4_000_000 }
+      : pick(dailyDrawOptions, i + 7);
     const drawCode = `RD-DRAW-${new Date(Date.now() + i * 86_400_000)
       .toISOString()
       .slice(0, 10)

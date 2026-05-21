@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Calendar, PlusCircle, Repeat } from 'lucide-react';
-import { formatNaira } from '@surewina/utils';
 import { AdminShell } from '@/components/admin-shell';
 import { DataTable } from '@/components/data-table';
 import { PageHeader } from '@/components/page-header';
@@ -129,10 +128,14 @@ function Body() {
               ),
             },
             {
-              key: 'prize',
-              header: 'Prize value',
+              key: 'ticketPrice',
+              header: 'Ticket price',
               align: 'right',
-              render: (d) => formatNaira(d.prizeValueNgn),
+              render: (d) => (
+                <span className="font-display text-sm font-black tabular-nums">
+                  ₦{d.ticketPriceNgn.toLocaleString('en-NG')}
+                </span>
+              ),
             },
             {
               key: 'sched',
