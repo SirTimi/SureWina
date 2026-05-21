@@ -1,14 +1,15 @@
 /**
  * Sale-flow ephemeral state.
  *
- * The 60-second sale flow spans three short screens (/sell → /sell/quantity →
- * /sell/confirm → /sell/done/[ref]). We hold the draft in sessionStorage so
- * step transitions are instant and a refresh does not lose the flow.
+ * The 60-second sale flow spans short screens:
+ * /sell → /sell/quantity → /sell/confirm → /sell/done/[ref].
  */
+export type SaleTicketKind = 'DAILY' | 'JACKPOT';
 
 export interface SaleDraft {
   drawCode: string;
   drawLabel: string;
+  ticketKind: SaleTicketKind;
   ticketPriceNgn: number;
   quantity: number;
   customerPhone: string | null;
@@ -19,8 +20,10 @@ const KEY = 'surewina_agent_sale_draft';
 
 export function readSaleDraft(): SaleDraft | null {
   if (typeof window === 'undefined') return null;
+
   const raw = sessionStorage.getItem(KEY);
   if (!raw) return null;
+
   try {
     return JSON.parse(raw) as SaleDraft;
   } catch {
@@ -36,8 +39,10 @@ export function writeSaleDraft(draft: SaleDraft) {
 export function patchSaleDraft(patch: Partial<SaleDraft>): SaleDraft | null {
   const current = readSaleDraft();
   if (!current) return null;
+
   const next = { ...current, ...patch };
   writeSaleDraft(next);
+
   return next;
 }
 

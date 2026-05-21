@@ -1,38 +1,43 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Clock4, Star, Ticket } from 'lucide-react';
+import { ArrowRight, CalendarClock, Gift, Trophy } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
+import {
+  buildMockTicketOffers,
+  type SurewinaTicketOffer,
+} from '@surewina/types';
 import { AgentShell } from '@/components/agent-shell';
 import { SaleStepper } from '@/components/sale-stepper';
 import { SectionHeading } from '@/components/section-heading';
-import { agentMock, type AgentDrawOption } from '@/lib/agent-mock';
 import { writeSaleDraft } from '@/lib/sale-session';
 
 export default function SellPickDrawPage() {
   return (
     <AgentShell>
-      {() => <PickDrawBody />}
+      {() => <TicketOptionBody />}
     </AgentShell>
   );
 }
 
-function PickDrawBody() {
+function TicketOptionBody() {
   const router = useRouter();
-  const draws = agentMock.listDraws();
-  const todays = agentMock.todaysDraw();
+  const offers = buildMockTicketOffers();
+  const dailyOffer = offers.find((offer) => offer.kind === 'DAILY');
+  const jackpotOffer = offers.find((offer) => offer.kind === 'JACKPOT');
 
-  const startSale = (draw: AgentDrawOption) => {
+  const startSale = (offer: SurewinaTicketOffer) => {
     writeSaleDraft({
-      drawCode: draw.drawCode,
-      drawLabel: draw.prizeDescription,
-      ticketPriceNgn: draw.ticketPriceNgn,
+      drawCode: offer.drawCode,
+      drawLabel: offer.drawName,
+      ticketKind: offer.kind,
+      ticketPriceNgn: offer.ticketPriceNgn,
       quantity: 1,
       customerPhone: null,
       startedAt: Date.now(),
     });
+
     router.push('/sell/quantity');
   };
 
@@ -42,89 +47,109 @@ function PickDrawBody() {
 
       <SectionHeading
         eyebrow="60-second sale · Step 1 of 3"
-        title="Pick a draw"
-        description="Today's daily is selected by default. Tap any draw to continue."
+        title="Choose ticket type"
+        description="Sell today’s regular draw ticket or a direct Saturday jackpot ticket."
         backHref="/"
       />
 
-      <Card className="rounded-3xl border-navy-200 bg-navy-800 p-5 text-white shadow-[0_18px_48px_rgba(14,42,71,0.16)]">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">
-              Recommended · Today&apos;s daily
-            </p>
-            <h2 className="mt-2 font-display text-2xl font-black leading-tight">
-              {todays.prizeDescription}
-            </h2>
-            <p className="mt-1 text-sm text-white/80">
-              {formatNaira(todays.ticketPriceNgn)} per ticket · Cutoff{' '}
-              {formatCutoff(todays.cutoffAt)}
-            </p>
-          </div>
-          <Star className="h-6 w-6 text-amber-400" />
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {dailyOffer && (
+          <TicketOptionCard
+            offer={dailyOffer}
+            icon={<Gift className="h-6 w-6" />}
+            label="Today’s draw"
+            cta="Sell ₦500 ticket"
+            onSelect={() => startSale(dailyOffer)}
+          />
+        )}
 
-        <Button
-          variant="accent"
-          size="lg"
-          fullWidth
-          onClick={() => startSale(todays)}
-          className="mt-5 rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
-        >
-          Use today&apos;s daily
-          <ArrowRight className="h-5 w-5" />
-        </Button>
-      </Card>
-
-      <div className="mt-5">
-        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-          Other open draws
-        </p>
-
-        <div className="grid grid-cols-1 gap-2">
-          {draws
-            .filter((d) => d.drawCode !== todays.drawCode)
-            .map((draw) => (
-              <button
-                key={draw.drawCode}
-                type="button"
-                onClick={() => startSale(draw)}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-navy-200 hover:bg-[#F8FAF4]"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
-                    <Ticket className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-display text-base font-black text-navy-950">
-                      {draw.prizeDescription}
-                    </p>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                      <Clock4 className="h-3 w-3" />
-                      {formatNaira(draw.ticketPriceNgn)} · cutoff{' '}
-                      {formatCutoff(draw.cutoffAt)}
-                    </p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-navy-700" />
-              </button>
-            ))}
-        </div>
+        {jackpotOffer && (
+          <TicketOptionCard
+            offer={jackpotOffer}
+            icon={<Trophy className="h-6 w-6" />}
+            label="Saturday jackpot"
+            cta="Sell ₦5,000 jackpot ticket"
+            onSelect={() => startSale(jackpotOffer)}
+            featured
+          />
+        )}
       </div>
 
-      <p className="mt-6 text-center text-xs text-slate-400">
-        Need help?{' '}
-        <Link href="/training" className="font-bold text-navy-700">
-          Watch the sale flow video
-        </Link>
-      </p>
+      <div className="mt-4 rounded-2xl border border-navy-100 bg-navy-50 p-4 text-sm leading-relaxed text-slate-600">
+        Regular ₦500 tickets enter today’s named draw. Every 10 regular tickets also
+        earns 1 free entry into the coming Saturday jackpot draw.
+      </div>
     </main>
   );
 }
 
+function TicketOptionCard({
+  offer,
+  icon,
+  label,
+  cta,
+  onSelect,
+  featured = false,
+}: {
+  offer: SurewinaTicketOffer;
+  icon: React.ReactNode;
+  label: string;
+  cta: string;
+  onSelect: () => void;
+  featured?: boolean;
+}) {
+  return (
+    <Card
+      className={
+        featured
+          ? 'rounded-3xl border-amber-200 bg-amber-50 p-5 shadow-sm'
+          : 'rounded-3xl border-navy-100 bg-white p-5 shadow-sm'
+      }
+    >
+      <div
+        className={
+          featured
+            ? 'mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-navy-950'
+            : 'mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-50 text-navy-700'
+        }
+      >
+        {icon}
+      </div>
+
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
+        {label}
+      </p>
+
+      <h2 className="mt-2 font-display text-2xl font-black leading-tight text-navy-950">
+        {offer.drawName}
+      </h2>
+
+      <p className="mt-2 text-sm leading-relaxed text-slate-500">
+        {offer.description}
+      </p>
+
+      <div className="mt-4 flex items-center gap-2 text-xs font-bold text-slate-500">
+        <CalendarClock className="h-4 w-4 text-navy-700" />
+        Cutoff {formatCutoff(offer.cutoffAt)}
+      </div>
+
+      <Button
+        variant="accent"
+        size="lg"
+        fullWidth
+        onClick={onSelect}
+        className="mt-5 rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
+      >
+        {cta}
+        <span className="font-mono">{formatNaira(offer.ticketPriceNgn)}</span>
+        <ArrowRight className="h-5 w-5" />
+      </Button>
+    </Card>
+  );
+}
+
 function formatCutoff(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString('en-NG', {
+  return new Date(iso).toLocaleString('en-NG', {
     weekday: 'short',
     hour: '2-digit',
     minute: '2-digit',
