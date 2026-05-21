@@ -8,6 +8,7 @@ import { AgentHeader } from '@/components/agent-header';
 import { getStoredAgent, saveAgentSession } from '@/lib/agent-auth';
 import { api } from '@/lib/api';
 import { flushQueue, isOnline, readQueue } from '@/lib/offline-queue';
+import { wireAgentFinanceAdjustments } from '@/lib/wire-agent-finance-adjustments';
 
 interface AgentShellProps {
   children: (agent: AgentMe) => React.ReactNode;
@@ -19,6 +20,10 @@ export function AgentShell({ children }: AgentShellProps) {
   const [checking, setChecking] = useState(true);
   const [online, setOnline] = useState(true);
   const [pendingSync, setPendingSync] = useState(0);
+
+  useEffect(() => {
+    wireAgentFinanceAdjustments();
+  }, []);
 
   useEffect(() => {
     const stored = getStoredAgent();
@@ -53,7 +58,6 @@ export function AgentShell({ children }: AgentShellProps) {
       setOnline(true);
       const result = await flushQueue();
       setPendingSync(readQueue().length);
-      // signal that the queue size changed so dashboard refreshes
       if (result.synced > 0) {
         window.dispatchEvent(new CustomEvent('agent-queue-flushed'));
       }
@@ -90,8 +94,7 @@ export function AgentShell({ children }: AgentShellProps) {
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
           <div className="mx-auto flex max-w-[1180px] items-center gap-2 text-xs font-bold text-amber-900">
             <WifiOff className="h-3.5 w-3.5" />
-            You are offline. Sales will queue and sync automatically when the network
-            returns.
+            You are offline. Sales will queue and sync automatically when the network returns.
           </div>
         </div>
       )}
