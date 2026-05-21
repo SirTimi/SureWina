@@ -77,7 +77,7 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
               {drawTypeShortLabel[drawType]}
             </p>
             <h2 className="font-display text-xl font-bold text-ink-950 mt-1">
-              {isJackpot ? 'Saturday ₦4M jackpot' : 'Samsung Galaxy A55 5G'}
+              {isJackpot ? 'Sure Jackpot' : 'Today’s Surewina draw'}
             </h2>
           </div>
           <div className="bg-ink-50 px-3 py-1.5 rounded-md text-xs text-ink-700 font-mono whitespace-nowrap">
@@ -96,30 +96,42 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
             ))}
           </div>
 
-          {!isJackpot && (newEntries > 0 || toNext > 0) && (
-            <div className="mt-4 bg-amber-50 border border-amber-100 rounded-md p-3 flex items-start gap-2">
-              <Sparkles className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-ink-700">
-                {newEntries > 0 ? (
-                  <>
-                    <span className="font-semibold text-amber-700">
-                      {newEntries} new free Saturday jackpot{' '}
-                      {newEntries === 1 ? 'entry' : 'entries'} unlocked!
-                    </span>{' '}
-                    Cumulative ticket count: <span className="tabular-nums">{cumCount}</span>.
-                  </>
-                ) : (
-                  <>
-                    <span className="font-semibold text-amber-700">
-                      {toNext} more daily ticket{toNext === 1 ? '' : 's'}
-                    </span>{' '}
-                    for a free Saturday ₦4M jackpot entry. Your current count:{' '}
-                    <span className="tabular-nums font-semibold">{cumCount}/10</span>.
-                  </>
-                )}
-              </div>
-            </div>
-          )}
+          {isJackpot && (
+  <div className="mt-4 bg-amber-50 border border-amber-100 rounded-md p-3 flex items-start gap-2">
+    <Sparkles className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+    <div className="text-sm text-ink-700">
+      <span className="font-semibold text-amber-700">
+        Direct Sure Jackpot ticket confirmed.
+      </span>{' '}
+      Your ticket has been added to the coming Saturday jackpot draw bucket.
+    </div>
+  </div>
+)}
+
+{!isJackpot && (newEntries > 0 || toNext > 0) && (
+  <div className="mt-4 bg-amber-50 border border-amber-100 rounded-md p-3 flex items-start gap-2">
+    <Sparkles className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+    <div className="text-sm text-ink-700">
+      {newEntries > 0 ? (
+        <>
+          <span className="font-semibold text-amber-700">
+            {newEntries} free Sure Jackpot {newEntries === 1 ? 'entry' : 'entries'} unlocked.
+          </span>{' '}
+          Every 10 regular tickets gives 1 free entry into the coming Saturday
+          jackpot draw.
+        </>
+      ) : (
+        <>
+          <span className="font-semibold text-amber-700">
+            {toNext} more regular ticket{toNext === 1 ? '' : 's'}
+          </span>{' '}
+          to unlock 1 free Sure Jackpot entry. Current regular ticket count:{' '}
+          <span className="tabular-nums font-semibold">{cumCount}/10</span>.
+        </>
+      )}
+    </div>
+  </div>
+)}
         </div>
 
         <div className="p-5 flex items-center justify-between gap-3 border-t border-ink-100 text-xs">

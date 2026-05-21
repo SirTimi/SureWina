@@ -7,6 +7,10 @@ import type {
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
 import { MOCK_TICKET_BY_REF } from './mock-data.js';
+import {
+  getFreeJackpotEntriesFromRegularTickets,
+  getTicketsToNextFreeJackpotEntry,
+} from '@surewina/types';
 
 export class TicketsModule {
   constructor(private readonly client: ApiClient) {}
@@ -47,11 +51,19 @@ export class TicketsModule {
     });
 
     // Calculate jackpot accumulation — pretend they had 7 already, now have 7+quantity
-    const previousCount = 7;
-    const newTotal = previousCount + quantity;
-    const newEntries = Math.floor(newTotal / 10) - Math.floor(previousCount / 10);
-    const ticketsToNext = 10 - (newTotal % 10);
+    const previousRegularTicketCount = isJackpot ? 0 : 7;
+const newRegularTicketCount = isJackpot
+  ? 0
+  : previousRegularTicketCount + quantity;
 
+const newEntries = isJackpot
+  ? 0
+  : getFreeJackpotEntriesFromRegularTickets(newRegularTicketCount) -
+    getFreeJackpotEntriesFromRegularTickets(previousRegularTicketCount);
+
+const ticketsToNext = isJackpot
+  ? 0
+  : getTicketsToNextFreeJackpotEntry(newRegularTicketCount);
     const drawScheduled = new Date();
     drawScheduled.setHours(20, 0, 0, 0);
     if (drawScheduled < today) drawScheduled.setDate(drawScheduled.getDate() + 1);
@@ -61,12 +73,12 @@ export class TicketsModule {
       ticketRefs,
       drawCode,
       drawScheduledAt: drawScheduled.toISOString(),
-      drawPrizeDescription: isJackpot ? 'Saturday ₦4M jackpot' : 'Samsung Galaxy A55 5G',
+      drawPrizeDescription: isJackpot ? 'Sure Jackpot' : 'Today’s Surewina draw',
       totalPaidNgn: quantity * ticketPrice,
       buyerPhoneE164: phoneE164,
       jackpotAccumulation: {
-        cumulativeCount: newTotal,
-        ticketsToNextEntry: ticketsToNext === 10 ? 0 : ticketsToNext,
+        cumulativeCount: newRegularTicketCount,
+        ticketsToNextEntry: ticketsToNext,
         newJackpotEntries: newEntries,
       },
     });

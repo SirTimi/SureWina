@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Minus, Phone, Plus, Ticket } from 'lucide-react';
+import {
+  getFreeJackpotEntriesFromRegularTickets,
+  getTicketsToNextFreeJackpotEntry,
+} from '@surewina/types';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { AgentShell } from '@/components/agent-shell';
@@ -29,10 +33,12 @@ function QuantityBody() {
 
   useEffect(() => {
     const current = readSaleDraft();
+
     if (!current) {
       router.replace('/sell');
       return;
     }
+
     setDraft(current);
     setQuantity(current.quantity);
     setPhone(current.customerPhone ?? '');
@@ -42,22 +48,36 @@ function QuantityBody() {
 
   const total = quantity * draft.ticketPriceNgn;
 
+  const isJackpotSale = draft.ticketKind === 'JACKPOT';
+  const freeJackpotEntries = getFreeJackpotEntriesFromRegularTickets(quantity);
+  const ticketsToNextJackpotEntry = getTicketsToNextFreeJackpotEntry(quantity);
+
   const validatePhone = (raw: string): { ok: boolean; e164: string | null } => {
     const trimmed = raw.trim();
+
     if (!trimmed) return { ok: false, e164: null };
+
     const cleaned = trimmed.replace(/\s+/g, '').replace(/-/g, '');
+
     if (/^\+234\d{10}$/.test(cleaned)) return { ok: true, e164: cleaned };
-    if (/^0\d{10}$/.test(cleaned)) return { ok: true, e164: `+234${cleaned.slice(1)}` };
+    if (/^0\d{10}$/.test(cleaned)) {
+      return { ok: true, e164: `+234${cleaned.slice(1)}` };
+    }
     if (/^234\d{10}$/.test(cleaned)) return { ok: true, e164: `+${cleaned}` };
+
     return { ok: false, e164: null };
   };
 
   const next = () => {
     const validation = validatePhone(phone);
+
     if (!validation.ok || !validation.e164) {
-      setPhoneError('Enter the customer phone number. Every ticket sale must have a valid Nigerian phone number.');
+      setPhoneError(
+        'Enter the customer phone number. Every ticket sale must have a valid Nigerian phone number.',
+      );
       return;
     }
+
     patchSaleDraft({ quantity, customerPhone: validation.e164 });
     router.push('/sell/confirm');
   };
@@ -78,6 +98,7 @@ function QuantityBody() {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
             <Ticket className="h-5 w-5" />
           </div>
+
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
               Draw
@@ -138,13 +159,46 @@ function QuantityBody() {
           </button>
         </div>
 
+        {!isJackpotSale && (
+          <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+            <p className="text-sm font-bold text-navy-950">
+              {freeJackpotEntries > 0
+                ? `${freeJackpotEntries} free Sure Jackpot ${
+                    freeJackpotEntries === 1 ? 'entry' : 'entries'
+                  } unlocked for this customer.`
+                : `${ticketsToNextJackpotEntry} more regular ticket${
+                    ticketsToNextJackpotEntry === 1 ? '' : 's'
+                  } to unlock 1 free Sure Jackpot entry.`}
+            </p>
+
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Every 10 regular ₦500 tickets gives the customer 1 free entry into the
+              coming Saturday jackpot draw.
+            </p>
+          </div>
+        )}
+
+        {isJackpotSale && (
+          <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+            <p className="text-sm font-bold text-navy-950">
+              Direct Sure Jackpot ticket.
+            </p>
+
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              This ticket goes straight into the coming Saturday jackpot draw bucket.
+            </p>
+          </div>
+        )}
+
         <div className="mt-5">
           <label
             htmlFor="customer-phone"
             className="mb-2 flex items-center justify-between text-sm font-bold text-navy-950"
           >
-            Customer phone <span className="text-xs font-black text-red-600">Required</span>
+            Customer phone{' '}
+            <span className="text-xs font-black text-red-600">Required</span>
           </label>
+
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -159,13 +213,16 @@ function QuantityBody() {
               className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-base font-bold text-navy-950 outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
             />
           </div>
+
           {phoneError && (
             <p className="mt-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">
               {phoneError}
             </p>
           )}
+
           <p className="mt-2 text-xs leading-relaxed text-slate-500">
-            Phone number is required because it is used to confirm the player and process any payout.
+            Phone number is required because it is used to confirm the player and
+            process any payout.
           </p>
         </div>
       </Card>
@@ -175,10 +232,12 @@ function QuantityBody() {
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
             Total
           </p>
+
           <p className="font-display text-2xl font-black text-navy-950">
             {formatNaira(total)}
           </p>
         </div>
+
         <Button
           variant="accent"
           size="lg"

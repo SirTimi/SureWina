@@ -14,6 +14,10 @@ import {
   type PurchaseFormParsed,
   type PurchaseFormValues,
 } from '@/lib/schemas';
+import {
+  getFreeJackpotEntriesFromRegularTickets,
+  getTicketsToNextFreeJackpotEntry,
+} from '@surewina/types';
 
 interface BuyFormProps {
   draw: DrawPublic;
@@ -51,6 +55,9 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
 
   const quantity = watch('quantity');
   const paymentMethod = watch('paymentMethod');
+  const isJackpotPurchase = draw.drawType === 'SATURDAY_JACKPOT';
+const freeJackpotEntries = getFreeJackpotEntriesFromRegularTickets(quantity ?? 0);
+const ticketsToNextJackpotEntry = getTicketsToNextFreeJackpotEntry(quantity ?? 0);
 
   const adjustQuantity = (delta: number) => {
     const next = Math.max(1, Math.min(100, (quantity ?? 1) + delta));
@@ -126,17 +133,35 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
 
         {errors.quantity && <FieldError message={errors.quantity.message} />}
 
-        {draw.drawType === 'DAILY_STANDARD' && quantity >= 1 && (
-          <div className="mt-4 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-4">
-            <p className="text-sm font-bold text-navy-700">
-              {10 - (quantity % 10) === 10
-                ? `${Math.floor(quantity / 10)} free Saturday jackpot ${
-                    Math.floor(quantity / 10) === 1 ? 'entry' : 'entries'
-                  } unlocked.`
-                : `${10 - (quantity % 10)} more for a free Saturday jackpot entry.`}
-            </p>
-          </div>
-        )}
+        {!isJackpotPurchase && quantity >= 1 && (
+  <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+    <p className="text-sm font-bold text-navy-950">
+      {freeJackpotEntries > 0
+        ? `${freeJackpotEntries} free Sure Jackpot ${
+            freeJackpotEntries === 1 ? 'entry' : 'entries'
+          } unlocked with this purchase.`
+        : `${ticketsToNextJackpotEntry} more regular ticket${
+            ticketsToNextJackpotEntry === 1 ? '' : 's'
+          } to unlock 1 free Sure Jackpot entry.`}
+    </p>
+    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+      Every 10 regular ₦500 tickets gives the customer 1 free entry into the coming
+      Saturday jackpot draw.
+    </p>
+  </div>
+)}
+
+{isJackpotPurchase && (
+  <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+    <p className="text-sm font-bold text-navy-950">
+      This is a direct Sure Jackpot ticket.
+    </p>
+    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+      Jackpot tickets bought directly go straight into the coming Saturday jackpot
+      draw bucket.
+    </p>
+  </div>
+)}
       </Card>
 
       <Card
