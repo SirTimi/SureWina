@@ -8,7 +8,6 @@ import {
   Clock,
   QrCode,
   ReceiptText,
-  TrendingUp,
   Trophy,
 } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
@@ -58,13 +57,11 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
   const amountDueTodayNgn = Math.max(0, ticketRemittanceNgn - payoutSummary.totalPaidNgn);
   const organizationRefundNgn = Math.max(0, payoutSummary.totalPaidNgn - ticketRemittanceNgn);
 
-  const nextTierTarget = 400;
-  const progress = Math.min(100, (agent.monthlyTicketCount / nextTierTarget) * 100);
-  const salesToNextTier = Math.max(0, nextTierTarget - agent.monthlyTicketCount);
-
   const periodTotal = sales.reduce((sum, s) => sum + s.amountNgn, 0);
   const periodCommission = sales.reduce((sum, s) => sum + s.commissionNgn, 0);
   const periodTickets = sales.reduce((sum, s) => sum + s.quantity, 0);
+  const visibleSales = sales.slice(0, 4);
+  const hasMoreSales = sales.length > visibleSales.length;
 
   return (
     <main className="mx-auto max-w-[1180px] px-4 pb-10 pt-5">
@@ -92,23 +89,21 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
         <MetricCard icon={<Clock className="h-5 w-5" />} label="Amount due today" value={formatNaira(amountDueTodayNgn)} hint={organizationRefundNgn > 0 ? `SureWina owes you ${formatNaira(organizationRefundNgn)}` : agent.remittanceOverdue ? 'Overdue' : 'After payout refund'} danger={agent.remittanceOverdue} />
       </section>
 
-      <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card variant="default" className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">Performance overview</p>
-              <p className="mt-1 text-sm text-slate-500">{period === 'today' ? 'Latest ticket sales from this account.' : `Showing aggregated sales for this ${period === 'all-time' ? 'period' : period}.`}</p>
+              <p className="mt-1 text-sm text-slate-500">Compact snapshot for the selected period. Full records stay one tap away.</p>
             </div>
             <PeriodTabs value={period} onChange={setPeriod} />
           </div>
 
-          {period !== 'today' && (
-            <div className="grid grid-cols-3 gap-2 border-b border-slate-100 bg-navy-50 px-4 py-3">
-              <SummaryStat label="Tickets" value={String(periodTickets)} />
-              <SummaryStat label="Sales" value={formatNaira(periodTotal)} />
-              <SummaryStat label="Commission" value={formatNaira(periodCommission)} />
-            </div>
-          )}
+          <div className="grid grid-cols-3 gap-2 border-b border-slate-100 bg-navy-50 px-4 py-3">
+            <SummaryStat label="Tickets" value={String(periodTickets)} />
+            <SummaryStat label="Sales" value={formatNaira(periodTotal)} />
+            <SummaryStat label="Commission" value={formatNaira(periodCommission)} />
+          </div>
 
           <div>
             {loading ? (
@@ -116,8 +111,8 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
             ) : sales.length === 0 ? (
               <div className="px-4 py-10 text-center text-sm text-slate-500">No sales for this period yet. <Link href="/sell" className="font-bold text-navy-700 underline-offset-2 hover:underline">Start a sale</Link>.</div>
             ) : (
-              sales.slice(0, 8).map((sale, index) => (
-                <div key={sale.ticketRef} className={index < Math.min(sales.length, 8) - 1 ? 'flex items-center justify-between gap-4 border-b border-slate-100 px-4 py-3' : 'flex items-center justify-between gap-4 px-4 py-3'}>
+              visibleSales.map((sale, index) => (
+                <div key={sale.ticketRef} className={index < visibleSales.length - 1 ? 'flex items-center justify-between gap-4 border-b border-slate-100 px-4 py-3' : 'flex items-center justify-between gap-4 px-4 py-3'}>
                   <div className="min-w-0">
                     <p className="font-mono text-sm font-black text-navy-950">{sale.ticketRef}</p>
                     <p className="mt-0.5 truncate text-xs text-slate-500">{sale.customerPhone ?? 'No customer phone'} · {formatTime(sale.soldAt)}</p>
@@ -128,7 +123,13 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
             )}
           </div>
 
-          {sales.length > 8 && <div className="border-t border-slate-100 p-3 text-center"><Link href="/commission" className="text-sm font-bold text-navy-700">See full breakdown →</Link></div>}
+          {sales.length > 0 && (
+            <div className="border-t border-slate-100 p-3 text-center">
+              <Link href="/commission" className="text-sm font-bold text-navy-700">
+                {hasMoreSales ? `View ${sales.length - visibleSales.length} more records →` : 'Open full performance report →'}
+              </Link>
+            </div>
+          )}
         </Card>
 
         <aside className="space-y-4">
@@ -141,15 +142,6 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
               <FinanceRow label="Net due today" value={formatNaira(amountDueTodayNgn)} strong />
             </div>
             <p className="mt-4 text-xs leading-relaxed text-slate-500">Prize payouts are money SureWina must refund to the agent, so they reduce the amount due today.</p>
-          </Card>
-
-          <Card variant="default" className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-sm bg-navy-50 text-navy-700"><TrendingUp className="h-5 w-5" /></div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">Tier progress</p>
-            <p className="mt-2 font-display text-2xl font-black text-navy-950">{agent.monthlyTicketCount} / {nextTierTarget} tickets</p>
-            <p className="mt-1 text-xs text-slate-500">Current tier: {agent.tier}</p>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-navy-800" style={{ width: `${progress}%` }} /></div>
-            <p className="mt-3 text-sm leading-relaxed text-slate-500">{salesToNextTier > 0 ? `${salesToNextTier} more sales to unlock the next tier.` : 'You have reached the next tier target.'}</p>
           </Card>
 
           <Card variant="default" className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
