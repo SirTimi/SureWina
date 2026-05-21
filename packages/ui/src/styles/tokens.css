@@ -1,41 +1,39 @@
 :root {
-  /* === Brand · Navy (primary scale) === */
-  --color-navy-50: 238 242 248;
-  --color-navy-100: 220 229 240;
-  --color-navy-500: 45 99 149;
-  --color-navy-700: 22 89 150;
-  --color-navy-800: 14 42 71;
-  --color-navy-900: 10 31 54;
-  --color-navy-950: 6 21 40;
+  /* === Brand · Blue (primary scale) === */
+  --color-navy-50: 242 245 251;   /* #F2F5FB */
+  --color-navy-100: 180 199 228;  /* #B4C7E4 */
+  --color-navy-500: 40 89 194;    /* #2859C2 */
+  --color-navy-700: 31 79 176;    /* #1F4FB0 */
+  --color-navy-800: 1 58 168;     /* #013AA8 */
+  --color-navy-900: 0 45 133;     /* deeper primary blue */
+  --color-navy-950: 0 31 92;      /* deepest brand blue */
 
-  /* === Accent · Burnt Amber === */
-  --color-amber-50: 251 242 230;
-  --color-amber-100: 248 230 210;
-  --color-amber-400: 230 149 68;
-  --color-amber-500: 216 122 24;
-  --color-amber-700: 164 90 18;
+  /* === Secondary · Yellow === */
+  --color-amber-50: 255 249 220;
+  --color-amber-100: 246 212 105; /* #F6D469 */
+  --color-amber-400: 255 216 45;
+  --color-amber-500: 249 203 11;  /* #F9CB0B */
+  --color-amber-700: 224 169 22;  /* #E0A916 */
 
   /* === Semantic === */
-  /* Success: bright emerald — used as the platform-wide green for PAID, ACTIVE,
-     DELIVERED, positive deltas, and seed-hash verification. Green appears ONLY
-     in success contexts. Anything brand-related is navy + amber. */
-  --color-success-100: 209 250 229;
-  --color-success-500: 22 163 74;
-  --color-warning-100: 254 243 199;
-  --color-warning-500: 217 119 6;
+  /* Green is success-only: live, active, completed, verified, sales and positive metrics. */
+  --color-success-100: 232 247 217;
+  --color-success-500: 96 158 30;  /* #609E1E */
+  --color-warning-100: 255 249 220;
+  --color-warning-500: 249 203 11;  /* warnings use brand yellow */
   --color-danger-100: 254 226 226;
   --color-danger-500: 220 38 38;
 
-  /* === Neutrals · Warm-leaning === */
-  --color-ink-50: 241 242 245;
-  --color-ink-100: 228 230 234;
+  /* === Neutrals === */
+  --color-ink-50: 248 249 251;
+  --color-ink-100: 229 232 238;
   --color-ink-200: 201 205 211;
-  --color-ink-300: 165 170 178;
-  --color-ink-500: 90 104 105;
+  --color-ink-300: 153 158 167;   /* #999EA7 */
+  --color-ink-500: 94 95 98;      /* #5E5F62 */
   --color-ink-700: 53 58 66;
-  --color-ink-950: 8 15 20;
+  --color-ink-950: 26 24 22;      /* #1A1816 */
 
-  --color-paper: 250 250 247;
+  --color-paper: 242 245 251;     /* #F2F5FB */
 
   /* === Typography === */
   --font-display: 'General Sans', 'Inter', system-ui, -apple-system, sans-serif;
@@ -46,17 +44,17 @@
   --color-primary: var(--color-navy-800);
   --color-primary-foreground: 255 255 255;
   --color-accent: var(--color-amber-500);
-  --color-accent-foreground: 255 255 255;
-  --color-secondary: var(--color-ink-500);
-  --color-secondary-foreground: 255 255 255;
+  --color-accent-foreground: 0 31 92;
+  --color-secondary: var(--color-amber-500);
+  --color-secondary-foreground: 0 31 92;
   --color-success: var(--color-success-500);
   --color-success-foreground: 255 255 255;
   --color-warning: var(--color-warning-500);
-  --color-warning-foreground: 255 255 255;
+  --color-warning-foreground: 0 31 92;
   --color-danger: var(--color-danger-500);
   --color-danger-foreground: 255 255 255;
-  --color-surface: var(--color-paper);
+  --color-surface: 255 255 255;
   --color-foreground: var(--color-ink-950);
   --color-muted: var(--color-ink-500);
-  --color-border: var(--color-ink-100);
+  --color-border: var(--color-navy-100);
 }
