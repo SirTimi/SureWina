@@ -68,7 +68,7 @@ function DashboardBody() {
         rightSlot={
           <Link
             href="/draws/new"
-            className="inline-flex items-center gap-2 rounded-md bg-[#f9cb0b] px-4 py-2 text-sm font-black text-white shadow-sm hover:bg-navy-900"
+            className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-black text-accent-foreground shadow-sm hover:bg-amber-400"
           >
             <Trophy className="h-4 w-4" />
             New draw
@@ -133,7 +133,7 @@ function DashboardBody() {
             padded={false}
           >
             <table className="min-w-full text-sm">
-              <thead className="bg-[#F8FAF4] text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+              <thead className="bg-navy-50 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
                 <tr>
                   <th className="px-4 py-2 text-left">Draw</th>
                   <th className="px-4 py-2 text-left">Status</th>
@@ -158,37 +158,33 @@ function DashboardBody() {
                     return (
                       <tr key={d.drawCode}>
                         <td className="px-4 py-3">
-                          <p className="font-bold text-[#0B1220]">{d.prizeDescription}</p>
+                          <p className="font-black text-slate-950">{d.title}</p>
                           <p className="font-mono text-xs text-slate-500">{d.drawCode}</p>
                         </td>
                         <td className="px-4 py-3">
-                          <StatusPill tone={statusToTone(d.status)}>
-                            {d.status}
-                          </StatusPill>
+                          <StatusPill tone={statusToTone(d.status)}>{d.status}</StatusPill>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <p className="font-display text-sm font-black tabular-nums">
-                            {d.ticketsSold.toLocaleString('en-NG')} /{' '}
-                            {d.ticketCap.toLocaleString('en-NG')}
+                          <p className="font-black text-slate-950">
+                            {d.ticketsSold.toLocaleString('en-NG')} / {d.ticketCap.toLocaleString('en-NG')}
                           </p>
-                          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                          <div className="ml-auto mt-1 h-1.5 w-28 overflow-hidden rounded-full bg-slate-100">
                             <div
-                              className="h-full rounded-full bg-navy-800"
+                              className="h-full rounded-full bg-success"
                               style={{ width: `${pct}%` }}
                             />
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right text-xs text-slate-500">
+                        <td className="px-4 py-3 text-right font-mono text-xs text-slate-600">
                           {new Date(d.cutoffAt).toLocaleTimeString('en-NG', {
                             hour: '2-digit',
                             minute: '2-digit',
-                            hour12: false,
                           })}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <Link
-                            href={`/draws/${d.drawCode}`}
-                            className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline"
+                            href={`/draws/${d.id}`}
+                            className="text-xs font-black text-navy-700 hover:underline"
                           >
                             Open
                           </Link>
@@ -201,124 +197,55 @@ function DashboardBody() {
             </table>
           </SectionCard>
 
-          <SectionCard
-            title="Auditor chain"
-            description="Signed ticket counter — last few seconds. Anchored to RNG seed hash."
-            padded={false}
-          >
-            <div className="thin-scrollbar max-h-[330px] overflow-y-auto">
-              <table className="min-w-full text-xs">
-                <thead className="bg-[#F8FAF4] text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2 text-left">At</th>
-                    <th className="px-3 py-2 text-right">Tickets</th>
-                    <th className="px-3 py-2 text-left">Signature</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {chain.map((c, i) => (
-                    <tr key={i} className={i === 0 ? 'bg-amber-50' : ''}>
-                      <td className="px-3 py-2 font-mono">
-                        {new Date(c.at).toLocaleTimeString('en-NG', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                        })}
-                      </td>
-                      <td className="px-3 py-2 text-right font-bold tabular-nums">
-                        {c.tickets.toLocaleString('en-NG')}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-[10px] text-slate-500">
-                        {c.signature}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <SectionCard title="Auditor chain" description="Latest seed and draw events.">
+            <div className="space-y-3">
+              {chain.map((entry) => (
+                <div key={entry.id} className="rounded-lg border border-slate-100 bg-white p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-navy-700">
+                      {entry.type}
+                    </p>
+                    <StatusPill tone={statusToTone(entry.status)}>{entry.status}</StatusPill>
+                  </div>
+                  <p className="mt-2 font-mono text-xs text-slate-600">{entry.hash}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {new Date(entry.createdAt).toLocaleString('en-NG')}
+                  </p>
+                </div>
+              ))}
             </div>
           </SectionCard>
         </div>
 
         <SectionCard
-          title="Failed payments"
-          description={`${failedPayments.length} declined in the last hour. Investigate before they retry through agents.`}
+          title="Failed payments needing attention"
+          description="These are not success states. They should never be styled green."
           padded={false}
-          rightSlot={
-            <Link
-              href="/tickets?status=FAILED"
-              className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline"
-            >
-              Open all
-            </Link>
-          }
         >
           <table className="min-w-full text-sm">
-            <thead className="bg-[#F8FAF4] text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+            <thead className="bg-navy-50 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
               <tr>
-                <th className="px-4 py-2 text-left">When</th>
+                <th className="px-4 py-2 text-left">Reference</th>
                 <th className="px-4 py-2 text-left">Customer</th>
-                <th className="px-4 py-2 text-left">Channel</th>
                 <th className="px-4 py-2 text-right">Amount</th>
                 <th className="px-4 py-2 text-left">Reason</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {failedPayments.map((p) => (
-                <tr key={p.paymentId}>
-                  <td className="px-4 py-2 text-xs text-slate-500">
-                    {new Date(p.at).toLocaleTimeString('en-NG', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+              {failedPayments.map((payment) => (
+                <tr key={payment.ref}>
+                  <td className="px-4 py-3 font-mono text-xs text-slate-700">{payment.ref}</td>
+                  <td className="px-4 py-3 font-bold text-slate-950">{payment.customer}</td>
+                  <td className="px-4 py-3 text-right font-black text-slate-950">
+                    {formatNaira(payment.amountNgn)}
                   </td>
-                  <td className="px-4 py-2 font-mono text-xs">{p.customerPhoneE164}</td>
-                  <td className="px-4 py-2 text-xs">{p.channel}</td>
-                  <td className="px-4 py-2 text-right font-bold tabular-nums">
-                    {formatNaira(p.amountNgn)}
-                  </td>
-                  <td className="px-4 py-2">
-                    <StatusPill tone="danger" icon={<AlertOctagon className="h-3 w-3" />}>
-                      {p.reason}
-                    </StatusPill>
-                  </td>
+                  <td className="px-4 py-3 text-slate-600">{payment.reason}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </SectionCard>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <QuickLink href="/agents" icon={UserCog} label="Manage agents" />
-          <QuickLink href="/claims" icon={Trophy} label="Claims pipeline" />
-          <QuickLink href="/payouts" icon={Banknote} label="Approve payouts" />
-          <QuickLink href="/reports" icon={ShieldCheck} label="Compliance reports" />
-        </div>
       </div>
     </>
-  );
-}
-
-function QuickLink({
-  href,
-  icon: Icon,
-  label,
-}: {
-  href: string;
-  icon: typeof Trophy;
-  label: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold text-[#0B1220] shadow-sm transition hover:border-navy-200 hover:bg-[#F8FAF4]"
-    >
-      <span className="flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-navy-50 text-navy-700">
-          <Icon className="h-4 w-4" />
-        </span>
-        {label}
-      </span>
-      <span className="text-xs text-navy-700">→</span>
-    </Link>
   );
 }
