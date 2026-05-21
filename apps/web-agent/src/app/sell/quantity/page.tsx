@@ -44,7 +44,7 @@ function QuantityBody() {
 
   const validatePhone = (raw: string): { ok: boolean; e164: string | null } => {
     const trimmed = raw.trim();
-    if (!trimmed) return { ok: true, e164: null };
+    if (!trimmed) return { ok: false, e164: null };
     const cleaned = trimmed.replace(/\s+/g, '').replace(/-/g, '');
     if (/^\+234\d{10}$/.test(cleaned)) return { ok: true, e164: cleaned };
     if (/^0\d{10}$/.test(cleaned)) return { ok: true, e164: `+234${cleaned.slice(1)}` };
@@ -54,8 +54,8 @@ function QuantityBody() {
 
   const next = () => {
     const validation = validatePhone(phone);
-    if (!validation.ok) {
-      setPhoneError('Enter a Nigerian phone (+234 or 080…) or leave it blank.');
+    if (!validation.ok || !validation.e164) {
+      setPhoneError('Enter the customer phone number. Every ticket sale must have a valid Nigerian phone number.');
       return;
     }
     patchSaleDraft({ quantity, customerPhone: validation.e164 });
@@ -108,7 +108,7 @@ function QuantityBody() {
           ))}
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-[#F8FAF4] p-3">
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-navy-50 p-3">
           <button
             type="button"
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
@@ -143,7 +143,7 @@ function QuantityBody() {
             htmlFor="customer-phone"
             className="mb-2 flex items-center justify-between text-sm font-bold text-navy-950"
           >
-            Customer phone <span className="text-xs font-medium text-slate-400">Optional</span>
+            Customer phone <span className="text-xs font-black text-red-600">Required</span>
           </label>
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -165,7 +165,7 @@ function QuantityBody() {
             </p>
           )}
           <p className="mt-2 text-xs leading-relaxed text-slate-500">
-            Phone is used to notify the winner. Skip if the customer prefers cash-only.
+            Phone number is required because it is used to confirm the player and process any payout.
           </p>
         </div>
       </Card>
