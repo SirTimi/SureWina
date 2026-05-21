@@ -1,3 +1,8 @@
+import {
+  buildMockTicketOffers,
+  getFreeJackpotEntriesFromRegularTickets,
+} from '@surewina/types';
+
 /**
  * Local agent-portal mock store.
  *
@@ -18,6 +23,7 @@ export interface AgentSale {
   amountNgn: number;
   commissionNgn: number;
   customerPhone: string | null;
+  jackpotEntriesEarned: number;
   soldAt: string; // ISO
 }
 
@@ -105,6 +111,7 @@ const seedSales: AgentSale[] = [
     amountNgn: 500,
     commissionNgn: 50,
     customerPhone: '+2348039019018',
+    jackpotEntriesEarned: 0,
     soldAt: isoMinutesAgo(220),
   },
   {
@@ -117,6 +124,7 @@ const seedSales: AgentSale[] = [
     commissionNgn: 500,
     customerPhone: '+2348067897712',
     soldAt: isoMinutesAgo(180),
+    jackpotEntriesEarned: 0,
   },
   {
     ticketRef: 'SW-1N2N-44TR',
@@ -128,6 +136,7 @@ const seedSales: AgentSale[] = [
     commissionNgn: 50,
     customerPhone: null,
     soldAt: isoMinutesAgo(95),
+    jackpotEntriesEarned: 0,
   },
   {
     ticketRef: 'SW-9C04-XX01',
@@ -139,6 +148,7 @@ const seedSales: AgentSale[] = [
     commissionNgn: 150,
     customerPhone: '+2348022114401',
     soldAt: isoMinutesAgo(34),
+    jackpotEntriesEarned: 0,
   },
 ];
 
@@ -410,53 +420,73 @@ export const agentMock = {
    * Returns the new tickets so the confirmation screen can render the refs.
    */
   async recordSale(input: {
-    drawCode: string;
-    quantity: number;
-    customerPhone?: string | null;
-  }): Promise<{ sale: AgentSale }> {
-    await sleep(420); // simulate network on 3G — keep this brief so the 60s budget holds
-    const draw = agentMock.getDraw(input.drawCode);
-    if (!draw) throw new Error('Unknown draw.');
+  drawCode: string;
+  quantity: number;
+  customerPhone?: string | null;
+}): Promise<{ sale: AgentSale }> {
+  await sleep(420);
 
-    const qty = Math.max(1, Math.min(50, Math.floor(input.quantity)));
-    const amount = qty * draw.ticketPriceNgn;
-    const commission = Math.round(amount * 0.1);
-    const ref = generateTicketRef();
+  const catalogDraw = agentMock.getDraw(input.drawCode);
+  const activeOffer = buildMockTicketOffers().find((offer) => offer.drawCode === input.drawCode);
 
-    const sale: AgentSale = {
-      ticketRef: ref,
-      drawCode: draw.drawCode,
-      drawLabel: draw.isToday
-        ? `Today daily · ${draw.prizeDescription}`
-        : draw.prizeDescription,
-      ticketType: draw.drawType === 'SATURDAY_JACKPOT' ? 'JACKPOT' : 'STANDARD',
-      quantity: qty,
-      amountNgn: amount,
-      commissionNgn: commission,
-      customerPhone: input.customerPhone?.trim() || null,
-      soldAt: new Date().toISOString(),
-    };
+  if (!catalogDraw && !activeOffer) {
+    throw new Error('Unknown draw.');
+  }
 
-    state.sales = [sale, ...state.sales];
+  const qty = Math.max(1, Math.min(50, Math.floor(input.quantity)));
 
-    if (sale.customerPhone) {
-      const existing = state.customers.find((c) => c.phoneE164 === sale.customerPhone);
-      if (existing) {
-        existing.ticketCount += qty;
-        existing.totalSpendNgn += amount;
-        existing.lastSaleAt = sale.soldAt;
-      } else {
-        state.customers.unshift({
-          phoneE164: sale.customerPhone,
-          lastSaleAt: sale.soldAt,
-          ticketCount: qty,
-          totalSpendNgn: amount,
-        });
-      }
+  const ticketPriceNgn = activeOffer?.ticketPriceNgn ?? catalogDraw!.ticketPriceNgn;
+  const amount = qty * ticketPriceNgn;
+  const commission = Math.round(amount * 0.1);
+  const ref = generateTicketRef();
+
+  const ticketType =
+    activeOffer?.kind === 'JACKPOT' || catalogDraw?.drawType === 'SATURDAY_JACKPOT'
+      ? 'JACKPOT'
+      : 'STANDARD';
+
+  const drawLabel =
+    activeOffer?.drawName ??
+    (catalogDraw!.isToday
+      ? `Today daily · ${catalogDraw!.prizeDescription}`
+      : catalogDraw!.prizeDescription);
+
+  const jackpotEntriesEarned =
+    ticketType === 'STANDARD' ? getFreeJackpotEntriesFromRegularTickets(qty) : 0;
+
+  const sale: AgentSale = {
+    ticketRef: ref,
+    drawCode: input.drawCode,
+    drawLabel,
+    ticketType,
+    quantity: qty,
+    amountNgn: amount,
+    commissionNgn: commission,
+    customerPhone: input.customerPhone?.trim() || null,
+    jackpotEntriesEarned,
+    soldAt: new Date().toISOString(),
+  };
+
+  state.sales = [sale, ...state.sales];
+
+  if (sale.customerPhone) {
+    const existing = state.customers.find((c) => c.phoneE164 === sale.customerPhone);
+    if (existing) {
+      existing.ticketCount += qty;
+      existing.totalSpendNgn += amount;
+      existing.lastSaleAt = sale.soldAt;
+    } else {
+      state.customers.unshift({
+        phoneE164: sale.customerPhone,
+        lastSaleAt: sale.soldAt,
+        ticketCount: qty,
+        totalSpendNgn: amount,
+      });
     }
+  }
 
-    return { sale };
-  },
+  return { sale };
+},
 
   async getSaleByRef(ref: string): Promise<AgentSale | null> {
     await sleep(60);
