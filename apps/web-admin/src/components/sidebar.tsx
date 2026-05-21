@@ -96,7 +96,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden h-screen w-[260px] shrink-0 flex-col border-r border-white/5 bg-[#013aa7] text-white lg:flex">
+    <aside className="hidden h-screen w-[260px] shrink-0 flex-col border-r border-white/5 bg-primary text-white lg:flex">
       <div className="flex h-16 items-center gap-3 border-b border-white/5 px-5">
         <Logo />
         <div className="leading-tight">
@@ -125,7 +125,7 @@ export function Sidebar() {
                     href={item.href}
                     className={
                       active
-                        ? 'flex items-center gap-3 rounded-lg bg-[#f9cb0b] px-3 py-2 text-sm font-bold text-white shadow-[0_8px_22px_rgba(78,143,1,0.35)]'
+                        ? 'flex items-center gap-3 rounded-lg bg-accent px-3 py-2 text-sm font-bold text-accent-foreground shadow-[0_8px_22px_rgba(249,203,11,0.28)]'
                         : 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/65 transition hover:bg-white/5 hover:text-white'
                     }
                   >
