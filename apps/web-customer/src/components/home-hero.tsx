@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { ArrowRight, BadgeCheck, Lock, PlayCircle, ShieldCheck, Users } from 'lucide-react';
 import { Button, Container } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
-
 interface HomeHeroProps {
   primaryDrawCode?: string;
   primaryTicketPrice?: number;
@@ -53,8 +52,8 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-700">
-            Daily product draws and a {formatNaira(4000000)} jackpot every Saturday.
-            Audited, regulated, and transparent, every draw publishes its RNG seed hash.
+            Daily named draws and a Sure Jackpot every Saturday. Audited, regulated,
+            and transparent, every draw publishes its RNG seed hash.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">

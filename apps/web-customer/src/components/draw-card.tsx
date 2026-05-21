@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Users } from 'lucide-react';
+import { Gift, Trophy, Users } from 'lucide-react';
 import { Badge, Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import type { DrawPublic } from '@surewina/types';
@@ -12,21 +12,32 @@ interface DrawCardProps {
 
 export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
   const isJackpot = draw.drawType === 'SATURDAY_JACKPOT';
+  const Icon = isJackpot ? Trophy : Gift;
 
   return (
     <Card
       variant="default"
       className="flex flex-col overflow-hidden rounded-2xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
     >
-      <div className="relative aspect-[16/9] overflow-hidden border-b border-slate-100 bg-gradient-to-br from-blue-50 via-white to-amber-50">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.16),transparent_22%),radial-gradient(circle_at_85%_25%,rgba(245,158,11,0.18),transparent_22%)]" />
+      <div
+        className={
+          isJackpot
+            ? 'relative aspect-[16/9] overflow-hidden border-b border-slate-100 bg-gradient-to-br from-amber-50 via-white to-navy-50'
+            : 'relative aspect-[16/9] overflow-hidden border-b border-slate-100 bg-gradient-to-br from-navy-50 via-white to-amber-50'
+        }
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.14),transparent_24%),radial-gradient(circle_at_85%_25%,rgba(245,158,11,0.18),transparent_24%)]" />
 
         <div className="relative z-10 flex h-full w-full items-center justify-center">
-          <img
-            src={isJackpot ? '/images/jackpot-cash.webp' : '/images/draw-phone.webp'}
-            alt={draw.prizeDescription}
-            className="h-[150%] w-[150%] object-contain"
-          />
+          <div
+            className={
+              isJackpot
+                ? 'flex h-24 w-24 items-center justify-center rounded-[2rem] bg-amber-500 text-navy-950 shadow-[0_24px_60px_rgba(245,158,11,0.25)]'
+                : 'flex h-24 w-24 items-center justify-center rounded-[2rem] bg-navy-800 text-white shadow-[0_24px_60px_rgba(1,58,168,0.22)]'
+            }
+          >
+            <Icon className="h-12 w-12" />
+          </div>
         </div>
 
         <div className="absolute left-4 top-4 z-20 flex gap-2">
@@ -41,22 +52,22 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
 
       <div className="flex flex-1 flex-col p-5">
         <h3 className="font-display text-xl font-bold text-navy-950">
-          {draw.prizeDescription}
+          {isJackpot ? 'Sure Jackpot' : draw.prizeDescription}
         </h3>
 
         <p className="mt-1 text-sm text-slate-500">
           {isJackpot
-            ? 'Guaranteed cash prize · paid to verified bank account'
-            : 'Brand new, sealed retail'}
+            ? 'Saturday jackpot draw entry'
+            : 'Today’s named Surewina draw'}
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-4 border-t border-slate-100 pt-5">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              {isJackpot ? 'Guaranteed prize' : 'Prize value'}
+              Ticket
             </p>
-            <p className="mt-1 font-display text-2xl font-black text-emerald-700 tabular-nums">
-              {formatNaira(draw.prizeValueNgn)}
+            <p className="mt-1 font-display text-2xl font-black text-navy-950 tabular-nums">
+              {formatNaira(draw.ticketPriceNgn)}
             </p>
           </div>
 
@@ -81,7 +92,7 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
 
           <Link href={`/draws/${draw.drawCode}`}>
             <Button variant="accent" size="sm" className="rounded-lg font-bold">
-              Buy ticket {formatNaira(draw.ticketPriceNgn)}
+              Buy ticket
             </Button>
           </Link>
         </div>
