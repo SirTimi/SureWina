@@ -57,18 +57,16 @@ export function HomeHero({ primaryDrawCode }: HomeHeroProps) {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            {primaryDrawCode && (
-              <Link href={`/draws/${primaryDrawCode}`}>
-                <Button
-                  variant="accent"
-                  size="lg"
-                  className="rounded-sm font-bold shadow-[0_16px_34px_rgba(216,122,24,0.28)]"
-                >
-                  Buy ticket
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            )}
+            <Link href="/buy">
+  <Button
+    variant="accent"
+    size="lg"
+    className="rounded-sm font-bold shadow-[0_16px_34px_rgba(216,122,24,0.28)]"
+  >
+    Buy ticket
+    <ArrowRight className="h-4 w-4" />
+  </Button>
+</Link>
 
             <Link href="/how-it-works">
               <Button
