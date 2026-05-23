@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import { ArrowRight, BadgeCheck, Lock, PlayCircle, ShieldCheck, Users } from 'lucide-react';
 import { Button, Container } from '@surewina/ui';
-import { formatNaira } from '@surewina/utils';
+
 interface HomeHeroProps {
   primaryDrawCode?: string;
   primaryTicketPrice?: number;
 }
 
-export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps) {
+export function HomeHero({ primaryDrawCode }: HomeHeroProps) {
   return (
     <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(22,89,150,0.10)_0%,rgba(22,89,150,0.05)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#F5F8FF_60%,#E8F0FB_100%)]">
       <style>
@@ -33,7 +33,7 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
 
           <img
             src="/images/hero-keke.webp"
-            alt="Surewina grand prize"
+            alt="Surewina jackpot draw"
             className="relative z-10 w-full object-contain object-right drop-shadow-[0_40px_84px_rgba(15,23,42,0.28)]"
             style={{ animation: 'surewina-float 4.8s ease-in-out infinite' }}
           />
@@ -52,19 +52,19 @@ export function HomeHero({ primaryDrawCode, primaryTicketPrice }: HomeHeroProps)
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-700">
-            Daily named draws and a Sure Jackpot every Saturday. Audited, regulated,
-            and transparent, every draw publishes its RNG seed hash.
+            Daily named draws and a mega jackpot draw every Saturday. Audited,
+            regulated, and transparent, every draw publishes its RNG seed hash.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            {primaryDrawCode && primaryTicketPrice !== undefined && (
+            {primaryDrawCode && (
               <Link href={`/draws/${primaryDrawCode}`}>
                 <Button
                   variant="accent"
                   size="lg"
                   className="rounded-sm font-bold shadow-[0_16px_34px_rgba(216,122,24,0.28)]"
                 >
-                  Buy a ticket {formatNaira(primaryTicketPrice)}
+                  Buy ticket
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
