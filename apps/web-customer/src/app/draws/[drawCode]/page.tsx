@@ -14,6 +14,10 @@ import { api } from '@/lib/api';
 import { drawTypeShortLabel, formatCountdown, formatDrawDate } from '@/lib/draw-helpers';
 import { HowDrawWorks } from '@/components/how-draw-works';
 import { BuyTicketPanel } from '@/components/buy-ticket-panel';
+import {
+  getCustomerDrawName,
+  getCustomerDrawSubtitle,
+} from '@/lib/customer-draw-display';
 
 interface DrawDetailPageProps {
   params: Promise<{ drawCode: string }>;
@@ -32,6 +36,8 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
 
   const { draw, ticketsSold, prizePoolNgn } = drawData;
   const isJackpot = draw.drawType === 'SATURDAY_JACKPOT';
+  const displayDrawName = getCustomerDrawName(draw);
+  const displayDrawSubtitle = getCustomerDrawSubtitle(draw);
   const ticketCap = isJackpot ? null : 6000;
   const soldPercentage = ticketCap ? Math.min(100, (ticketsSold / ticketCap) * 100) : 0;
 
@@ -73,19 +79,18 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
               </div>
 
               <h1 className="max-w-4xl font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl lg:text-7xl">
-                {draw.prizeDescription}
+                {displayDrawName}
               </h1>
 
               <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
-                {isJackpot
-                  ? 'Guaranteed cash prize, paid to your verified Nigerian bank account after claim verification. Every draw publishes public records and seed verification data.'
-                  : 'Brand new, sealed product prize with public draw records, ticket references, and verifiable RNG seed hash after the draw.'}
+                {displayDrawSubtitle} Every draw publishes public records, ticket references,
+and verifiable RNG seed hash after the draw.
               </p>
 
               <div className="mt-8 grid max-w-4xl grid-cols-2 gap-4 md:grid-cols-4">
                 <DetailStat
-                  label={isJackpot ? 'Guaranteed prize' : 'Prize value'}
-                  value={formatNaira(draw.prizeValueNgn)}
+                  label="Ticket type"
+                  value={isJackpot ? 'Jackpot' : 'Regular'}
                 />
                 <DetailStat label="Ticket price" value={formatNaira(draw.ticketPriceNgn)} />
                 <DetailStat label="Closes in" value={formatCountdown(draw.cutoffAt)} mono />
@@ -121,7 +126,7 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
                   <div className="absolute inset-0 flex items-center justify-center p-8">
                     <img
                       src={prizeImage}
-                      alt={draw.prizeDescription}
+                      alt={displayDrawName}
                       className={
                         isJackpot
                           ? 'h-[115%] w-[115%] object-contain drop-shadow-[0_34px_80px_rgba(15,23,42,0.22)]'

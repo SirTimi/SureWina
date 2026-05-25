@@ -1,8 +1,12 @@
-import { Clock, Hash, Shield } from 'lucide-react';
+import { Clock, Gift, Hash, Shield, Trophy } from 'lucide-react';
 import { Badge, Card } from '@surewina/ui';
-import { formatNaira } from '@surewina/utils';
 import type { DrawPublic } from '@surewina/types';
 import { drawTypeShortLabel, formatCountdown } from '@/lib/draw-helpers';
+import {
+  getCustomerDrawName,
+  getCustomerDrawSubtitle,
+  getTicketTypeLabel,
+} from '@/lib/customer-draw-display';
 
 interface BuySummaryProps {
   draw: DrawPublic;
@@ -10,7 +14,10 @@ interface BuySummaryProps {
 
 export function BuySummary({ draw }: BuySummaryProps) {
   const isJackpot = draw.drawType === 'SATURDAY_JACKPOT';
-  const prizeImage = isJackpot ? '/images/jackpot-cash.webp' : '/images/draw-phone.webp';
+  const displayDrawName = getCustomerDrawName(draw);
+  const subtitle = getCustomerDrawSubtitle(draw);
+  const ticketType = getTicketTypeLabel(draw);
+  const Icon = isJackpot ? Trophy : Gift;
 
   return (
     <div className="space-y-4">
@@ -18,7 +25,13 @@ export function BuySummary({ draw }: BuySummaryProps) {
         variant="default"
         className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.10)]"
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(22,89,150,0.10)_0%,rgba(22,89,150,0.06)_26%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#E8F0FB_100%)]">
+        <div
+          className={
+            isJackpot
+              ? 'relative aspect-[4/3] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(245,158,11,0.18)_0%,rgba(245,158,11,0.08)_28%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#fff7db_55%,#E8F0FB_100%)]'
+              : 'relative aspect-[4/3] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(22,89,150,0.12)_0%,rgba(22,89,150,0.06)_28%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#F5F8FF_55%,#E8F0FB_100%)]'
+          }
+        >
           <div className="absolute left-4 top-4 z-20 flex gap-2">
             <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
               {drawTypeShortLabel[draw.drawType]}
@@ -30,40 +43,40 @@ export function BuySummary({ draw }: BuySummaryProps) {
           </div>
 
           <div className="absolute inset-0 flex items-center justify-center p-5">
-            <img
-              src={prizeImage}
-              alt={draw.prizeDescription}
-              className="h-[130%] w-[130%] object-contain drop-shadow-[0_28px_70px_rgba(15,23,42,0.18)]"
-            />
+            <div
+              className={
+                isJackpot
+                  ? 'flex h-28 w-28 items-center justify-center rounded-[2rem] bg-amber-500 text-navy-950 shadow-[0_28px_70px_rgba(245,158,11,0.25)]'
+                  : 'flex h-28 w-28 items-center justify-center rounded-[2rem] bg-navy-800 text-white shadow-[0_28px_70px_rgba(1,58,168,0.22)]'
+              }
+            >
+              <Icon className="h-14 w-14" />
+            </div>
           </div>
         </div>
 
         <div className="p-5">
-          <h2 className="font-display text-xl font-black tracking-[-0.03em] text-navy-950">
-            {draw.prizeDescription}
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
+            {ticketType}
+          </p>
+
+          <h2 className="mt-1 font-display text-xl font-black tracking-[-0.03em] text-navy-950">
+            {displayDrawName}
           </h2>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                {isJackpot ? 'Prize' : 'Prize value'}
-              </p>
+          <p className="mt-2 text-sm leading-relaxed text-slate-500">
+            {subtitle}
+          </p>
 
-              <p className="mt-1 font-display text-lg font-black text-navy-700 tabular-nums">
-                {formatNaira(draw.prizeValueNgn)}
-              </p>
-            </div>
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+              Closes in
+            </p>
 
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                Closes in
-              </p>
-
-              <p className="mt-1 inline-flex items-center gap-1 font-mono text-lg font-black text-navy-950 tabular-nums">
-                <Clock className="h-3.5 w-3.5 text-navy-700" />
-                {formatCountdown(draw.cutoffAt)}
-              </p>
-            </div>
+            <p className="mt-1 inline-flex items-center gap-1 font-mono text-lg font-black text-navy-950 tabular-nums">
+              <Clock className="h-3.5 w-3.5 text-navy-700" />
+              {formatCountdown(draw.cutoffAt)}
+            </p>
           </div>
         </div>
       </Card>
