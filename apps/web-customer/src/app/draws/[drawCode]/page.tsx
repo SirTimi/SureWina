@@ -34,7 +34,7 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
     notFound();
   }
 
-  const { draw, ticketsSold, prizePoolNgn } = drawData;
+  const { draw, ticketsSold } = drawData;
   const isJackpot = draw.drawType === 'SATURDAY_JACKPOT';
   const displayDrawName = getCustomerDrawName(draw);
   const displayDrawSubtitle = getCustomerDrawSubtitle(draw);
@@ -88,14 +88,22 @@ and verifiable RNG seed hash after the draw.
               </p>
 
               <div className="mt-8 grid max-w-4xl grid-cols-2 gap-4 md:grid-cols-4">
-                <DetailStat
-                  label="Ticket type"
-                  value={isJackpot ? 'Jackpot' : 'Regular'}
-                />
-                <DetailStat label="Ticket price" value={formatNaira(draw.ticketPriceNgn)} />
-                <DetailStat label="Closes in" value={formatCountdown(draw.cutoffAt)} mono />
-                <DetailStat label="Tickets sold" value={ticketsSold.toLocaleString()} />
-              </div>
+  <DetailStat
+    label="Ticket type"
+    value={isJackpot ? 'Jackpot' : 'Regular'}
+  />
+  <DetailStat label="Ticket price" value={formatNaira(draw.ticketPriceNgn)} />
+  <DetailStat label="Closes in" value={formatCountdown(draw.cutoffAt)} mono />
+  <DetailStat
+    label="Cutoff time"
+    value={new Date(draw.cutoffAt).toLocaleTimeString('en-NG', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })}
+    mono
+  />
+</div>
             </div>
 
             <div className="hidden lg:block">
@@ -137,22 +145,22 @@ and verifiable RNG seed hash after the draw.
                 </div>
 
                 <div className="grid grid-cols-1 border-t border-slate-100 md:grid-cols-3">
-                  <InfoCell
-                    icon={<Ticket className="h-4 w-4" />}
-                    title="Draw code"
-                    value={draw.drawCode}
-                  />
-                  <InfoCell
-                    icon={<Clock className="h-4 w-4" />}
-                    title="Scheduled"
-                    value={formatDrawDate(draw.scheduledAt)}
-                  />
-                  <InfoCell
-                    icon={<Hash className="h-4 w-4" />}
-                    title="Prize pool"
-                    value={formatNaira(prizePoolNgn)}
-                  />
-                </div>
+  <InfoCell
+    icon={<Ticket className="h-4 w-4" />}
+    title="Draw code"
+    value={draw.drawCode}
+  />
+  <InfoCell
+    icon={<Clock className="h-4 w-4" />}
+    title="Scheduled"
+    value={formatDrawDate(draw.scheduledAt)}
+  />
+  <InfoCell
+    icon={<Hash className="h-4 w-4" />}
+    title="Ticket type"
+    value={isJackpot ? 'Sure Jackpot ticket' : 'Regular daily ticket'}
+  />
+</div>
               </Card>
 
               <Card
