@@ -3,10 +3,11 @@ import { notFound } from 'next/navigation';
 import {
   ArrowLeft,
   Clock,
+  Gift,
   Hash,
   ShieldCheck,
   Ticket,
-  Users,
+  Trophy,
 } from 'lucide-react';
 import { Badge, Card, Container } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
@@ -40,11 +41,10 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
   const displayDrawSubtitle = getCustomerDrawSubtitle(draw);
   const ticketCap = isJackpot ? null : 6000;
   const soldPercentage = ticketCap ? Math.min(100, (ticketsSold / ticketCap) * 100) : 0;
+  const VisualIcon = isJackpot ? Trophy : Gift;
 
   const seedHash = '9f4c2b8e1a7d6f30c5e9b2148a6d4f7c2c6e9a4b7d0f3e6c1a5b8d';
   const seedCommittedAt = '00:00 WAT';
-
-  const prizeImage = isJackpot ? '/images/jackpot-cash.webp' : '/images/draw-phone.webp';
 
   return (
     <main>
@@ -84,26 +84,23 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
 
               <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
                 {displayDrawSubtitle} Every draw publishes public records, ticket references,
-and verifiable RNG seed hash after the draw.
+                and verifiable RNG seed hash after the draw.
               </p>
 
               <div className="mt-8 grid max-w-4xl grid-cols-2 gap-4 md:grid-cols-4">
-  <DetailStat
-    label="Ticket type"
-    value={isJackpot ? 'Jackpot' : 'Regular'}
-  />
-  <DetailStat label="Ticket price" value={formatNaira(draw.ticketPriceNgn)} />
-  <DetailStat label="Closes in" value={formatCountdown(draw.cutoffAt)} mono />
-  <DetailStat
-    label="Cutoff time"
-    value={new Date(draw.cutoffAt).toLocaleTimeString('en-NG', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    })}
-    mono
-  />
-</div>
+                <DetailStat label="Ticket type" value={isJackpot ? 'Jackpot' : 'Regular'} />
+                <DetailStat label="Ticket price" value={formatNaira(draw.ticketPriceNgn)} />
+                <DetailStat label="Closes in" value={formatCountdown(draw.cutoffAt)} mono />
+                <DetailStat
+                  label="Cutoff time"
+                  value={new Date(draw.cutoffAt).toLocaleTimeString('en-NG', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  })}
+                  mono
+                />
+              </div>
             </div>
 
             <div className="hidden lg:block">
@@ -121,7 +118,13 @@ and verifiable RNG seed hash after the draw.
                 variant="default"
                 className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.07)]"
               >
-                <div className="relative min-h-[440px] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(22,89,150,0.10)_0%,rgba(22,89,150,0.06)_26%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_55%,#E8F0FB_100%)]">
+                <div
+                  className={
+                    isJackpot
+                      ? 'relative min-h-[440px] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(245,158,11,0.18)_0%,rgba(245,158,11,0.08)_28%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#fff7db_55%,#E8F0FB_100%)]'
+                      : 'relative min-h-[440px] overflow-hidden bg-[radial-gradient(circle_at_50%_45%,rgba(22,89,150,0.12)_0%,rgba(22,89,150,0.06)_28%,transparent_58%),linear-gradient(135deg,#ffffff_0%,#F5F8FF_55%,#E8F0FB_100%)]'
+                  }
+                >
                   <div className="absolute left-6 top-6 z-20 flex gap-2">
                     <Badge variant={isJackpot ? 'jackpot' : 'daily'}>
                       {drawTypeShortLabel[draw.drawType]}
@@ -132,35 +135,36 @@ and verifiable RNG seed hash after the draw.
                   </div>
 
                   <div className="absolute inset-0 flex items-center justify-center p-8">
-                    <img
-                      src={prizeImage}
-                      alt={displayDrawName}
+                    <div
                       className={
                         isJackpot
-                          ? 'h-[115%] w-[115%] object-contain drop-shadow-[0_34px_80px_rgba(15,23,42,0.22)]'
-                          : 'h-[120%] w-[120%] object-contain drop-shadow-[0_34px_80px_rgba(15,23,42,0.18)]'
+                          ? 'flex h-32 w-32 items-center justify-center rounded-[2.25rem] bg-amber-500 text-navy-950 shadow-[0_34px_80px_rgba(245,158,11,0.25)]'
+                          : 'flex h-32 w-32 items-center justify-center rounded-[2.25rem] bg-navy-800 text-white shadow-[0_34px_80px_rgba(1,58,168,0.22)]'
                       }
-                    />
+                      aria-label={displayDrawName}
+                    >
+                      <VisualIcon className="h-16 w-16" />
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 border-t border-slate-100 md:grid-cols-3">
-  <InfoCell
-    icon={<Ticket className="h-4 w-4" />}
-    title="Draw code"
-    value={draw.drawCode}
-  />
-  <InfoCell
-    icon={<Clock className="h-4 w-4" />}
-    title="Scheduled"
-    value={formatDrawDate(draw.scheduledAt)}
-  />
-  <InfoCell
-    icon={<Hash className="h-4 w-4" />}
-    title="Ticket type"
-    value={isJackpot ? 'Sure Jackpot ticket' : 'Regular daily ticket'}
-  />
-</div>
+                  <InfoCell
+                    icon={<Ticket className="h-4 w-4" />}
+                    title="Draw code"
+                    value={draw.drawCode}
+                  />
+                  <InfoCell
+                    icon={<Clock className="h-4 w-4" />}
+                    title="Scheduled"
+                    value={formatDrawDate(draw.scheduledAt)}
+                  />
+                  <InfoCell
+                    icon={<Hash className="h-4 w-4" />}
+                    title="Ticket type"
+                    value={isJackpot ? 'Sure Jackpot ticket' : 'Regular daily ticket'}
+                  />
+                </div>
               </Card>
 
               <Card
@@ -198,7 +202,7 @@ and verifiable RNG seed hash after the draw.
                   </>
                 ) : (
                   <p className="text-sm leading-relaxed text-slate-500">
-                    The jackpot has no daily product ticket cap. All valid jackpot tickets
+                    The jackpot has no daily regular ticket cap. All valid jackpot tickets
                     enter the Saturday draw.
                   </p>
                 )}
