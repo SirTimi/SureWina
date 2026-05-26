@@ -18,7 +18,18 @@ export class DrawsModule {
 
   async listActive(): Promise<ListActiveDrawsResponse> {
     // TODO Phase 6+: return this.client.get<ListActiveDrawsResponse>('/draws/active');
-    return Promise.resolve({ draws: MOCK_ACTIVE_DRAWS });
+    // The public customer portal should show one current daily draw and one jackpot draw,
+    // not every future daily draw in the mock dataset.
+    const activeDailyDraw = MOCK_ACTIVE_DRAWS.find(
+      (draw) => draw.drawType === 'DAILY_STANDARD',
+    );
+    const activeJackpotDraw = MOCK_ACTIVE_DRAWS.find(
+      (draw) => draw.drawType === 'SATURDAY_JACKPOT',
+    );
+
+    return Promise.resolve({
+      draws: [activeDailyDraw, activeJackpotDraw].filter(Boolean) as typeof MOCK_ACTIVE_DRAWS,
+    });
   }
 
   async getById(drawCode: string): Promise<GetDrawResponse> {

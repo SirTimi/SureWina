@@ -4,6 +4,10 @@ import { Badge, Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import type { DrawPublic } from '@surewina/types';
 import { drawTypeShortLabel, formatCountdown } from '@/lib/draw-helpers';
+import {
+  getCustomerDrawName,
+  getCustomerDrawSubtitle,
+} from '@/lib/customer-draw-display';
 
 interface DrawCardProps {
   draw: DrawPublic;
@@ -13,6 +17,8 @@ interface DrawCardProps {
 export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
   const isJackpot = draw.drawType === 'SATURDAY_JACKPOT';
   const Icon = isJackpot ? Trophy : Gift;
+  const displayDrawName = getCustomerDrawName(draw);
+  const displaySubtitle = getCustomerDrawSubtitle(draw);
 
   return (
     <Card
@@ -52,13 +58,11 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
 
       <div className="flex flex-1 flex-col p-5">
         <h3 className="font-display text-xl font-bold text-navy-950">
-          {isJackpot ? 'Sure Jackpot' : draw.prizeDescription}
+          {displayDrawName}
         </h3>
 
         <p className="mt-1 text-sm text-slate-500">
-          {isJackpot
-            ? 'Saturday jackpot draw entry'
-            : 'Today’s named Surewina draw'}
+          {displaySubtitle}
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-4 border-t border-slate-100 pt-5">
