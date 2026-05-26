@@ -12,7 +12,7 @@ interface BuyTicketPanelProps {
 }
 
 export function BuyTicketPanel({ draw }: BuyTicketPanelProps) {
-  const [quantity, setQuantity] = useState(2);
+  const [quantity, setQuantity] = useState(1);
   const isJackpot = draw.drawType === 'SATURDAY_JACKPOT';
   const total = quantity * draw.ticketPriceNgn;
   const ticketsToNextEntry = isJackpot ? null : 10 - (quantity % 10);

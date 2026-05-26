@@ -24,7 +24,7 @@ export default async function BuyPage({ params, searchParams }: BuyPageProps) {
     notFound();
   }
 
-  const initialQuantity = Math.max(1, Math.min(100, parseInt(qty ?? '2', 10) || 2));
+  const initialQuantity = Math.max(1, Math.min(100, parseInt(qty ?? '1', 10) || 1));
 
   return (
     <main>
@@ -72,7 +72,7 @@ export default async function BuyPage({ params, searchParams }: BuyPageProps) {
             <BuyForm draw={drawData.draw} initialQuantity={initialQuantity} />
 
             <aside className="self-start lg:sticky lg:top-28">
-              <BuySummary draw={drawData.draw} />
+              <BuySummary draw={drawData.draw} quantity={initialQuantity} />
             </aside>
           </div>
         </Container>
