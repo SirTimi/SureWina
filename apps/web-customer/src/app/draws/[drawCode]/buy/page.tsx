@@ -4,8 +4,7 @@ import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Container } from '@surewina/ui';
 import { api } from '@/lib/api';
 import { drawTypeShortLabel, formatDrawDate } from '@/lib/draw-helpers';
-import { BuyForm } from '@/components/buy-form';
-import { BuySummary } from '@/components/buy-summary';
+import { BuyCheckoutClient } from '@/components/buy-checkout-client';
 
 interface BuyPageProps {
   params: Promise<{ drawCode: string }>;
@@ -29,14 +28,8 @@ export default async function BuyPage({ params, searchParams }: BuyPageProps) {
   return (
     <main>
       <section className="relative overflow-hidden bg-[radial-gradient(circle_at_78%_28%,rgba(216,122,24,0.18)_0%,rgba(216,122,24,0.10)_28%,transparent_56%),linear-gradient(135deg,#ffffff_0%,#f4ffe8_48%,#E8F0FB_100%)] pb-12 pt-32 sm:pt-36 lg:pt-40">
-        <div className="absolute right-[-8%] top-1/2 hidden h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-navy-50 blur-3xl lg:block" />
-        <div className="absolute bottom-[-120px] left-[18%] h-80 w-80 rounded-full bg-navy-50 blur-3xl" />
-
         <Container size="lg" className="relative max-w-[1400px]">
-          <Link
-            href={`/draws/${drawCode}`}
-            className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
-          >
+          <Link href={`/draws/${drawCode}`} className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800">
             <ArrowLeft className="h-4 w-4" />
             Back to draw
           </Link>
@@ -46,21 +39,15 @@ export default async function BuyPage({ params, searchParams }: BuyPageProps) {
               <ShieldCheck className="h-4 w-4 text-white" />
               Secure ticket checkout
             </div>
-
             <h1 className="font-display text-5xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-6xl lg:text-7xl">
-              Buy your
-              <br />
+              Buy your<br />
               <span className="text-navy-700">ticket.</span>
             </h1>
-
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
-              Phone is the only thing we need. You&apos;ll get your ticket reference by SMS
-              within 30 seconds. No account, no password.
+              Enter your phone number and complete payment to receive your ticket reference.
             </p>
-
             <p className="mt-4 text-sm font-bold text-navy-700">
-              {drawTypeShortLabel[drawData.draw.drawType]} ·{' '}
-              {formatDrawDate(drawData.draw.scheduledAt)}
+              {drawTypeShortLabel[drawData.draw.drawType]} · {formatDrawDate(drawData.draw.scheduledAt)}
             </p>
           </div>
         </Container>
@@ -68,13 +55,7 @@ export default async function BuyPage({ params, searchParams }: BuyPageProps) {
 
       <section className="bg-[#F8FAF4]">
         <Container size="lg" className="max-w-[1400px] py-10 lg:py-14">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
-            <BuyForm draw={drawData.draw} initialQuantity={initialQuantity} />
-
-            <aside className="self-start lg:sticky lg:top-28">
-              <BuySummary draw={drawData.draw} quantity={initialQuantity} />
-            </aside>
-          </div>
+          <BuyCheckoutClient draw={drawData.draw} initialQuantity={initialQuantity} />
         </Container>
       </section>
     </main>
