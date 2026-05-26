@@ -50,7 +50,7 @@ export function JackpotExplainer() {
 
               <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/75">
                 Buy daily tickets, win daily prizes, and quietly stack entries into the
-                ₦4,000,000 Saturday draw. No subscription, no hidden math — the count is on
+                Sure Jackpot draw. No subscription, no hidden math — the count is on
                 your dashboard, always.
               </p>
 
@@ -103,7 +103,7 @@ export function JackpotExplainer() {
                   1 Free Jackpot Entry
                 </p>
                 <p className="mt-1 text-sm font-bold text-navy-900/70">
-                  Saturday ₦4,000,000 draw
+                  Sure Jackpot draw
                 </p>
               </div>
             </div>
