@@ -41,7 +41,6 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
   const displayDrawSubtitle = getCustomerDrawSubtitle(draw);
   const ticketCap = isJackpot ? null : 6000;
   const soldPercentage = ticketCap ? Math.min(100, (ticketsSold / ticketCap) * 100) : 0;
-  const VisualIcon = isJackpot ? Trophy : Gift;
 
   const seedHash = '9f4c2b8e1a7d6f30c5e9b2148a6d4f7c2c6e9a4b7d0f3e6c1a5b8d';
   const seedCommittedAt = '00:00 WAT';
@@ -135,16 +134,16 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
                   </div>
 
                   <div className="absolute inset-0 flex items-center justify-center p-8">
-                    <div
-                      className={
-                        isJackpot
-                          ? 'flex h-32 w-32 items-center justify-center rounded-[2.25rem] bg-amber-500 text-navy-950 shadow-[0_34px_80px_rgba(245,158,11,0.25)]'
-                          : 'flex h-32 w-32 items-center justify-center rounded-[2.25rem] bg-navy-800 text-white shadow-[0_34px_80px_rgba(1,58,168,0.22)]'
-                      }
-                      aria-label={displayDrawName}
-                    >
-                      <VisualIcon className="h-16 w-16" />
-                    </div>
+                    {isJackpot ? (
+                      <div
+                        className="flex h-32 w-32 items-center justify-center rounded-[2.25rem] bg-amber-500 text-navy-950 shadow-[0_34px_80px_rgba(245,158,11,0.25)]"
+                        aria-label={displayDrawName}
+                      >
+                        <Trophy className="h-16 w-16" />
+                      </div>
+                    ) : (
+                      <RegularPrizeCategories />
+                    )}
                   </div>
                 </div>
 
@@ -224,6 +223,43 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
         </Container>
       </section>
     </main>
+  );
+}
+
+const regularPrizeCategories = [
+  'Small prize category',
+  'Big prize category',
+  'Mega prize category',
+] as const;
+
+function RegularPrizeCategories() {
+  return (
+    <div className="grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-3">
+      {regularPrizeCategories.map((label, index) => (
+        <div
+          key={label}
+          className={
+            index === 2
+              ? 'flex min-h-[150px] flex-col items-center justify-center rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-5 text-center shadow-[0_24px_60px_rgba(245,158,11,0.16)]'
+              : 'flex min-h-[150px] flex-col items-center justify-center rounded-[1.5rem] border border-navy-100 bg-white/80 px-4 py-5 text-center shadow-[0_18px_45px_rgba(1,58,168,0.10)]'
+          }
+        >
+          <div
+            className={
+              index === 2
+                ? 'mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500 text-navy-950'
+                : 'mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-navy-800 text-white'
+            }
+          >
+            <Gift className="h-7 w-7" />
+          </div>
+          <p className="text-sm font-black text-navy-950">{label}</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            Part of today&apos;s named draw.
+          </p>
+        </div>
+      ))}
+    </div>
   );
 }
 
