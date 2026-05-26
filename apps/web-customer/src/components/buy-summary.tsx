@@ -1,5 +1,6 @@
 import { Clock, Gift, Hash, Shield, Trophy } from 'lucide-react';
 import { Badge, Card } from '@surewina/ui';
+import { formatNaira } from '@surewina/utils';
 import type { DrawPublic } from '@surewina/types';
 import { drawTypeShortLabel, formatCountdown } from '@/lib/draw-helpers';
 import {
@@ -10,13 +11,15 @@ import {
 
 interface BuySummaryProps {
   draw: DrawPublic;
+  quantity?: number;
 }
 
-export function BuySummary({ draw }: BuySummaryProps) {
+export function BuySummary({ draw, quantity = 1 }: BuySummaryProps) {
   const isJackpot = draw.drawType === 'SATURDAY_JACKPOT';
   const displayDrawName = getCustomerDrawName(draw);
   const subtitle = getCustomerDrawSubtitle(draw);
   const ticketType = getTicketTypeLabel(draw);
+  const total = quantity * draw.ticketPriceNgn;
   const Icon = isJackpot ? Trophy : Gift;
 
   return (
@@ -68,15 +71,11 @@ export function BuySummary({ draw }: BuySummaryProps) {
             {subtitle}
           </p>
 
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-              Closes in
-            </p>
-
-            <p className="mt-1 inline-flex items-center gap-1 font-mono text-lg font-black text-navy-950 tabular-nums">
-              <Clock className="h-3.5 w-3.5 text-navy-700" />
-              {formatCountdown(draw.cutoffAt)}
-            </p>
+          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+            <SummaryStat label="Quantity" value={quantity.toLocaleString('en-NG')} />
+            <SummaryStat label="Total" value={formatNaira(total)} />
+            <SummaryStat label="Ticket price" value={formatNaira(draw.ticketPriceNgn)} />
+            <SummaryStat label="Closes in" value={formatCountdown(draw.cutoffAt)} mono />
           </div>
         </div>
       </Card>
@@ -103,6 +102,19 @@ export function BuySummary({ draw }: BuySummaryProps) {
           </TrustItem>
         </ul>
       </Card>
+    </div>
+  );
+}
+
+function SummaryStat({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-navy-50 p-3">
+      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+        {label}
+      </p>
+      <p className={mono ? 'mt-1 font-mono text-sm font-black text-navy-950' : 'mt-1 font-display text-sm font-black text-navy-950'}>
+        {value}
+      </p>
     </div>
   );
 }
