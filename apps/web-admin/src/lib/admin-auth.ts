@@ -1,4 +1,4 @@
-export type AdminRole = 'OPERATOR' | 'COMPLIANCE_OFFICER' | 'FINANCE_OFFICER' | 'SUPPORT_AGENT';
+export type AdminRole = 'BASIC_ADMIN' | 'INTERMEDIATE_ADMIN' | 'SUPER_ADMIN' | 'AUDITOR';
 
 export interface AdminSession {
   adminUserId: string;
@@ -9,23 +9,129 @@ export interface AdminSession {
   lastLoginAt: string;
 }
 
+export type AdminPermission =
+  | 'VIEW_DASHBOARD'
+  | 'VIEW_TICKETS'
+  | 'VIEW_CUSTOMERS'
+  | 'VIEW_DISPUTES'
+  | 'VIEW_AGENTS'
+  | 'INITIATE_AGENT_PROFILING'
+  | 'REVIEW_AGENT_ONBOARDING'
+  | 'VIEW_CLAIMS'
+  | 'REVIEW_KYC'
+  | 'VIEW_PAYOUTS'
+  | 'VIEW_FINANCE'
+  | 'VIEW_DRAWS'
+  | 'INITIATE_DRAW_SETUP'
+  | 'APPROVE_OPERATIONAL_CHANGES'
+  | 'VIEW_REPORTS'
+  | 'VIEW_AUDIT_LOGS'
+  | 'VIEW_SYSTEM_CONFIG'
+  | 'MANAGE_ADMINS'
+  | 'READ_ONLY_QUERY_ALL';
+
 const SESSION_KEY = 'surewina_admin_session';
 
 const DEFAULT_SESSION: AdminSession = {
-  adminUserId: 'usr_tunde_op_001',
-  email: 'tunde.adekunle@surewina.ng',
+  adminUserId: 'usr_super_admin_001',
+  email: 'super.admin@surewina.ng',
   fullName: 'Tunde Adekunle',
-  role: 'OPERATOR',
+  role: 'SUPER_ADMIN',
   mfaEnabled: true,
   lastLoginAt: new Date().toISOString(),
 };
+
+const rolePermissions: Record<AdminRole, AdminPermission[]> = {
+  BASIC_ADMIN: [
+    'VIEW_DASHBOARD',
+    'VIEW_TICKETS',
+    'VIEW_CUSTOMERS',
+    'VIEW_DISPUTES',
+    'VIEW_AGENTS',
+    'INITIATE_AGENT_PROFILING',
+    'VIEW_CLAIMS',
+  ],
+  INTERMEDIATE_ADMIN: [
+    'VIEW_DASHBOARD',
+    'VIEW_TICKETS',
+    'VIEW_CUSTOMERS',
+    'VIEW_AGENTS',
+    'REVIEW_AGENT_ONBOARDING',
+    'VIEW_CLAIMS',
+    'REVIEW_KYC',
+    'VIEW_PAYOUTS',
+    'VIEW_DRAWS',
+    'INITIATE_DRAW_SETUP',
+    'VIEW_REPORTS',
+  ],
+  SUPER_ADMIN: [
+    'VIEW_DASHBOARD',
+    'VIEW_TICKETS',
+    'VIEW_CUSTOMERS',
+    'VIEW_DISPUTES',
+    'VIEW_AGENTS',
+    'INITIATE_AGENT_PROFILING',
+    'REVIEW_AGENT_ONBOARDING',
+    'VIEW_CLAIMS',
+    'REVIEW_KYC',
+    'VIEW_PAYOUTS',
+    'VIEW_FINANCE',
+    'VIEW_DRAWS',
+    'INITIATE_DRAW_SETUP',
+    'APPROVE_OPERATIONAL_CHANGES',
+    'VIEW_REPORTS',
+    'VIEW_AUDIT_LOGS',
+    'VIEW_SYSTEM_CONFIG',
+    'MANAGE_ADMINS',
+  ],
+  AUDITOR: [
+    'VIEW_DASHBOARD',
+    'VIEW_TICKETS',
+    'VIEW_CUSTOMERS',
+    'VIEW_AGENTS',
+    'VIEW_CLAIMS',
+    'VIEW_PAYOUTS',
+    'VIEW_FINANCE',
+    'VIEW_DRAWS',
+    'VIEW_REPORTS',
+    'VIEW_AUDIT_LOGS',
+    'READ_ONLY_QUERY_ALL',
+  ],
+};
+
+const routePermissions: Array<{ path: string; permission: AdminPermission }> = [
+  { path: '/', permission: 'VIEW_DASHBOARD' },
+  { path: '/tickets', permission: 'VIEW_TICKETS' },
+  { path: '/customers', permission: 'VIEW_CUSTOMERS' },
+  { path: '/disputes', permission: 'VIEW_DISPUTES' },
+  { path: '/agents', permission: 'VIEW_AGENTS' },
+  { path: '/agents/onboarding', permission: 'REVIEW_AGENT_ONBOARDING' },
+  { path: '/agents/super', permission: 'VIEW_AGENTS' },
+  { path: '/claims', permission: 'VIEW_CLAIMS' },
+  { path: '/kyc/review', permission: 'REVIEW_KYC' },
+  { path: '/payouts', permission: 'VIEW_PAYOUTS' },
+  { path: '/remittance', permission: 'VIEW_FINANCE' },
+  { path: '/commission', permission: 'VIEW_FINANCE' },
+  { path: '/jackpot-fund', permission: 'VIEW_FINANCE' },
+  { path: '/draws/new', permission: 'INITIATE_DRAW_SETUP' },
+  { path: '/draws', permission: 'VIEW_DRAWS' },
+  { path: '/rng-seeds', permission: 'VIEW_DRAWS' },
+  { path: '/reports', permission: 'VIEW_REPORTS' },
+  { path: '/compliance/aml', permission: 'VIEW_AUDIT_LOGS' },
+  { path: '/audit-log', permission: 'VIEW_AUDIT_LOGS' },
+  { path: '/promotions', permission: 'VIEW_SYSTEM_CONFIG' },
+  { path: '/config', permission: 'VIEW_SYSTEM_CONFIG' },
+  { path: '/users', permission: 'MANAGE_ADMINS' },
+];
 
 export function getStoredSession(): AdminSession | null {
   if (typeof window === 'undefined') return null;
   const raw = localStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as AdminSession;
+    const parsed = JSON.parse(raw) as AdminSession;
+    if (!isSupportedRole(parsed.role)) return null;
+    return parsed;
   } catch {
     return null;
   }
@@ -51,75 +157,73 @@ export function seedSessionIfMissing(): AdminSession {
 
 export function roleLabel(role: AdminRole): string {
   switch (role) {
-    case 'OPERATOR':
-      return 'Operator';
-    case 'COMPLIANCE_OFFICER':
-      return 'Compliance';
-    case 'FINANCE_OFFICER':
-      return 'Finance';
-    case 'SUPPORT_AGENT':
-      return 'Support';
+    case 'BASIC_ADMIN':
+      return 'Basic Admin';
+    case 'INTERMEDIATE_ADMIN':
+      return 'Intermediate Admin';
+    case 'SUPER_ADMIN':
+      return 'Super Admin';
+    case 'AUDITOR':
+      return 'Auditor';
+  }
+}
+
+export function roleDescription(role: AdminRole): string {
+  switch (role) {
+    case 'BASIC_ADMIN':
+      return 'Enquiries, ticket/customer status, and initiation tasks only.';
+    case 'INTERMEDIATE_ADMIN':
+      return 'First-level reviews, onboarding checks, KYC, payouts, and draw setup initiation.';
+    case 'SUPER_ADMIN':
+      return 'Final approvals, admin management, configuration, and authorization.';
+    case 'AUDITOR':
+      return 'Read-only query access across layers with no mutation or approval rights.';
   }
 }
 
 export function roleTone(role: AdminRole): string {
   switch (role) {
-    case 'OPERATOR':
+    case 'BASIC_ADMIN':
       return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-    case 'COMPLIANCE_OFFICER':
-      return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
-    case 'FINANCE_OFFICER':
+    case 'INTERMEDIATE_ADMIN':
       return 'bg-sky-500/20 text-sky-300 border-sky-500/30';
-    case 'SUPPORT_AGENT':
+    case 'SUPER_ADMIN':
+      return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+    case 'AUDITOR':
       return 'bg-violet-500/20 text-violet-300 border-violet-500/30';
   }
 }
 
-/**
- * Role-based screen access. Operator sees everything by default for demos;
- * the matrix is otherwise restrictive.
- */
+export function hasPermission(role: AdminRole, permission: AdminPermission): boolean {
+  return rolePermissions[role].includes(permission);
+}
+
+export function isReadOnlyRole(role: AdminRole): boolean {
+  return role === 'AUDITOR';
+}
+
+export function canMutate(role: AdminRole): boolean {
+  return !isReadOnlyRole(role);
+}
+
 export function canAccess(role: AdminRole, screen: string): boolean {
-  if (role === 'OPERATOR') return true;
+  const route = findRoutePermission(screen);
+  if (!route) return role === 'SUPER_ADMIN';
+  return hasPermission(role, route.permission);
+}
 
-  const matrix: Record<AdminRole, string[]> = {
-    OPERATOR: ['*'],
-    COMPLIANCE_OFFICER: [
-      '/',
-      '/compliance',
-      '/compliance/aml',
-      '/kyc/review',
-      '/reports',
-      '/reports/financial',
-      '/audit-log',
-      '/rng-seeds',
-      '/draws',
-      '/draws/audit',
-      '/tickets',
-      '/customers',
-      '/claims',
-    ],
-    FINANCE_OFFICER: [
-      '/',
-      '/remittance',
-      '/commission',
-      '/jackpot-fund',
-      '/payouts',
-      '/reports',
-      '/reports/financial',
-      '/audit-log',
-    ],
-    SUPPORT_AGENT: [
-      '/',
-      '/tickets',
-      '/customers',
-      '/disputes',
-      '/claims',
-      '/agents',
-    ],
-  };
+export function getAccessDeniedMessage(role: AdminRole, screen: string): string {
+  const route = findRoutePermission(screen);
+  if (!route) return 'This section is restricted to Super Admin users until a permission is assigned.';
+  return `${roleLabel(role)} does not have the ${route.permission.replaceAll('_', ' ').toLowerCase()} permission required for this section.`;
+}
 
-  const allowed = matrix[role];
-  if (allowed.includes('*')) return true;
-  return allowed.some((path) => screen === path || screen.startsWith(`${path}/`));
+function findRoutePermission(screen: string) {
+  return [...routePermissions]
+    .sort((a, b) => b.path.length - a.path.length)
+    .find((route) => screen === route.path || (route.path !== '/' && screen.startsWith(`${route.path}/`)));
+}
+
+function isSupportedRole(role: string): role is AdminRole {
+  return ['BASIC_ADMIN', 'INTERMEDIATE_ADMIN', 'SUPER_ADMIN', 'AUDITOR'].includes(role);
 }
