@@ -101,15 +101,9 @@ function greeting() {
 }
 
 function roleBadgeTone(role: AdminSession['role']) {
-  switch (role) {
-    case 'OPERATOR':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-    case 'COMPLIANCE_OFFICER':
-      return 'border-amber-200 bg-amber-50 text-amber-700';
-    case 'FINANCE_OFFICER':
-      return 'border-sky-200 bg-sky-50 text-sky-700';
-    case 'SUPPORT_AGENT':
-      return 'border-violet-200 bg-violet-50 text-violet-700';
-  }
+  if (role === 'BASIC_ADMIN') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  if (role === 'INTERMEDIATE_ADMIN') return 'border-sky-200 bg-sky-50 text-sky-700';
+  if (role === 'SUPER_ADMIN') return 'border-amber-200 bg-amber-50 text-amber-700';
+  if (role === 'AUDITOR') return 'border-violet-200 bg-violet-50 text-violet-700';
   return roleTone(role);
 }
