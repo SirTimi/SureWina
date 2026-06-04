@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
 import { Button } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
@@ -7,6 +8,15 @@ import { AdminShell } from '@/components/admin-shell';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
 import { adminMock } from '@/lib/admin-mock';
+
+type ReportPeriod = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YTD';
+
+const periodTabs: Array<{ key: ReportPeriod; label: string }> = [
+  { key: 'DAILY', label: 'Daily' },
+  { key: 'WEEKLY', label: 'Weekly' },
+  { key: 'MONTHLY', label: 'Monthly' },
+  { key: 'YTD', label: 'YTD' },
+];
 
 export default function SalesReportPage() {
   return (
@@ -17,20 +27,23 @@ export default function SalesReportPage() {
 }
 
 function Body() {
+  const [period, setPeriod] = useState<ReportPeriod>('DAILY');
   const breakdown = adminMock.getStateBreakdown();
   const total = breakdown.reduce((s, b) => s + b.tickets, 0);
   const totalNgn = breakdown.reduce((s, b) => s + b.salesNgn, 0);
+  const rows = useMemo(() => buildReportRows(period, breakdown), [period, breakdown]);
+  const columns = getColumns(period);
 
   const download = () => {
     const csv = [
-      'state,tickets,sales_ngn',
-      ...breakdown.map((b) => `${b.state},${b.tickets},${b.salesNgn}`),
+      columns.map((c) => c.csvKey).join(','),
+      ...rows.map((row) => columns.map((c) => row[c.key]).join(',')),
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `sales-by-state-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `sales-${period.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -39,19 +52,11 @@ function Body() {
     <>
       <PageHeader
         eyebrow="Reports · Sales"
-        title="Daily sales by state"
-        description="Tickets sold and revenue, segmented by registered state of play. Used for State Games Management Board levy calculation."
-        breadcrumbs={[
-          { label: 'Admin', href: '/' },
-          { label: 'Reports', href: '/reports' },
-          { label: 'Sales' },
-        ]}
+        title={`${periodLabel(period)} sales review`}
+        description="Tickets sold, sales, payouts, and net remittance with headers matched to the selected period."
+        breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Reports', href: '/reports' }, { label: 'Sales' }]}
         rightSlot={
-          <Button
-            variant="secondary"
-            onClick={download}
-            className="rounded-md border-slate-200 bg-white text-[#0B1220]"
-          >
+          <Button variant="secondary" onClick={download} className="rounded-md border-slate-200 bg-white text-[#0B1220]">
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
@@ -59,46 +64,127 @@ function Body() {
       />
 
       <div className="mx-auto max-w-[1200px] space-y-4 px-6 py-5">
-        <SectionCard title={`Totals · ${total} tickets · ${formatNaira(totalNgn)}`} padded={false}>
+        <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+          {periodTabs.map((tab) => {
+            const active = period === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setPeriod(tab.key)}
+                className={
+                  active
+                    ? 'rounded-lg bg-navy-800 px-4 py-2 text-sm font-black text-white shadow-sm'
+                    : 'rounded-lg px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-navy-50 hover:text-navy-700'
+                }
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <SectionCard title={`${periodLabel(period)} totals · ${total.toLocaleString('en-NG')} tickets · ${formatNaira(totalNgn)}`} padded={false}>
           <table className="min-w-full text-sm">
-            <thead className="bg-[#F8FAF4] text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+            <thead className="bg-navy-50 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
               <tr>
-                <th className="px-4 py-2 text-left">State</th>
-                <th className="px-4 py-2 text-right">Tickets</th>
-                <th className="px-4 py-2 text-right">Share</th>
-                <th className="px-4 py-2 text-right">Sales (₦)</th>
+                {columns.map((column) => (
+                  <th key={column.key} className={column.align === 'right' ? 'px-4 py-2 text-right' : 'px-4 py-2 text-left'}>
+                    {column.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {breakdown.map((b) => {
-                const pct = total > 0 ? (b.tickets / total) * 100 : 0;
-                return (
-                  <tr key={b.state}>
-                    <td className="px-4 py-2 font-mono text-xs font-black">{b.state}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">
-                      {b.tickets.toLocaleString('en-NG')}
+              {rows.map((row) => (
+                <tr key={row.periodLabel}>
+                  {columns.map((column) => (
+                    <td key={column.key} className={column.align === 'right' ? 'px-4 py-2 text-right font-bold tabular-nums' : 'px-4 py-2 font-mono text-xs font-black'}>
+                      {formatCell(row[column.key], column.kind)}
                     </td>
-                    <td className="px-4 py-2 text-right">
-                      <div className="inline-flex w-full max-w-[160px] items-center gap-2">
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full bg-navy-800"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-xs tabular-nums">{pct.toFixed(1)}%</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 text-right font-bold tabular-nums">
-                      {formatNaira(b.salesNgn)}
-                    </td>
-                  </tr>
-                );
-              })}
+                  ))}
+                </tr>
+              ))}
             </tbody>
           </table>
         </SectionCard>
       </div>
     </>
   );
+}
+
+function periodLabel(period: ReportPeriod) {
+  switch (period) {
+    case 'DAILY':
+      return 'Daily';
+    case 'WEEKLY':
+      return 'Weekly';
+    case 'MONTHLY':
+      return 'Monthly';
+    case 'YTD':
+      return 'Year-to-date';
+  }
+}
+
+type ReportRow = {
+  periodLabel: string;
+  tickets: number;
+  grossSalesNgn: number;
+  prizePayoutsNgn: number;
+  netRemittanceNgn: number;
+};
+
+function buildReportRows(period: ReportPeriod, breakdown: ReturnType<typeof adminMock.getStateBreakdown>): ReportRow[] {
+  const tickets = breakdown.reduce((sum, row) => sum + row.tickets, 0);
+  const grossSalesNgn = breakdown.reduce((sum, row) => sum + row.salesNgn, 0);
+  const prizePayoutsNgn = Math.round(grossSalesNgn * 0.18);
+  const netRemittanceNgn = grossSalesNgn - prizePayoutsNgn;
+
+  if (period === 'DAILY') {
+    return breakdown.map((row) => ({
+      periodLabel: row.state,
+      tickets: row.tickets,
+      grossSalesNgn: row.salesNgn,
+      prizePayoutsNgn: Math.round(row.salesNgn * 0.18),
+      netRemittanceNgn: row.salesNgn - Math.round(row.salesNgn * 0.18),
+    }));
+  }
+
+  if (period === 'WEEKLY') {
+    return [
+      { periodLabel: 'Week 1', tickets: Math.round(tickets * 0.22), grossSalesNgn: Math.round(grossSalesNgn * 0.22), prizePayoutsNgn: Math.round(prizePayoutsNgn * 0.22), netRemittanceNgn: Math.round(netRemittanceNgn * 0.22) },
+      { periodLabel: 'Week 2', tickets: Math.round(tickets * 0.24), grossSalesNgn: Math.round(grossSalesNgn * 0.24), prizePayoutsNgn: Math.round(prizePayoutsNgn * 0.24), netRemittanceNgn: Math.round(netRemittanceNgn * 0.24) },
+      { periodLabel: 'Week 3', tickets: Math.round(tickets * 0.26), grossSalesNgn: Math.round(grossSalesNgn * 0.26), prizePayoutsNgn: Math.round(prizePayoutsNgn * 0.26), netRemittanceNgn: Math.round(netRemittanceNgn * 0.26) },
+      { periodLabel: 'Week 4', tickets: Math.round(tickets * 0.28), grossSalesNgn: Math.round(grossSalesNgn * 0.28), prizePayoutsNgn: Math.round(prizePayoutsNgn * 0.28), netRemittanceNgn: Math.round(netRemittanceNgn * 0.28) },
+    ];
+  }
+
+  if (period === 'MONTHLY') {
+    return ['January', 'February', 'March', 'April'].map((month, index) => ({
+      periodLabel: month,
+      tickets: Math.round(tickets * (0.2 + index * 0.03)),
+      grossSalesNgn: Math.round(grossSalesNgn * (0.2 + index * 0.03)),
+      prizePayoutsNgn: Math.round(prizePayoutsNgn * (0.2 + index * 0.03)),
+      netRemittanceNgn: Math.round(netRemittanceNgn * (0.2 + index * 0.03)),
+    }));
+  }
+
+  return [{ periodLabel: `${new Date().getFullYear()} YTD`, tickets, grossSalesNgn, prizePayoutsNgn, netRemittanceNgn }];
+}
+
+function getColumns(period: ReportPeriod): Array<{ key: keyof ReportRow; label: string; csvKey: string; align?: 'right'; kind?: 'money' | 'number' }> {
+  const firstLabel = period === 'DAILY' ? 'State' : period === 'WEEKLY' ? 'Week' : period === 'MONTHLY' ? 'Month' : 'YTD period';
+  return [
+    { key: 'periodLabel', label: firstLabel, csvKey: firstLabel.toLowerCase().replaceAll(' ', '_') },
+    { key: 'tickets', label: period === 'YTD' ? 'Total tickets' : 'Tickets sold', csvKey: 'tickets_sold', align: 'right', kind: 'number' },
+    { key: 'grossSalesNgn', label: period === 'DAILY' ? 'Sales' : 'Gross sales', csvKey: 'gross_sales_ngn', align: 'right', kind: 'money' },
+    { key: 'prizePayoutsNgn', label: 'Prize payouts', csvKey: 'prize_payouts_ngn', align: 'right', kind: 'money' },
+    { key: 'netRemittanceNgn', label: period === 'DAILY' ? 'Net due' : 'Net remittance', csvKey: 'net_remittance_ngn', align: 'right', kind: 'money' },
+  ];
+}
+
+function formatCell(value: string | number, kind?: 'money' | 'number') {
+  if (kind === 'money' && typeof value === 'number') return formatNaira(value);
+  if (kind === 'number' && typeof value === 'number') return value.toLocaleString('en-NG');
+  return value;
 }
