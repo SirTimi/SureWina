@@ -26,74 +26,89 @@ import {
   Wallet,
 } from 'lucide-react';
 import { Logo } from '@surewina/ui';
+import type { AdminPermission, AdminSession } from '@/lib/admin-auth';
+import { hasPermission, roleDescription, roleLabel } from '@/lib/admin-auth';
 
 const navGroups: Array<{
   label: string;
-  items: Array<{ label: string; href: string; icon: typeof Gauge; help: string }>;
+  items: Array<{
+    label: string;
+    href: string;
+    icon: typeof Gauge;
+    help: string;
+    permission: AdminPermission;
+    readOnly?: boolean;
+  }>;
 }> = [
   {
     label: 'Overview',
-    items: [{ label: 'Dashboard', href: '/', icon: LayoutDashboard, help: 'Main admin dashboard and operational overview' }],
+    items: [{ label: 'Dashboard', href: '/', icon: LayoutDashboard, help: 'Main admin dashboard and operational overview', permission: 'VIEW_DASHBOARD' }],
   },
   {
     label: 'Draws',
     items: [
-      { label: 'All draws', href: '/draws', icon: Trophy, help: 'View and manage draw records' },
-      { label: 'RNG seeds', href: '/rng-seeds', icon: KeyRound, help: 'Review RNG seed commitments and draw verification' },
+      { label: 'All draws', href: '/draws', icon: Trophy, help: 'View and manage draw records', permission: 'VIEW_DRAWS' },
+      { label: 'RNG seeds', href: '/rng-seeds', icon: KeyRound, help: 'Review RNG seed commitments and draw verification', permission: 'VIEW_DRAWS' },
     ],
   },
   {
     label: 'Customers',
     items: [
-      { label: 'Tickets', href: '/tickets', icon: Ticket, help: 'Search and review customer ticket records' },
-      { label: 'Customers', href: '/customers', icon: Users, help: 'View customer profiles and account status' },
-      { label: 'Disputes', href: '/disputes', icon: MessageSquare, help: 'Review customer disputes and complaints' },
+      { label: 'Tickets', href: '/tickets', icon: Ticket, help: 'Search and review customer ticket records', permission: 'VIEW_TICKETS' },
+      { label: 'Customers', href: '/customers', icon: Users, help: 'View customer profiles and account status', permission: 'VIEW_CUSTOMERS' },
+      { label: 'Disputes', href: '/disputes', icon: MessageSquare, help: 'Review customer disputes and complaints', permission: 'VIEW_DISPUTES' },
     ],
   },
   {
     label: 'Agents',
     items: [
-      { label: 'Agents', href: '/agents', icon: UserCog, help: 'Manage agent records and performance status' },
-      { label: 'Onboarding', href: '/agents/onboarding', icon: ClipboardCheck, help: 'Review agent onboarding and profiling requests' },
-      { label: 'Super-agents', href: '/agents/super', icon: GitBranch, help: 'Manage super-agent hierarchy and reporting lines' },
+      { label: 'Agents', href: '/agents', icon: UserCog, help: 'Manage agent records and performance status', permission: 'VIEW_AGENTS' },
+      { label: 'Onboarding', href: '/agents/onboarding', icon: ClipboardCheck, help: 'Review agent onboarding and profiling requests', permission: 'REVIEW_AGENT_ONBOARDING' },
+      { label: 'Super-agents', href: '/agents/super', icon: GitBranch, help: 'Manage super-agent hierarchy and reporting lines', permission: 'VIEW_AGENTS' },
     ],
   },
   {
     label: 'Claims & payouts',
     items: [
-      { label: 'Claims pipeline', href: '/claims', icon: Flag, help: 'Track prize claims from submission to closure' },
-      { label: 'KYC review', href: '/kyc/review', icon: ShieldCheck, help: 'Review customer identity and payout documents' },
-      { label: 'Payouts', href: '/payouts', icon: Banknote, help: 'Review and approve payout activity' },
+      { label: 'Claims pipeline', href: '/claims', icon: Flag, help: 'Track prize claims from submission to closure', permission: 'VIEW_CLAIMS' },
+      { label: 'KYC review', href: '/kyc/review', icon: ShieldCheck, help: 'Review customer identity and payout documents', permission: 'REVIEW_KYC' },
+      { label: 'Payouts', href: '/payouts', icon: Banknote, help: 'Review and approve payout activity', permission: 'VIEW_PAYOUTS' },
     ],
   },
   {
     label: 'Finance',
     items: [
-      { label: 'Remittance', href: '/remittance', icon: Wallet, help: 'Track agent remittance and outstanding balances' },
-      { label: 'Commission', href: '/commission', icon: Coins, help: 'Review agent commissions and earning rules' },
-      { label: 'Jackpot fund', href: '/jackpot-fund', icon: Gauge, help: 'Monitor jackpot fund status and controls' },
+      { label: 'Remittance', href: '/remittance', icon: Wallet, help: 'Track agent remittance and outstanding balances', permission: 'VIEW_FINANCE' },
+      { label: 'Commission', href: '/commission', icon: Coins, help: 'Review agent commissions and earning rules', permission: 'VIEW_FINANCE' },
+      { label: 'Jackpot fund', href: '/jackpot-fund', icon: Gauge, help: 'Monitor jackpot fund status and controls', permission: 'VIEW_FINANCE' },
     ],
   },
   {
     label: 'Compliance',
     items: [
-      { label: 'Reports', href: '/reports', icon: FileBarChart, help: 'Open compliance, finance, and operations reports' },
-      { label: 'AML flags', href: '/compliance/aml', icon: AlertOctagon, help: 'Review suspicious activity and AML alerts' },
-      { label: 'Audit log', href: '/audit-log', icon: ScrollText, help: 'View admin action history and audit trails' },
+      { label: 'Reports', href: '/reports', icon: FileBarChart, help: 'Open compliance, finance, and operations reports', permission: 'VIEW_REPORTS' },
+      { label: 'AML flags', href: '/compliance/aml', icon: AlertOctagon, help: 'Review suspicious activity and AML alerts', permission: 'VIEW_AUDIT_LOGS' },
+      { label: 'Audit log', href: '/audit-log', icon: ScrollText, help: 'View admin action history and audit trails', permission: 'VIEW_AUDIT_LOGS' },
     ],
   },
   {
     label: 'System',
     items: [
-      { label: 'Promotions', href: '/promotions', icon: Receipt, help: 'Manage platform promotions and campaign rules' },
-      { label: 'Config', href: '/config', icon: Settings, help: 'View platform configuration settings' },
-      { label: 'Admin users', href: '/users', icon: BookOpen, help: 'Manage admin users and access profiles' },
+      { label: 'Promotions', href: '/promotions', icon: Receipt, help: 'Manage platform promotions and campaign rules', permission: 'VIEW_SYSTEM_CONFIG' },
+      { label: 'Config', href: '/config', icon: Settings, help: 'View platform configuration settings', permission: 'VIEW_SYSTEM_CONFIG' },
+      { label: 'Admin users', href: '/users', icon: BookOpen, help: 'Manage admin users and access profiles', permission: 'MANAGE_ADMINS' },
     ],
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ session }: { session: AdminSession }) {
   const pathname = usePathname();
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => hasPermission(session.role, item.permission)),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <aside className="hidden h-screen w-[260px] shrink-0 flex-col border-r border-white/5 bg-primary text-white lg:flex">
@@ -101,12 +116,17 @@ export function Sidebar() {
         <Logo />
         <div className="leading-tight">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">Admin</p>
-          <p className="text-xs font-bold text-white/60">Operator console</p>
+          <p className="text-xs font-bold text-white/60">{roleLabel(session.role)}</p>
         </div>
       </div>
 
+      <div className="border-b border-white/5 px-5 py-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">Clearance</p>
+        <p className="mt-1 text-xs leading-relaxed text-white/60">{roleDescription(session.role)}</p>
+      </div>
+
       <nav className="thin-scrollbar flex-1 overflow-y-auto px-3 py-4">
-        {navGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label} className="mb-4">
             <p className="px-3 pb-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/40">{group.label}</p>
             <div className="space-y-0.5">

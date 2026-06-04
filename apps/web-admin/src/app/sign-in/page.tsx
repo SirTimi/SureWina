@@ -4,7 +4,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Lock, Mail, Shield, ShieldCheck } from 'lucide-react';
 import { Button, Card, Logo } from '@surewina/ui';
-import { saveSession, type AdminRole } from '@/lib/admin-auth';
+import { roleDescription, saveSession, type AdminRole } from '@/lib/admin-auth';
 
 const DEMO_OPTIONS: Array<{
   role: AdminRole;
@@ -13,34 +13,34 @@ const DEMO_OPTIONS: Array<{
   description: string;
 }> = [
   {
-    role: 'OPERATOR',
-    email: 'tunde.adekunle@surewina.ng',
-    fullName: 'Tunde Adekunle',
-    description: 'Operator · sees everything',
-  },
-  {
-    role: 'COMPLIANCE_OFFICER',
-    email: 'compliance@surewina.ng',
-    fullName: 'Aisha Mohammed',
-    description: 'Compliance · audit, KYC, AML',
-  },
-  {
-    role: 'FINANCE_OFFICER',
-    email: 'finance.officer@surewina.ng',
-    fullName: 'Ifeanyi Okafor',
-    description: 'Finance · remit, payouts, reports',
-  },
-  {
-    role: 'SUPPORT_AGENT',
-    email: 'sade.bello@surewina.ng',
+    role: 'BASIC_ADMIN',
+    email: 'basic.admin@surewina.ng',
     fullName: 'Sade Bello',
-    description: 'Support · tickets, disputes',
+    description: 'Basic Admin · enquiries, status checks, initiation tasks',
+  },
+  {
+    role: 'INTERMEDIATE_ADMIN',
+    email: 'intermediate.admin@surewina.ng',
+    fullName: 'Ifeanyi Okafor',
+    description: 'Intermediate Admin · first-level review and approvals',
+  },
+  {
+    role: 'SUPER_ADMIN',
+    email: 'super.admin@surewina.ng',
+    fullName: 'Tunde Adekunle',
+    description: 'Super Admin · final approvals and admin management',
+  },
+  {
+    role: 'AUDITOR',
+    email: 'auditor@surewina.ng',
+    fullName: 'Aisha Mohammed',
+    description: 'Auditor · read-only query access and escalation',
   },
 ];
 
 export default function AdminSignInPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('tunde.adekunle@surewina.ng');
+  const [email, setEmail] = useState('super.admin@surewina.ng');
   const [password, setPassword] = useState('');
   const [mfa, setMfa] = useState('');
   const [step, setStep] = useState<'creds' | 'mfa'>('creds');
@@ -62,7 +62,7 @@ export default function AdminSignInPage() {
       setError('Enter the 6-digit MFA code.');
       return;
     }
-    const pick = DEMO_OPTIONS.find((o) => o.email === email) ?? DEMO_OPTIONS[0];
+    const pick = DEMO_OPTIONS.find((o) => o.email === email) ?? DEMO_OPTIONS[2];
     saveSession({
       adminUserId: `usr_${pick.role.toLowerCase()}`,
       email: pick.email,
@@ -100,29 +100,29 @@ export default function AdminSignInPage() {
         <div className="grid flex-1 grid-cols-1 items-center gap-10 lg:grid-cols-[1fr_440px]">
           <section className="hidden lg:block">
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-400">
-              Operator console
+              Governance console
             </p>
             <h1 className="mt-3 font-display text-6xl font-black leading-[0.98] tracking-[-0.05em]">
-              Run every draw.
+              Least privilege.
               <br />
-              <span className="text-[#A8E368]">Audit</span> every naira.
+              <span className="text-[#A8E368]">Clear roles.</span>
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-white/70">
-              Sign in with your admin email, password, and your MFA code. Demo accounts
-              for each role are listed on the right — pick one to skip the form.
+              Sign in with the admin role assigned to your clearance level. Demo accounts
+              show how Basic Admin, Intermediate Admin, Super Admin, and Auditor access differs.
             </p>
             <ul className="mt-8 max-w-md space-y-3 text-sm text-white/75">
               <li className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-amber-400" />
-                Role-based access for operators, finance, compliance, support
+                Basic Admin handles enquiries, status checks, and initiation tasks
               </li>
               <li className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-amber-400" />
-                Every action ends up in the audit log
+                Super Admin handles authorization and admin management
               </li>
               <li className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-amber-400" />
-                MFA required for all admin sessions
+                Auditor has read-only query access with no approval rights
               </li>
             </ul>
           </section>
@@ -133,11 +133,7 @@ export default function AdminSignInPage() {
           >
             <div className="mb-5">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-navy-50 text-navy-700">
-                {step === 'mfa' ? (
-                  <Lock className="h-6 w-6" />
-                ) : (
-                  <Mail className="h-6 w-6" />
-                )}
+                {step === 'mfa' ? <Lock className="h-6 w-6" /> : <Mail className="h-6 w-6" />}
               </div>
               <h2 className="font-display text-3xl font-black tracking-[-0.03em]">
                 {step === 'mfa' ? 'Enter MFA code' : 'Admin sign in'}
@@ -193,7 +189,7 @@ export default function AdminSignInPage() {
                   />
                 </Field>
                 <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                  Demo: enter any 6 digits (e.g. <span className="font-mono font-black">000000</span>).
+                  Demo: enter any 6 digits, for example <span className="font-mono font-black">000000</span>.
                 </p>
                 {error && <ErrorMsg>{error}</ErrorMsg>}
                 <Button
@@ -206,11 +202,7 @@ export default function AdminSignInPage() {
                   Verify & sign in
                   <ArrowRight className="h-4 w-4" />
                 </Button>
-                <button
-                  type="button"
-                  onClick={() => setStep('creds')}
-                  className="w-full text-sm font-bold text-slate-500"
-                >
+                <button type="button" onClick={() => setStep('creds')} className="w-full text-sm font-bold text-slate-500">
                   Back to credentials
                 </button>
               </form>
@@ -218,7 +210,7 @@ export default function AdminSignInPage() {
 
             <div className="mt-6 border-t border-slate-100 pt-4">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                Quick sign-in (demo)
+                Quick sign-in demo roles
               </p>
               <div className="mt-2 grid grid-cols-1 gap-1.5">
                 {DEMO_OPTIONS.map((opt) => (
@@ -226,15 +218,12 @@ export default function AdminSignInPage() {
                     key={opt.role}
                     type="button"
                     onClick={() => quickSignIn(opt)}
+                    title={roleDescription(opt.role)}
                     className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-xs hover:border-navy-200 hover:bg-[#F8FAF4]"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-[#0B1220]">
-                        {opt.fullName}
-                      </p>
-                      <p className="truncate text-xs text-slate-500">
-                        {opt.description}
-                      </p>
+                      <p className="truncate text-sm font-bold text-[#0B1220]">{opt.fullName}</p>
+                      <p className="truncate text-xs text-slate-500">{opt.description}</p>
                     </div>
                     <ArrowRight className="h-3.5 w-3.5 text-navy-700" />
                   </button>
@@ -259,8 +248,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function ErrorMsg({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+    <p className="rounded-md border border-red-100 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
       {children}
-    </div>
+    </p>
   );
 }
