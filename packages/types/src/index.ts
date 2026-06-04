@@ -7,3 +7,4 @@ export * from './prizes.js';
 export * from './notifications.js';
 export * from './api.js';
 export * from './draw-offers.js';
+export * from './admin-permissions.js';
