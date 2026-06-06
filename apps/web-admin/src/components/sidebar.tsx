@@ -27,6 +27,7 @@ import {
   GitPullRequestArrow,
   Bell,
   CalendarClock,
+  FlagTriangleRight,
 } from 'lucide-react';
 import { Logo } from '@surewina/ui';
 import type { AdminPermission, AdminSession } from '@/lib/admin-auth';
@@ -111,6 +112,13 @@ const navGroups: Array<{
       { label: 'Reports', href: '/reports', icon: FileBarChart, help: 'Open compliance, finance, and operations reports', permission: 'VIEW_REPORTS' },
       { label: 'AML flags', href: '/compliance/aml', icon: AlertOctagon, help: 'Review suspicious activity and AML alerts', permission: 'VIEW_AUDIT_LOGS' },
       { label: 'Audit log', href: '/audit-log', icon: ScrollText, help: 'View admin action history and audit trails', permission: 'VIEW_AUDIT_LOGS' },
+      {
+        label: 'Escalations',
+        href: '/escalations',
+        icon: FlagTriangleRight,
+        help: 'Auditor escalation channel for management review outside normal approval flow',
+        permission: 'VIEW_ESCALATIONS',
+      },
     ],
   },
   {

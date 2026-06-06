@@ -27,6 +27,7 @@ const moduleOptions: Array<'ALL' | AuditModule> = [
   'PAYOUTS',
   'CONFIG',
   'AUTH',
+  'AUDIT',
   'REPORTS',
 ];
 

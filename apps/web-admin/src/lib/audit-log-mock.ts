@@ -8,6 +8,7 @@ export type AuditModule =
   | 'PAYOUTS'
   | 'CONFIG'
   | 'AUTH'
+  | 'AUDIT'
   | 'REPORTS';
 
 export type AuditAction =

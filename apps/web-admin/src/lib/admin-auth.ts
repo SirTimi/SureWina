@@ -33,7 +33,10 @@ export type AdminPermission =
   | 'REVIEW_WORKFLOWS'
   | 'FINAL_APPROVE_WORKFLOWS'
   | 'VIEW_NOTIFICATIONS'
-  | 'VIEW_DRAW_SCHEDULE';
+  | 'VIEW_DRAW_SCHEDULE'
+  | 'VIEW_ESCALATIONS'
+  | 'RAISE_ESCALATION'
+  | 'RESPOND_TO_ESCALATION';
 
 export type AdminAction =
   | 'CREATE_ADMIN_PROFILE'
@@ -50,6 +53,8 @@ export type AdminAction =
   | 'VIEW_AUDIT_LOGS'
   | 'APPROVE_WORKFLOW_STAGE'
   | 'REJECT_WORKFLOW_STAGE'
+  | 'RAISE_ESCALATION'
+  | 'RESPOND_TO_ESCALATION'
 
 const roleActionMap: Record<AdminRole, AdminAction[]> = {
   BASIC_ADMIN: [
@@ -80,10 +85,13 @@ const roleActionMap: Record<AdminRole, AdminAction[]> = {
     'VIEW_AUDIT_LOGS',
     'APPROVE_WORKFLOW_STAGE',
     'REJECT_WORKFLOW_STAGE',
+    'RESPOND_TO_ESCALATION',
+    
   ],
 
   AUDITOR: [
     'VIEW_AUDIT_LOGS',
+    'RAISE_ESCALATION',
   ],
 };
 
@@ -111,10 +119,18 @@ const mutationActions = new Set<AdminAction>([
   'CHANGE_DRAW_FORMULA',
   'APPROVE_WORKFLOW_STAGE',
   'REJECT_WORKFLOW_STAGE',
+  'RAISE_ESCALATION',
+  'RESPOND_TO_ESCALATION',
 ]);
 
 export function canPerformAdminAction(role: AdminRole, action: AdminAction): boolean {
-  if (role === 'AUDITOR' && mutationActions.has(action)) return false;
+  if (
+    role === 'AUDITOR' &&
+    mutationActions.has(action) &&
+    action !== 'RAISE_ESCALATION'
+  ) {
+    return false;
+  }
 
   if (role === 'INTERMEDIATE_ADMIN' && finalApprovalActions.has(action)) {
     return false;
@@ -124,7 +140,7 @@ export function canPerformAdminAction(role: AdminRole, action: AdminAction): boo
 }
 
 export function getAdminActionDeniedReason(role: AdminRole, action: AdminAction): string {
-  if (role === 'AUDITOR' && mutationActions.has(action)) {
+  if (role === 'AUDITOR' && mutationActions.has(action) && action !== 'RAISE_ESCALATION') {
     return 'Auditor access is read-only. Auditors cannot create, edit, approve, reject, suspend, revoke, or initiate actions.';
   }
 
@@ -210,6 +226,8 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'FINAL_APPROVE_WORKFLOWS',
     'VIEW_NOTIFICATIONS',
     'VIEW_DRAW_SCHEDULE',
+    'VIEW_ESCALATIONS',
+    'RESPOND_TO_ESCALATION',
   ],
   AUDITOR: [
     'VIEW_DASHBOARD',
@@ -226,6 +244,8 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_WORKFLOWS',
     'VIEW_NOTIFICATIONS',
     'VIEW_DRAW_SCHEDULE',
+    'VIEW_ESCALATIONS',
+    'RESPOND_TO_ESCALATION',
   ],
 };
 
@@ -255,6 +275,8 @@ const routePermissions: Array<{ path: string; permission: AdminPermission }> = [
   { path: '/workflows', permission: 'VIEW_WORKFLOWS' },
   { path: '/notifications', permission: 'VIEW_NOTIFICATIONS' },
   { path: '/draw-schedule', permission: 'VIEW_DRAW_SCHEDULE' },
+  { path: '/escalations/new', permission: 'RAISE_ESCALATION' },
+  { path: '/escalations', permission: 'VIEW_ESCALATIONS' },
 ];
 
 export function getStoredSession(): AdminSession | null {
