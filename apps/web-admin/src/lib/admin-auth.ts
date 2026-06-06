@@ -31,8 +31,8 @@ export type AdminPermission =
   | 'READ_ONLY_QUERY_ALL'
   | 'VIEW_WORKFLOWS'
   | 'REVIEW_WORKFLOWS'
-  | 'FINAL_APPROVE_WORKFLOWS';
-
+  | 'FINAL_APPROVE_WORKFLOWS'
+  | 'VIEW_NOTIFICATIONS';
 
 export type AdminAction =
   | 'CREATE_ADMIN_PROFILE'
@@ -53,6 +53,7 @@ export type AdminAction =
 const roleActionMap: Record<AdminRole, AdminAction[]> = {
   BASIC_ADMIN: [
     'INITIATE_AGENT_PROFILING',
+    
   ],
 
   INTERMEDIATE_ADMIN: [
@@ -164,6 +165,7 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'INITIATE_AGENT_PROFILING',
     'VIEW_CLAIMS',
     'VIEW_WORKFLOWS',
+    'VIEW_NOTIFICATIONS'
   ],
   INTERMEDIATE_ADMIN: [
     'VIEW_DASHBOARD',
@@ -179,6 +181,7 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_REPORTS',
     'VIEW_WORKFLOWS',
     'REVIEW_WORKFLOWS',
+    'VIEW_NOTIFICATIONS'
   ],
   SUPER_ADMIN: [
     'VIEW_DASHBOARD',
@@ -202,6 +205,7 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_WORKFLOWS',
     'REVIEW_WORKFLOWS',
     'FINAL_APPROVE_WORKFLOWS',
+    'VIEW_NOTIFICATIONS'
   ],
   AUDITOR: [
     'VIEW_DASHBOARD',
@@ -216,6 +220,7 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_AUDIT_LOGS',
     'READ_ONLY_QUERY_ALL',
     'VIEW_WORKFLOWS',
+    'VIEW_NOTIFICATIONS'
   ],
 };
 
@@ -243,6 +248,7 @@ const routePermissions: Array<{ path: string; permission: AdminPermission }> = [
   { path: '/config', permission: 'VIEW_SYSTEM_CONFIG' },
   { path: '/users', permission: 'MANAGE_ADMINS' },
   { path: '/workflows', permission: 'VIEW_WORKFLOWS' },
+  { path: '/notifications', permission: 'VIEW_NOTIFICATIONS' },
 ];
 
 export function getStoredSession(): AdminSession | null {

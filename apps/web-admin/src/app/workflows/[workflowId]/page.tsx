@@ -28,6 +28,7 @@ import {
   workflowStatusTone,
   workflowTypeLabel,
 } from '@/lib/workflow-mock';
+import { createWorkflowStageNotification } from '@/lib/notifications-mock';
 
 export default function WorkflowDetailPage() {
   const params = useParams<{ workflowId: string }>();
@@ -237,6 +238,15 @@ function Body({ session, workflowId }: { session: AdminSession; workflowId: stri
                   className="rounded-md font-black"
                   icon={<CheckCircle2 className="h-4 w-4" />}
                   hideWhenDenied={false}
+                  onClick={() => {
+                    createWorkflowStageNotification({
+                        workflow,
+                        action: 'APPROVED',
+                        actorName: session.fullName,
+                        actorRole: session.role,
+                        nextRequiredRole: nextPreview.nextRequiredRole,
+                    })
+                  }}
                 >
                   Approve stage
                 </GuardedActionButton>
@@ -248,6 +258,15 @@ function Body({ session, workflowId }: { session: AdminSession; workflowId: stri
                   className="rounded-md border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
                   icon={<XCircle className="h-4 w-4" />}
                   hideWhenDenied={false}
+                  onClick={() => {
+                    createWorkflowStageNotification({
+                        workflow,
+                        action: 'REJECTED',
+                        actorName: session.fullName,
+                        actorRole: session.role,
+                        nextRequiredRole: null,
+                    })
+                  }}
                 >
                   Reject request
                 </GuardedActionButton>

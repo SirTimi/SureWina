@@ -25,6 +25,7 @@ import {
   Users,
   Wallet,
   GitPullRequestArrow,
+  Bell,
 } from 'lucide-react';
 import { Logo } from '@surewina/ui';
 import type { AdminPermission, AdminSession } from '@/lib/admin-auth';
@@ -44,6 +45,18 @@ const navGroups: Array<{
   {
     label: 'Overview',
     items: [{ label: 'Dashboard', href: '/', icon: LayoutDashboard, help: 'Main admin dashboard and operational overview', permission: 'VIEW_DASHBOARD' }],
+  },
+  {
+    label: 'Notifications',
+    items: [
+      { 
+        label: 'All notifications', 
+        href: '/notifications', 
+        icon: Bell, 
+        help: 'View approval alerts, escalations, overdue tasks, and workflow notifications', 
+        permission: 'VIEW_NOTIFICATIONS' 
+      },
+    ],
   },
   {
     label: 'Draws',
@@ -112,8 +125,7 @@ const navGroups: Array<{
       },
     ],
   },
-  
-];
+  ];
 
 export function Sidebar({ session }: { session: AdminSession }) {
   const pathname = usePathname();

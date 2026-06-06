@@ -1,14 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Bell, LogOut, ShieldCheck, Wifi } from 'lucide-react';
+import { LogOut, ShieldCheck, Wifi } from 'lucide-react';
 import {
   type AdminSession,
   clearSession,
   roleLabel,
   roleTone,
 } from '@/lib/admin-auth';
-
+import { NotificationBell } from '@/components/notification-bell';
 interface AdminHeaderProps {
   session: AdminSession;
 }
@@ -55,18 +55,7 @@ export function AdminHeader({ session }: AdminHeaderProps) {
             {roleLabel(session.role)}
           </span>
 
-          <button
-            type="button"
-            title="Notifications: pending approvals, escalations, failed processes, and overdue reviews will appear here."
-            className="group relative flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-            aria-label="Notifications: pending approvals, escalations, failed processes, and overdue reviews"
-          >
-            <Bell className="h-4 w-4" />
-            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
-            <span className="pointer-events-none absolute right-0 top-[calc(100%+10px)] z-50 hidden w-72 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold leading-relaxed text-slate-700 shadow-xl group-hover:block">
-              Alerts for pending approvals, escalations, failed processes, and overdue reviews.
-            </span>
-          </button>
+          <NotificationBell session={session} />
 
           <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1220] text-xs font-black text-white">
