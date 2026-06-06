@@ -24,6 +24,7 @@ import {
   UserCog,
   Users,
   Wallet,
+  GitPullRequestArrow,
 } from 'lucide-react';
 import { Logo } from '@surewina/ui';
 import type { AdminPermission, AdminSession } from '@/lib/admin-auth';
@@ -99,6 +100,19 @@ const navGroups: Array<{
       { label: 'Admin users', href: '/users', icon: BookOpen, help: 'Manage admin users and access profiles', permission: 'MANAGE_ADMINS' },
     ],
   },
+  {
+    label: 'Workflows',
+    items: [
+      {
+        label: 'Approval workflows',
+        href: '/workflows',
+        icon: GitPullRequestArrow,
+        help: 'Track sensitive requests moving through review and approval stages',
+        permission: 'VIEW_WORKFLOWS',
+      },
+    ],
+  },
+  
 ];
 
 export function Sidebar({ session }: { session: AdminSession }) {

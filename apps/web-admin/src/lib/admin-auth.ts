@@ -28,7 +28,10 @@ export type AdminPermission =
   | 'VIEW_AUDIT_LOGS'
   | 'VIEW_SYSTEM_CONFIG'
   | 'MANAGE_ADMINS'
-  | 'READ_ONLY_QUERY_ALL';
+  | 'READ_ONLY_QUERY_ALL'
+  | 'VIEW_WORKFLOWS'
+  | 'REVIEW_WORKFLOWS'
+  | 'FINAL_APPROVE_WORKFLOWS';
 
 
 export type AdminAction =
@@ -43,7 +46,9 @@ export type AdminAction =
   | 'APPROVE_DRAW_SETUP'
   | 'CHANGE_TICKET_PRICE'
   | 'CHANGE_DRAW_FORMULA'
-  | 'VIEW_AUDIT_LOGS';
+  | 'VIEW_AUDIT_LOGS'
+  | 'APPROVE_WORKFLOW_STAGE'
+  | 'REJECT_WORKFLOW_STAGE'
 
 const roleActionMap: Record<AdminRole, AdminAction[]> = {
   BASIC_ADMIN: [
@@ -53,6 +58,8 @@ const roleActionMap: Record<AdminRole, AdminAction[]> = {
   INTERMEDIATE_ADMIN: [
     'APPROVE_AGENT_ONBOARDING',
     'CREATE_DRAW_SETUP_REQUEST',
+    'APPROVE_WORKFLOW_STAGE',
+    'REJECT_WORKFLOW_STAGE',
   ],
 
   SUPER_ADMIN: [
@@ -68,6 +75,8 @@ const roleActionMap: Record<AdminRole, AdminAction[]> = {
     'CHANGE_TICKET_PRICE',
     'CHANGE_DRAW_FORMULA',
     'VIEW_AUDIT_LOGS',
+    'APPROVE_WORKFLOW_STAGE',
+    'REJECT_WORKFLOW_STAGE',
   ],
 
   AUDITOR: [
@@ -97,6 +106,8 @@ const mutationActions = new Set<AdminAction>([
   'APPROVE_DRAW_SETUP',
   'CHANGE_TICKET_PRICE',
   'CHANGE_DRAW_FORMULA',
+  'APPROVE_WORKFLOW_STAGE',
+  'REJECT_WORKFLOW_STAGE',
 ]);
 
 export function canPerformAdminAction(role: AdminRole, action: AdminAction): boolean {
@@ -152,6 +163,7 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_AGENTS',
     'INITIATE_AGENT_PROFILING',
     'VIEW_CLAIMS',
+    'VIEW_WORKFLOWS',
   ],
   INTERMEDIATE_ADMIN: [
     'VIEW_DASHBOARD',
@@ -165,6 +177,8 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_DRAWS',
     'INITIATE_DRAW_SETUP',
     'VIEW_REPORTS',
+    'VIEW_WORKFLOWS',
+    'REVIEW_WORKFLOWS',
   ],
   SUPER_ADMIN: [
     'VIEW_DASHBOARD',
@@ -185,6 +199,9 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_AUDIT_LOGS',
     'VIEW_SYSTEM_CONFIG',
     'MANAGE_ADMINS',
+    'VIEW_WORKFLOWS',
+    'REVIEW_WORKFLOWS',
+    'FINAL_APPROVE_WORKFLOWS',
   ],
   AUDITOR: [
     'VIEW_DASHBOARD',
@@ -198,6 +215,7 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_REPORTS',
     'VIEW_AUDIT_LOGS',
     'READ_ONLY_QUERY_ALL',
+    'VIEW_WORKFLOWS',
   ],
 };
 
@@ -224,6 +242,7 @@ const routePermissions: Array<{ path: string; permission: AdminPermission }> = [
   { path: '/promotions', permission: 'VIEW_SYSTEM_CONFIG' },
   { path: '/config', permission: 'VIEW_SYSTEM_CONFIG' },
   { path: '/users', permission: 'MANAGE_ADMINS' },
+  { path: '/workflows', permission: 'VIEW_WORKFLOWS' },
 ];
 
 export function getStoredSession(): AdminSession | null {
