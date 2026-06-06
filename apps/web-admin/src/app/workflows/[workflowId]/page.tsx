@@ -238,6 +238,14 @@ function Body({ session, workflowId }: { session: AdminSession; workflowId: stri
                   className="rounded-md font-black"
                   icon={<CheckCircle2 className="h-4 w-4" />}
                   hideWhenDenied={false}
+                  audit={{
+                    module: 'WORKFLOWS',
+                    action: 'WORKFLOW_APPROVED',
+                    target: workflow.targetRecordLabel,
+                    oldValue: workflowStageLabel(workflow.currentStage),
+                    newValue: workflowStageLabel(nextPreview.nextStage),
+                    reason: 'Workflow stage approved from frontend mock control',
+                  }}
                   onClick={() => {
                     createWorkflowStageNotification({
                         workflow,
@@ -258,6 +266,14 @@ function Body({ session, workflowId }: { session: AdminSession; workflowId: stri
                   className="rounded-md border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
                   icon={<XCircle className="h-4 w-4" />}
                   hideWhenDenied={false}
+                  audit={{
+                    module: 'WORKFLOWS',
+                    action: 'WORKFLOW_REJECTED',
+                    target: workflow.targetRecordLabel,
+                    oldValue: workflowStageLabel(workflow.currentStage),
+                    newValue: null,
+                    reason: 'Workflow stage rejected from frontend mock control',
+                  }}
                   onClick={() => {
                     createWorkflowStageNotification({
                         workflow,

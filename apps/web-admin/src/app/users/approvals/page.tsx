@@ -115,7 +115,7 @@ function Body({ session }: { session: AdminSession }) {
               key: 'actions',
               header: 'Super Admin action',
               align: 'right',
-              render: () => (
+              render: (u) => (
                 <div className="flex justify-end gap-2">
                   <GuardedActionButton
                     session={session}
@@ -123,6 +123,14 @@ function Body({ session }: { session: AdminSession }) {
                     variant="secondary"
                     className="rounded-md border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
                     icon={<XCircle className="h-4 w-4" />}
+                    audit={{
+                      module: 'ADMINS',
+                      action: 'ADMIN_REJECTED',
+                      target: u.fullName,
+                      oldValue: 'PENDING',  
+                      newValue: 'REJECTED',
+                      reason: 'Admin profile rejected from frontend mock approval table',
+                    }}
                   >
                     Reject
                   </GuardedActionButton>
@@ -133,6 +141,14 @@ function Body({ session }: { session: AdminSession }) {
                     variant="accent"
                     className="rounded-md font-black"
                     icon={<CheckCircle2 className="h-4 w-4" />}
+                    audit={{
+                      module: 'ADMINS',
+                      action: 'ADMIN_APPROVED',
+                      target: u.fullName,
+                      oldValue: 'PENDING',
+                      newValue: 'ACTIVE',
+                      reason: 'Admin profile approved from frontend mock approval table',
+                    }}
                   >
                     Approve
                   </GuardedActionButton>

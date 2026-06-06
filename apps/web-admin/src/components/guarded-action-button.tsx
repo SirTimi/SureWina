@@ -8,6 +8,7 @@ import {
   canPerformAdminAction,
   getAdminActionDeniedReason,
 } from '@/lib/admin-auth';
+import { createAuditLogEntry, type AuditAction, type AuditModule } from '@/lib/audit-log-mock';
 
 interface GuardedActionButtonProps {
   session: AdminSession;
@@ -18,6 +19,14 @@ interface GuardedActionButtonProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   hideWhenDenied?: boolean;
+  audit?: {
+    module: AuditModule;
+    action: AuditAction;
+    target: string;
+    oldValue?: string | null;
+    newValue?: string | null;
+    reason?: string | null;
+};
   onClick?: () => void;
 }
 
@@ -30,6 +39,7 @@ export function GuardedActionButton({
   size = 'sm',
   className,
   hideWhenDenied = false,
+  audit,
   onClick,
 }: GuardedActionButtonProps) {
   const allowed = canPerformAdminAction(session.role, action);
@@ -52,13 +62,35 @@ export function GuardedActionButton({
 
   return (
     <Button
-      type="button"
-      variant={variant}
-      size={size}
-      onClick={onClick}
-      className={className}
-      title="Frontend permission allowed. Backend enforcement will be added later."
-    >
+  type="button"
+  variant={variant}
+  size={size}
+  onClick={() => {
+    if (audit) {
+      createAuditLogEntry({
+        module: audit.module,
+        action: audit.action,
+        actorName: session.fullName,
+        actorEmail: session.email,
+        actorRole: session.role,
+        target: audit.target,
+        oldValue: audit.oldValue ?? null,
+        newValue: audit.newValue ?? null,
+        reason: audit.reason ?? 'Frontend mock action triggered',
+        severity:
+          audit.action.includes('REJECTED') || audit.action.includes('REVOKED')
+            ? 'DANGER'
+            : audit.action.includes('APPROVED')
+              ? 'SUCCESS'
+              : 'INFO',
+      });
+    }
+
+    onClick?.();
+  }}
+  className={className}
+  title="Frontend permission allowed. Backend enforcement will be added later."
+>
       {icon}
       {children}
     </Button>
