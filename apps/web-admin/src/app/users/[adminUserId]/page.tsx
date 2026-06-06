@@ -11,6 +11,7 @@ import {
   getAdminManagementUser,
   statusTone,
 } from '@/lib/admin-users-mock';
+import { GuardedActionButton } from '@/components/guarded-action-button';
 
 interface AdminProfilePageProps {
   params: Promise<{ adminUserId: string }>;
@@ -24,7 +25,7 @@ export default async function AdminProfilePage({ params }: AdminProfilePageProps
 
   return (
     <AdminShell>
-      {() => (
+      {(session) => (
         <>
           <PageHeader
             eyebrow="System · Admin profile"
@@ -99,10 +100,25 @@ export default async function AdminProfilePage({ params }: AdminProfilePageProps
 
                 {user.status === 'PENDING' ? (
                   <div className="mt-5 grid grid-cols-1 gap-2">
-                    <Button type="button" variant="accent" className="rounded-md font-black">
-                      <CheckCircle2 className="h-4 w-4" />
+                    <GuardedActionButton
+                      session={session}
+                      action="APPROVE_ADMIN_PROFILE"
+                      variant="accent"
+                      className="rounded-md font-black"
+                      icon={<CheckCircle2 className="h-4 w-4" />}
+                    >
                       Approve admin
-                    </Button>
+                    </GuardedActionButton>
+
+                    <GuardedActionButton
+                      session={session}
+                      action="REJECT_ADMIN_PROFILE"
+                      variant="secondary"
+                      className="rounded-md border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                      icon={<XCircle className="h-4 w-4" />}
+                    >
+                      Reject request  
+                    </GuardedActionButton>
                     <Button type="button" variant="secondary" className="rounded-md border-red-200 bg-red-50 text-red-700 hover:bg-red-100">
                       <XCircle className="h-4 w-4" />
                       Reject request

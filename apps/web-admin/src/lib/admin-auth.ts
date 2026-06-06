@@ -30,6 +30,108 @@ export type AdminPermission =
   | 'MANAGE_ADMINS'
   | 'READ_ONLY_QUERY_ALL';
 
+
+export type AdminAction =
+  | 'CREATE_ADMIN_PROFILE'
+  | 'APPROVE_ADMIN_PROFILE'
+  | 'REJECT_ADMIN_PROFILE'
+  | 'SUSPEND_ADMIN'
+  | 'REVOKE_ADMIN'
+  | 'INITIATE_AGENT_PROFILING'
+  | 'APPROVE_AGENT_ONBOARDING'
+  | 'CREATE_DRAW_SETUP_REQUEST'
+  | 'APPROVE_DRAW_SETUP'
+  | 'CHANGE_TICKET_PRICE'
+  | 'CHANGE_DRAW_FORMULA'
+  | 'VIEW_AUDIT_LOGS';
+
+const roleActionMap: Record<AdminRole, AdminAction[]> = {
+  BASIC_ADMIN: [
+    'INITIATE_AGENT_PROFILING',
+  ],
+
+  INTERMEDIATE_ADMIN: [
+    'APPROVE_AGENT_ONBOARDING',
+    'CREATE_DRAW_SETUP_REQUEST',
+  ],
+
+  SUPER_ADMIN: [
+    'CREATE_ADMIN_PROFILE',
+    'APPROVE_ADMIN_PROFILE',
+    'REJECT_ADMIN_PROFILE',
+    'SUSPEND_ADMIN',
+    'REVOKE_ADMIN',
+    'INITIATE_AGENT_PROFILING',
+    'APPROVE_AGENT_ONBOARDING',
+    'CREATE_DRAW_SETUP_REQUEST',
+    'APPROVE_DRAW_SETUP',
+    'CHANGE_TICKET_PRICE',
+    'CHANGE_DRAW_FORMULA',
+    'VIEW_AUDIT_LOGS',
+  ],
+
+  AUDITOR: [
+    'VIEW_AUDIT_LOGS',
+  ],
+};
+
+const finalApprovalActions = new Set<AdminAction>([
+  'APPROVE_ADMIN_PROFILE',
+  'REJECT_ADMIN_PROFILE',
+  'SUSPEND_ADMIN',
+  'REVOKE_ADMIN',
+  'APPROVE_DRAW_SETUP',
+  'CHANGE_TICKET_PRICE',
+  'CHANGE_DRAW_FORMULA',
+]);
+
+const mutationActions = new Set<AdminAction>([
+  'CREATE_ADMIN_PROFILE',
+  'APPROVE_ADMIN_PROFILE',
+  'REJECT_ADMIN_PROFILE',
+  'SUSPEND_ADMIN',
+  'REVOKE_ADMIN',
+  'INITIATE_AGENT_PROFILING',
+  'APPROVE_AGENT_ONBOARDING',
+  'CREATE_DRAW_SETUP_REQUEST',
+  'APPROVE_DRAW_SETUP',
+  'CHANGE_TICKET_PRICE',
+  'CHANGE_DRAW_FORMULA',
+]);
+
+export function canPerformAdminAction(role: AdminRole, action: AdminAction): boolean {
+  if (role === 'AUDITOR' && mutationActions.has(action)) return false;
+
+  if (role === 'INTERMEDIATE_ADMIN' && finalApprovalActions.has(action)) {
+    return false;
+  }
+
+  return roleActionMap[role].includes(action);
+}
+
+export function getAdminActionDeniedReason(role: AdminRole, action: AdminAction): string {
+  if (role === 'AUDITOR' && mutationActions.has(action)) {
+    return 'Auditor access is read-only. Auditors cannot create, edit, approve, reject, suspend, revoke, or initiate actions.';
+  }
+
+  if (role === 'INTERMEDIATE_ADMIN' && finalApprovalActions.has(action)) {
+    return 'Intermediate Admin can perform first-level review, but cannot perform final authorization actions.';
+  }
+
+  if (role === 'BASIC_ADMIN') {
+    return 'Basic Admin can only handle enquiry, status, and initiation-related actions.';
+  }
+
+  return `${roleLabel(role)} does not have permission to perform this action.`;
+}
+
+export function isFinalApprovalAction(action: AdminAction): boolean {
+  return finalApprovalActions.has(action);
+}
+
+export function isMutationAction(action: AdminAction): boolean {
+  return mutationActions.has(action);
+}
 const SESSION_KEY = 'surewina_admin_session';
 
 const DEFAULT_SESSION: AdminSession = {
