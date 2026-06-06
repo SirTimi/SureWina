@@ -32,7 +32,8 @@ export type AdminPermission =
   | 'VIEW_WORKFLOWS'
   | 'REVIEW_WORKFLOWS'
   | 'FINAL_APPROVE_WORKFLOWS'
-  | 'VIEW_NOTIFICATIONS';
+  | 'VIEW_NOTIFICATIONS'
+  | 'VIEW_DRAW_SCHEDULE';
 
 export type AdminAction =
   | 'CREATE_ADMIN_PROFILE'
@@ -61,6 +62,7 @@ const roleActionMap: Record<AdminRole, AdminAction[]> = {
     'CREATE_DRAW_SETUP_REQUEST',
     'APPROVE_WORKFLOW_STAGE',
     'REJECT_WORKFLOW_STAGE',
+    
   ],
 
   SUPER_ADMIN: [
@@ -181,7 +183,8 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_REPORTS',
     'VIEW_WORKFLOWS',
     'REVIEW_WORKFLOWS',
-    'VIEW_NOTIFICATIONS'
+    'VIEW_NOTIFICATIONS',
+    'VIEW_DRAW_SCHEDULE',
   ],
   SUPER_ADMIN: [
     'VIEW_DASHBOARD',
@@ -205,7 +208,8 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_WORKFLOWS',
     'REVIEW_WORKFLOWS',
     'FINAL_APPROVE_WORKFLOWS',
-    'VIEW_NOTIFICATIONS'
+    'VIEW_NOTIFICATIONS',
+    'VIEW_DRAW_SCHEDULE',
   ],
   AUDITOR: [
     'VIEW_DASHBOARD',
@@ -220,7 +224,8 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_AUDIT_LOGS',
     'READ_ONLY_QUERY_ALL',
     'VIEW_WORKFLOWS',
-    'VIEW_NOTIFICATIONS'
+    'VIEW_NOTIFICATIONS',
+    'VIEW_DRAW_SCHEDULE',
   ],
 };
 
@@ -249,6 +254,7 @@ const routePermissions: Array<{ path: string; permission: AdminPermission }> = [
   { path: '/users', permission: 'MANAGE_ADMINS' },
   { path: '/workflows', permission: 'VIEW_WORKFLOWS' },
   { path: '/notifications', permission: 'VIEW_NOTIFICATIONS' },
+  { path: '/draw-schedule', permission: 'VIEW_DRAW_SCHEDULE' },
 ];
 
 export function getStoredSession(): AdminSession | null {

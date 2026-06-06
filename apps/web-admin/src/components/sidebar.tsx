@@ -26,6 +26,7 @@ import {
   Wallet,
   GitPullRequestArrow,
   Bell,
+  CalendarClock,
 } from 'lucide-react';
 import { Logo } from '@surewina/ui';
 import type { AdminPermission, AdminSession } from '@/lib/admin-auth';
@@ -63,6 +64,13 @@ const navGroups: Array<{
     items: [
       { label: 'All draws', href: '/draws', icon: Trophy, help: 'View and manage draw records', permission: 'VIEW_DRAWS' },
       { label: 'RNG seeds', href: '/rng-seeds', icon: KeyRound, help: 'Review RNG seed commitments and draw verification', permission: 'VIEW_DRAWS' },
+      {
+        label: 'Schedule config',
+        href: '/draws/schedule',
+        icon: CalendarClock,
+        help: 'Configure recurring draw schedules, cutoff rules, price versions, and effective dates',
+        permission: 'VIEW_DRAW_SCHEDULE',
+      },
     ],
   },
   {
