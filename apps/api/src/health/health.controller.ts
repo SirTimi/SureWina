@@ -9,4 +9,9 @@ export class HealthController {
   getHealth() {
     return this.healthService.getHealth();
   }
+
+  @Get('deep')
+  getDeepHealth() {
+    return this.healthService.getDeepHealth();
+  }
 }

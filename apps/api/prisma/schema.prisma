@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USERS ─────────────────────────────────────────────────
+
+model User {
+  userId               String       @id @default(uuid()) @map("user_id")
+  phoneNumber          String       @unique @map("phone_number")
+  email                String?      @unique
+  displayName          String?      @map("display_name")
+  kycStatus            KycStatus    @default(NONE) @map("kyc_status")
+  loyaltyPointsBalance Int          @default(0) @map("loyalty_points_balance")
+
+  smsEnabled           Boolean      @default(true) @map("sms_enabled")
+  pushEnabled          Boolean      @default(true) @map("push_enabled")
+  emailEnabled         Boolean      @default(false) @map("email_enabled")
+
+  spendLimitPeriod     SpendPeriod? @map("spend_limit_period")
+  spendLimitCapNgn     Int?         @map("spend_limit_cap_ngn")
+  selfExclusionUntil   DateTime?    @map("self_exclusion_until")
+
+  bankCode             String?      @map("bank_code")
+  bankAccountLast4     String?      @map("bank_account_last4")
+  bankAccountNameHash  String?      @map("bank_account_name_hash")
+
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+
+  @@map("users")
+  @@index([phoneNumber])
+  @@index([selfExclusionUntil])
+}
+
+enum KycStatus {
+  NONE
+  OTP_VERIFIED
+  TIER1_COMPLETE
+}
+
+enum SpendPeriod {
+  WEEKLY
+  MONTHLY
+}
+
+// ─── AGENTS ────────────────────────────────────────────────
+
+model Agent {
+  agentId                String      @id @default(uuid()) @map("agent_id")
+  agentCode              String      @unique @map("agent_code")
+  phoneNumber            String      @unique @map("phone_number")
+  email                  String?     @unique
+  fullName               String      @map("full_name")
+  registeredStateCode    String      @map("registered_state_code")
+  status                 AgentStatus @default(PENDING_KYC)
+  tier                   AgentTier   @default(BRONZE)
+  commissionRate         Decimal     @default(0.10) @map("commission_rate") @db.Decimal(5, 4)
+  isSuperAgent           Boolean     @default(false) @map("is_super_agent")
+  superAgentCode         String?     @map("super_agent_code")
+  overrideCommissionRate Decimal?    @map("override_commission_rate") @db.Decimal(5, 4)
+  bvnHash                String      @map("bvn_hash")
+  trainingCompletedAt    DateTime?   @map("training_completed_at")
+  agentAgreementSignedAt DateTime?   @map("agent_agreement_signed_at")
+  monthlyTicketCount     Int         @default(0) @map("monthly_ticket_count")
+  gracePeriodUsedAt      DateTime?   @map("grace_period_used_at")
+
+  bankCode               String?     @map("bank_code")
+  bankAccountLast4       String?     @map("bank_account_last4")
+  bankAccountNameHash    String?     @map("bank_account_name_hash")
+
+  createdAt              DateTime    @default(now()) @map("created_at")
+  updatedAt              DateTime    @updatedAt @map("updated_at")
+
+  @@map("agents")
+  @@index([agentCode])
+  @@index([status, tier])
+  @@index([superAgentCode])
+}
+
+enum AgentTier {
+  BRONZE
+  SILVER
+  GOLD
+}
+
+enum AgentStatus {
+  PENDING_KYC
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+// ─── ADMIN USERS ───────────────────────────────────────────
+
+model AdminUser {
+  adminUserId    String    @id @default(uuid()) @map("admin_user_id")
+  email          String    @unique
+  fullName       String    @map("full_name")
+  passwordHash   String    @map("password_hash")
+  role           AdminRole
+  isActive       Boolean   @default(true) @map("is_active")
+  mfaSecret      String?   @map("mfa_secret")
+  mfaEnabled     Boolean   @default(false) @map("mfa_enabled")
+  lastLoginAt    DateTime? @map("last_login_at")
+  failedAttempts Int       @default(0) @map("failed_attempts")
+  lockedUntil    DateTime? @map("locked_until")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@map("admin_users")
+}
+
+enum AdminRole {
+  OPERATOR
+  COMPLIANCE_OFFICER
+  FINANCE_OFFICER
+  SUPPORT_AGENT
+}
+
+// ─── AUDIT LOG ─────────────────────────────────────────────
+
+model AuditLog {
+  logId        String         @id @default(uuid()) @map("log_id")
+  timestamp    DateTime       @default(now())
+  severity     AuditSeverity
+  actorType    AuditActorType @map("actor_type")
+  actorId      String?        @map("actor_id")
+  action       String
+  resourceType String         @map("resource_type")
+  resourceId   String         @map("resource_id")
+  metadata     Json
+  ipAddress    String?        @map("ip_address")
+  userAgent    String?        @map("user_agent")
+  signature    String?
+
+  @@map("audit_log")
+  @@index([timestamp])
+  @@index([actorType, actorId])
+  @@index([resourceType, resourceId])
+}
+
+enum AuditSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AuditActorType {
+  CUSTOMER
+  AGENT
+  ADMIN
+  ENGINE
+  SYSTEM
+}
