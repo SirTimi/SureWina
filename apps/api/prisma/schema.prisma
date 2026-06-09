@@ -10,31 +10,34 @@ datasource db {
 // ─── USERS ─────────────────────────────────────────────────
 
 model User {
-  userId               String       @id @default(uuid()) @map("user_id")
-  phoneNumber          String       @unique @map("phone_number")
-  email                String?      @unique
-  displayName          String?      @map("display_name")
-  kycStatus            KycStatus    @default(NONE) @map("kyc_status")
-  loyaltyPointsBalance Int          @default(0) @map("loyalty_points_balance")
+  userId               String    @id @default(uuid()) @map("user_id")
+  phoneNumber          String    @unique @map("phone_number")
+  email                String?   @unique
+  displayName          String?   @map("display_name")
+  kycStatus            KycStatus @default(NONE) @map("kyc_status")
+  loyaltyPointsBalance Int       @default(0) @map("loyalty_points_balance")
 
-  smsEnabled           Boolean      @default(true) @map("sms_enabled")
-  pushEnabled          Boolean      @default(true) @map("push_enabled")
-  emailEnabled         Boolean      @default(false) @map("email_enabled")
+  smsEnabled   Boolean @default(true) @map("sms_enabled")
+  pushEnabled  Boolean @default(true) @map("push_enabled")
+  emailEnabled Boolean @default(false) @map("email_enabled")
 
-  spendLimitPeriod     SpendPeriod? @map("spend_limit_period")
-  spendLimitCapNgn     Int?         @map("spend_limit_cap_ngn")
-  selfExclusionUntil   DateTime?    @map("self_exclusion_until")
+  spendLimitPeriod   SpendPeriod? @map("spend_limit_period")
+  spendLimitCapNgn   Int?         @map("spend_limit_cap_ngn")
+  selfExclusionUntil DateTime?    @map("self_exclusion_until")
 
-  bankCode             String?      @map("bank_code")
-  bankAccountLast4     String?      @map("bank_account_last4")
-  bankAccountNameHash  String?      @map("bank_account_name_hash")
+  bankCode            String? @map("bank_code")
+  bankAccountLast4    String? @map("bank_account_last4")
+  bankAccountNameHash String? @map("bank_account_name_hash")
 
-  createdAt            DateTime     @default(now()) @map("created_at")
-  updatedAt            DateTime     @updatedAt @map("updated_at")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  tickets              Ticket[]
+  paymentTransactions  PaymentTransaction[]
+  jackpotAccumulations JackpotAccumulation[]
 
-  @@map("users")
   @@index([phoneNumber])
   @@index([selfExclusionUntil])
+  @@map("users")
 }
 
 enum KycStatus {
@@ -69,17 +72,19 @@ model Agent {
   monthlyTicketCount     Int         @default(0) @map("monthly_ticket_count")
   gracePeriodUsedAt      DateTime?   @map("grace_period_used_at")
 
-  bankCode               String?     @map("bank_code")
-  bankAccountLast4       String?     @map("bank_account_last4")
-  bankAccountNameHash    String?     @map("bank_account_name_hash")
+  bankCode            String? @map("bank_code")
+  bankAccountLast4    String? @map("bank_account_last4")
+  bankAccountNameHash String? @map("bank_account_name_hash")
 
-  createdAt              DateTime    @default(now()) @map("created_at")
-  updatedAt              DateTime    @updatedAt @map("updated_at")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  tickets             Ticket[]
+  paymentTransactions PaymentTransaction[]
 
-  @@map("agents")
   @@index([agentCode])
   @@index([status, tier])
   @@index([superAgentCode])
+  @@map("agents")
 }
 
 enum AgentTier {
@@ -137,10 +142,10 @@ model AuditLog {
   userAgent    String?        @map("user_agent")
   signature    String?
 
-  @@map("audit_log")
   @@index([timestamp])
   @@index([actorType, actorId])
   @@index([resourceType, resourceId])
+  @@map("audit_log")
 }
 
 enum AuditSeverity {
@@ -155,4 +160,250 @@ enum AuditActorType {
   ADMIN
   ENGINE
   SYSTEM
+}
+
+// ─── DRAWS ──────────────────────────────────────────────────
+
+model Draw {
+  drawId   String     @id @default(uuid()) @map("draw_id")
+  drawCode String     @unique @map("draw_code")
+  drawType DrawType   @map("draw_type")
+  status   DrawStatus @default(SCHEDULED)
+
+  prizeDescription String  @map("prize_description")
+  prizeValueNgn    Int     @map("prize_value_ngn")
+  prizeImageUrl    String? @map("prize_image_url")
+
+  ticketPriceNgn Int  @map("ticket_price_ngn")
+  ticketQuota    Int? @map("ticket_quota")
+
+  scheduledAt DateTime  @map("scheduled_at")
+  cutoffAt    DateTime  @map("cutoff_at")
+  executedAt  DateTime? @map("executed_at")
+
+  rescheduledFrom String? @map("rescheduled_from")
+  configVersion   Int     @default(1) @map("config_version")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tickets        Ticket[]
+  result         DrawResult?
+  jackpotEntries JackpotEntry[]
+
+  @@index([drawType, status])
+  @@index([scheduledAt])
+  @@index([status, cutoffAt])
+  @@map("draws")
+}
+
+enum DrawType {
+  DAILY_STANDARD
+  SATURDAY_JACKPOT
+  PRODUCT_PRIZE
+}
+
+enum DrawStatus {
+  SCHEDULED
+  ACTIVE
+  SALES_CLOSED
+  EXECUTING
+  COMPLETED
+  POSTPONED
+  CANCELLED
+}
+
+// ─── PAYMENTS ───────────────────────────────────────────────
+
+model PaymentTransaction {
+  txnId String @id @default(uuid()) @map("txn_id")
+
+  gatewayReference String         @unique @map("gateway_reference")
+  gateway          PaymentGateway
+  amountNgn        Int            @map("amount_ngn")
+
+  buyerPhone  String  @map("buyer_phone")
+  buyerUserId String? @map("buyer_user_id")
+
+  channel PurchaseChannel
+  agentId String?         @map("agent_id")
+
+  ticketCount Int           @map("ticket_count")
+  status      PaymentStatus @default(PENDING)
+
+  confirmedAt    DateTime? @map("confirmed_at")
+  failureReason  String?   @map("failure_reason")
+  webhookPayload Json?     @map("webhook_payload")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  buyer   User?    @relation(fields: [buyerUserId], references: [userId])
+  agent   Agent?   @relation(fields: [agentId], references: [agentId])
+  tickets Ticket[]
+
+  @@index([gateway, status])
+  @@index([buyerPhone, createdAt])
+  @@index([agentId, createdAt])
+  @@map("payment_transactions")
+}
+
+enum PaymentGateway {
+  PAYSTACK
+  FLUTTERWAVE
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  DUPLICATE
+  REFUNDED
+}
+
+enum PurchaseChannel {
+  DIRECT
+  AGENT
+}
+
+// ─── TICKETS ────────────────────────────────────────────────
+
+model Ticket {
+  ticketId  String @id @default(uuid()) @map("ticket_id")
+  ticketRef String @unique @map("ticket_ref")
+
+  drawId       String     @map("draw_id")
+  ticketType   TicketType @map("ticket_type")
+  faceValueNgn Int        @map("face_value_ngn")
+
+  buyerPhone  String  @map("buyer_phone")
+  buyerUserId String? @map("buyer_user_id")
+
+  agentId         String?         @map("agent_id")
+  purchaseChannel PurchaseChannel @map("purchase_channel")
+  stateOfPlayCode String          @map("state_of_play_code")
+
+  paymentTxnId String @map("payment_txn_id")
+
+  status   TicketStatus @default(ACTIVE)
+  isWinner Boolean      @default(false) @map("is_winner")
+
+  drawResultId   String? @map("draw_result_id")
+  rolledToDrawId String? @map("rolled_to_draw_id")
+
+  confirmationSmsSentAt DateTime? @map("confirmation_sms_sent_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  draw    Draw               @relation(fields: [drawId], references: [drawId])
+  buyer   User?              @relation(fields: [buyerUserId], references: [userId])
+  agent   Agent?             @relation(fields: [agentId], references: [agentId])
+  payment PaymentTransaction @relation(fields: [paymentTxnId], references: [txnId])
+
+  @@index([buyerPhone, drawId])
+  @@index([drawId, status])
+  @@index([agentId, createdAt])
+  @@index([ticketRef])
+  @@index([paymentTxnId])
+  @@map("tickets")
+}
+
+enum TicketType {
+  STANDARD
+  JACKPOT
+}
+
+enum TicketStatus {
+  ACTIVE
+  EXPIRED
+  WINNING
+  ROLLED_OVER
+}
+
+// ─── JACKPOT ACCUMULATION ───────────────────────────────────
+
+model JackpotAccumulation {
+  accumId String @id @default(uuid()) @map("accum_id")
+
+  buyerPhone  String  @unique @map("buyer_phone")
+  buyerUserId String? @map("buyer_user_id")
+
+  cumulativeCount     Int @default(0) @map("cumulative_count")
+  jackpotEntriesTotal Int @default(0) @map("jackpot_entries_total")
+
+  lastTicketAt DateTime @map("last_ticket_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [buyerUserId], references: [userId])
+
+  @@index([buyerUserId])
+  @@map("jackpot_accumulations")
+}
+
+model JackpotEntry {
+  entryId String @id @default(uuid()) @map("entry_id")
+
+  drawId         String             @map("draw_id")
+  source         JackpotEntrySource
+  sourceTicketId String?            @map("source_ticket_id")
+  sourceAccumId  String?            @map("source_accum_id")
+
+  buyerPhone  String  @map("buyer_phone")
+  buyerUserId String? @map("buyer_user_id")
+
+  status JackpotEntryStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  draw Draw @relation(fields: [drawId], references: [drawId])
+
+  @@index([drawId, status])
+  @@index([buyerPhone])
+  @@index([buyerUserId])
+  @@map("jackpot_entries")
+}
+
+enum JackpotEntrySource {
+  ACCUMULATION
+  DIRECT_PURCHASE
+}
+
+enum JackpotEntryStatus {
+  ACTIVE
+  WINNING
+  EXPIRED
+}
+
+// ─── DRAW RESULTS ───────────────────────────────────────────
+
+model DrawResult {
+  resultId String @id @default(uuid()) @map("result_id")
+  drawId   String @unique @map("draw_id")
+
+  winnerTicketRef String @map("winner_ticket_ref")
+  prizeValueNgn   Int    @map("prize_value_ngn")
+
+  totalTicketsSold          Int @map("total_tickets_sold")
+  totalEligibleParticipants Int @map("total_eligible_participants")
+
+  rngSeedHash     String   @map("rng_seed_hash")
+  rngSeed         String   @map("rng_seed")
+  rngSeedHashedAt DateTime @map("rng_seed_hashed_at")
+
+  merkleRoot     String @map("merkle_root")
+  stateBreakdown Json   @map("state_breakdown")
+
+  zeroInterventionConfirmed Boolean @map("zero_intervention_confirmed")
+
+  engineVersion   String @map("engine_version")
+  engineSignature String @map("engine_signature")
+
+  executedAt DateTime @map("executed_at")
+
+  draw Draw @relation(fields: [drawId], references: [drawId])
+
+  @@map("draw_results")
 }
