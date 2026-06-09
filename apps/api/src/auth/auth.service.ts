@@ -10,13 +10,20 @@ import { createHash, randomInt, randomUUID } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../database/prisma.service';
 import { RedisService } from '../redis/redis.service';
-import { CustomerJwtPayload, OtpChallenge } from './auth.types';
+import {
+  AuthTokenBundle,
+  CustomerJwtPayload,
+  CustomerRefreshJwtPayload,
+  CustomerRefreshSession,
+  OtpChallenge,
+} from './auth.types';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 @Injectable()
 export class AuthService {
   private readonly otpKeyPrefix = 'auth:customer:otp';
+  private readonly refreshSessionKeyPrefix = 'auth:customer:refresh-session';
 
   constructor(
     private readonly configService: ConfigService,
@@ -69,8 +76,6 @@ export class AuthService {
     return {
       challengeId,
       expiresInSeconds: ttlSeconds,
-
-      // Dev-only. When Termii is connected, remove this from non-dev responses.
       debugOtp:
         this.configService.get<string>('NODE_ENV') === 'production'
           ? undefined
@@ -78,7 +83,7 @@ export class AuthService {
     };
   }
 
-  async verifyOtp(dto: VerifyOtpDto) {
+  async verifyOtp(dto: VerifyOtpDto): Promise<AuthTokenBundle> {
     const key = this.getOtpChallengeKey(dto.challengeId);
 
     const challenge = await this.redisService.getJson<OtpChallenge>(key);
@@ -121,10 +126,9 @@ export class AuthService {
       },
     });
 
-    const accessToken = await this.signCustomerAccessToken({
-      sub: user.userId,
+    const tokens = await this.issueCustomerTokens({
+      userId: user.userId,
       phoneNumber: user.phoneNumber,
-      type: 'customer',
     });
 
     await this.auditService.write({
@@ -139,11 +143,99 @@ export class AuthService {
       },
       metadata: {
         phoneE164: this.maskPhone(user.phoneNumber),
+        refreshSessionId: tokens.sessionId,
       },
     });
 
     return {
-      accessToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      refreshExpiresAt: tokens.refreshExpiresAt,
+      tokenType: 'Bearer',
+      expiresInSeconds: 15 * 60,
+      user: {
+        userId: user.userId,
+        phoneNumber: user.phoneNumber,
+        email: user.email,
+        displayName: user.displayName,
+        kycStatus: user.kycStatus,
+      },
+    };
+  }
+
+  async refresh(refreshToken: string): Promise<AuthTokenBundle> {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Missing refresh token');
+    }
+
+    const payload = await this.verifyRefreshToken(refreshToken);
+
+    const sessionKey = this.getRefreshSessionKey(payload.sessionId);
+    const session =
+      await this.redisService.getJson<CustomerRefreshSession>(sessionKey);
+
+    if (!session || session.revokedAt) {
+      throw new UnauthorizedException('Refresh session expired or revoked');
+    }
+
+    const incomingTokenHash = this.hashRefreshToken(refreshToken);
+
+    if (incomingTokenHash !== session.refreshTokenHash) {
+      await this.redisService.delete(sessionKey);
+
+      await this.auditService.write({
+        actor: {
+          type: AuditActorType.CUSTOMER,
+          id: payload.sub,
+        },
+        action: 'CUSTOMER_REFRESH_TOKEN_REUSE_DETECTED',
+        resource: {
+          type: 'RefreshSession',
+          id: payload.sessionId,
+        },
+        metadata: {},
+      });
+
+      throw new UnauthorizedException('Invalid refresh session');
+    }
+
+    const user = await this.prismaService.user.findUnique({
+      where: {
+        userId: payload.sub,
+      },
+    });
+
+    if (!user) {
+      await this.redisService.delete(sessionKey);
+      throw new UnauthorizedException('User not found');
+    }
+
+    await this.redisService.delete(sessionKey);
+
+    const tokens = await this.issueCustomerTokens({
+      userId: user.userId,
+      phoneNumber: user.phoneNumber,
+    });
+
+    await this.auditService.write({
+      actor: {
+        type: AuditActorType.CUSTOMER,
+        id: user.userId,
+      },
+      action: 'CUSTOMER_REFRESH_TOKEN_ROTATED',
+      resource: {
+        type: 'RefreshSession',
+        id: tokens.sessionId,
+      },
+      metadata: {
+        previousRefreshSessionId: payload.sessionId,
+      },
+    });
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      refreshExpiresAt: tokens.refreshExpiresAt,
       tokenType: 'Bearer',
       expiresInSeconds: 15 * 60,
       user: {
@@ -182,7 +274,35 @@ export class AuthService {
     return user;
   }
 
-  async signOut(userId: string) {
+  async signOut(userId: string, refreshToken?: string) {
+    if (refreshToken) {
+      try {
+        const payload = await this.verifyRefreshToken(refreshToken);
+
+        if (payload.sub === userId) {
+          await this.redisService.delete(
+            this.getRefreshSessionKey(payload.sessionId),
+          );
+
+          await this.auditService.write({
+            actor: {
+              type: AuditActorType.CUSTOMER,
+              id: userId,
+            },
+            action: 'CUSTOMER_REFRESH_SESSION_REVOKED',
+            resource: {
+              type: 'RefreshSession',
+              id: payload.sessionId,
+            },
+            metadata: {},
+          });
+        }
+      } catch {
+        // Ignore invalid refresh token during sign-out.
+        // The access token already proved the user identity.
+      }
+    }
+
     await this.auditService.write({
       actor: {
         type: AuditActorType.CUSTOMER,
@@ -201,11 +321,90 @@ export class AuthService {
     };
   }
 
-  private async signCustomerAccessToken(payload: CustomerJwtPayload) {
-    return this.jwtService.signAsync(payload, {
-      secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-      expiresIn: '15m',
-    });
+  getRefreshCookieName() {
+    return (
+      this.configService.get<string>('REFRESH_TOKEN_COOKIE_NAME') ??
+      'surewina_refresh_token'
+    );
+  }
+
+  getRefreshCookieMaxAgeMs() {
+    const ttlDays = this.configService.get<number>('REFRESH_TOKEN_TTL_DAYS') ?? 30;
+    return ttlDays * 24 * 60 * 60 * 1000;
+  }
+
+  private async issueCustomerTokens(input: {
+    userId: string;
+    phoneNumber: string;
+  }) {
+    const sessionId = randomUUID();
+    const ttlDays = this.configService.get<number>('REFRESH_TOKEN_TTL_DAYS') ?? 30;
+    const ttlSeconds = ttlDays * 24 * 60 * 60;
+
+    const refreshExpiresAt = new Date(Date.now() + ttlSeconds * 1000);
+
+    const accessPayload: CustomerJwtPayload = {
+      sub: input.userId,
+      phoneNumber: input.phoneNumber,
+      type: 'customer',
+    };
+
+    const refreshPayload: CustomerRefreshJwtPayload = {
+      sub: input.userId,
+      phoneNumber: input.phoneNumber,
+      type: 'customer_refresh',
+      sessionId,
+    };
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync(accessPayload, {
+        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+        expiresIn: '15m',
+      }),
+      this.jwtService.signAsync(refreshPayload, {
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        expiresIn: `${ttlDays}d`,
+      }),
+    ]);
+
+    const session: CustomerRefreshSession = {
+      sessionId,
+      userId: input.userId,
+      phoneNumber: input.phoneNumber,
+      refreshTokenHash: this.hashRefreshToken(refreshToken),
+      createdAt: new Date().toISOString(),
+      expiresAt: refreshExpiresAt.toISOString(),
+    };
+
+    await this.redisService.setJson(
+      this.getRefreshSessionKey(sessionId),
+      session,
+      ttlSeconds,
+    );
+
+    return {
+      sessionId,
+      accessToken,
+      refreshToken,
+      refreshExpiresAt,
+    };
+  }
+
+  private async verifyRefreshToken(refreshToken: string) {
+    try {
+      const payload =
+        await this.jwtService.verifyAsync<CustomerRefreshJwtPayload>(refreshToken, {
+          secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        });
+
+      if (payload.type !== 'customer_refresh') {
+        throw new UnauthorizedException('Invalid refresh token type');
+      }
+
+      return payload;
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
   }
 
   private generateOtp() {
@@ -220,8 +419,20 @@ export class AuthService {
       .digest('hex');
   }
 
+  private hashRefreshToken(refreshToken: string) {
+    const secret = this.configService.getOrThrow<string>('JWT_REFRESH_SECRET');
+
+    return createHash('sha256')
+      .update(`${refreshToken}:${secret}`)
+      .digest('hex');
+  }
+
   private getOtpChallengeKey(challengeId: string) {
     return `${this.otpKeyPrefix}:${challengeId}`;
+  }
+
+  private getRefreshSessionKey(sessionId: string) {
+    return `${this.refreshSessionKeyPrefix}:${sessionId}`;
   }
 
   private getRemainingTtlSeconds(expiresAt: string) {

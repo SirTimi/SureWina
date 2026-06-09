@@ -18,5 +18,8 @@ export const envValidationSchema = Joi.object({
   JWT_ACCESS_SECRET: Joi.string().min(32).required(),
   JWT_REFRESH_SECRET: Joi.string().min(32).required(),
 
+  REFRESH_TOKEN_COOKIE_NAME: Joi.string().default('surewina_refresh_token'),
+  REFRESH_TOKEN_TTL_DAYS: Joi.number().integer().min(1).max(90).default(30),
+
   OTP_TTL_SECONDS: Joi.number().integer().min(60).max(900).default(300),
 });

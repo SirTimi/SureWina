@@ -1,3 +1,5 @@
+import cookie from '@fastify/cookie';
+import helmet from '@fastify/helmet';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -5,7 +7,6 @@ import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
-import helmet from '@fastify/helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -16,7 +17,8 @@ async function bootstrap() {
     }),
   );
 
-  await app.register(helmet);
+  await app.register(helmet as never);
+  await app.register(cookie as never);
 
   app.setGlobalPrefix('v1');
 
