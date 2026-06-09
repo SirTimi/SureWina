@@ -1,9 +1,11 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER } from '@nestjs/core';
+import { AdminAuthModule } from './admin-auth/admin-auth.module';
+import { AgentAuthModule } from './agent-auth/agent-auth.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
-import { AgentAuthModule } from './agent-auth/agent-auth.module';
-import { AdminAuthModule } from './admin-auth/admin-auth.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { RequestContextMiddleware } from './common/request-context/request-context.middleware';
 import { RequestContextModule } from './common/request-context/request-context.module';
 import { envValidationSchema } from './config/env.validation';
@@ -22,10 +24,16 @@ import { RedisModule } from './redis/redis.module';
     DatabaseModule,
     RedisModule,
     AuditModule,
-    HealthModule,
     AuthModule,
     AgentAuthModule,
     AdminAuthModule,
+    HealthModule,
+  ],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
   ],
 })
 export class AppModule implements NestModule {

@@ -33,7 +33,41 @@ Prerequisites: Node 20+, pnpm 9+, Docker Desktop.
 pnpm install
 pnpm dev
 ```
+## Backend setup
+
+The backend API lives in `apps/api`.
+
+### Prerequisites
+
+- Node.js 20 LTS
+- pnpm 10.26.2
+- Docker Desktop
+- PostgreSQL and Redis through Docker Compose
+
+### Start local infrastructure
+
+```bash
+docker compose up -d postgres redis
 
 ## Documentation
 
 See `docs/` for architecture decisions, runbooks, and the spec inconsistency log.
+
+Customer auth:
+
+POST /v1/auth/otp/request
+POST /v1/auth/otp/verify
+POST /v1/auth/refresh
+GET  /v1/auth/me
+POST /v1/auth/sign-out
+
+Agent auth:
+
+POST /v1/agents/auth/otp/request
+POST /v1/agents/auth/otp/verify
+GET  /v1/agents/auth/me
+
+Admin auth:
+
+POST /v1/admin/auth/login
+GET  /v1/admin/auth/me

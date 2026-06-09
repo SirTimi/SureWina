@@ -5,6 +5,10 @@ export const envValidationSchema = Joi.object({
     .valid('development', 'test', 'staging', 'production')
     .default('development'),
 
+  LOG_LEVEL: Joi.string()
+    .valid('fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent')
+    .default('info'),
+
   PORT: Joi.number().port().default(4000),
   HOST: Joi.string().default('0.0.0.0'),
 
@@ -22,4 +26,5 @@ export const envValidationSchema = Joi.object({
   REFRESH_TOKEN_TTL_DAYS: Joi.number().integer().min(1).max(90).default(30),
 
   OTP_TTL_SECONDS: Joi.number().integer().min(60).max(900).default(300),
+
 });

@@ -13,7 +13,9 @@ async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({
-      logger: true,
+      logger: {
+        level: process.env.LOG_LEVEL ?? 'info',
+      },
     }),
   );
 
@@ -34,6 +36,8 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  app.enableShutdownHooks();
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') ?? 4000;

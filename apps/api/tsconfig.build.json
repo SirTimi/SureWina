@@ -3,5 +3,12 @@
   "compilerOptions": {
     "noEmit": false
   },
-  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "**/*.spec.ts",
+    "prisma/**/*.ts"
+  ]
 }
