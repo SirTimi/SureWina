@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { AgentAuthModule } from './agent-auth/agent-auth.module';
+import { AdminAuthModule } from './admin-auth/admin-auth.module';
 import { RequestContextMiddleware } from './common/request-context/request-context.middleware';
 import { RequestContextModule } from './common/request-context/request-context.module';
 import { envValidationSchema } from './config/env.validation';
@@ -24,6 +25,7 @@ import { RedisModule } from './redis/redis.module';
     HealthModule,
     AuthModule,
     AgentAuthModule,
+    AdminAuthModule,
   ],
 })
 export class AppModule implements NestModule {
