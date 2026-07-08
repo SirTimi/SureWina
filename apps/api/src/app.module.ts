@@ -12,13 +12,19 @@ import { envValidationSchema } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
-
+import { DrawsModule } from './draws/draws.module';
+import { ResultsModule } from './results/results.module'
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: envValidationSchema,
-      envFilePath: ['.env.local', '.env'],
+      envFilePath: [
+        '../../.env.local',
+        '../../.env',
+        '.env.local',
+        '.env',
+      ],
     }),
     RequestContextModule,
     DatabaseModule,
@@ -28,6 +34,8 @@ import { RedisModule } from './redis/redis.module';
     AgentAuthModule,
     AdminAuthModule,
     HealthModule,
+    DrawsModule,
+    ResultsModule,
   ],
   providers: [
     {

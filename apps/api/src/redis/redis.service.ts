@@ -32,7 +32,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`Redis error: ${error.message}`);
     });
 
-    void this.client.connect();
+    this.client.connect().catch((error: Error) => {
+      this.logger.error(`Redis initial connection failed: ${error.message}`);
+    });
   }
 
   async onModuleDestroy() {
