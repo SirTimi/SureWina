@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -12,16 +11,16 @@ import {
   AuditActorType,
   AuditSeverity,
   DrawStatus,
+  PaymentGateway as PaymentGatewayEnum,
   PaymentStatus,
   PurchaseChannel,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import {
-  PAYMENT_GATEWAY,
-  PaymentGatewayDriver,
-} from './gateway/payment-gateway.interface';
+import { PaymentGatewayDriver } from './gateway/payment-gateway.interface';
 import { InitiatePurchaseDto } from './dto/initiate-purchase.dto';
+import { PaystackDriver } from './gateway/paystack.driver';
+import { FlutterwaveDriver } from './gateway/flutterwave.driver';
 
 export type InitiatePurchaseResult = {
   authorizationUrl: string;
@@ -38,8 +37,8 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
-    @Inject(PAYMENT_GATEWAY)
-    private readonly gateway: PaymentGatewayDriver,
+    private readonly paystack: PaystackDriver,
+    private readonly flutterwave: FlutterwaveDriver,
   ) {}
 
   async initiatePurchase(
@@ -67,15 +66,15 @@ export class PaymentsService {
     const amountKobo = amountNgn * 100;
 
     // 3. Our own reference — the gateway echoes this back on the webhook.
-    //    Prefixed so it's obvious in the Paystack dashboard.
     const reference = `SW-PAY-${randomUUID()}`;
 
-    // 4. Create the PENDING transaction BEFORE calling the gateway, so a
+    // 4. Create the PENDING transaction BEFORE calling any gateway, so a
     //    webhook can never arrive for a txn we don't have on record.
+    //    Recorded as PAYSTACK initially; flipped if we fall back.
     const txn = await this.prisma.paymentTransaction.create({
       data: {
         gatewayReference: reference,
-        gateway: this.gateway.gateway,
+        gateway: this.paystack.gateway,
         amountNgn,
         buyerPhone: dto.phoneE164,
         channel: PurchaseChannel.DIRECT,
@@ -84,9 +83,9 @@ export class PaymentsService {
       },
     });
 
-    // 5. Call the gateway. If it fails, mark the txn FAILED and surface it.
+    // 5. Try Paystack, fall back to Flutterwave. If both fail, mark FAILED.
     try {
-      const init = await this.gateway.initialize({
+      const init = await this.initializeWithFallback(txn.txnId, {
         amountKobo,
         reference,
         email: this.syntheticEmail(dto.phoneE164),
@@ -111,12 +110,12 @@ export class PaymentsService {
           drawCode: dto.drawCode,
           amountNgn,
           quantity: dto.quantity,
-          gateway: this.gateway.gateway,
+          gateway: init.gateway,
         },
       });
 
       this.logger.log(
-        `Payment initiated: ${reference} (${amountNgn} NGN, draw ${dto.drawCode})`,
+        `Payment initiated: ${reference} (${amountNgn} NGN, draw ${dto.drawCode}, via ${init.gateway})`,
       );
 
       return {
@@ -139,7 +138,38 @@ export class PaymentsService {
     }
   }
 
-  // Paystack requires an email. Buyers auth by phone, so synthesise a stable,
+  // Primary: Paystack. On any initialization failure, fall back to
+  // Flutterwave and re-tag the transaction so the right webhook reconciles.
+  private async initializeWithFallback(
+    txnId: string,
+    input: Parameters<PaymentGatewayDriver['initialize']>[0],
+  ): Promise<{
+    authorizationUrl: string;
+    gatewayReference: string;
+    gateway: PaymentGatewayEnum;
+  }> {
+    try {
+      const result = await this.paystack.initialize(input);
+      return { ...result, gateway: this.paystack.gateway };
+    } catch (primaryError) {
+      this.logger.warn(
+        `Paystack init failed, falling back to Flutterwave: ${
+          primaryError instanceof Error ? primaryError.message : 'unknown'
+        }`,
+      );
+
+      const result = await this.flutterwave.initialize(input);
+
+      await this.prisma.paymentTransaction.update({
+        where: { txnId },
+        data: { gateway: this.flutterwave.gateway },
+      });
+
+      return { ...result, gateway: this.flutterwave.gateway };
+    }
+  }
+
+  // Gateways require an email. Buyers auth by phone, so synthesise a stable,
   // non-routable address. Real receipts go by SMS.
   private syntheticEmail(phoneE164: string): string {
     const digits = phoneE164.replace(/\D/g, '');

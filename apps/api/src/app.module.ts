@@ -16,6 +16,7 @@ import { DrawsModule } from './draws/draws.module';
 import { ResultsModule } from './results/results.module'
 import { PaymentsModule } from './payments/payments.module';
 import { QueueModule } from './queue/queue.module';
+import { TicketsModule } from './tickets/tickets.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -40,6 +41,7 @@ import { QueueModule } from './queue/queue.module';
     ResultsModule,
     PaymentsModule,
     QueueModule,
+    TicketsModule,
   ],
   providers: [
     {
