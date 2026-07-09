@@ -12,6 +12,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../../audit/audit.service';
 import { generateTicketRef } from '../ticket-ref.util';
 import { JackpotAccumulationService } from '../jackpot-accumulation.service';
+import { NotificationQueueService } from '../../queue/notification-queue.service';
 
 type PaystackEvent = {
   event: string;
@@ -22,6 +23,15 @@ type PaystackEvent = {
   };
 };
 
+// What the confirmation transaction hands back for post-commit side effects.
+type ConfirmedPurchase = {
+  txnId: string;
+  buyerPhone: string;
+  drawCode: string;
+  ticketRefs: string[];
+  amountNgn: number;
+};
+
 @Injectable()
 export class PaystackWebhookService {
   private readonly logger = new Logger(PaystackWebhookService.name);
@@ -30,6 +40,7 @@ export class PaystackWebhookService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly jackpotAccumulation: JackpotAccumulationService,
+    private readonly notificationQueue: NotificationQueueService,
   ) {}
 
   // Never throws — the controller must be able to 200 any validly-signed event.
@@ -46,7 +57,20 @@ export class PaystackWebhookService {
     }
 
     try {
-      await this.confirmAndCreateTickets(reference, event);
+      const confirmed = await this.confirmAndCreateTickets(reference, event);
+
+      // Post-commit side effects ONLY. The enqueue lives outside the
+      // transaction so an SMS can never exist for a rolled-back purchase,
+      // and a queue outage can never roll back a confirmed purchase.
+      if (confirmed) {
+        await this.notificationQueue.enqueueTicketConfirmationSms({
+          txnId: confirmed.txnId,
+          buyerPhone: confirmed.buyerPhone,
+          drawCode: confirmed.drawCode,
+          ticketRefs: confirmed.ticketRefs,
+          amountNgn: confirmed.amountNgn,
+        });
+      }
     } catch (error) {
       this.logger.error(
         `Webhook processing failed for ${reference}: ${
@@ -59,10 +83,12 @@ export class PaystackWebhookService {
   private async confirmAndCreateTickets(
     reference: string,
     event: PaystackEvent,
-  ): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+  ): Promise<ConfirmedPurchase | null> {
+    return this.prisma.$transaction(async (tx) => {
       // Row lock so concurrent duplicate webhooks serialise here.
-      const locked = await tx.$queryRaw<Array<{ txn_id: string; status: PaymentStatus }>>`
+      const locked = await tx.$queryRaw<
+        Array<{ txn_id: string; status: PaymentStatus }>
+      >`
         SELECT txn_id, status
         FROM payment_transactions
         WHERE gateway_reference = ${reference}
@@ -71,7 +97,7 @@ export class PaystackWebhookService {
 
       if (locked.length === 0) {
         this.logger.warn(`No transaction for reference ${reference}`);
-        return;
+        return null;
       }
 
       const { txn_id: txnId, status } = locked[0];
@@ -79,13 +105,13 @@ export class PaystackWebhookService {
       // ── IDEMPOTENCY GATE ──
       if (status === PaymentStatus.CONFIRMED) {
         this.logger.debug(`${reference} already confirmed — no-op`);
-        return;
+        return null;
       }
       if (status !== PaymentStatus.PENDING) {
         this.logger.warn(
           `${reference} in status ${status}, cannot confirm — ignoring`,
         );
-        return;
+        return null;
       }
 
       const txn = await tx.paymentTransaction.findUniqueOrThrow({
@@ -95,13 +121,13 @@ export class PaystackWebhookService {
       const drawCode = event.data?.metadata?.drawCode as string | undefined;
       if (!drawCode) {
         this.logger.warn(`${reference}: no drawCode in metadata — ignoring`);
-        return;
+        return null;
       }
 
       const draw = await tx.draw.findUnique({ where: { drawCode } });
       if (!draw) {
         this.logger.warn(`${reference}: draw ${drawCode} not found — ignoring`);
-        return;
+        return null;
       }
 
       await tx.paymentTransaction.update({
@@ -144,7 +170,7 @@ export class PaystackWebhookService {
           ticketCount: txn.ticketCount,
         });
       }
-      
+
       await this.audit.write({
         severity: AuditSeverity.INFO,
         actor: { type: AuditActorType.SYSTEM },
@@ -160,6 +186,14 @@ export class PaystackWebhookService {
       this.logger.log(
         `Confirmed ${reference}: ${txn.ticketCount} ticket(s) for ${draw.drawCode}`,
       );
+
+      return {
+        txnId,
+        buyerPhone: txn.buyerPhone,
+        drawCode: draw.drawCode,
+        ticketRefs: ticketsData.map((t) => t.ticketRef),
+        amountNgn: txn.amountNgn,
+      };
     });
   }
 }

@@ -15,7 +15,7 @@ import { RedisModule } from './redis/redis.module';
 import { DrawsModule } from './draws/draws.module';
 import { ResultsModule } from './results/results.module'
 import { PaymentsModule } from './payments/payments.module';
-
+import { QueueModule } from './queue/queue.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -39,6 +39,7 @@ import { PaymentsModule } from './payments/payments.module';
     DrawsModule,
     ResultsModule,
     PaymentsModule,
+    QueueModule,
   ],
   providers: [
     {
