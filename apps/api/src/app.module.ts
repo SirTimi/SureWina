@@ -14,6 +14,8 @@ import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
 import { DrawsModule } from './draws/draws.module';
 import { ResultsModule } from './results/results.module'
+import { PaymentsModule } from './payments/payments.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -36,6 +38,7 @@ import { ResultsModule } from './results/results.module'
     HealthModule,
     DrawsModule,
     ResultsModule,
+    PaymentsModule,
   ],
   providers: [
     {

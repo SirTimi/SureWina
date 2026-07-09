@@ -17,6 +17,11 @@ async function bootstrap() {
         level: process.env.LOG_LEVEL ?? 'info',
       },
     }),
+    {
+      // Nest's JSON parser attaches the raw buffer as request.rawBody —
+      // required for webhook HMAC verification against exact received bytes.
+      rawBody: true,
+    },
   );
 
   await app.register(helmet as never);

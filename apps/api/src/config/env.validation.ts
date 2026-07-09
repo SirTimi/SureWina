@@ -27,4 +27,12 @@ export const envValidationSchema = Joi.object({
 
   OTP_TTL_SECONDS: Joi.number().integer().min(60).max(900).default(300),
 
+  // ─── Payments ───
+  PAYSTACK_SECRET_KEY: Joi.string().allow('').default(''),
+  PAYSTACK_BASE_URL: Joi.string().uri().default('https://api.paystack.co'),
+  // Public base for building payment callback URLs shown after checkout.
+  PAYMENT_CALLBACK_BASE_URL: Joi.string()
+    .uri()
+    .default('http://localhost:3000'),
+
 });
