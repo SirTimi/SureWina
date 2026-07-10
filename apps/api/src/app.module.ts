@@ -18,6 +18,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { QueueModule } from './queue/queue.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { ClaimsModule } from './claims/claims.module';
+import {StorageModule} from './storage/storage.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -44,6 +45,7 @@ import { ClaimsModule } from './claims/claims.module';
     QueueModule,
     TicketsModule,
     ClaimsModule,
+    StorageModule,
   ],
   providers: [
     {

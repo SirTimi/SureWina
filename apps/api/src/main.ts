@@ -8,6 +8,7 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
+import multipart from '@fastify/multipart';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -26,6 +27,9 @@ async function bootstrap() {
 
   await app.register(helmet as never);
   await app.register(cookie as never);
+  await app.register(multipart as never, {
+    limits: {filesize: 5 * 1024 * 1024, files: 2}, // 5MB
+  })
 
   app.setGlobalPrefix('v1');
 

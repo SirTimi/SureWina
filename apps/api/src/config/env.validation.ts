@@ -41,5 +41,8 @@ export const envValidationSchema = Joi.object({
   FLUTTERWAVE_WEBHOOK_HASH: Joi.string().allow('').default(''),
   PUBLIC_WEB_BASE_URL: Joi.string().uri().default('http://localhost:3000'),
   BVN_PROVIDER_API_KEY: Joi.string().allow('').default(''),
-
+  KYC_STORAGE_DIR: Joi.string().default('./storage'),
+  WHT_RATE_PERCENT: Joi.number().min(0).max(100).default(5),
+  WHT_THRESHOLD_NGN: Joi.number().integer().min(0).default(0),
+  PAYOUTS_MODE: Joi.string().valid('dev', 'paystack').default('dev'),
 });

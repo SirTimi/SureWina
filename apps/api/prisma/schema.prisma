@@ -461,6 +461,7 @@ model PrizeClaim {
   collectionScheduledAt DateTime?      @map("collection_scheduled_at")
   payoutReference       String?        @map("payout_reference")
   payoutInitiatedAt     DateTime?      @map("payout_initiated_at")
+  payoutAccountNumber   String?        @map("payout_account_number")
 
   createdAt           DateTime         @default(now()) @map("created_at")
   updatedAt           DateTime         @updatedAt @map("updated_at")

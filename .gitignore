@@ -40,3 +40,5 @@ prisma/migrations/dev.db*
 
 # Misc
 *.tsbuildinfo
+
+storage/*
