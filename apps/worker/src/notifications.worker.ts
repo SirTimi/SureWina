@@ -10,6 +10,8 @@ import { PrismaService } from './prisma.service';
 import { TermiiService } from './termii.service';
 import {
   JOB_TICKET_CONFIRMATION_SMS,
+  JOB_WINNER_SMS,
+  WinnerSmsJob,
   NOTIFICATIONS_QUEUE,
   TicketConfirmationSmsJob,
 } from './queue.contract';
@@ -31,6 +33,8 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
       async (job: Job) => {
         if (job.name === JOB_TICKET_CONFIRMATION_SMS) {
           await this.handleTicketConfirmation(job.data as TicketConfirmationSmsJob);
+        } else if (job.name === JOB_WINNER_SMS) {
+          await this.handleWinnerSms(job.data as WinnerSmsJob);
         } else {
           this.logger.warn(`Unknown job ${job.name} — ignoring`);
         }
@@ -55,6 +59,17 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     await this.worker?.close();
+  }
+
+  private async handleWinnerSms(data: WinnerSmsJob) {
+    const message =
+      `Surewina: CONGRATULATIONS! Your entry ${data.winnerRef} WON the ` +
+      `${data.drawCode} draw: ${data.prizeDescription} ` +
+      `(worth NGN ${data.prizeValueNgn.toLocaleString('en-NG')}). ` +
+      `We will contact you about claiming your prize. Ref: ${data.winnerRef}`;
+
+    await this.termii.sendSms(data.winnerPhone, message);
+    this.logger.log(`Winner SMS processed for draw ${data.drawCode} (${data.winnerRef})`);
   }
 
   private async handleTicketConfirmation(data: TicketConfirmationSmsJob) {

@@ -9,3 +9,14 @@ export type TicketConfirmationSmsJob = {
   ticketRefs: string[];
   amountNgn: number;
 };
+
+export const JOB_WINNER_SMS = 'winner-sms';
+
+export type WinnerSmsJob = {
+  drawId: string;
+  drawCode: string;
+  winnerPhone: string;
+  winnerRef: string; // ticketRef or ENTRY-<id>
+  prizeDescription: string;
+  prizeValueNgn: number;
+};

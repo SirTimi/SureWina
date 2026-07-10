@@ -189,6 +189,7 @@ model Draw {
 
   tickets        Ticket[]
   result         DrawResult?
+  seedCommit    DrawSeedCommit?
   jackpotEntries JackpotEntry[]
 
   @@index([drawType, status])
@@ -197,6 +198,18 @@ model Draw {
   @@map("draws")
 }
 
+// Pre-draw seed commitment: the hash is public before the draw runs; the
+// seed itself is sealed (AES-256-GCM, engine-only key) until reveal.
+model DrawSeedCommit {
+  drawId      String   @id @map("draw_id")
+  seedHash    String   @map("seed_hash")
+  sealedSeed  String   @map("sealed_seed") // base64 iv:ciphertext:authTag
+  committedAt DateTime @default(now()) @map("committed_at")
+
+  draw Draw @relation(fields: [drawId], references: [drawId])
+
+  @@map("draw_seed_commits")
+}
 enum DrawType {
   DAILY_STANDARD
   SATURDAY_JACKPOT

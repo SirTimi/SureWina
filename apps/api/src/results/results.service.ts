@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { DrawStatus, Prisma } from '@prisma/client';
+import { DrawStatus, Prisma, DrawType, JackpotEntryStatus, TicketStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { ListResultsQueryDto } from './dto/list-results-query.dto';
 import {
@@ -98,5 +98,63 @@ export class ResultsService {
     }
 
     return filter;
+  }
+
+  // Full public evidence bundle for a completed draw: revealed seed, Merkle
+  // root, the exact eligible pool, and the engine's signature. Everything an
+  // independent party needs to recompute the winner — see packages/verify.
+  async getVerification(drawCode: string) {
+    const draw = await this.prisma.draw.findUnique({
+      where: { drawCode },
+      include: { result: true },
+    });
+
+    if (!draw || !draw.result || draw.status !== DrawStatus.COMPLETED) {
+      throw new NotFoundException('Verification data not available');
+    }
+
+    // Reconstruct the pool exactly as the engine locked it: tickets that
+    // were ACTIVE at lock time (the winner is WINNING now), ordered by
+    // ticketRef; for jackpots, free entries appended, ordered by entryId.
+    const tickets = await this.prisma.ticket.findMany({
+      where: {
+        drawId: draw.drawId,
+        status: { in: [TicketStatus.ACTIVE, TicketStatus.WINNING] },
+      },
+      orderBy: { ticketRef: 'asc' },
+      select: { ticketRef: true },
+    });
+
+    const pool: string[] = tickets.map((t) => t.ticketRef);
+
+    if (draw.drawType === DrawType.SATURDAY_JACKPOT) {
+      const entries = await this.prisma.jackpotEntry.findMany({
+        where: {
+          drawId: draw.drawId,
+          status: { in: [JackpotEntryStatus.ACTIVE, JackpotEntryStatus.WINNING] },
+        },
+        orderBy: { entryId: 'asc' },
+        select: { entryId: true },
+      });
+      pool.push(...entries.map((e) => `ENTRY-${e.entryId}`));
+    }
+
+    const r = draw.result;
+    return {
+      drawId: draw.drawId,
+      drawCode: draw.drawCode,
+      winnerTicketRef: r.winnerTicketRef,
+      prizeValueNgn: r.prizeValueNgn,
+      totalTicketsSold: r.totalTicketsSold,
+      totalEligibleParticipants: r.totalEligibleParticipants,
+      rngSeedHash: r.rngSeedHash,
+      rngSeed: r.rngSeed,
+      merkleRoot: r.merkleRoot,
+      engineVersion: r.engineVersion,
+      engineSignature: r.engineSignature,
+      executedAt: r.executedAt.toISOString(),
+      seedCommittedAt: r.rngSeedHashedAt.toISOString(),
+      pool,
+    };
   }
 }

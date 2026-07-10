@@ -15,4 +15,9 @@ export class ResultsController {
   getByDrawCode(@Param('drawCode') drawCode: string) {
     return this.resultsService.getByDrawCode(drawCode);
   }
+
+  @Get(':drawCode/verification')
+  getVerification(@Param('drawCode') drawCode: string) {
+    return this.resultsService.getVerification(drawCode);
+  }
 }

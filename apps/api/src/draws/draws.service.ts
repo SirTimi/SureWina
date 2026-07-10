@@ -56,6 +56,7 @@ export class DrawsService {
   async getByCode(drawCode: string): Promise<GetDrawResponseDto> {
     const draw = await this.prisma.draw.findUnique({
       where: { drawCode },
+      include: { seedCommit: { select: {seedHash:true}}}
     });
 
     if (!draw || !PUBLIC_VISIBLE_STATUSES.includes(draw.status)) {
@@ -75,6 +76,7 @@ export class DrawsService {
       ticketsSold,
       prizePoolNgn,
       jackpotEligible: draw.drawType === DrawType.SATURDAY_JACKPOT,
+      seedCommittedHash: draw.seedCommit?.seedHash ?? null
     };
   }
 

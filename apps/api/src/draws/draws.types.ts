@@ -22,6 +22,7 @@ export type GetDrawResponseDto = {
   ticketsSold: number;
   prizePoolNgn: number;
   jackpotEligible: boolean;
+  seedCommittedHash: string | null
 };
 
 export function toDrawPublic(draw: Draw): DrawPublicDto {

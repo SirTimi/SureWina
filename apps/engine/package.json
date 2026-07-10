@@ -18,7 +18,10 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-fastify": "^11.0.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "@prisma/client": "6.19.3",
+    "bullmq": "^5.34.2",
+    "ioredis": "^5.4.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -26,6 +29,7 @@
     "@nestjs/testing": "^11.0.1",
     "@types/node": "^20.11.0",
     "rimraf": "^5.0.5",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "prisma": "6.19.3"
   }
 }
