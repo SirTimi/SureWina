@@ -417,6 +417,88 @@ model DrawResult {
   executedAt DateTime @map("executed_at")
 
   draw Draw @relation(fields: [drawId], references: [drawId])
+  claim PrizeClaim?
 
   @@map("draw_results")
+}
+
+// ─── PRIZE CLAIMS ───────────────────────────────────────────
+
+model PrizeClaim {
+  claimId             String           @id @default(uuid()) @map("claim_id")
+  drawResultId        String           @unique @map("draw_result_id")
+  winnerTicketRef     String           @map("winner_ticket_ref")
+  winnerPhone         String           @map("winner_phone")
+  winnerUserId        String?          @map("winner_user_id")
+
+  claimType           ClaimType?       @map("claim_type")
+  claimTypeSelectedAt DateTime?        @map("claim_type_selected_at")
+  status              PrizeClaimStatus @default(NOTIFIED)
+
+  grossPrizeValueNgn  Int              @map("gross_prize_value_ngn")
+  whtApplicable       Boolean          @default(false) @map("wht_applicable")
+  whtAmountNgn        Int              @default(0) @map("wht_amount_ngn")
+  netPrizeValueNgn    Int              @map("net_prize_value_ngn")
+
+  selectionDeadlineAt DateTime         @map("selection_deadline_at")
+  claimDeadlineAt     DateTime         @map("claim_deadline_at")
+  forfeitedAt         DateTime?        @map("forfeited_at")
+  fulfilledAt         DateTime?        @map("fulfilled_at")
+
+  // KYC artefacts (populated in 8.3/8.4)
+  kycBvnHash          String?          @map("kyc_bvn_hash")
+  kycBvnVerifiedAt    DateTime?        @map("kyc_bvn_verified_at")
+  kycBankCode         String?          @map("kyc_bank_code")
+  kycBankAccountLast4 String?          @map("kyc_bank_account_last4")
+  kycBankAccountName  String?          @map("kyc_bank_account_name")
+  kycIdDocPath        String?          @map("kyc_id_doc_path")
+  kycSelfiePath       String?          @map("kyc_selfie_path")
+  kycReviewedBy       String?          @map("kyc_reviewed_by")
+  kycReviewedAt       DateTime?        @map("kyc_reviewed_at")
+
+  // Fulfilment (8.6)
+  collectionPointId     String?        @map("collection_point_id")
+  collectionScheduledAt DateTime?      @map("collection_scheduled_at")
+  payoutReference       String?        @map("payout_reference")
+  payoutInitiatedAt     DateTime?      @map("payout_initiated_at")
+
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  drawResult      DrawResult       @relation(fields: [drawResultId], references: [resultId])
+  collectionPoint CollectionPoint? @relation(fields: [collectionPointId], references: [pointId])
+
+  @@map("prize_claims")
+  @@index([winnerPhone])
+  @@index([status, selectionDeadlineAt])
+}
+
+enum ClaimType {
+  PRODUCT
+  CASH
+}
+
+enum PrizeClaimStatus {
+  NOTIFIED
+  SELECTION_MADE
+  KYC_PENDING
+  KYC_CLEARED
+  PRODUCT_BOOKED
+  DELIVERED
+  CASH_PAID
+  FORFEITED
+}
+
+model CollectionPoint {
+  pointId   String   @id @default(uuid()) @map("point_id")
+  name      String
+  stateCode String   @map("state_code")
+  address   String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  claims PrizeClaim[]
+
+  @@map("collection_points")
+  @@index([stateCode, isActive])
 }

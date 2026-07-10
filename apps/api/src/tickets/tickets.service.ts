@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Ticket, TicketStatus, TicketType } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import type { TicketStatus, TicketType } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 
 export type TicketPublicDto = {
@@ -21,7 +22,10 @@ export type LookupTicketResponseDto = {
 
 @Injectable()
 export class TicketsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {}
 
   async lookup(ticketRefRaw: string): Promise<LookupTicketResponseDto> {
     // Refs are generated uppercase; accept any case from the user.
@@ -36,6 +40,22 @@ export class TicketsService {
       throw new NotFoundException('Ticket not found');
     }
 
+    // Winners get a link to their claim (created by the worker on draw
+    // completion). Losing or not-yet-drawn tickets get null.
+    let claimUrl: string | null = null;
+    if (ticket.isWinner) {
+      const claim = await this.prisma.prizeClaim.findFirst({
+        where: { winnerTicketRef: ticket.ticketRef },
+        select: { claimId: true },
+      });
+      if (claim) {
+        const webBase =
+          this.config.get<string>('PUBLIC_WEB_BASE_URL') ??
+          'http://localhost:3000';
+        claimUrl = `${webBase}/claims/${claim.claimId}`;
+      }
+    }
+
     return {
       ticket: {
         ticketRef: ticket.ticketRef,
@@ -48,9 +68,7 @@ export class TicketsService {
         createdAt: ticket.createdAt.toISOString(),
       },
       isWinner: ticket.isWinner,
-      // Claims arrive in Phase 8; until then winners see isWinner=true with
-      // no claim link. The shape is contract-stable for the frontend swap.
-      claimUrl: null,
+      claimUrl,
     };
   }
 }

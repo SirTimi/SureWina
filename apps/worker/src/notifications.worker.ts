@@ -62,14 +62,63 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleWinnerSms(data: WinnerSmsJob) {
+    // 1. Create the claim (idempotent: one claim per draw result).
+    const result = await this.prisma.drawResult.findUnique({
+      where: { drawId: data.drawId },
+      select: { resultId: true },
+    });
+    if (!result) {
+      throw new Error(`No draw result for ${data.drawCode} — retrying`);
+    }
+
+    const selectionDays = Number(
+      this.config.get<string>('CLAIM_SELECTION_WINDOW_DAYS') ?? '7',
+    );
+    const claimDays = Number(
+      this.config.get<string>('CLAIM_WINDOW_DAYS') ?? '30',
+    );
+    const now = Date.now();
+
+    let claimId: string;
+    try {
+      const claim = await this.prisma.prizeClaim.create({
+        data: {
+          drawResultId: result.resultId,
+          winnerTicketRef: data.winnerRef,
+          winnerPhone: data.winnerPhone,
+          grossPrizeValueNgn: data.prizeValueNgn,
+          netPrizeValueNgn: data.prizeValueNgn, // WHT applied at selection (8.5)
+          selectionDeadlineAt: new Date(now + selectionDays * 86_400_000),
+          claimDeadlineAt: new Date(now + claimDays * 86_400_000),
+        },
+      });
+      claimId = claim.claimId;
+      this.logger.log(`Claim created: ${claimId} for ${data.winnerRef}`);
+    } catch (error) {
+      if ((error as { code?: string }).code === 'P2002') {
+        // Retry after a mid-run crash: claim exists, reuse it.
+        const existing = await this.prisma.prizeClaim.findUniqueOrThrow({
+          where: { drawResultId: result.resultId },
+          select: { claimId: true },
+        });
+        claimId = existing.claimId;
+      } else {
+        throw error;
+      }
+    }
+
+    // 2. SMS, now with claiming instructions.
+    const webBase =
+      this.config.get<string>('PUBLIC_WEB_BASE_URL') ?? 'http://localhost:3000';
     const message =
       `Surewina: CONGRATULATIONS! Your entry ${data.winnerRef} WON the ` +
       `${data.drawCode} draw: ${data.prizeDescription} ` +
       `(worth NGN ${data.prizeValueNgn.toLocaleString('en-NG')}). ` +
-      `We will contact you about claiming your prize. Ref: ${data.winnerRef}`;
+      `Sign in with this phone number at ${webBase} to claim. ` +
+      `You have ${selectionDays} days to choose your prize option.`;
 
     await this.termii.sendSms(data.winnerPhone, message);
-    this.logger.log(`Winner SMS processed for draw ${data.drawCode} (${data.winnerRef})`);
+    this.logger.log(`Winner SMS processed for draw ${data.drawCode} (claim ${claimId})`);
   }
 
   private async handleTicketConfirmation(data: TicketConfirmationSmsJob) {

@@ -39,5 +39,7 @@ export const envValidationSchema = Joi.object({
   FLUTTERWAVE_BASE_URL: Joi.string().uri().default('https://api.flutterwave.com'),
   // Static hash Flutterwave sends in the verif-hash webhook header.
   FLUTTERWAVE_WEBHOOK_HASH: Joi.string().allow('').default(''),
+  PUBLIC_WEB_BASE_URL: Joi.string().uri().default('http://localhost:3000'),
+  BVN_PROVIDER_API_KEY: Joi.string().allow('').default(''),
 
 });
