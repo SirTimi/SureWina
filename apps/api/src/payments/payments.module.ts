@@ -29,6 +29,6 @@ import { FlutterwaveHashGuard } from './webhook/flutterwave-hash.guard';
     FlutterwaveWebhookService,
     FlutterwaveHashGuard,
   ],
-  exports: [PaymentsService],
+  exports: [PaymentsService, JackpotAccumulationService],
 })
 export class PaymentsModule {}

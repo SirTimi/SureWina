@@ -80,6 +80,8 @@ model Agent {
   updatedAt           DateTime             @updatedAt @map("updated_at")
   tickets             Ticket[]
   paymentTransactions PaymentTransaction[]
+  remittances    Remittance[]
+  disbursements  CommissionDisbursement[]
 
   @@index([agentCode])
   @@index([status, tier])
@@ -264,6 +266,7 @@ model PaymentTransaction {
 enum PaymentGateway {
   PAYSTACK
   FLUTTERWAVE
+  AGENT_CASH
 }
 
 enum PaymentStatus {
@@ -502,4 +505,62 @@ model CollectionPoint {
 
   @@map("collection_points")
   @@index([stateCode, isActive])
+}
+
+// ─── AGENT REMITTANCE (agent → Surewina, daily) ─────────────
+
+model Remittance {
+  remittanceId     String           @id @default(uuid()) @map("remittance_id")
+  agentId          String           @map("agent_id")
+  periodDate       DateTime         @map("period_date") @db.Date
+  grossSalesNgn    Int              @map("gross_sales_ngn")
+  commissionNgn    Int              @map("commission_ngn")
+  amountDueNgn     Int              @map("amount_due_ngn") // = gross; commission returns via disbursement
+  ticketCount      Int              @map("ticket_count")
+  status           RemittanceStatus @default(PENDING)
+  bankTransferRef  String?          @map("bank_transfer_ref")
+  agentConfirmedAt DateTime?        @map("agent_confirmed_at")
+  receivedAt       DateTime?        @map("received_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [agentId])
+
+  @@unique([agentId, periodDate])
+  @@index([status, periodDate])
+  @@map("remittances")
+}
+
+enum RemittanceStatus {
+  PENDING
+  AGENT_CONFIRMED
+  RECEIVED
+  LATE
+  WRITTEN_OFF
+}
+
+// ─── COMMISSION DISBURSEMENT (Surewina → agent, daily) ──────
+
+model CommissionDisbursement {
+  disbId          String     @id @default(uuid()) @map("disb_id")
+  agentId         String     @map("agent_id")
+  periodDate      DateTime   @map("period_date") @db.Date
+  amountNgn       Int        @map("amount_ngn")
+  ticketCount     Int        @map("ticket_count")
+  status          DisbStatus @default(PENDING)
+  payoutReference String?    @map("payout_reference")
+  initiatedAt     DateTime?  @map("initiated_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  agent Agent @relation(fields: [agentId], references: [agentId])
+
+  @@unique([agentId, periodDate])
+  @@map("commission_disbursements")
+}
+
+enum DisbStatus {
+  PENDING
+  INITIATED
+  SETTLED
+  FAILED
 }

@@ -19,6 +19,7 @@ import { QueueModule } from './queue/queue.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { ClaimsModule } from './claims/claims.module';
 import {StorageModule} from './storage/storage.module';
+import { AgentOpsModule } from './agent-ops/agent-ops.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -46,6 +47,7 @@ import {StorageModule} from './storage/storage.module';
     TicketsModule,
     ClaimsModule,
     StorageModule,
+    AgentOpsModule,
   ],
   providers: [
     {
