@@ -22,6 +22,7 @@ import { AuditService } from '../audit/audit.service';
 import { JackpotAccumulationService } from '../payments/jackpot-accumulation.service';
 import { NotificationQueueService } from '../queue/notification-queue.service';
 import { generateTicketRef } from '../payments/ticket-ref.util';
+import { CustomerAdminService } from '../admin-ops/customer-admin.service';
 import { SellTicketsDto } from './dto/sell-tickets.dto';
 
 @Injectable()
@@ -33,12 +34,19 @@ export class AgentSalesService {
     private readonly audit: AuditService,
     private readonly jackpotAccumulation: JackpotAccumulationService,
     private readonly notificationQueue: NotificationQueueService,
+    private readonly customerAdmin: CustomerAdminService,
   ) {}
 
   async sell(agentId: string, dto: SellTicketsDto) {
     const agent = await this.prisma.agent.findUnique({ where: { agentId } });
     if (!agent || agent.status !== AgentStatus.ACTIVE) {
       throw new ForbiddenException('Agent account is not active');
+    }
+
+    // Blocked customers can't buy through agents either. Anonymous sales
+    // can't be phone-checked — that's inherent to cash-with-no-phone.
+    if (dto.customerPhone) {
+      await this.customerAdmin.assertNotBlocked(dto.customerPhone);
     }
 
     const draw = await this.prisma.draw.findUnique({

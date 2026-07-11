@@ -46,4 +46,5 @@ export const envValidationSchema = Joi.object({
   WHT_THRESHOLD_NGN: Joi.number().integer().min(0).default(0),
   PAYOUTS_MODE: Joi.string().valid('dev', 'paystack').default('dev'),
   AGENT_PAYOUT_MAX_NGN: Joi.number().integer().min(0).default(50000),
+  REFUNDS_MODE: Joi.string().valid('dev', 'paystack').default('dev'),
 });

@@ -564,3 +564,14 @@ enum DisbStatus {
   SETTLED
   FAILED
 }
+
+// Admin-imposed purchase blocks, keyed by phone because buyers are
+// phone-first and may have no User row. Checked at every purchase door.
+model BlockedPhone {
+  phoneNumber String   @id @map("phone_number")
+  reason      String
+  blockedBy   String   @map("blocked_by") // adminUserId
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("blocked_phones")
+}

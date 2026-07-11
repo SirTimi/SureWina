@@ -17,6 +17,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { CustomerAdminService } from '../admin-ops/customer-admin.service';
 import { PaymentGatewayDriver } from './gateway/payment-gateway.interface';
 import { InitiatePurchaseDto } from './dto/initiate-purchase.dto';
 import { PaystackDriver } from './gateway/paystack.driver';
@@ -39,11 +40,15 @@ export class PaymentsService {
     private readonly config: ConfigService,
     private readonly paystack: PaystackDriver,
     private readonly flutterwave: FlutterwaveDriver,
+    private readonly customerAdmin: CustomerAdminService,
   ) {}
 
   async initiatePurchase(
     dto: InitiatePurchaseDto,
   ): Promise<InitiatePurchaseResult> {
+    // 0. Blocked phones cannot purchase — enforced before any other work.
+    await this.customerAdmin.assertNotBlocked(dto.phoneE164);
+
     // 1. Draw must exist and be open for sales.
     const draw = await this.prisma.draw.findUnique({
       where: { drawCode: dto.drawCode },

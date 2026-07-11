@@ -6,62 +6,42 @@ import type {
   ListPastResultsResponse,
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
-import {
-  MOCK_ACTIVE_DRAWS,
-  MOCK_DRAW_BY_ID,
-  MOCK_PAST_RESULTS,
-  MOCK_RESULT_DETAIL,
-} from './mock-data.js';
 
 export class DrawsModule {
   constructor(private readonly client: ApiClient) {}
 
   async listActive(): Promise<ListActiveDrawsResponse> {
-    // TODO Phase 6+: return this.client.get<ListActiveDrawsResponse>('/draws/active');
-    // The public customer portal should show one current daily draw and one jackpot draw,
-    // not every future daily draw in the mock dataset.
-    const activeDailyDraw = MOCK_ACTIVE_DRAWS.find(
-      (draw) => draw.drawType === 'DAILY_STANDARD',
-    );
-    const activeJackpotDraw = MOCK_ACTIVE_DRAWS.find(
-      (draw) => draw.drawType === 'SATURDAY_JACKPOT',
-    );
-
-    return Promise.resolve({
-      draws: [activeDailyDraw, activeJackpotDraw].filter(Boolean) as typeof MOCK_ACTIVE_DRAWS,
+    return this.client.get<ListActiveDrawsResponse>('/draws/active', {
+      skipAuth: true,
     });
   }
 
   async getById(drawCode: string): Promise<GetDrawResponse> {
-    // TODO Phase 6+: return this.client.get(`/draws/${drawCode}`);
-    const draw = MOCK_DRAW_BY_ID[drawCode];
-    if (!draw) throw new Error(`Mock draw not found: ${drawCode}`);
-    return Promise.resolve(draw);
+    return this.client.get<GetDrawResponse>(
+      `/draws/${encodeURIComponent(drawCode)}`,
+      { skipAuth: true },
+    );
   }
 
-  async listResults(req?: ListPastResultsRequest): Promise<ListPastResultsResponse> {
-    // TODO Phase 6+: real call
-    const page = req?.page ?? 1;
-    const pageSize = req?.pageSize ?? 10;
-    let results = [...MOCK_PAST_RESULTS];
-
-    if (req?.drawType) results = results.filter((r) => r.drawType === req.drawType);
-    if (req?.fromDate) results = results.filter((r) => r.executedAt >= req.fromDate!);
-    if (req?.toDate) results = results.filter((r) => r.executedAt <= req.toDate!);
-
-    const start = (page - 1) * pageSize;
-    return Promise.resolve({
-      results: results.slice(start, start + pageSize),
-      total: results.length,
-      page,
-      pageSize,
+  async listResults(
+    req?: ListPastResultsRequest,
+  ): Promise<ListPastResultsResponse> {
+    return this.client.get<ListPastResultsResponse>('/results', {
+      skipAuth: true,
+      query: {
+        page: req?.page,
+        pageSize: req?.pageSize,
+        drawType: req?.drawType,
+        fromDate: req?.fromDate,
+        toDate: req?.toDate,
+      },
     });
   }
 
   async getResultDetail(drawCode: string): Promise<GetResultDetailResponse> {
-    // TODO Phase 6+: real call
-    const detail = MOCK_RESULT_DETAIL[drawCode];
-    if (!detail) throw new Error(`Mock result not found: ${drawCode}`);
-    return Promise.resolve(detail);
+    return this.client.get<GetResultDetailResponse>(
+      `/results/${encodeURIComponent(drawCode)}`,
+      { skipAuth: true },
+    );
   }
 }
