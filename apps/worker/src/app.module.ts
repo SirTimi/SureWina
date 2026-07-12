@@ -6,6 +6,7 @@ import { NotificationsWorker } from './notifications.worker';
 import { ClaimsSweepService } from './claims-sweep.service';
 import {CommissionSweepService} from './commission-sweep.service';
 import {RemittanceSweepService} from './remittance-sweep.service';
+import { DrawSchedulerService } from './draw-scheduler.service'
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -13,6 +14,6 @@ import {RemittanceSweepService} from './remittance-sweep.service';
       envFilePath: ['.env.local', '.env'],
     }),
   ],
-  providers: [PrismaService, TermiiService, NotificationsWorker, ClaimsSweepService, CommissionSweepService, RemittanceSweepService],
+  providers: [PrismaService, TermiiService, NotificationsWorker, ClaimsSweepService, CommissionSweepService, RemittanceSweepService, DrawSchedulerService],
 })
 export class AppModule {}

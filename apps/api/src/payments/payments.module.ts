@@ -12,6 +12,7 @@ import { FlutterwaveWebhookController } from './webhook/flutterwave-webhook.cont
 import { FlutterwaveWebhookService } from './webhook/flutterwave-webhook.service';
 import { FlutterwaveHashGuard } from './webhook/flutterwave-hash.guard';
 import { AdminOpsModule } from '../admin-ops/admin-ops.module'
+import { PurchaseStatusService } from './purchase-status.service'
 @Module({
   controllers: [
     PaymentsController,
@@ -27,6 +28,7 @@ import { AdminOpsModule } from '../admin-ops/admin-ops.module'
     PaystackWebhookService,
     PaystackSignatureGuard,
     FlutterwaveWebhookService,
+    PurchaseStatusService,
     FlutterwaveHashGuard,
   ],
   exports: [PaymentsService, JackpotAccumulationService],

@@ -7,17 +7,19 @@ import { Card } from '@surewina/ui';
 import { api } from '@/lib/api';
 
 interface ProcessingPanelProps {
-  drawCode: string;
   sessionId: string;
-  quantity: number;
-  phoneE164: string;
+  // Optional: the real values come from the purchase-status endpoint; these
+  // are only fallbacks for the legacy in-app route.
+  drawCode?: string;
+  quantity?: number;
+  phoneE164?: string;
 }
 
 type Stage = 'connecting' | 'authorising' | 'confirming';
 
 export function ProcessingPanel({
-  drawCode,
   sessionId,
+  drawCode,
   quantity,
   phoneE164,
 }: ProcessingPanelProps) {
@@ -31,9 +33,9 @@ export function ProcessingPanel({
       try {
         const result = await api.tickets.confirmPurchase(
           sessionId,
-          drawCode,
-          quantity,
-          phoneE164,
+          drawCode ?? '',
+          quantity ?? 0,
+          phoneE164 ?? '',
         );
 
         const params = new URLSearchParams({
@@ -48,7 +50,11 @@ export function ProcessingPanel({
 
         router.push(`/tickets/confirmation?${params.toString()}`);
       } catch {
-        router.push(`/draws/${drawCode}/buy/failed?session=${sessionId}`);
+        router.push(
+          drawCode
+            ? `/draws/${drawCode}/buy/failed?session=${sessionId}`
+            : `/draws?payment=failed`,
+        );
       }
     }, 4000);
 

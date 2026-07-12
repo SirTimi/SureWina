@@ -6,10 +6,6 @@ import type {
   LookupTicketResponse,
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
-import {
-  getFreeJackpotEntriesFromRegularTickets,
-  getTicketsToNextFreeJackpotEntry,
-} from '@surewina/types';
 
 export class TicketsModule {
   constructor(private readonly client: ApiClient) {}
@@ -22,73 +18,87 @@ export class TicketsModule {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // STAGE B (still mocked): purchase flow.
-  // Known contract drift to resolve when un-mocking:
-  //  - backend initiate returns { authorizationUrl, reference, txnId,
-  //    amountNgn }, not { purchaseSessionId, redirectUrl, ... }
-  //  - backend has no confirm/status endpoint yet; confirmation happens via
-  //    webhook. Stage B adds GET /tickets/purchase/status?reference=... and
-  //    this module polls it after Paystack redirects back.
-  // ─────────────────────────────────────────────────────────────
+  async initiatePurchase(
+    req: InitiatePurchaseRequest,
+  ): Promise<InitiatePurchaseResponse> {
+    // Explicit field mapping: backend whitelist rejects unknown fields, and
+    // paymentMethod is chosen on Paystack's checkout page, not ours.
+    const res = await this.client.post<{
+      authorizationUrl: string;
+      reference: string;
+      txnId: string;
+      amountNgn: number;
+    }>(
+      '/tickets/purchase/initiate',
+      {
+        drawCode: req.drawCode,
+        quantity: req.quantity,
+        phoneE164: req.phoneE164,
+        stateOfPlayCode: req.stateOfPlayCode,
+      },
+      { skipAuth: true },
+    );
 
-  async initiatePurchase(req: InitiatePurchaseRequest): Promise<InitiatePurchaseResponse> {
-    // STAGE B: replace with this.client.post('/tickets/purchase/initiate', ...)
-    const total = req.quantity * (req.drawCode.includes('JACKPOT') ? 5000 : 500);
-    const sessionId = `ps_${Math.random().toString(36).slice(2, 11)}`;
-    return Promise.resolve({
-      purchaseSessionId: sessionId,
-      totalNgn: total,
-      redirectUrl: `/draws/${req.drawCode}/buy/processing?session=${sessionId}&qty=${req.quantity}&phone=${encodeURIComponent(req.phoneE164)}`,
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-    });
+    return {
+      purchaseSessionId: res.reference,
+      totalNgn: res.amountNgn,
+      redirectUrl: res.authorizationUrl, // real Paystack checkout URL
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    };
   }
 
-  async confirmPurchase(sessionId: string, drawCode: string, quantity: number, phoneE164: string): Promise<ConfirmPurchaseResponse> {
-    // STAGE B: replace with a status poll against the real backend.
-    const isJackpot = drawCode.includes('JACKPOT');
-    const ticketPrice = isJackpot ? 5000 : 500;
-    const today = new Date();
+  async confirmPurchase(
+    sessionId: string,
+    _drawCode: string,
+    _quantity: number,
+    _phoneE164: string,
+  ): Promise<ConfirmPurchaseResponse> {
+    // Poll the backend status endpoint. Verify-on-return server-side means
+    // a completed Paystack payment confirms within a poll or two.
+    const POLL_MS = 2500;
+    const MAX_POLLS = 24; // ~60s
 
-    const ticketRefs = Array.from({ length: quantity }, (_, i) => {
-      const seq = String(Math.floor(Math.random() * 9999) + 1).padStart(4, '0');
-      const suffix = String.fromCharCode(65 + Math.floor(Math.random() * 26)) +
-                     String.fromCharCode(65 + Math.floor(Math.random() * 26)) +
-                     String(Math.floor(Math.random() * 99)).padStart(2, '0');
-      return `SW-${seq.slice(0, 2)}${suffix.slice(0, 2)}-${suffix.slice(2)}${String(i).padStart(2, '0')}`;
-    });
+    for (let i = 0; i < MAX_POLLS; i++) {
+      const s = await this.client.get<{
+        status: 'PENDING' | 'CONFIRMED' | 'FAILED';
+        ticketRefs: string[];
+        drawCode: string | null;
+        drawScheduledAt: string | null;
+        drawPrizeDescription: string | null;
+        totalPaidNgn: number;
+        buyerPhoneE164: string;
+        jackpotAccumulation: {
+          cumulativeCount: number;
+          ticketsToNextEntry: number;
+          newJackpotEntries: number;
+        } | null;
+      }>('/tickets/purchase/status', {
+        skipAuth: true,
+        query: { reference: sessionId },
+      });
 
-    const previousRegularTicketCount = isJackpot ? 0 : 7;
-    const newRegularTicketCount = isJackpot
-      ? 0
-      : previousRegularTicketCount + quantity;
+      if (s.status === 'CONFIRMED') {
+        return {
+          success: true,
+          ticketRefs: s.ticketRefs,
+          drawCode: s.drawCode ?? _drawCode,
+          drawScheduledAt: s.drawScheduledAt ?? new Date().toISOString(),
+          drawPrizeDescription: s.drawPrizeDescription ?? '',
+          totalPaidNgn: s.totalPaidNgn,
+          buyerPhoneE164: s.buyerPhoneE164,
+          jackpotAccumulation: s.jackpotAccumulation ?? {
+            cumulativeCount: 0,
+            ticketsToNextEntry: 10,
+            newJackpotEntries: 0,
+          },
+        };
+      }
+      if (s.status === 'FAILED') {
+        throw new Error('Payment failed');
+      }
+      await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+    }
 
-    const newEntries = isJackpot
-      ? 0
-      : getFreeJackpotEntriesFromRegularTickets(newRegularTicketCount) -
-        getFreeJackpotEntriesFromRegularTickets(previousRegularTicketCount);
-
-    const ticketsToNext = isJackpot
-      ? 0
-      : getTicketsToNextFreeJackpotEntry(newRegularTicketCount);
-
-    const drawScheduled = new Date();
-    drawScheduled.setHours(20, 0, 0, 0);
-    if (drawScheduled < today) drawScheduled.setDate(drawScheduled.getDate() + 1);
-
-    return Promise.resolve({
-      success: true,
-      ticketRefs,
-      drawCode,
-      drawScheduledAt: drawScheduled.toISOString(),
-      drawPrizeDescription: isJackpot ? 'Sure Jackpot' : 'Today’s Surewina draw',
-      totalPaidNgn: quantity * ticketPrice,
-      buyerPhoneE164: phoneE164,
-      jackpotAccumulation: {
-        cumulativeCount: newRegularTicketCount,
-        ticketsToNextEntry: ticketsToNext,
-        newJackpotEntries: newEntries,
-      },
-    });
+    throw new Error('Payment confirmation timed out — check your tickets shortly');
   }
 }
