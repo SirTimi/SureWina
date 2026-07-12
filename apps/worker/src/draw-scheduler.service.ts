@@ -61,9 +61,9 @@ export class DrawSchedulerService implements OnModuleInit, OnModuleDestroy {
     await this.createIfMissing({
       drawCode: `RD-DRAW-${this.ymd(watDate)}-DAILY`,
       drawType: DrawType.DAILY_STANDARD,
-      prizeDescription: this.config.get('SCHED_DAILY_PRIZE_DESC') ?? 'Daily Surewina draw prize',
-      prizeValueNgn: Number(this.config.get('SCHED_DAILY_PRIZE_NGN') ?? 500000),
-      ticketPriceNgn: Number(this.config.get('SCHED_DAILY_TICKET_NGN') ?? 500),
+      prizeDescription: this.envStr('SCHED_DAILY_PRIZE_DESC', 'Daily Surewina draw prize'),
+      prizeValueNgn: this.envNum('SCHED_DAILY_PRIZE_NGN', 500000),
+      ticketPriceNgn: this.envNum('SCHED_DAILY_TICKET_NGN', 500),
       scheduledAt,
       cutoffAt,
     });
@@ -78,9 +78,9 @@ export class DrawSchedulerService implements OnModuleInit, OnModuleDestroy {
     await this.createIfMissing({
       drawCode: `RD-DRAW-${this.ymd(watDate)}-JACKPOT`,
       drawType: DrawType.SATURDAY_JACKPOT,
-      prizeDescription: this.config.get('SCHED_JACKPOT_PRIZE_DESC') ?? 'Saturday jackpot',
-      prizeValueNgn: Number(this.config.get('SCHED_JACKPOT_PRIZE_NGN') ?? 4000000),
-      ticketPriceNgn: Number(this.config.get('SCHED_JACKPOT_TICKET_NGN') ?? 5000),
+      prizeDescription: this.envStr('SCHED_JACKPOT_PRIZE_DESC', 'Saturday jackpot'),
+      prizeValueNgn: Number(this.envNum('SCHED_JACKPOT_PRIZE_NGN', 4000000)),
+      ticketPriceNgn: Number(this.envNum('SCHED_JACKPOT_TICKET_NGN', 5000)),
       scheduledAt,
       cutoffAt,
     });
@@ -130,5 +130,16 @@ export class DrawSchedulerService implements OnModuleInit, OnModuleDestroy {
   }
   private ymd(d: { y: number; m: number; d: number }) {
     return `${d.y}${String(d.m + 1).padStart(2, '0')}${String(d.d).padStart(2, '0')}`;
+  }
+  // Env values can arrive as '' or garbage; only accept positive numbers.
+  // Env values can arrive as '' or garbage; only accept positive numbers.
+  private envNum(key: string, fallback: number): number {
+    const n = Number(this.config.get(key));
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  }
+
+  private envStr(key: string, fallback: string): string {
+    const v = this.config.get<string>(key)?.trim();
+    return v ? v : fallback;
   }
 }

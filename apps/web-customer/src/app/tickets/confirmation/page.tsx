@@ -1,10 +1,10 @@
 import Link from 'next/link';
-import { CheckCircle2, Sparkles, Download } from 'lucide-react';
+import { CheckCircle2, Sparkles } from 'lucide-react';
 import { Button, Card, Container } from '@surewina/ui';
 import { formatNaira, formatPhoneForDisplay } from '@surewina/utils';
 import { drawTypeShortLabel, formatDrawDate, formatDrawTime } from '@/lib/draw-helpers';
 import { CopyableTicketRef } from '@/components/copyable-ticket-ref';
-
+import { DownloadReceiptButton } from '@/components/download-reciept-button'
 interface ConfirmationPageProps {
   searchParams: Promise<{
     refs?: string;
@@ -141,13 +141,12 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
               {formatPhoneForDisplay(phone)}
             </span>
           </span>
-          <button
-            type="button"
-            className="text-navy-800 hover:text-navy-700 font-medium inline-flex items-center gap-1"
-          >
-            <Download className="w-3 h-3" />
-            Download receipt
-          </button>
+          <DownloadReceiptButton
+            ticketRefs={ticketRefs}
+            drawCode={drawCode}
+            phone={phone}
+            paidNgn={paid}
+          />
         </div>
       </Card>
 

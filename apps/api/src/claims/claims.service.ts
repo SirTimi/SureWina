@@ -32,6 +32,14 @@ export type ClaimViewDto = {
   selectionDeadlineAt: string;
   claimDeadlineAt: string;
   createdAt: string;
+  // KYC surface for the customer portal (C2b): flags only, never raw data.
+  kycBvnVerified: boolean;
+  kycHasDocs: boolean;
+  kycBank: {
+    bankCode: string | null;
+    accountLast4: string | null;
+    accountName: string;
+  } | null;
 };
 
 // Statuses in which the winner may still (re)choose product vs cash.
@@ -392,6 +400,11 @@ export class ClaimsService {
       selectionDeadlineAt: c.selectionDeadlineAt.toISOString(),
       claimDeadlineAt: c.claimDeadlineAt.toISOString(),
       createdAt: c.createdAt.toISOString(),
+      kycBvnVerified: !!c.kycBvnVerifiedAt,
+      kycHasDocs: !!(c.kycIdDocPath && c.kycSelfiePath),
+      kycBank: c.kycBankAccountName
+        ? { bankCode: c.kycBankCode, accountLast4: c.kycBankAccountLast4, accountName: c.kycBankAccountName }
+        : null,
     };
   }
 

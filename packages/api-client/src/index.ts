@@ -31,10 +31,6 @@ export function createClient(config: ApiClientConfig): SurewinaApi {
   const auth = new AuthModule(client);
   const dashboard = new DashboardModule(client);
 
-  // Wire shared mock state — auth and dashboard read from account's mutable state.
-  auth._setAccountModule(account);
-  dashboard._setAccountModule(account);
-
   return {
     health: new HealthModule(client),
     tickets: new TicketsModule(client),

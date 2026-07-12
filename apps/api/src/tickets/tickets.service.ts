@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { TicketStatus, TicketType } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
-
+import { DrawStatus, Prisma } from '@prisma/client'
 export type TicketPublicDto = {
   ticketRef: string;
   drawCode: string;
@@ -69,6 +69,60 @@ export class TicketsService {
       },
       isWinner: ticket.isWinner,
       claimUrl,
+    };
+
+
+  }
+
+  async listMine(
+    phoneNumber: string,
+    filter: 'active' | 'past' | 'all' = 'all',
+    page = 1,
+    pageSize = 20,
+  ) {
+    // "Active" = the draw hasn't resolved yet; "past" = it has.
+    const unresolvedDraw = {
+      status: { in: [DrawStatus.SCHEDULED, DrawStatus.ACTIVE, DrawStatus.SALES_CLOSED, DrawStatus.EXECUTING] },
+    };
+    const where: Prisma.TicketWhereInput = {
+      buyerPhone: phoneNumber,
+      ...(filter === 'active' ? { draw: unresolvedDraw } : {}),
+      ...(filter === 'past' ? { draw: { status: { in: [DrawStatus.COMPLETED, DrawStatus.CANCELLED] } } } : {}),
+    };
+
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.ticket.findMany({
+        where,
+        include: {
+          draw: {
+            select: { drawCode: true, drawType: true, prizeDescription: true, scheduledAt: true, status: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.ticket.count({ where }),
+    ]);
+
+    return {
+      tickets: rows.map((t) => ({
+        ticketRef: t.ticketRef,
+        drawCode: t.draw.drawCode,
+        drawType: t.draw.drawType,
+        drawPrizeDescription: t.draw.prizeDescription,
+        ticketType: t.ticketType,
+        faceValueNgn: t.faceValueNgn,
+        stateOfPlayCode: t.stateOfPlayCode,
+        status: t.status,
+        isWinner: t.isWinner,
+        drawScheduledAt: t.draw.scheduledAt.toISOString(),
+        awaitingDraw: t.draw.status !== DrawStatus.COMPLETED && t.draw.status !== DrawStatus.CANCELLED,
+        createdAt: t.createdAt.toISOString(),
+      })),
+      total,
+      page,
+      pageSize,
     };
   }
 }

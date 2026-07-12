@@ -166,8 +166,7 @@ export function OtpForm({ challengeId, phoneE164, nextPath, mockOtp }: OtpFormPr
           <span className="font-black text-navy-700">Dev mode:</span>{' '}
           <span className="text-slate-700">
             Use code{' '}
-            <span className="font-mono font-black text-navy-950">{activeMockOtp}</span> or{' '}
-            <span className="font-mono font-black text-navy-950">123456</span>
+            <span className="font-mono font-black text-navy-950">{activeMockOtp}</span>
           </span>
         </div>
       )}

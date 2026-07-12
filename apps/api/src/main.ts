@@ -1,5 +1,7 @@
 import cookie from '@fastify/cookie';
+import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import multipart from '@fastify/multipart';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -8,7 +10,6 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
-import multipart from '@fastify/multipart';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -25,18 +26,19 @@ async function bootstrap() {
     },
   );
 
-  await app.register(helmet as never);
-  await app.register(cookie as never);
-  await app.register(multipart as never, {
-    limits: {filesize: 5 * 1024 * 1024, files: 2}, // 5MB
-  })
-
-  app.setGlobalPrefix('v1');
-
-  app.enableCors({
+  // CORS first: preflights must be answered before anything else can
+  // interfere. Browser clients (the Next portals) depend on this.
+  await app.register(cors as never, {
     origin: true,
     credentials: true,
   });
+  await app.register(helmet as never);
+  await app.register(cookie as never);
+  await app.register(multipart as never, {
+    limits: { fileSize: 5 * 1024 * 1024, files: 2 }, // 5MB per file
+  });
+
+  app.setGlobalPrefix('v1');
 
   app.useGlobalPipes(
     new ValidationPipe({
