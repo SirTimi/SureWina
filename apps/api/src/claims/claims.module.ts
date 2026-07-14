@@ -10,6 +10,6 @@ import { PaystackTransferService } from './payout/paystack-transfer.service';
   imports: [JwtModule.register({})], // CustomerJwtGuard injects JwtService
   controllers: [ClaimsController, AdminClaimsController],
   providers: [ClaimsService, BvnVerificationService, BankResolveService, PaystackTransferService],
-  exports: [ClaimsService],
+  exports: [ClaimsService, BankResolveService],
 })
 export class ClaimsModule {}

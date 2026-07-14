@@ -6,12 +6,9 @@ import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
   ArrowRight,
-  Banknote,
   Camera,
   Check,
   ChevronLeft,
-  CreditCard,
-  FileText,
   Lock,
   ShieldCheck,
   Upload,

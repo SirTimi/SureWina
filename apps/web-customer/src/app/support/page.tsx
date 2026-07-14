@@ -2,7 +2,6 @@ import Link from 'next/link';
 import {
   ArrowRight,
   HelpCircle,
-  Mail,
   MessageCircle,
   Phone,
   ShieldCheck,

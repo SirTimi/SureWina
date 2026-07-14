@@ -2,6 +2,27 @@ import type { DrawPublic, DrawResultPublic } from '@surewina/types';
 
 type DrawType = DrawPublic['drawType'];
 
+
+const DAY_NAMES = [
+  'Sure Sunday',
+  'Sure Monday',
+  'Sure Tuesday',
+  'Sure Wednesday',
+  'Sure Thursday',
+  'Sure Friday',
+  'Sure Jackpot', // Saturday
+];
+
+// Display name derived from the draw's WAT calendar day.
+export function drawDisplayName(draw: {
+  drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+  scheduledAt: string;
+}): string {
+  if (draw.drawType === 'SATURDAY_JACKPOT') return 'Sure Jackpot';
+  const wat = new Date(new Date(draw.scheduledAt).getTime() + 60 * 60 * 1000);
+  return DAY_NAMES[wat.getUTCDay()];
+}
+
 export const drawTypeLabel: Record<DrawType, string> = {
   DAILY_STANDARD: 'Daily',
   SATURDAY_JACKPOT: 'Saturday Jackpot',

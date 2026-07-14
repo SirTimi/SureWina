@@ -1,4 +1,3 @@
-import { Container } from '@surewina/ui';
 import { WinnerNotificationView } from '@/components/winner-notification-view';
 
 interface WinnerPageProps {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield, Phone, Mail, User, CreditCard, Bell, LogOut, AlertCircle, Check } from 'lucide-react';
+import { Shield, Phone, User, CreditCard, Bell, LogOut, AlertCircle } from 'lucide-react';
 import { Badge, Button, Card } from '@surewina/ui';
 import { formatPhoneForDisplay } from '@surewina/utils';
 import type { UserMe } from '@surewina/types';

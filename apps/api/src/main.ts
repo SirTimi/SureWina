@@ -31,6 +31,7 @@ async function bootstrap() {
   await app.register(cors as never, {
     origin: true,
     credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
   await app.register(helmet as never);
   await app.register(cookie as never);

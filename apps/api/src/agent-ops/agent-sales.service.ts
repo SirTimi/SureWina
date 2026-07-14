@@ -24,7 +24,7 @@ import { NotificationQueueService } from '../queue/notification-queue.service';
 import { generateTicketRef } from '../payments/ticket-ref.util';
 import { CustomerAdminService } from '../admin-ops/customer-admin.service';
 import { SellTicketsDto } from './dto/sell-tickets.dto';
-
+import { AccountService } from '../account/account.service'
 @Injectable()
 export class AgentSalesService {
   private readonly logger = new Logger(AgentSalesService.name);
@@ -35,6 +35,7 @@ export class AgentSalesService {
     private readonly jackpotAccumulation: JackpotAccumulationService,
     private readonly notificationQueue: NotificationQueueService,
     private readonly customerAdmin: CustomerAdminService,
+    private readonly account: AccountService
   ) {}
 
   async sell(agentId: string, dto: SellTicketsDto) {
@@ -58,6 +59,10 @@ export class AgentSalesService {
     }
 
     const amountNgn = draw.ticketPriceNgn * dto.quantity;
+
+    if (dto.customerPhone) {
+      await this.account.assertPurchaseAllowed(dto.customerPhone, amountNgn);
+    }
     // Cash sales attribute to the customer's phone when given; otherwise to
     // the agent's own phone as custodian-of-record for the anonymous buyer.
     const buyerPhone = dto.customerPhone ?? agent.phoneNumber;

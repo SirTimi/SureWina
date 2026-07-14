@@ -11,7 +11,6 @@ import {
   Inbox,
   Package,
   Search,
-  Trophy,
 } from 'lucide-react';
 import { Badge, Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';

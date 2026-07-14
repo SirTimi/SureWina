@@ -1,43 +1,26 @@
 import type { DrawPublic } from '@surewina/types';
 
-const DAILY_DRAW_NAMES = [
-  'Sure Special',
-  'Sure Bonanza',
-  'Sure Geluu',
-  'Sure Bambam',
-  'Sure Jumbo',
-  'Sure Boom',
+// Weekday-named daily draws; Saturday is the jackpot.
+const DAY_NAMES = [
+  'Sure Sunday',
+  'Sure Monday',
+  'Sure Tuesday',
+  'Sure Wednesday',
+  'Sure Thursday',
+  'Sure Friday',
+  'Sure Jackpot', // Saturday
 ] as const;
 
-const PRODUCT_NAME_PATTERNS = [
-  'samsung',
-  'galaxy',
-  'hisense',
-  'iphone',
-  'oled',
-  'tv',
-  'motorbike',
-  'bajaj',
-  'boxer',
-];
+const WAT_OFFSET_MS = 60 * 60 * 1000;
 
 export function getCustomerDrawName(draw: DrawPublic): string {
   if (draw.drawType === 'SATURDAY_JACKPOT') {
     return 'Sure Jackpot';
   }
 
-  const rawName = draw.prizeDescription.trim();
-  const lower = rawName.toLowerCase();
-
-  const looksLikeOldProductName = PRODUCT_NAME_PATTERNS.some((pattern) =>
-    lower.includes(pattern),
-  );
-
-  if (!rawName || looksLikeOldProductName) {
-    return getDailyFallbackName(draw);
-  }
-
-  return rawName;
+  // Name derives from the draw's WAT calendar day.
+  const wat = new Date(new Date(draw.scheduledAt).getTime() + WAT_OFFSET_MS);
+  return DAY_NAMES[wat.getUTCDay()];
 }
 
 export function getCustomerDrawSubtitle(draw: DrawPublic): string {
@@ -52,11 +35,4 @@ export function getTicketTypeLabel(draw: DrawPublic): string {
   return draw.drawType === 'SATURDAY_JACKPOT'
     ? 'Sure Jackpot ticket'
     : 'Regular daily ticket';
-}
-
-function getDailyFallbackName(draw: DrawPublic): string {
-  const digits = draw.drawCode.replace(/\D/g, '');
-  const numericSeed = digits ? Number(digits.slice(-8)) : new Date().getDay();
-
-  return DAILY_DRAW_NAMES[numericSeed % DAILY_DRAW_NAMES.length];
 }

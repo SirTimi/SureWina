@@ -14,6 +14,7 @@ import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { CurrentUser } from './guards/current-user.decorator';
 import { CustomerJwtGuard } from './guards/customer-jwt.guard';
+import { AccountService } from '../account/account.service'
 
 type RequestWithCookies = FastifyRequest & {
   cookies?: Record<string, string>;
@@ -30,7 +31,11 @@ type ReplyWithCookie = FastifyReply & {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly account: AccountService,
+  
+  ) {}
 
   @Post('otp/request')
   requestOtp(@Body() dto: RequestOtpDto) {
@@ -65,8 +70,8 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(CustomerJwtGuard)
-  getMe(@CurrentUser() user: CustomerJwtPayload) {
-    return this.authService.getMe(user.sub);
+  me(@CurrentUser() user: CustomerJwtPayload) {
+    return this.account.me(user.sub);
   }
 
   @Post('sign-out')

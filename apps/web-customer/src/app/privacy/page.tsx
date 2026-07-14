@@ -5,11 +5,8 @@ import {
   Cookie,
   Database,
   FileText,
-  Lock,
   Mail,
   Phone,
-  ShieldCheck,
-  UserCheck,
 } from 'lucide-react';
 import { Card, Container } from '@surewina/ui';
 import { LegalPageHeader } from '@/components/legal-page-header';

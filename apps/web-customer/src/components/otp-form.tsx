@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, ArrowLeft, Phone, ShieldCheck } from 'lucide-react';
-import { Button, Card } from '@surewina/ui';
+import { Card } from '@surewina/ui';
 import { formatPhoneForDisplay } from '@surewina/utils';
 import { api } from '@/lib/api';
 

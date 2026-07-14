@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, Check, WalletCards } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Check, WalletCards } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
+import { api } from '@/lib/api';
 
 type LimitPeriod = 'WEEKLY' | 'MONTHLY' | 'NONE';
 
@@ -16,8 +17,29 @@ const presets: Record<LimitPeriod, { min: number; max: number; default: number }
 export function SpendLimitForm() {
   const [period, setPeriod] = useState<LimitPeriod>('MONTHLY');
   const [amount, setAmount] = useState(20000);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const range = presets[period];
+
+  const handleSave = async () => {
+    setError(null);
+    setSaved(false);
+    setSaving(true);
+    try {
+      if (period === 'NONE') {
+        await api.account.removeSpendLimit({});
+      } else {
+        await api.account.updateSpendLimit({ period, capNgn: amount });
+      }
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save limit.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Card
@@ -133,8 +155,25 @@ export function SpendLimitForm() {
           </div>
         )}
 
+        {error && (
+          <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-4">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+            <p className="text-sm leading-relaxed text-red-700">{error}</p>
+          </div>
+        )}
+
+        {saved && (
+          <div className="mt-5 flex items-start gap-2 rounded-xl border border-navy-100 bg-amber-50 p-4">
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
+            <p className="text-sm leading-relaxed text-navy-950">Limit saved.</p>
+          </div>
+        )}
+
         <div className="mt-6">
           <Button
+            onClick={handleSave}
+            isLoading={saving}
+            disabled={saving}
             variant="primary"
             size="md"
             className="rounded-sm !border-transparent bg-navy-800 font-bold text-white hover:!border-transparent hover:bg-navy-800"

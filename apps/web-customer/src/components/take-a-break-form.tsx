@@ -1,8 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, PauseCircle, ShieldCheck } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  Check,
+  PauseCircle,
+  ShieldCheck,
+} from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
+import { api } from '@/lib/api';
 
 type BreakDuration = '7d' | '30d' | '6mo' | 'permanent';
 
@@ -15,6 +22,65 @@ const options: { value: BreakDuration; label: string; note: string }[] = [
 
 export function TakeABreakForm() {
   const [selected, setSelected] = useState<BreakDuration | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeUntil, setActiveUntil] = useState<string | null>(null);
+
+  const handleActivate = async () => {
+    if (!selected) return;
+
+    // A break locks the account against the user's own future impulses —
+    // one explicit confirmation before something user-irreversible.
+    const label = options.find((o) => o.value === selected)?.label ?? selected;
+    const ok = window.confirm(
+      `Start a ${label} break? Ticket purchases will be blocked and you cannot undo this yourself.`,
+    );
+    if (!ok) return;
+
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await api.account.requestBreak({
+        duration: selected,
+      } as Parameters<typeof api.account.requestBreak>[0]);
+      setActiveUntil(res.selfExclusionUntil);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start the break.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (activeUntil) {
+    return (
+      <Card
+        variant="default"
+        className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.04)]"
+      >
+        <div className="p-6 text-center sm:p-10">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-navy-800 text-white">
+            <Check className="h-6 w-6" />
+          </div>
+
+          <h2 className="font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
+            Your break is active.
+          </h2>
+
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-500">
+            Ticket purchases are paused until{' '}
+            <span className="font-bold text-navy-950">
+              {new Date(activeUntil).toLocaleDateString('en-NG', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </span>
+            . If you need help before then, contact support.
+          </p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card
@@ -92,18 +158,28 @@ export function TakeABreakForm() {
                 <span className="font-black text-red-700">
                   Permanent self-exclusion is serious.
                 </span>{' '}
-                It should close ticket purchasing permanently for this identity. Consider
-                a 6-month break first unless you are certain.
+                A 90-day block starts immediately; making it permanent is completed with
+                support so it cannot be reversed in-app. Consider a 6-month break first
+                unless you are certain.
               </p>
             </div>
           </div>
         )}
 
+        {error && (
+          <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-4">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+            <p className="text-sm leading-relaxed text-red-700">{error}</p>
+          </div>
+        )}
+
         <div className="mt-6">
           <Button
+            onClick={handleActivate}
+            isLoading={submitting}
+            disabled={!selected || submitting}
             variant="primary"
             size="md"
-            disabled={!selected}
             className="rounded-sm !border-transparent bg-navy-800 font-bold text-white hover:!border-transparent hover:bg-navy-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Activate break

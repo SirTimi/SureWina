@@ -1,7 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import {
-  ArrowRight,
   ChevronRight,
   CircleHelp,
   CreditCard,

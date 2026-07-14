@@ -22,7 +22,7 @@ import { PaymentGatewayDriver } from './gateway/payment-gateway.interface';
 import { InitiatePurchaseDto } from './dto/initiate-purchase.dto';
 import { PaystackDriver } from './gateway/paystack.driver';
 import { FlutterwaveDriver } from './gateway/flutterwave.driver';
-
+import { AccountService } from '../account/account.service';
 export type InitiatePurchaseResult = {
   authorizationUrl: string;
   reference: string;
@@ -41,6 +41,7 @@ export class PaymentsService {
     private readonly paystack: PaystackDriver,
     private readonly flutterwave: FlutterwaveDriver,
     private readonly customerAdmin: CustomerAdminService,
+    private readonly account: AccountService
   ) {}
 
   async initiatePurchase(
@@ -48,6 +49,8 @@ export class PaymentsService {
   ): Promise<InitiatePurchaseResult> {
     // 0. Blocked phones cannot purchase — enforced before any other work.
     await this.customerAdmin.assertNotBlocked(dto.phoneE164);
+    // Responsible-play: self-exclusion + spend limits (needs the amount, so
+    // compute price first — move this call to just after amountNgn is known).
 
     // 1. Draw must exist and be open for sales.
     const draw = await this.prisma.draw.findUnique({
@@ -68,6 +71,9 @@ export class PaymentsService {
     if (amountNgn <= 0) {
       throw new BadRequestException('Invalid purchase amount');
     }
+
+    await this.account.assertPurchaseAllowed(dto.phoneE164, amountNgn);
+    
     const amountKobo = amountNgn * 100;
 
     // 3. Our own reference — the gateway echoes this back on the webhook.

@@ -8,7 +8,7 @@ import {
   getCustomerDrawName,
   getCustomerDrawSubtitle,
 } from '@/lib/customer-draw-display';
-
+import {Countdown } from '@/components/countdown';
 interface DrawCardProps {
   draw: DrawPublic;
   ticketsSold?: number;
@@ -80,7 +80,7 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
               Closes in
             </p>
             <p className="mt-1 font-mono text-2xl font-black text-navy-950 tabular-nums">
-              {formatCountdown(draw.cutoffAt)}
+              <Countdown to={draw.cutoffAt} />
             </p>
           </div>
         </div>
