@@ -8,7 +8,6 @@ import type {
   ClaimKycStatus, ClaimPath,
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
-import { getMockLiveDrawState } from './mock-data.js';
 
 // Backend claim view (Phase 8) + C2b kyc extensions.
 type BackendClaim = {
@@ -54,13 +53,30 @@ function toKycStatus(c: BackendClaim): ClaimKycStatus {
     claimId: c.claimId,
     status,
     rejectionReason: null,
-    bvnLast4: null, // never round-trips; backend stores only a hash
+    documentUploaded: !!c.kycHasDocs,
+    selfieUploaded: !!c.kycHasDocs, // stored together; one flag serves both
+    kycDeadlineAt: c.claimDeadlineAt,
+    bvnLast4: c.kycBvnVerified ? '••••' : null,
     bankAccount: c.kycBank
-      ? { bankName: c.kycBank.bankCode ?? '', accountNumber: c.kycBank.accountLast4 ?? '', accountName: c.kycBank.accountName }
+      ? { bankName: c.kycBank.bankCode ?? '', accountLast4: c.kycBank.accountLast4 ?? '', accountName: c.kycBank.accountName }
       : null,
   } as ClaimKycStatus;
 }
 
+// Accepts raw base64 or a full data URL; returns a Blob with the right type.
+function base64ToBlob(input: string): Blob {
+  let mime = 'image/png';
+  let data = input;
+  const match = /^data:([^;]+);base64,(.*)$/.exec(input);
+  if (match) {
+    mime = match[1];
+    data = match[2];
+  }
+  const bytes = atob(data);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
 export class ClaimsModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -94,8 +110,60 @@ export class ClaimsModule {
 
   // Draw-night animation is client theatrics, not server data — it stays
   // locally generated. Not a mock of a backend that should exist.
+  // Real live-draw state, derived from the engine's published artefacts:
+  // the draw record (commit hash, schedule, status) and, once COMPLETED,
+  // the result (winner + revealed seed). No animation state is served by
+  // the backend — the page dramatizes these facts however it likes.
   async getLiveDraw(drawCode: string): Promise<GetLiveDrawResponse> {
-    return Promise.resolve({ state: getMockLiveDrawState(drawCode) });
+    const d = await this.client.get<{
+      draw: {
+        drawCode: string;
+        drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+        prizeDescription: string;
+        prizeValueNgn: number;
+        scheduledAt: string;
+        status: string;
+      };
+      ticketsSold: number;
+      seedCommittedHash: string | null;
+    }>(`/draws/${encodeURIComponent(drawCode)}`, { skipAuth: true });
+
+    let phase: 'PRE_DRAW' | 'DRAWING' | 'COMPLETE' = 'PRE_DRAW';
+    let winningTicketRef: string | null = null;
+    let seedReveal: string | null = null;
+
+    if (d.draw.status === 'COMPLETED') {
+      phase = 'COMPLETE';
+      const res = await this.client
+        .get<{ result: { winnerTicketRef: string; rngSeed: string } }>(
+          `/results/${encodeURIComponent(drawCode)}`,
+          { skipAuth: true },
+        )
+        .catch(() => null);
+      winningTicketRef = res?.result.winnerTicketRef ?? null;
+      seedReveal = res?.result.rngSeed ?? null;
+    } else if (
+      d.draw.status === 'EXECUTING' ||
+      (d.draw.status === 'SALES_CLOSED' &&
+        new Date(d.draw.scheduledAt).getTime() <= Date.now())
+    ) {
+      phase = 'DRAWING';
+    }
+
+    return {
+      state: {
+        drawCode: d.draw.drawCode,
+        drawType: d.draw.drawType,
+        prizeDescription: d.draw.prizeDescription,
+        prizeValueNgn: d.draw.prizeValueNgn,
+        scheduledAt: d.draw.scheduledAt,
+        ticketsSold: d.ticketsSold,
+        seedHash: d.seedCommittedHash ?? '',
+        phase,
+        winningTicketRef,
+        seedReveal,
+      },
+    };
   }
 
   async getClaimPath(claimId: string): Promise<GetClaimPathResponse> {
@@ -133,10 +201,12 @@ export class ClaimsModule {
 
   async submitKycDocument(req: SubmitKycDocumentRequest): Promise<SubmitKycDocumentResponse> {
     const form = new FormData();
-    const r = req as unknown as { idDoc?: Blob | File; selfie?: Blob | File };
-    if (r.idDoc) form.append('idDoc', r.idDoc);
-    if (r.selfie) form.append('selfie', r.selfie);
-    await this.client.post(`/claims/${encodeURIComponent(req.claimId)}/kyc/documents`, form);
+    form.append('idDoc', base64ToBlob(req.documentImageBase64), 'id-document.png');
+    form.append('selfie', base64ToBlob(req.selfieImageBase64), 'selfie.png');
+    await this.client.post(
+      `/claims/${encodeURIComponent(req.claimId)}/kyc/documents`,
+      form,
+    );
     return { kyc: toKycStatus(await this.getClaim(req.claimId)) };
   }
 
@@ -175,4 +245,6 @@ export class ClaimsModule {
       estimatedCompletionAt: null,
     };
   }
+
+  
 }

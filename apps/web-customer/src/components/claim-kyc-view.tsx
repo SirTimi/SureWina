@@ -38,9 +38,9 @@ const NIGERIAN_BANKS = [
   { code: '076', name: 'Polaris Bank' },
   { code: '050', name: 'Ecobank Nigeria' },
   { code: '030', name: 'Heritage Bank' },
-  { code: '999991', name: 'OPay' },
-  { code: '999992', name: 'PalmPay' },
-  { code: '999993', name: 'Kuda' },
+  { code: '999992', name: 'OPay' },
+  { code: '999991', name: 'PalmPay' },
+  { code: '50211', name: 'Kuda' },
 ];
 
 const ID_TYPES = [
@@ -389,6 +389,7 @@ function DocsForm({
       onSuccess(res.kyc);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed. Try again.');
+    } finally {
       setSubmitting(false);
     }
   };
@@ -572,7 +573,8 @@ function BvnForm({
       const res = await api.claims.submitKycBvn({ claimId, bvn });
       onSuccess(res.kyc);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'BVN check failed.');
+      setError(err instanceof Error ? err.message : 'BVN check failed. Try again');
+    } finally {
       setSubmitting(false);
     }
   };
@@ -662,7 +664,8 @@ function BankForm({
       const res = await api.claims.submitKycBank({ claimId, bankCode, accountNumber });
       onSuccess(res.kyc);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bank verification failed.');
+      setError(err instanceof Error ? err.message : 'Bank verification failed. Try again');
+    } finally {
       setSubmitting(false);
     }
   };

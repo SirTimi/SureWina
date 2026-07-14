@@ -471,8 +471,16 @@ export class ClaimsService {
         'Bank details are only required for cash claims',
       );
     }
-    if (claim.status !== PrizeClaimStatus.KYC_PENDING) {
-      throw new ConflictException('Submit and verify your BVN first');
+    const docsOpen: PrizeClaimStatus[] = [
+      PrizeClaimStatus.SELECTION_MADE,
+      PrizeClaimStatus.KYC_PENDING,
+    ];
+    if (!docsOpen.includes(claim.status)) {
+      throw new ConflictException(
+        claim.status === PrizeClaimStatus.NOTIFIED
+          ? 'Choose your prize option before uploading documents'
+          : `Documents cannot be submitted on this claim (status: ${claim.status})`,
+      );
     }
     if (claim.claimDeadlineAt.getTime() <= Date.now()) {
       throw new ConflictException('The claim window has closed');
@@ -512,8 +520,16 @@ export class ClaimsService {
   ): Promise<ClaimViewDto> {
     const claim = await this.findOwned(claimId, phoneNumber);
 
-    if (claim.status !== PrizeClaimStatus.KYC_PENDING) {
-      throw new ConflictException('Submit and verify your BVN first');
+    const docsOpen: PrizeClaimStatus[] = [
+      PrizeClaimStatus.SELECTION_MADE,
+      PrizeClaimStatus.KYC_PENDING,
+    ];
+    if (!docsOpen.includes(claim.status)) {
+      throw new ConflictException(
+        claim.status === PrizeClaimStatus.NOTIFIED
+          ? 'Choose your prize option before uploading documents'
+          : `Documents cannot be submitted on this claim (status: ${claim.status})`,
+      );
     }
     if (claim.claimDeadlineAt.getTime() <= Date.now()) {
       throw new ConflictException('The claim window has closed');

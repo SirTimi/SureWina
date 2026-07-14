@@ -209,7 +209,7 @@ function ResultPanel({ data }: { data: LookupTicketResponse }) {
               </p>
             </div>
 
-            <Link href="/claim/clm_demo_winner_001">
+            <Link href={new URL(claimUrl).pathname}>
               <Button
                 variant="accent"
                 size="md"

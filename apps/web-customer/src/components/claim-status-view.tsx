@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Button, Card, Container } from '@surewina/ui';
 import type { ClaimStatusEvent, GetClaimStatusResponse } from '@surewina/types';
-import { api } from '@/lib/api';
+import { api, redirectToSignInOn401 } from '@/lib/api';
 
 interface ClaimStatusViewProps {
   claimId: string;
@@ -53,7 +53,10 @@ export function ClaimStatusView({ claimId }: ClaimStatusViewProps) {
     api.claims
       .getClaimStatus(claimId)
       .then(setData)
-      .catch((err) => setError(err.message ?? 'Could not load claim status.'));
+      .catch((err) => {
+        if (redirectToSignInOn401(err, `/claim/${claimId}`)) return;
+        setError(err instanceof Error ? err.message : 'Could not load claim.');
+      });
   }, [claimId]);
 
   const currentEvent = useMemo(() => {

@@ -18,7 +18,7 @@ export class ApiClient {
     } = options;
 
     const url = this.buildUrl(path, query);
-    const headers = await this.buildHeaders(skipAuth, requestHeaders);
+    const headers = await this.buildHeaders(skipAuth, requestHeaders, body);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -32,7 +32,12 @@ export class ApiClient {
       const response = await fetch(url, {
         method,
         headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body:
+          body === undefined
+            ? undefined
+            : body instanceof FormData
+              ? body
+              : JSON.stringify(body),
         signal: controller.signal,
       });
 
@@ -108,9 +113,10 @@ export class ApiClient {
   private async buildHeaders(
     skipAuth: boolean,
     requestHeaders?: Record<string, string>,
+    body?: unknown,
   ): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       Accept: 'application/json',
       ...this.config.defaultHeaders,
       ...requestHeaders,

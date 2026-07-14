@@ -16,7 +16,7 @@ import {
 import { Button, Card, Container } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import type { ClaimKycStatus, ClaimPath } from '@surewina/types';
-import { api } from '@/lib/api';
+import { api, redirectToSignInOn401 } from '@/lib/api';
 
 interface ClaimCashViewProps {
   claimId: string;
@@ -47,7 +47,10 @@ export function ClaimCashView({ claimId }: ClaimCashViewProps) {
         setClaim(claimData);
         setKyc(kycData);
       })
-      .catch((err) => setError(err.message ?? 'Could not load cash claim.'));
+      .catch((err) => {
+        if (redirectToSignInOn401(err, `/claim/${claimId}`)) return;
+        setError(err instanceof Error ? err.message : 'Could not load cash claim.');
+      });
   }, [claimId]);
 
   if (error && !claim) {

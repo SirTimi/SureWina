@@ -122,6 +122,13 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
             <aside className="lg:sticky lg:top-28 lg:self-start">
               <BuyTicketPanel draw={draw} />
             </aside>
+            <Link
+              href={`/draws/${draw.drawCode}/live`}
+              className="inline-flex items-center gap-2 text-sm font-bold text-navy-700 transition hover:text-navy-800"
+            >
+            <ShieldCheck className="h-4 w-4" />
+              Watch live draw
+            </Link>
           </div>
         </Container>
       </section>

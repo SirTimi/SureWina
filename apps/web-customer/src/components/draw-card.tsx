@@ -99,6 +99,9 @@ export function DrawCard({ draw, ticketsSold }: DrawCardProps) {
               Buy ticket
             </Button>
           </Link>
+          <Link href={`/draws/${draw.drawCode}/live`} className="...secondary-button-classes...">
+            Watch live draw
+          </Link>
         </div>
       </div>
     </Card>

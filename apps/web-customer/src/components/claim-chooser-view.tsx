@@ -20,7 +20,7 @@ import {
 import { Button, Card, Container } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import type { ClaimPath } from '@surewina/types';
-import { api } from '@/lib/api';
+import { api, redirectToSignInOn401 } from '@/lib/api';
 import { formatDrawDate } from '@/lib/draw-helpers';
 
 interface ClaimChooserViewProps {
@@ -39,7 +39,10 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
     api.claims
       .getClaimPath(claimId)
       .then((res) => setClaim(res.claim))
-      .catch((err) => setError(err.message ?? 'Could not load claim.'));
+      .catch((err) => {
+        if (redirectToSignInOn401(err, `/claim/${claimId}`)) return;
+        setError(err instanceof Error ? err.message : 'Could not load claim.');
+      });
   }, [claimId]);
 
   const handleChoose = async (path: Path) => {

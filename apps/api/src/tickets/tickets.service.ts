@@ -52,7 +52,7 @@ export class TicketsService {
         const webBase =
           this.config.get<string>('PUBLIC_WEB_BASE_URL') ??
           'http://localhost:3000';
-        claimUrl = `${webBase}/claims/${claim.claimId}`;
+        claimUrl = `${webBase}/claim/${claim.claimId}`;
       }
     }
 

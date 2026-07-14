@@ -19,7 +19,7 @@ import {
 import { Button, Card, Container } from '@surewina/ui';
 import { getAllStatesSorted } from '@surewina/utils';
 import type { ClaimPath, CollectionPoint } from '@surewina/types';
-import { api } from '@/lib/api';
+import { api, redirectToSignInOn401 } from '@/lib/api';
 
 interface ClaimProductViewProps {
   claimId: string;
@@ -66,7 +66,10 @@ export function ClaimProductView({ claimId }: ClaimProductViewProps) {
         setClaim(claimData);
         setPoints(collectionPoints);
       })
-      .catch((err) => setError(err.message ?? 'Could not load booking page.'));
+      .catch((err) => {
+        if (redirectToSignInOn401(err, `/claim/${claimId}`)) return;
+        setError(err instanceof Error ? err.message : 'Could not load Product claim.');
+      });
   }, [claimId]);
 
   useEffect(() => {
