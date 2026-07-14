@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { WifiOff, RotateCw } from 'lucide-react';
 import type { AgentMe } from '@surewina/types';
 import { AgentHeader } from '@/components/agent-header';
-import { getStoredAgent, saveAgentSession } from '@/lib/agent-auth';
+import { clearAgentSession } from '@/lib/agent-auth';
 import { api } from '@/lib/api';
 import { flushQueue, isOnline, readQueue } from '@/lib/offline-queue';
 import { wireAgentFinanceAdjustments } from '@/lib/wire-agent-finance-adjustments';
@@ -26,25 +26,16 @@ export function AgentShell({ children }: AgentShellProps) {
   }, []);
 
   useEffect(() => {
-    const stored = getStoredAgent();
-
-    if (stored) {
-      setAgent(stored);
-      setChecking(false);
-      return;
-    }
-
+    // The server is the only authority on who is signed in. The token in
+    // storage is sent by the client core; a cached agent object must never
+    // bypass this check.
     api.agents
       .getMe()
       .then((res) => {
         setAgent(res.agent);
-        saveAgentSession({
-          agent: res.agent,
-          accessToken: 'mock_agent_access_existing',
-          refreshToken: 'mock_agent_refresh_existing',
-        });
       })
       .catch(() => {
+        clearAgentSession();
         router.replace('/sign-in');
       })
       .finally(() => setChecking(false));
