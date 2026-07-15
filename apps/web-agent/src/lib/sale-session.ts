@@ -13,6 +13,7 @@ export interface SaleDraft {
   ticketPriceNgn: number;
   quantity: number;
   customerPhone: string | null;
+  stateOfPlayCode: string;
   startedAt: number;
 }
 

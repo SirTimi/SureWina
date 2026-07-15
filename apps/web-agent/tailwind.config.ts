@@ -1,9 +1,8 @@
 import type { Config } from 'tailwindcss';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const surewinaPreset = require('@surewina/config/tailwind/preset');
+import surewinaPreset from '@surewina/config/tailwind/preset';
 
 const config: Config = {
-  presets: [surewinaPreset],
+  presets: [surewinaPreset as Config],
   content: [
     './src/**/*.{ts,tsx}',
     '../../packages/ui/src/**/*.{ts,tsx}',

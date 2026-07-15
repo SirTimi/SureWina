@@ -7,7 +7,7 @@
  * reference either way; the agent dashboard surfaces "pending sync" sales.
  */
 
-import { agentMock } from './agent-mock';
+import { api } from './api';
 
 export interface QueuedSale {
   queueId: string;
@@ -15,6 +15,7 @@ export interface QueuedSale {
   quantity: number;
   customerPhone: string | null;
   ticketRef: string;
+  stateOfPlayCode: string;
   queuedAt: string;
 }
 
@@ -51,11 +52,12 @@ export async function flushQueue(): Promise<{ synced: number; failed: number }> 
 
   for (const item of queue) {
     try {
-      await agentMock.recordSale({
+      await api.agents.sell({
         drawCode: item.drawCode,
         quantity: item.quantity,
-        customerPhone: item.customerPhone,
-      });
+        stateOfPlayCode: item.stateOfPlayCode,
+        customerPhone: item.customerPhone ?? undefined,
+      })
       removeFromQueue(item.queueId);
       synced += 1;
     } catch {

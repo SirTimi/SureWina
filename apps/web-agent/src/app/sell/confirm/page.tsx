@@ -8,9 +8,9 @@ import { formatNaira } from '@surewina/utils';
 import { AgentShell } from '@/components/agent-shell';
 import { SaleStepper } from '@/components/sale-stepper';
 import { SectionHeading } from '@/components/section-heading';
-import { agentMock } from '@/lib/agent-mock';
 import { clearSaleDraft, readSaleDraft, type SaleDraft } from '@/lib/sale-session';
 import { enqueueSale, isOnline } from '@/lib/offline-queue';
+import { api } from '@/lib/api';
 
 export default function SellConfirmPage() {
   return (
@@ -69,6 +69,7 @@ function ConfirmBody() {
           drawCode: draft.drawCode,
           quantity: draft.quantity,
           customerPhone: draft.customerPhone,
+          stateOfPlayCode: draft.stateOfPlayCode,
           ticketRef: ref,
           queuedAt: new Date().toISOString(),
         });
@@ -77,13 +78,14 @@ function ConfirmBody() {
         return;
       }
 
-      const { sale } = await agentMock.recordSale({
+      const result = await api.agents.sell({
         drawCode: draft.drawCode,
         quantity: draft.quantity,
-        customerPhone: draft.customerPhone,
+        stateOfPlayCode: draft.stateOfPlayCode,
+        customerPhone: draft.customerPhone ?? undefined,
       });
       clearSaleDraft();
-      router.push(`/sell/done/${sale.ticketRef}`);
+      router.push(`/sell/done/${result.saleReference}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not complete sale.');
       setSubmitting(false);
@@ -147,7 +149,7 @@ function ConfirmBody() {
           <Row label="Your commission" value={formatNaira(commission)} hint="10% (Silver tier)" />
         </div>
 
-        <div className="mt-4 rounded-2xl bg-navy-50 bg-amber-50 p-4">
+        <div className="mt-4 rounded-2xl bg-amber-50 p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
             Total to collect
           </p>

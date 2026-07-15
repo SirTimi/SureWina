@@ -1,23 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { use, useEffect, useState } from 'react';
+import { use, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import {
-  Check,
-  Clock,
-  Copy,
-  Megaphone,
-  Printer,
-  QrCode,
-  Sparkles,
-} from 'lucide-react';
+import { Check, Clock, Copy, Megaphone, Printer, QrCode, Sparkles } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { AgentShell } from '@/components/agent-shell';
 import { SaleStepper } from '@/components/sale-stepper';
 import { SectionHeading } from '@/components/section-heading';
-import { agentMock, type AgentSale } from '@/lib/agent-mock';
 
 export default function SellDonePage({
   params,
@@ -33,16 +24,34 @@ export default function SellDonePage({
   );
 }
 
+interface DoneSale {
+  amountNgn: number;
+  quantity: number;
+  kind: 'DAILY' | 'JACKPOT';
+  drawLabel: string;
+  customerPhone: string | null;
+  notified: boolean;
+}
+
 function DoneBody({ ref_ }: { ref_: string }) {
   const search = useSearchParams();
   const queued = search.get('queued') === '1';
-  const [sale, setSale] = useState<AgentSale | null>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    agentMock.getSaleByRef(ref_).then(setSale);
-  }, [ref_]);
+  // Sale details come from the confirm redirect — no lookup needed.
+  const amount = Number(search.get('amount') ?? '0');
+  const sale: DoneSale | null = queued
+    ? null
+    : {
+        amountNgn: amount,
+        quantity: Number(search.get('qty') ?? '1'),
+        kind: (search.get('kind') as 'DAILY' | 'JACKPOT') ?? 'DAILY',
+        drawLabel: search.get('label') ?? 'Surewina draw',
+        customerPhone: search.get('phone') || null,
+        notified: search.get('notified') === '1',
+      };
 
+  const commission = sale ? Math.round(sale.amountNgn * 0.1) : 0;
   const jackpotMessage = getJackpotMessage(sale);
 
   const copy = async () => {
@@ -51,7 +60,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      // Clipboard blocked. No need to break the sale flow.
+      // Clipboard blocked — don't break the flow.
     }
   };
 
@@ -73,24 +82,15 @@ function DoneBody({ ref_ }: { ref_: string }) {
           body {
             background: white !important;
           }
-
           .surewina-screen {
             display: none !important;
           }
-
           .surewina-print-ticket {
             display: block !important;
             padding: 24px;
             color: #1a1816;
-            font-family:
-              Inter,
-              system-ui,
-              -apple-system,
-              BlinkMacSystemFont,
-              'Segoe UI',
-              sans-serif;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           }
-
           .surewina-ticket-paper {
             width: 100%;
             max-width: 360px;
@@ -98,7 +98,6 @@ function DoneBody({ ref_ }: { ref_: string }) {
             border: 1px solid #1a1816;
             padding: 18px;
           }
-
           .surewina-ticket-label {
             font-size: 10px;
             text-transform: uppercase;
@@ -106,35 +105,25 @@ function DoneBody({ ref_ }: { ref_: string }) {
             color: #5e5f62;
             margin: 0 0 4px;
           }
-
           .surewina-ticket-value {
             font-size: 14px;
             font-weight: 800;
             margin: 0 0 12px;
           }
-
           .surewina-ticket-ref {
-            font-family:
-              ui-monospace,
-              SFMono-Regular,
-              Menlo,
-              Monaco,
-              Consolas,
-              monospace;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             font-size: 26px;
             font-weight: 900;
             letter-spacing: 0.12em;
             margin: 8px 0 18px;
             text-align: center;
           }
-
           .surewina-ticket-title {
             font-size: 22px;
             font-weight: 900;
             margin: 0;
             text-align: center;
           }
-
           .surewina-ticket-note {
             border-top: 1px dashed #999ea7;
             margin-top: 14px;
@@ -161,7 +150,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
         <Card className="overflow-hidden rounded-3xl border-navy-100 bg-white shadow-[0_24px_70px_rgba(14,42,71,0.12)]">
           <div className="bg-navy-800 px-5 py-6 text-center text-white">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
-              Ticket reference
+              {queued ? 'Temporary reference' : 'Sale reference'}
             </p>
 
             <p className="mt-3 font-mono text-3xl font-black tracking-[0.18em] sm:text-4xl md:text-5xl">
@@ -194,7 +183,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
               <p className="text-sm leading-relaxed">
                 Tell the customer:{' '}
                 <span className="font-black">
-                  “Your Surewina ticket is {chunkRef(ref_)}. Keep it safe — you’ll
+                  “Your Surewina reference is {chunkRef(ref_)}. Keep it safe — you’ll
                   need it to claim.”
                 </span>
               </p>
@@ -210,12 +199,23 @@ function DoneBody({ ref_ }: { ref_: string }) {
             {sale && (
               <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
                 <Stat label="Draw name" value={sale.drawLabel} />
-                <Stat label="Ticket type" value={formatTicketType(sale.ticketType)} />
+                <Stat label="Ticket type" value={formatTicketType(sale.kind)} />
                 <Stat label="Quantity" value={String(sale.quantity)} />
-                <Stat label="Customer phone" value={sale.customerPhone ?? 'Not provided'} />
+                <Stat
+                  label="Customer phone"
+                  value={sale.customerPhone ?? 'Not provided'}
+                />
                 <Stat label="Amount collected" value={formatNaira(sale.amountNgn)} />
-                <Stat label="Your commission" value={formatNaira(sale.commissionNgn)} />
+                <Stat label="Your commission" value={formatNaira(commission)} />
               </div>
+            )}
+
+            {sale && sale.customerPhone && (
+              <p className="text-center text-xs text-slate-500">
+                {sale.notified
+                  ? 'Confirmation SMS sent to the customer.'
+                  : 'No SMS sent (no confirmed delivery).'}
+              </p>
             )}
           </div>
         </Card>
@@ -263,13 +263,13 @@ function DoneBody({ ref_ }: { ref_: string }) {
           <div className="surewina-ticket-paper">
             <p className="surewina-ticket-title">Surewina Ticket</p>
 
-            <p className="surewina-ticket-ref">{sale.ticketRef}</p>
+            <p className="surewina-ticket-ref">{ref_}</p>
 
             <p className="surewina-ticket-label">Draw name</p>
             <p className="surewina-ticket-value">{sale.drawLabel}</p>
 
             <p className="surewina-ticket-label">Ticket type</p>
-            <p className="surewina-ticket-value">{formatTicketType(sale.ticketType)}</p>
+            <p className="surewina-ticket-value">{formatTicketType(sale.kind)}</p>
 
             <p className="surewina-ticket-label">Quantity</p>
             <p className="surewina-ticket-value">{sale.quantity}</p>
@@ -296,26 +296,22 @@ function DoneBody({ ref_ }: { ref_: string }) {
   );
 }
 
-function getJackpotMessage(sale: AgentSale | null) {
+function getJackpotMessage(sale: DoneSale | null) {
   if (!sale) return null;
 
-  if (sale.ticketType === 'JACKPOT') {
+  if (sale.kind === 'JACKPOT') {
     return 'Customer bought a direct Sure Jackpot ticket for the coming Saturday draw.';
   }
 
-  if (sale.jackpotEntriesEarned > 0) {
-    return `Customer qualified for ${sale.jackpotEntriesEarned} free Sure Jackpot ${
-      sale.jackpotEntriesEarned === 1 ? 'entry' : 'entries'
-    } after buying ${sale.quantity} regular tickets.`;
+  const remaining = 10 - (sale.quantity % 10 || 10);
+  if (remaining === 0) {
+    return `Customer qualified for a free Sure Jackpot entry with ${sale.quantity} regular tickets.`;
   }
-
-  const remaining = 10 - (sale.quantity % 10);
-
   return `${remaining} more regular ticket${remaining === 1 ? '' : 's'} needed to qualify for 1 free Sure Jackpot entry.`;
 }
 
-function formatTicketType(type: AgentSale['ticketType']) {
-  return type === 'JACKPOT' ? 'Sure Jackpot ticket' : 'Regular daily ticket';
+function formatTicketType(kind: 'DAILY' | 'JACKPOT') {
+  return kind === 'JACKPOT' ? 'Sure Jackpot ticket' : 'Regular daily ticket';
 }
 
 function chunkRef(ref: string) {

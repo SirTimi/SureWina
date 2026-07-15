@@ -1,29 +1,63 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, CalendarClock, Gift, Trophy } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
-import {
-  buildMockTicketOffers,
-  type SurewinaTicketOffer,
-} from '@surewina/types';
+import type { AgentMe } from '@surewina/types';
+import type { SurewinaTicketOffer } from '@surewina/types';
 import { AgentShell } from '@/components/agent-shell';
 import { SaleStepper } from '@/components/sale-stepper';
 import { SectionHeading } from '@/components/section-heading';
 import { writeSaleDraft } from '@/lib/sale-session';
+import { api } from '@/lib/api';
 
 export default function SellPickDrawPage() {
   return (
     <AgentShell>
-      {() => <TicketOptionBody />}
+      {(agent) => <TicketOptionBody agent={agent} />}
     </AgentShell>
   );
 }
 
-function TicketOptionBody() {
+function TicketOptionBody({ agent }: { agent: AgentMe }) {
   const router = useRouter();
-  const offers = buildMockTicketOffers();
+  const [offers, setOffers] = useState<SurewinaTicketOffer[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    api.agents
+      .activeDraws()
+      .then((res) => {
+        if (!active) return;
+        setOffers(
+          res.draws.map((d) => ({
+            kind: d.drawType === 'SATURDAY_JACKPOT' ? 'JACKPOT' : 'DAILY',
+            drawCode: d.drawCode,
+            drawName: d.drawType === 'SATURDAY_JACKPOT' ? 'Sure Jackpot' : "Today's draw",
+            ticketPriceNgn: d.ticketPriceNgn,
+            scheduledAt: d.scheduledAt,
+            cutoffAt: d.cutoffAt,
+            description:
+              d.drawType === 'SATURDAY_JACKPOT'
+                ? 'Direct entry into the coming Saturday jackpot.'
+                : "Regular entry into today's named Surewina draw.",
+          })),
+        );
+      })
+      .catch(() => {
+        if (active) setOffers([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const dailyOffer = offers.find((offer) => offer.kind === 'DAILY');
   const jackpotOffer = offers.find((offer) => offer.kind === 'JACKPOT');
 
@@ -35,6 +69,7 @@ function TicketOptionBody() {
       ticketPriceNgn: offer.ticketPriceNgn,
       quantity: 1,
       customerPhone: null,
+      stateOfPlayCode: agent.registeredStateCode,
       startedAt: Date.now(),
     });
 
@@ -52,32 +87,48 @@ function TicketOptionBody() {
         backHref="/"
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {dailyOffer && (
-          <TicketOptionCard
-            offer={dailyOffer}
-            icon={<Gift className="h-6 w-6" />}
-            label="Today’s draw"
-            cta="Sell ₦500 ticket"
-            onSelect={() => startSale(dailyOffer)}
-          />
-        )}
+      {loading ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="h-64 animate-pulse rounded-3xl bg-white" />
+          <div className="h-64 animate-pulse rounded-3xl bg-white" />
+        </div>
+      ) : offers.length === 0 ? (
+        <Card className="rounded-3xl border-navy-100 bg-white p-8 text-center shadow-sm">
+          <p className="font-display text-xl font-black text-navy-950">
+            No draws are open right now.
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            Check back shortly — a new draw opens for sale automatically.
+          </p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {dailyOffer && (
+            <TicketOptionCard
+              offer={dailyOffer}
+              icon={<Gift className="h-6 w-6" />}
+              label="Today’s draw"
+              cta={`Sell ${formatNaira(dailyOffer.ticketPriceNgn)} ticket`}
+              onSelect={() => startSale(dailyOffer)}
+            />
+          )}
 
-        {jackpotOffer && (
-          <TicketOptionCard
-            offer={jackpotOffer}
-            icon={<Trophy className="h-6 w-6" />}
-            label="Saturday jackpot"
-            cta="Sell ₦5,000 jackpot ticket"
-            onSelect={() => startSale(jackpotOffer)}
-            featured
-          />
-        )}
-      </div>
+          {jackpotOffer && (
+            <TicketOptionCard
+              offer={jackpotOffer}
+              icon={<Trophy className="h-6 w-6" />}
+              label="Saturday jackpot"
+              cta={`Sell ${formatNaira(jackpotOffer.ticketPriceNgn)} jackpot ticket`}
+              onSelect={() => startSale(jackpotOffer)}
+              featured
+            />
+          )}
+        </div>
+      )}
 
       <div className="mt-4 rounded-2xl border border-navy-100 bg-navy-50 p-4 text-sm leading-relaxed text-slate-600">
-        Regular ₦500 tickets enter today’s named draw. Every 10 regular tickets also
-        earns 1 free entry into the coming Saturday jackpot draw.
+        Regular tickets enter today’s named draw. Every 10 regular tickets also earns 1
+        free entry into the coming Saturday jackpot draw.
       </div>
     </main>
   );
@@ -124,9 +175,7 @@ function TicketOptionCard({
         {offer.drawName}
       </h2>
 
-      <p className="mt-2 text-sm leading-relaxed text-slate-500">
-        {offer.description}
-      </p>
+      <p className="mt-2 text-sm leading-relaxed text-slate-500">{offer.description}</p>
 
       <div className="mt-4 flex items-center gap-2 text-xs font-bold text-slate-500">
         <CalendarClock className="h-4 w-4 text-navy-700" />
