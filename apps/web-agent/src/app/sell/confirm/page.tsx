@@ -85,7 +85,16 @@ function ConfirmBody() {
         customerPhone: draft.customerPhone ?? undefined,
       });
       clearSaleDraft();
-      router.push(`/sell/done/${result.saleReference}`);
+      const q = new URLSearchParams({
+        amount: String(result.amountNgn),
+        qty: String(result.quantity),
+        kind: draft.ticketKind,
+        label: draft.drawLabel,
+        phone: draft.customerPhone ?? '',
+        notified: result.customerNotified ? '1' : '0',
+        tickets: result.ticketRefs.join(','),
+      });
+      router.push(`/sell/done/${result.saleReference}?${q.toString()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not complete sale.');
       setSubmitting(false);

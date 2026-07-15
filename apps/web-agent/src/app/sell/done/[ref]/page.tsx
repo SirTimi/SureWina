@@ -40,6 +40,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
 
   // Sale details come from the confirm redirect — no lookup needed.
   const amount = Number(search.get('amount') ?? '0');
+  const ticketRefs = (search.get('tickets') ?? '').split(',').filter(Boolean);
   const sale: DoneSale | null = queued
     ? null
     : {
@@ -56,7 +57,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(ref_);
+      await navigator.clipboard.writeText(ticketRefs.length ? ticketRefs.join(', ') : ref_);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -65,7 +66,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
   };
 
   const printTicket = () => {
-    if (!sale || queued) return;
+    if (!sale || queued || ticketRefs.length === 0) return;
     window.print();
   };
 
@@ -77,7 +78,6 @@ function DoneBody({ ref_ }: { ref_: string }) {
             display: none !important;
           }
         }
-
         @media print {
           body {
             background: white !important;
@@ -94,9 +94,10 @@ function DoneBody({ ref_ }: { ref_: string }) {
           .surewina-ticket-paper {
             width: 100%;
             max-width: 360px;
-            margin: 0 auto;
+            margin: 0 auto 24px;
             border: 1px solid #1a1816;
             padding: 18px;
+            page-break-after: always;
           }
           .surewina-ticket-label {
             font-size: 10px;
@@ -143,7 +144,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
           description={
             queued
               ? 'You were offline. The sale is saved locally and will sync automatically when you are back online.'
-              : 'Show the customer the ticket details, then print the ticket if needed.'
+              : 'Show the customer the ticket details, then print the tickets if needed.'
           }
         />
 
@@ -152,18 +153,16 @@ function DoneBody({ ref_ }: { ref_: string }) {
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
               {queued ? 'Temporary reference' : 'Sale reference'}
             </p>
-
             <p className="mt-3 font-mono text-3xl font-black tracking-[0.18em] sm:text-4xl md:text-5xl">
               {ref_}
             </p>
-
             <button
               type="button"
               onClick={copy}
               className="mx-auto mt-4 inline-flex items-center gap-2 rounded-sm bg-white/15 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white backdrop-blur hover:bg-white/25"
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? 'Copied' : 'Copy reference'}
+              {copied ? 'Copied' : ticketRefs.length > 1 ? 'Copy all refs' : 'Copy reference'}
             </button>
           </div>
 
@@ -172,7 +171,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
               <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-900">
                 <Clock className="mt-0.5 h-4 w-4 shrink-0" />
                 <p className="text-sm">
-                  This reference is temporary. The final ticket will be issued once the
+                  This reference is temporary. The final tickets will be issued once the
                   sale syncs.
                 </p>
               </div>
@@ -180,13 +179,41 @@ function DoneBody({ ref_ }: { ref_: string }) {
 
             <div className="flex items-start gap-2 rounded-2xl border border-navy-100 bg-amber-50 p-3 text-navy-950">
               <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
-              <p className="text-sm leading-relaxed">
-                Tell the customer:{' '}
-                <span className="font-black">
-                  “Your Surewina reference is {chunkRef(ref_)}. Keep it safe — you’ll
-                  need it to claim.”
-                </span>
-              </p>
+              <div className="text-sm leading-relaxed">
+                {ticketRefs.length === 1 ? (
+                  <p>
+                    Tell the customer:{' '}
+                    <span className="font-black">
+                      “Your Surewina ticket is {ticketRefs[0]}. Keep it safe — you’ll
+                      need it to check results and claim.”
+                    </span>
+                  </p>
+                ) : ticketRefs.length > 1 ? (
+                  <>
+                    <p className="font-black">
+                      {ticketRefs.length} tickets issued — give the customer all references:
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                      {ticketRefs.map((t) => (
+                        <span
+                          key={t}
+                          className="rounded-sm bg-white/70 px-2 py-1 text-center font-mono text-xs font-black text-navy-950"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-slate-600">
+                      Each ticket claims separately. Print to hand the customer all refs.
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    Tell the customer to keep sale reference{' '}
+                    <span className="font-black">{ref_}</span> safe until tickets sync.
+                  </p>
+                )}
+              </div>
             </div>
 
             {sale && jackpotMessage && (
@@ -201,10 +228,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
                 <Stat label="Draw name" value={sale.drawLabel} />
                 <Stat label="Ticket type" value={formatTicketType(sale.kind)} />
                 <Stat label="Quantity" value={String(sale.quantity)} />
-                <Stat
-                  label="Customer phone"
-                  value={sale.customerPhone ?? 'Not provided'}
-                />
+                <Stat label="Customer phone" value={sale.customerPhone ?? 'Not provided'} />
                 <Stat label="Amount collected" value={formatNaira(sale.amountNgn)} />
                 <Stat label="Your commission" value={formatNaira(commission)} />
               </div>
@@ -225,12 +249,12 @@ function DoneBody({ ref_ }: { ref_: string }) {
             variant="secondary"
             size="lg"
             fullWidth
-            disabled={!sale || queued}
+            disabled={!sale || queued || ticketRefs.length === 0}
             onClick={printTicket}
             className="rounded-sm border-navy-200 bg-white text-navy-700 hover:bg-navy-50 disabled:opacity-50"
           >
             <Printer className="h-5 w-5" />
-            Print ticket
+            Print {ticketRefs.length > 1 ? `${ticketRefs.length} tickets` : 'ticket'}
           </Button>
 
           <Link href="/sell">
@@ -258,38 +282,34 @@ function DoneBody({ ref_ }: { ref_: string }) {
         </div>
       </main>
 
-      {sale && (
+      {sale && ticketRefs.length > 0 && (
         <section className="surewina-print-ticket">
-          <div className="surewina-ticket-paper">
-            <p className="surewina-ticket-title">Surewina Ticket</p>
+          {ticketRefs.map((tref) => (
+            <div key={tref} className="surewina-ticket-paper">
+              <p className="surewina-ticket-title">Surewina Ticket</p>
 
-            <p className="surewina-ticket-ref">{ref_}</p>
+              <p className="surewina-ticket-ref">{tref}</p>
 
-            <p className="surewina-ticket-label">Draw name</p>
-            <p className="surewina-ticket-value">{sale.drawLabel}</p>
+              <p className="surewina-ticket-label">Draw name</p>
+              <p className="surewina-ticket-value">{sale.drawLabel}</p>
 
-            <p className="surewina-ticket-label">Ticket type</p>
-            <p className="surewina-ticket-value">{formatTicketType(sale.kind)}</p>
+              <p className="surewina-ticket-label">Ticket type</p>
+              <p className="surewina-ticket-value">{formatTicketType(sale.kind)}</p>
 
-            <p className="surewina-ticket-label">Quantity</p>
-            <p className="surewina-ticket-value">{sale.quantity}</p>
+              <p className="surewina-ticket-label">Customer phone</p>
+              <p className="surewina-ticket-value">{sale.customerPhone ?? 'Not provided'}</p>
 
-            <p className="surewina-ticket-label">Customer phone</p>
-            <p className="surewina-ticket-value">{sale.customerPhone ?? 'Not provided'}</p>
-
-            <p className="surewina-ticket-label">Amount paid</p>
-            <p className="surewina-ticket-value">{formatNaira(sale.amountNgn)}</p>
-
-            {jackpotMessage && (
-              <p className="surewina-ticket-note">
-                <strong>Jackpot:</strong> {jackpotMessage}
+              <p className="surewina-ticket-label">Amount paid (this ticket)</p>
+              <p className="surewina-ticket-value">
+                {formatNaira(Math.round(sale.amountNgn / sale.quantity))}
               </p>
-            )}
 
-            <p className="surewina-ticket-note">
-              Keep this ticket safe. It is required for prize claim verification.
-            </p>
-          </div>
+              <p className="surewina-ticket-note">
+                Keep this ticket safe. This reference is required for prize claim
+                verification.
+              </p>
+            </div>
+          ))}
         </section>
       )}
     </>
@@ -312,10 +332,6 @@ function getJackpotMessage(sale: DoneSale | null) {
 
 function formatTicketType(kind: 'DAILY' | 'JACKPOT') {
   return kind === 'JACKPOT' ? 'Sure Jackpot ticket' : 'Regular daily ticket';
-}
-
-function chunkRef(ref: string) {
-  return ref.replace(/-/g, ' dash ').replace(/(.)/g, '$1 ').trim();
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
