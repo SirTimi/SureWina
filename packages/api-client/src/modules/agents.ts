@@ -85,4 +85,56 @@ export class AgentsModule {
       ...(input.customerPhone ? { customerPhone: input.customerPhone } : {}),
     });
   }
+
+  async remittanceCurrent(): Promise<{
+    totalOwedNgn: number;
+    remittances: { remittanceId: string; periodDate: string; grossSalesNgn: number; commissionNgn: number; amountDueNgn: number; ticketCount: number; status: string; bankTransferRef: string | null }[];
+  }> {
+    return this.client.get('/agent/remittance/current');
+  }
+
+  async remittanceHistory(): Promise<{
+    remittances: { remittanceId: string; periodDate: string; grossSalesNgn: number; commissionNgn: number; amountDueNgn: number; ticketCount: number; status: string; bankTransferRef: string | null }[];
+    total: number; page: number; pageSize: number;
+  }> {
+    return this.client.get('/agent/remittance/history');
+  }
+
+  async confirmRemittance(remittanceId: string, bankTransferRef: string): Promise<{
+    remittanceId: string; status: string; bankTransferRef: string | null;
+  }> {
+    return this.client.post(
+      `/agent/remittance/${encodeURIComponent(remittanceId)}/confirm-payment`,
+      { bankTransferRef },
+    );
+  }
+
+  async commissionSummary(): Promise<{
+    totalPaidNgn: number;
+    disbursements: { periodDate: string; amountNgn: number; status: string; payoutReference: string | null }[];
+  }> {
+    return this.client.get('/agent/commission/summary');
+  }
+
+  async prizeLookup(ticketRef: string): Promise<{
+    ticketRef: string;
+    isWinner: boolean;
+    prizeDescription: string | null;
+    grossPrizeValueNgn: number | null;
+    claimStatus: string | null;
+    agentPayableMaxNgn: number;
+    agentPayable: boolean;
+    reason: string | null;
+  }> {
+    return this.client.post('/agent/prizes/lookup', { ticketRef });
+  }
+
+  async prizeLogPayment(ticketRef: string): Promise<{
+    paid: boolean;
+    reference: string;
+    ticketRef: string;
+    amountNgn: number;
+  }> {
+    return this.client.post('/agent/prizes/log-payment', { ticketRef });
+  }
 }

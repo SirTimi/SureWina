@@ -127,7 +127,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
               <ActionLink href="/sell" label="Start 60-second sale" />
               <ActionLink href="/remittance" label="View remittance" />
               <ActionLink href="/pay-prize" label="Pay customer prize" />
-              <ActionLink href="/profile" label="Agent profile & tier" />
+              <ActionLink href="/profile" label="Agent profile" />
             </div>
           </Card>
         </aside>

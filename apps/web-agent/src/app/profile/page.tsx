@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Banknote,
   BookOpen,
   CheckCircle2,
   Phone,
@@ -28,7 +27,7 @@ function ProfileBody({ agent }: { agent: AgentMe }) {
       <SectionHeading
         eyebrow="Profile"
         title="Your agent profile"
-        description="Read-only for security. To update bank details or contact info, message Surewina support."
+        description="Read-only. To update your details or tier, contact Surewina support — profiles are managed by admin."
         backHref="/"
       />
 
@@ -101,32 +100,6 @@ function ProfileBody({ agent }: { agent: AgentMe }) {
           }
         />
       </div>
-
-      <Card className="mt-3 rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
-            <Banknote className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
-              Settlement bank
-            </p>
-            {agent.bankAccount ? (
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <Field label="Bank" value={agent.bankAccount.bankName} />
-                <Field
-                  label="Account"
-                  value={`••••${agent.bankAccount.accountNumber}`}
-                  mono
-                />
-                <Field label="Holder" value={agent.bankAccount.accountName} />
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-slate-500">No bank account on file.</p>
-            )}
-          </div>
-        </div>
-      </Card>
     </main>
   );
 }
@@ -150,24 +123,5 @@ function InfoCard({
       </p>
       <p className="mt-1 truncate text-sm font-bold text-navy-950">{value}</p>
     </Card>
-  );
-}
-
-function Field({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-[#F8FAF4] px-3 py-2">
-      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
-        {label}
-      </p>
-      <p
-        className={
-          mono
-            ? 'mt-0.5 truncate font-mono text-sm font-black text-navy-950'
-            : 'mt-0.5 truncate text-sm font-bold text-navy-950'
-        }
-      >
-        {value}
-      </p>
-    </div>
   );
 }

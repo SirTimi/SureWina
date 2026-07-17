@@ -24,8 +24,9 @@ export function RemittanceCountdown({
   }, []);
 
   if (owedNgn === 0) return null;
-
-  const ms = new Date(deadlineAt).getTime() - now;
+  const deadlineMs = new Date(deadlineAt).getTime();
+  if (!Number.isFinite(deadlineMs)) return null; // no valid deadline → render nothing
+  const ms = deadlineMs - now;
   const totalMins = Math.floor(ms / (60 * 1000));
   const hours = Math.floor(totalMins / 60);
   const minutes = totalMins % 60;

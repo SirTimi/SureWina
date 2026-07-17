@@ -2,61 +2,61 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import {
-  AlertTriangle,
-  ArrowRight,
-  Banknote,
-  Building2,
-  CheckCircle2,
-  Clock,
-  Copy,
-  History,
-} from 'lucide-react';
+import { AlertTriangle, Banknote, Building2, CheckCircle2, Copy, History } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { AgentShell } from '@/components/agent-shell';
 import { SectionHeading } from '@/components/section-heading';
-import { agentMock } from '@/lib/agent-mock';
+import { api } from '@/lib/api';
 
-type Status = Awaited<ReturnType<typeof agentMock.getRemittanceStatus>>;
+// Real Surewina remittance pool account (static config, not per-agent).
+const REMIT_BANK = {
+  bankName: 'Guaranty Trust Bank',
+  accountNumber: '0123456789',
+  accountName: 'SUREWINA REMIT POOL',
+};
+
+interface Remittance {
+  remittanceId: string;
+  periodDate: string;
+  grossSalesNgn: number;
+  commissionNgn: number;
+  amountDueNgn: number;
+  ticketCount: number;
+  status: string;
+  bankTransferRef: string | null;
+}
 
 export default function RemittancePage() {
   return (
     <AgentShell>
-      {(agent) => <RemittanceBody agentOverdue={agent.remittanceOverdue} />}
+      {() => <RemittanceBody />}
     </AgentShell>
   );
 }
 
-function RemittanceBody({ agentOverdue }: { agentOverdue: boolean }) {
-  const [status, setStatus] = useState<Status | null>(null);
-  const [now, setNow] = useState(() => Date.now());
+function RemittanceBody() {
+  const [totalOwed, setTotalOwed] = useState(0);
+  const [remittances, setRemittances] = useState<Remittance[]>([]);
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
 
-  useEffect(() => {
-    agentMock.getRemittanceStatus().then(setStatus);
-    const t = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(t);
-  }, []);
+  const load = () => {
+    setLoading(true);
+    api.agents
+      .remittanceCurrent()
+      .then((res) => {
+        setTotalOwed(res.totalOwedNgn);
+        setRemittances(res.remittances);
+      })
+      .catch(() => {
+        setTotalOwed(0);
+        setRemittances([]);
+      })
+      .finally(() => setLoading(false));
+  };
 
-  if (!status) {
-    return (
-      <main className="mx-auto max-w-[760px] px-4 pb-10 pt-5">
-        <div className="h-32 animate-pulse rounded-3xl bg-white" />
-      </main>
-    );
-  }
-
-  const overdue = agentOverdue || status.overdue;
-  const ms = new Date(status.deadlineAt).getTime() - now;
-  const hours = Math.max(0, Math.floor(ms / (60 * 60 * 1000)));
-  const minutes = Math.max(0, Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000)));
-
-  const tone = overdue
-    ? 'bg-red-50 border-red-200 text-red-700'
-    : hours < 2
-      ? 'bg-amber-50 border-amber-200 text-amber-800'
-      : 'bg-amber-50 border-navy-200 text-navy-700';
+  useEffect(load, []);
 
   const copy = async (label: string, value: string) => {
     try {
@@ -68,19 +68,24 @@ function RemittanceBody({ agentOverdue }: { agentOverdue: boolean }) {
     }
   };
 
+  if (loading) {
+    return (
+      <main className="mx-auto max-w-[860px] px-4 pb-10 pt-5">
+        <div className="h-32 animate-pulse rounded-3xl bg-white" />
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-[860px] px-4 pb-10 pt-5">
       <SectionHeading
         eyebrow="Remittance"
-        title="Settle today's remittance"
-        description="You hold customer money until you remit it. The deadline is 23:00 WAT daily."
+        title="Settle your remittance"
+        description="You hold customer money until you remit it. Settle each day's balance before cutoff."
         backHref="/"
         rightSlot={
           <Link href="/remittance/history">
-            <Button
-              variant="secondary"
-              className="rounded-sm border-navy-200 bg-white text-navy-700"
-            >
+            <Button variant="secondary" className="rounded-sm border-navy-200 bg-white text-navy-700">
               <History className="h-4 w-4" />
               History
             </Button>
@@ -88,66 +93,16 @@ function RemittanceBody({ agentOverdue }: { agentOverdue: boolean }) {
         }
       />
 
-      <Card
-        className={`rounded-3xl border p-5 shadow-sm ${overdue ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}
-      >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
-              Owed right now
-            </p>
-            <p className="mt-2 font-display text-5xl font-black tracking-[-0.04em] text-navy-950 tabular-nums">
-              {formatNaira(status.owedNgn)}
-            </p>
-            <p className="mt-2 text-sm text-slate-600">
-              From {formatNaira(status.salesTodayNgn)} sold today, after your 10%
-              commission.
-            </p>
-          </div>
-
-          <div
-            className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 lg:w-auto ${tone}`}
-          >
-            {overdue ? (
-              <AlertTriangle className="h-5 w-5" />
-            ) : (
-              <Clock className="h-5 w-5" />
-            )}
-            <div className="text-right">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em]">
-                {overdue ? 'Overdue' : 'Time left'}
-              </p>
-              <p className="font-mono text-lg font-black tabular-nums">
-                {overdue ? '—' : `${hours}h ${minutes}m`}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-          <Link href="/remittance/pay" className="flex-1">
-            <Button
-              variant="accent"
-              size="lg"
-              fullWidth
-              className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
-            >
-              <Banknote className="h-5 w-5" />
-              Pay {formatNaira(status.owedNgn)}
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link href="/remittance/history" className="sm:w-auto">
-            <Button
-              variant="secondary"
-              size="lg"
-              fullWidth
-              className="rounded-sm border-navy-200 bg-white text-navy-700"
-            >
-              See past remittances
-            </Button>
-          </Link>
-        </div>
+      <Card className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
+          Total owed right now
+        </p>
+        <p className="mt-2 font-display text-5xl font-black tracking-[-0.04em] text-navy-950 tabular-nums">
+          {formatNaira(totalOwed)}
+        </p>
+        <p className="mt-2 text-sm text-slate-600">
+          Across {remittances.length} open remittance period{remittances.length === 1 ? '' : 's'}, after your commission.
+        </p>
       </Card>
 
       <Card className="mt-4 rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
@@ -160,91 +115,125 @@ function RemittanceBody({ agentOverdue }: { agentOverdue: boolean }) {
               Bank transfer instructions
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              Transfer the exact amount and include the reference below so the system
-              auto-reconciles your remittance.
+              Transfer to the Surewina pool, then enter your transfer reference on each period below.
             </p>
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-2">
-          <InstructionRow
-            label="Bank"
-            value={status.bankInstructions.bankName}
-            onCopy={() => copy('bank', status.bankInstructions.bankName)}
-            copied={copied === 'bank'}
-          />
-          <InstructionRow
-            label="Account number"
-            value={status.bankInstructions.accountNumber}
-            onCopy={() => copy('account', status.bankInstructions.accountNumber)}
-            copied={copied === 'account'}
-            mono
-          />
-          <InstructionRow
-            label="Account name"
-            value={status.bankInstructions.accountName}
-            onCopy={() => copy('name', status.bankInstructions.accountName)}
-            copied={copied === 'name'}
-          />
-          <InstructionRow
-            label="Reference"
-            value={status.bankInstructions.reference}
-            onCopy={() => copy('ref', status.bankInstructions.reference)}
-            copied={copied === 'ref'}
-            mono
-            emphasis
-          />
-        </div>
-
-        <div className="mt-4 flex items-start gap-2 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-3 text-sm text-slate-600">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
-          <p>
-            After the transfer, tap{' '}
-            <Link href="/remittance/pay" className="font-bold text-navy-700">
-              Pay {formatNaira(status.owedNgn)}
-            </Link>{' '}
-            to log your bank receipt so finance can verify.
-          </p>
+          <InstructionRow label="Bank" value={REMIT_BANK.bankName} onCopy={() => copy('bank', REMIT_BANK.bankName)} copied={copied === 'bank'} />
+          <InstructionRow label="Account number" value={REMIT_BANK.accountNumber} onCopy={() => copy('account', REMIT_BANK.accountNumber)} copied={copied === 'account'} mono />
+          <InstructionRow label="Account name" value={REMIT_BANK.accountName} onCopy={() => copy('name', REMIT_BANK.accountName)} copied={copied === 'name'} />
         </div>
       </Card>
+
+      <div className="mt-4 space-y-3">
+        {remittances.length === 0 ? (
+          <Card className="rounded-3xl border-slate-200 bg-white p-8 text-center shadow-sm">
+            <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-600" />
+            <p className="mt-3 font-display text-xl font-black text-navy-950">All settled.</p>
+            <p className="mt-1 text-sm text-slate-500">No open remittance periods right now.</p>
+          </Card>
+        ) : (
+          remittances.map((r) => (
+            <RemittanceRow key={r.remittanceId} remittance={r} onConfirmed={load} />
+          ))
+        )}
+      </div>
     </main>
   );
 }
 
-function InstructionRow({
-  label,
-  value,
-  onCopy,
-  copied,
-  mono = false,
-  emphasis = false,
-}: {
-  label: string;
-  value: string;
-  onCopy: () => void;
-  copied: boolean;
-  mono?: boolean;
-  emphasis?: boolean;
-}) {
+function RemittanceRow({ remittance: r, onConfirmed }: { remittance: Remittance; onConfirmed: () => void }) {
+  const [ref, setRef] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const alreadyPaid = r.status !== 'PENDING' && r.status !== 'OVERDUE';
+  const overdue = r.status === 'OVERDUE';
+
+  const confirm = async () => {
+    if (ref.trim().length < 4) {
+      setError('Enter the bank transfer reference from your receipt.');
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await api.agents.confirmRemittance(r.remittanceId, ref.trim());
+      onConfirmed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not confirm payment.');
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <div
-      className={
-        emphasis
-          ? 'flex items-center justify-between gap-3 rounded-2xl border-2 border-navy-200 bg-amber-50 px-4 py-3'
-          : 'flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-[#F8FAF4] px-4 py-3'
-      }
-    >
+    <Card className={`rounded-3xl border p-5 shadow-sm ${overdue ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">{r.periodDate}</p>
+            {overdue && (
+              <span className="inline-flex items-center gap-1 rounded-sm bg-red-100 px-2 py-0.5 text-[10px] font-black uppercase text-red-700">
+                <AlertTriangle className="h-3 w-3" /> Overdue
+              </span>
+            )}
+            {alreadyPaid && (
+              <span className="inline-flex items-center gap-1 rounded-sm bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-700">
+                <CheckCircle2 className="h-3 w-3" /> {r.status}
+              </span>
+            )}
+          </div>
+          <p className="mt-2 font-display text-3xl font-black tracking-[-0.03em] text-navy-950 tabular-nums">
+            {formatNaira(r.amountDueNgn)}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {r.ticketCount} tickets · {formatNaira(r.grossSalesNgn)} gross · {formatNaira(r.commissionNgn)} commission
+          </p>
+        </div>
+      </div>
+
+      {alreadyPaid ? (
+        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-800">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          Payment logged{r.bankTransferRef ? ` · ref ${r.bankTransferRef}` : ''}. Awaiting finance reconciliation.
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <input
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            placeholder="Bank transfer reference"
+            className="h-12 flex-1 rounded-xl border border-slate-200 bg-white px-4 font-mono text-sm text-navy-950 outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
+          />
+          <Button
+            variant="accent"
+            size="lg"
+            isLoading={submitting}
+            disabled={submitting}
+            onClick={confirm}
+            className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
+          >
+            <Banknote className="h-5 w-5" />
+            Confirm payment
+          </Button>
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+    </Card>
+  );
+}
+
+function InstructionRow({
+  label, value, onCopy, copied, mono = false,
+}: { label: string; value: string; onCopy: () => void; copied: boolean; mono?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-[#F8FAF4] px-4 py-3">
       <div className="min-w-0">
-        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
-          {label}
-        </p>
-        <p
-          className={
-            mono
-              ? 'mt-1 truncate font-mono text-base font-black text-navy-950'
-              : 'mt-1 truncate text-base font-bold text-navy-950'
-          }
-        >
+        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">{label}</p>
+        <p className={mono ? 'mt-1 truncate font-mono text-base font-black text-navy-950' : 'mt-1 truncate text-base font-bold text-navy-950'}>
           {value}
         </p>
       </div>

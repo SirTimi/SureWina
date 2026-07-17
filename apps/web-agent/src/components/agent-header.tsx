@@ -36,32 +36,9 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  const remittanceState = useMemo(() => {
-    const deadline = new Date(agent.nextRemittanceDeadlineAt).getTime();
-    const diff = deadline - Date.now();
-    const hours = Math.max(0, Math.floor(diff / (60 * 60 * 1000)));
-    const minutes = Math.max(0, Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000)));
-
-    if (agent.remittanceOverdue) {
-      return {
-        label: 'Overdue',
-        className: 'bg-red-50 text-red-700 border-red-100',
-      };
-    }
-
-    if (hours < 2) {
-      return {
-        label: `${hours}h ${minutes}m left`,
-        className: 'bg-amber-50 text-amber-700 border-amber-100',
-      };
-    }
-
-    return {
-      label: `${hours}h ${minutes}m left`,
-      className: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    };
-  }, [agent.nextRemittanceDeadlineAt, agent.remittanceOverdue]);
-
+  // Remittance detail (amount owed, deadlines) lives on the Remit page,
+  // driven by /agent/remittance/current — not derivable from the agent object.
+  const remittanceState = { label: 'Open Remit', className: 'border-slate-200 bg-white text-navy-700' };
   const logout = () => {
     clearAgentSession();
     setOpen(false);
@@ -109,13 +86,6 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
             </p>
           </div>
 
-          <div className="rounded-sm bg-navy-800 px-3 py-2 text-white">
-            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-400">
-              Tier
-            </p>
-            <p className="text-xs font-black">{agent.tier}</p>
-          </div>
-
           <div className={`rounded-sm border px-3 py-2 ${remittanceState.className}`}>
             <p className="text-[9px] font-black uppercase tracking-[0.14em]">
               Remit by
@@ -146,7 +116,6 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
       <div className="border-t border-slate-100 bg-white px-4 py-2 sm:hidden">
         <div className="grid grid-cols-3 gap-2">
           <MiniStat label="Agent" value={agent.agentCode.replace('RD-AGT-', '')} />
-          <MiniStat label="Tier" value={agent.tier} />
           <MiniStat label="Remit" value={remittanceState.label} />
         </div>
       </div>
