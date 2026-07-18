@@ -1,107 +1,238 @@
 'use client';
 
-import Link from 'next/link';
-import { Clock } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CheckCircle2, FileCheck, ShieldCheck, XCircle } from 'lucide-react';
 import { formatNaira } from '@surewina/utils';
+import type { AdminClaimRow } from '@surewina/api-client';
 import { AdminShell } from '@/components/admin-shell';
+import { GuardedActionButton } from '@/components/guarded-action-button';
 import { PageHeader } from '@/components/page-header';
-import { adminMock, type Claim, type ClaimStage } from '@/lib/admin-mock';
+import { SectionCard } from '@/components/section-card';
+import { StatusPill, statusToTone } from '@/components/status-pill';
+import type { AdminSession } from '@/lib/admin-auth';
+import { api } from '@/lib/api';
 
-const STAGES: Array<{ stage: ClaimStage; title: string; tint: string }> = [
-  { stage: 'NOTIFIED', title: 'Notified', tint: 'bg-sky-50 border-sky-200' },
-  { stage: 'SELECTED', title: 'Path selected', tint: 'bg-violet-50 border-violet-200' },
-  { stage: 'KYC', title: 'KYC', tint: 'bg-amber-50 border-amber-200' },
-  { stage: 'DISPATCHED', title: 'Dispatched', tint: 'bg-indigo-50 border-indigo-200' },
-  { stage: 'DELIVERED', title: 'Delivered', tint: 'bg-emerald-50 border-emerald-200' },
-  { stage: 'FORFEITED', title: 'Forfeited', tint: 'bg-red-50 border-red-200' },
+const FILTERS = [
+  { label: 'Awaiting review', value: 'KYC_PENDING' },
+  { label: 'Notified', value: 'NOTIFIED' },
+  { label: 'Selection made', value: 'SELECTION_MADE' },
+  { label: 'Cleared', value: 'KYC_CLEARED' },
+  { label: 'All', value: '' },
 ];
 
-export default function ClaimsKanbanPage() {
+export default function AdminClaimsPage() {
   return (
     <AdminShell>
-      {() => <Body />}
+      {(session) => <Body session={session} />}
     </AdminShell>
   );
 }
 
-function Body() {
-  const all = adminMock.listClaims();
+function Body({ session }: { session: AdminSession }) {
+  const [status, setStatus] = useState('KYC_PENDING');
+  const [rows, setRows] = useState<AdminClaimRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [openReview, setOpenReview] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    setError(null);
+    api.admin
+      .listClaims(status || undefined)
+      .then((res) => setRows(res.claims))
+      .catch((e) => {
+        setRows([]);
+        setError(e instanceof Error ? e.message : 'Could not load claims.');
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [status]);
+
+  const review = async (claimId: string, decision: 'APPROVE' | 'REJECT') => {
+    setBusy(true);
+    try {
+      await api.admin.reviewClaimKyc(claimId, decision, note.trim() || undefined);
+      setOpenReview(null);
+      setNote('');
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Review failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <>
       <PageHeader
-        eyebrow="Claims pipeline"
-        title="Winner claims"
-        description="Every winning ticket moves through these stages. Sticky claims need a contact attempt."
+        eyebrow="Claims"
+        title="KYC review queue"
+        description="Approve or reject winner verification. Approval releases the claim for payout or collection."
         breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Claims' }]}
       />
 
-      <div className="mx-auto max-w-[1600px] px-6 py-5">
-        <div className="thin-scrollbar grid auto-cols-[300px] grid-flow-col gap-3 overflow-x-auto pb-3">
-          {STAGES.map((col) => {
-            const items = all.filter((c) => c.stage === col.stage);
-            return (
-              <section
-                key={col.stage}
-                className={`rounded-xl border ${col.tint} flex h-[640px] flex-col`}
-              >
-                <header className="flex items-center justify-between border-b border-black/5 px-3 py-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
-                    {col.title}
-                  </p>
-                  <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-black tabular-nums text-slate-600">
-                    {items.length}
-                  </span>
-                </header>
-                <div className="thin-scrollbar flex flex-1 flex-col gap-2 overflow-y-auto p-2">
-                  {items.length === 0 ? (
-                    <p className="px-2 py-4 text-center text-xs text-slate-400">
-                      Empty
-                    </p>
-                  ) : (
-                    items.map((c) => <KanbanCard key={c.claimId} claim={c} />)
+      <div className="mx-auto max-w-[1400px] space-y-4 px-6 py-5">
+        <div className="inline-flex flex-wrap gap-1 rounded-md border border-slate-200 bg-white p-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => setStatus(f.value)}
+              className={
+                status === f.value
+                  ? 'rounded-sm bg-[#0B1220] px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-white'
+                  : 'rounded-sm px-3 py-1.5 text-xs font-black uppercase tracking-[0.1em] text-slate-500 hover:bg-slate-50'
+              }
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+        )}
+
+        {loading ? (
+          <div className="h-64 animate-pulse rounded-xl bg-white" />
+        ) : rows.length === 0 ? (
+          <SectionCard title="Nothing to review">
+            <p className="py-6 text-center text-sm text-slate-500">
+              No claims in this state.
+            </p>
+          </SectionCard>
+        ) : (
+          <div className="space-y-3">
+            {rows.map((c) => {
+              const evidenceComplete =
+                !!c.kycBvnVerifiedAt &&
+                c.hasIdDoc &&
+                c.hasSelfie &&
+                (c.claimType !== 'CASH' || c.bankResolved);
+
+              return (
+                <div key={c.claimId} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-mono text-sm font-black text-[#0B1220]">{c.winnerTicketRef}</p>
+                        <StatusPill tone={statusToTone(c.status)}>{c.status}</StatusPill>
+                        {c.claimType && <StatusPill tone="info">{c.claimType}</StatusPill>}
+                      </div>
+                      <p className="mt-1 text-sm text-slate-600">{c.prizeDescription}</p>
+                      <p className="mt-0.5 font-mono text-xs text-slate-500">
+                        {c.winnerPhone} · {c.drawCode}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="font-display text-2xl font-black text-[#0B1220] tabular-nums">
+                        {formatNaira(c.netPrizeValueNgn)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {formatNaira(c.grossPrizeValueNgn)} gross · {formatNaira(c.whtAmountNgn)} WHT
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Evidence ok={!!c.kycBvnVerifiedAt} label="BVN verified" />
+                    <Evidence ok={c.hasIdDoc} label="ID document" />
+                    <Evidence ok={c.hasSelfie} label="Selfie" />
+                    {c.claimType === 'CASH' && <Evidence ok={c.bankResolved} label="Bank resolved" />}
+                  </div>
+
+                  {c.status === 'KYC_PENDING' && (
+                    <>
+                      {openReview === c.claimId ? (
+                        <div className="mt-4 rounded-lg border border-slate-200 bg-[#F8FAF4] p-4">
+                          <textarea
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            rows={2}
+                            placeholder="Review note (required for rejection)…"
+                            className="w-full rounded-lg border border-slate-200 bg-white p-3 text-sm outline-none focus:border-navy-700"
+                          />
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={busy || !evidenceComplete}
+                              onClick={() => review(c.claimId, 'APPROVE')}
+                              title={evidenceComplete ? '' : 'All evidence must be present before approval'}
+                              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-2 text-sm font-black text-white disabled:bg-slate-300"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy || note.trim().length < 4}
+                              onClick={() => review(c.claimId, 'REJECT')}
+                              className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-4 py-2 text-sm font-black text-white disabled:bg-slate-300"
+                            >
+                              <XCircle className="h-4 w-4" />
+                              Reject
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenReview(null);
+                                setNote('');
+                              }}
+                              className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          {!evidenceComplete && (
+                            <p className="mt-2 text-xs text-amber-700">
+                              Approval is blocked until every evidence item above is present.
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-4">
+                          <GuardedActionButton
+                            session={session}
+                            action="APPROVE_AGENT_ONBOARDING"
+                            icon={<FileCheck className="h-4 w-4" />}
+                            onClick={() => {
+                              setOpenReview(c.claimId);
+                              setNote('');
+                            }}
+                            className="rounded-md border-navy-200 bg-navy-50 text-navy-700"
+                          >
+                            Review KYC
+                          </GuardedActionButton>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
-              </section>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </>
   );
 }
 
-function KanbanCard({ claim }: { claim: Claim }) {
-  const daysToForfeit = Math.ceil(
-    (new Date(claim.forfeitsAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
-  );
-
+function Evidence({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <Link
-      href={`/claims/${claim.claimId}`}
-      className="block rounded-md border border-black/5 bg-white p-3 shadow-sm transition hover:border-navy-200 hover:shadow-md"
+    <span
+      className={
+        ok
+          ? 'inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700'
+          : 'inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400'
+      }
     >
-      <p className="font-mono text-xs font-black text-[#0B1220]">{claim.ticketRef}</p>
-      <p className="mt-1 truncate text-sm font-bold text-[#0B1220]">
-        {claim.prizeDescription}
-      </p>
-      <p className="text-xs font-bold tabular-nums text-navy-700">
-        {formatNaira(claim.prizeValueNgn)}
-      </p>
-      <p className="mt-1 font-mono text-[10px] text-slate-500">
-        {claim.winnerPhoneE164}
-      </p>
-      <div className="mt-2 flex items-center justify-between text-[10px]">
-        <span className="inline-flex items-center gap-1 text-slate-500">
-          <Clock className="h-3 w-3" />
-          {daysToForfeit}d to forfeit
-        </span>
-        {claim.contactAttempts > 1 && (
-          <span className="rounded-md bg-amber-50 px-1.5 py-0.5 font-black uppercase tracking-[0.14em] text-amber-700">
-            {claim.contactAttempts}× contacted
-          </span>
-        )}
-      </div>
-    </Link>
+      <ShieldCheck className="h-3 w-3" />
+      {label}
+    </span>
   );
 }

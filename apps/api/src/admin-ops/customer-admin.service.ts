@@ -16,6 +16,7 @@ export class CustomerAdminService {
 
   // 360° view by phone — works for guests and registered users alike.
   async detail(phoneNumber: string) {
+    console.log('[detail] received:', JSON.stringify(phoneNumber));
     const [user, payments, tickets, claims, accumulation, block] =
       await Promise.all([
         this.prisma.user.findUnique({ where: { phoneNumber } }),

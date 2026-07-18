@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { ClipboardCheck, GitBranch } from 'lucide-react';
-import { formatNaira } from '@surewina/utils';
+import type { AdminAgentRow } from '@surewina/api-client';
 import { AdminShell } from '@/components/admin-shell';
 import { DataTable } from '@/components/data-table';
 import { PageHeader } from '@/components/page-header';
 import { StatusPill, statusToTone } from '@/components/status-pill';
-import { adminMock, type AdminAgent } from '@/lib/admin-mock';
+import { api } from '@/lib/api';
 
 export default function AgentsListPage() {
   return (
@@ -18,14 +19,23 @@ export default function AgentsListPage() {
 }
 
 function Body() {
-  const rows = adminMock.listAgents();
+  const [rows, setRows] = useState<AdminAgentRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.admin
+      .listAgents()
+      .then((res) => setRows(res.agents))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <>
       <PageHeader
         eyebrow="Agents"
         title="All agents"
-        description="Status, tier, monthly volume, and remittance compliance at a glance."
+        description="Status, tier, and commission rate. Open an agent to review activity and lifecycle."
         breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Agents' }]}
         rightSlot={
           <div className="flex items-center gap-2">
@@ -48,102 +58,77 @@ function Body() {
       />
 
       <div className="mx-auto max-w-[1400px] space-y-3 px-6 py-5">
-        <DataTable<AdminAgent>
-          rows={rows}
-          rowKey={(a) => a.agentCode}
-          searchPlaceholder="Search agent code, name, phone…"
-          searchFn={(a, q) =>
-            a.agentCode.toLowerCase().includes(q) ||
-            a.fullName.toLowerCase().includes(q) ||
-            a.phoneE164.includes(q)
-          }
-          columns={[
-            {
-              key: 'agent',
-              header: 'Agent',
-              render: (a) => (
-                <div>
-                  <Link
-                    href={`/agents/${a.agentCode}`}
-                    className="font-bold text-[#0B1220] hover:text-navy-700"
-                  >
-                    {a.fullName}
-                  </Link>
-                  <p className="font-mono text-xs text-slate-500">
-                    {a.agentCode} · {a.stateCode}
-                  </p>
-                </div>
-              ),
-            },
-            {
-              key: 'tier',
-              header: 'Tier',
-              render: (a) => (
-                <StatusPill
-                  tone={
-                    a.tier === 'GOLD'
-                      ? 'warning'
-                      : a.tier === 'SILVER'
-                        ? 'neutral'
-                        : 'info'
-                  }
-                >
-                  {a.tier}
-                </StatusPill>
-              ),
-            },
-            {
-              key: 'status',
-              header: 'Status',
-              render: (a) => <StatusPill tone={statusToTone(a.status)}>{a.status}</StatusPill>,
-            },
-            {
-              key: 'sales',
-              header: 'MTD sales',
-              align: 'right',
-              render: (a) => formatNaira(a.monthlySalesNgn),
-            },
-            {
-              key: 'tickets',
-              header: 'MTD tickets',
-              align: 'right',
-              render: (a) => a.monthlyTicketCount,
-            },
-            {
-              key: 'compliance',
-              header: 'Compliance',
-              render: (a) => (
-                <div className="inline-flex w-full max-w-[140px] items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className={
-                        a.remittanceCompliance < 0.8
-                          ? 'h-full rounded-full bg-red-500'
-                          : a.remittanceCompliance < 0.92
-                            ? 'h-full rounded-full bg-amber-500'
-                            : 'h-full rounded-full bg-emerald-500'
-                      }
-                      style={{ width: `${a.remittanceCompliance * 100}%` }}
-                    />
+        {loading ? (
+          <div className="h-64 animate-pulse rounded-xl bg-white" />
+        ) : (
+          <DataTable<AdminAgentRow>
+            rows={rows}
+            rowKey={(a) => a.agentId}
+            searchPlaceholder="Search agent code, name, phone…"
+            searchFn={(a, q) =>
+              a.agentCode.toLowerCase().includes(q) ||
+              a.fullName.toLowerCase().includes(q) ||
+              a.phoneNumber.includes(q)
+            }
+            columns={[
+              {
+                key: 'agent',
+                header: 'Agent',
+                render: (a) => (
+                  <div>
+                    <Link
+                      href={`/agents/${a.agentId}`}
+                      className="font-bold text-[#0B1220] hover:text-navy-700"
+                    >
+                      {a.fullName}
+                    </Link>
+                    <p className="font-mono text-xs text-slate-500">
+                      {a.agentCode} · {a.registeredStateCode}
+                    </p>
                   </div>
-                  <span className="text-xs font-bold tabular-nums">
-                    {Math.round(a.remittanceCompliance * 100)}%
-                  </span>
-                </div>
-              ),
-            },
-            {
-              key: 'super',
-              header: '',
-              render: (a) =>
-                a.isSuperAgent ? (
-                  <StatusPill tone="violet" icon={<GitBranch className="h-3 w-3" />}>
-                    Super
+                ),
+              },
+              {
+                key: 'phone',
+                header: 'Phone',
+                render: (a) => <span className="font-mono text-xs">{a.phoneNumber}</span>,
+              },
+              {
+                key: 'tier',
+                header: 'Tier',
+                render: (a) => (
+                  <StatusPill
+                    tone={a.tier === 'GOLD' ? 'warning' : a.tier === 'SILVER' ? 'neutral' : 'info'}
+                  >
+                    {a.tier}
                   </StatusPill>
-                ) : null,
-            },
-          ]}
-        />
+                ),
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (a) => <StatusPill tone={statusToTone(a.status)}>{a.status}</StatusPill>,
+              },
+              {
+                key: 'rate',
+                header: 'Commission',
+                align: 'right',
+                render: (a) => `${Math.round(Number(a.commissionRate) * 100)}%`,
+              },
+              {
+                key: 'joined',
+                header: 'Joined',
+                align: 'right',
+                render: (a) =>
+                  new Date(a.createdAt).toLocaleDateString('en-NG', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  }),
+              },
+            ]}
+          />
+        )}
       </div>
     </>
   );
