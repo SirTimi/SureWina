@@ -1,4 +1,4 @@
-import { AdminRole } from '@prisma/client';
+import { AdminRole, AdminTier } from '@prisma/client';
 
 export type AdminJwtPayload = {
   sub: string;
@@ -16,6 +16,7 @@ export type AdminAuthResponse = {
     email: string;
     fullName: string;
     role: AdminRole;
+    tier: AdminTier
     mfaEnabled: boolean;
     lastLoginAt: Date | null;
   };

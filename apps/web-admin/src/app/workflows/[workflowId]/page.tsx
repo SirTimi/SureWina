@@ -72,7 +72,7 @@ function Body({ session, workflowId }: { session: AdminSession; workflowId: stri
   if (!workflow) return null;
 
   const nextPreview = getNextWorkflowPreview(workflow);
-  const canActAtCurrentStage = canRoleActAtStage(session.role, workflow.requiredApproverRole);
+  const canActAtCurrentStage = canRoleActAtStage(session.tier, workflow.requiredApproverRole);
   const isClosed = workflow.status === 'APPROVED' || workflow.status === 'REJECTED' || workflow.status === 'CANCELLED';
 
   return (
@@ -219,7 +219,7 @@ function Body({ session, workflowId }: { session: AdminSession; workflowId: stri
                     <span className="font-bold">
                       {workflow.requiredApproverRole ? roleLabel(workflow.requiredApproverRole) : 'no approver'}
                     </span>
-                    . You are signed in as <span className="font-bold">{roleLabel(session.role)}</span>.
+                    . You are signed in as <span className="font-bold">{roleLabel(session.tier)}</span>.
                   </p>
                 </div>
               </div>
@@ -251,7 +251,7 @@ function Body({ session, workflowId }: { session: AdminSession; workflowId: stri
                         workflow,
                         action: 'APPROVED',
                         actorName: session.fullName,
-                        actorRole: session.role,
+                        actorRole: session.tier,
                         nextRequiredRole: nextPreview.nextRequiredRole,
                     })
                   }}
@@ -279,7 +279,7 @@ function Body({ session, workflowId }: { session: AdminSession; workflowId: stri
                         workflow,
                         action: 'REJECTED',
                         actorName: session.fullName,
-                        actorRole: session.role,
+                        actorRole: session.tier,
                         nextRequiredRole: null,
                     })
                   }}

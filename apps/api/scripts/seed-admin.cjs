@@ -3,9 +3,9 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
 const ADMINS = [
-  { email: 'admin@surewina.local', fullName: 'Dev Operator', role: 'OPERATOR', password: 'SureWina#Dev2026' },
-  { email: 'compliance@surewina.local', fullName: 'Dev Compliance', role: 'COMPLIANCE_OFFICER', password: 'SureWina#Comp2026' },
-  { email: 'finance@surewina.local', fullName: 'Dev Finance', role: 'FINANCE_OFFICER', password: 'SureWina#Fin2026' },
+  { email: 'admin@surewina.local', fullName: 'Dev Operator', role: 'OPERATOR', password: 'SureWina#Dev2026', tier: 'SUPER' },
+  { email: 'compliance@surewina.local', fullName: 'Dev Compliance', role: 'COMPLIANCE_OFFICER', password: 'SureWina#Comp2026', tier: 'INTERMEDIATE' },
+  { email: 'finance@surewina.local', fullName: 'Dev Finance', role: 'FINANCE_OFFICER', password: 'SureWina#Fin2026', tier: 'INTERMEDIATE' },
 ];
 
 async function main() {
@@ -14,8 +14,8 @@ async function main() {
     const passwordHash = await bcrypt.hash(a.password, 12);
     await prisma.adminUser.upsert({
       where: { email: a.email },
-      create: { email: a.email, fullName: a.fullName, passwordHash, role: a.role, isActive: true, mfaEnabled: false },
-      update: { passwordHash, isActive: true, mfaEnabled: false, failedAttempts: 0, lockedUntil: null },
+      create: { email: a.email, fullName: a.fullName, passwordHash, role: a.role, isActive: true, mfaEnabled: false, tier: a.tier },
+      update: { passwordHash, isActive: true, mfaEnabled: false, failedAttempts: 0, lockedUntil: null, tier: a.tier },
 
     });
     console.log(`Admin ready: ${a.email} (${a.role})  password: ${a.password}`);

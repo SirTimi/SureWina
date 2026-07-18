@@ -148,7 +148,7 @@ export function Sidebar({ session }: { session: AdminSession }) {
   const visibleGroups = navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => hasPermission(session.role, item.permission)),
+      items: group.items.filter((item) => hasPermission(session.tier, item.permission)),
     }))
     .filter((group) => group.items.length > 0);
 
@@ -158,13 +158,13 @@ export function Sidebar({ session }: { session: AdminSession }) {
         <Logo />
         <div className="leading-tight">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">Admin</p>
-          <p className="text-xs font-bold text-white/60">{roleLabel(session.role)}</p>
+          <p className="text-xs font-bold text-white/60">{roleLabel(session.tier)}</p>
         </div>
       </div>
 
       <div className="border-b border-white/5 px-5 py-3">
         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">Clearance</p>
-        <p className="mt-1 text-xs leading-relaxed text-white/60">{roleDescription(session.role)}</p>
+        <p className="mt-1 text-xs leading-relaxed text-white/60">{roleDescription(session.tier)}</p>
       </div>
 
       <nav className="thin-scrollbar flex-1 overflow-y-auto px-3 py-4">

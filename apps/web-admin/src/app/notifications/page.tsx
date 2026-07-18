@@ -20,7 +20,7 @@ import { type AdminRole } from '@/lib/admin-auth';
 export default function NotificationsPage() {
   return (
     <AdminShell>
-      {(session) => <Body role={session.role} />}
+      {(session) => <Body role={session.tier} />}
     </AdminShell>
   );
 }

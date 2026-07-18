@@ -64,7 +64,7 @@ function Body({
           <div className="flex gap-2">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              You are signed in as <span className="font-bold">{roleLabel(session.role)}</span>.
+              You are signed in as <span className="font-bold">{roleLabel(session.tier)}</span>.
               Auditors can raise escalations, but they cannot approve, reject, edit, or participate in the normal workflow chain.
             </p>
           </div>

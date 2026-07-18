@@ -55,7 +55,7 @@ const actionOptions: Array<'ALL' | AuditAction> = [
 export default function AuditLogPage() {
   return (
     <AdminShell>
-      {(session) => <Body actorName={session.fullName} actorRoleLabel={roleLabel(session.role)} />}
+      {(session) => <Body actorName={session.fullName} actorRoleLabel={roleLabel(session.tier)} />}
     </AdminShell>
   );
 }

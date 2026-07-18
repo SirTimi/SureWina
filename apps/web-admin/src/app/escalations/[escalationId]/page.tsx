@@ -245,7 +245,7 @@ function Body({
               Role rule
             </p>
             <p className="mt-2 text-sm leading-relaxed text-violet-900">
-              You are signed in as <span className="font-bold">{roleLabel(session.role)}</span>.
+              You are signed in as <span className="font-bold">{roleLabel(session.tier)}</span>.
               Auditor can raise escalations but cannot respond, approve, reject, or close them.
             </p>
           </Card>

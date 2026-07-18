@@ -8,15 +8,16 @@ import { Sidebar } from '@/components/sidebar';
 import {
   type AdminSession,
   canAccess,
+  clearSession,
   getAccessDeniedMessage,
-  getStoredSession,
   roleLabel,
-  seedSessionIfMissing,
+  saveSession,
 } from '@/lib/admin-auth';
+import { api, toAdminSession } from '@/lib/api';
 
 interface AdminShellProps {
   children: (session: AdminSession) => React.ReactNode;
-  /** If true, redirects to /sign-in when no session is found. Default true. */
+  /** If true, redirects to /sign-in when no valid session is found. Default true. */
   requireAuth?: boolean;
 }
 
@@ -27,21 +28,20 @@ export function AdminShell({ children, requireAuth = true }: AdminShellProps) {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const existing = getStoredSession();
-    if (existing) {
-      setSession(existing);
-      setChecking(false);
-      return;
-    }
-    if (!requireAuth) {
-      // Seed a default Super Admin session for demo so reviewers don't bounce.
-      setSession(seedSessionIfMissing());
-      setChecking(false);
-      return;
-    }
-    // Auto-seed for demo — the sign-in page can always overwrite.
-    setSession(seedSessionIfMissing());
-    setChecking(false);
+    // The server is the only authority on who is signed in. A cached session
+    // must never bypass this check.
+    api.admin
+      .getMe()
+      .then((admin) => {
+        const s = toAdminSession(admin);
+        saveSession(s);
+        setSession(s);
+      })
+      .catch(() => {
+        clearSession();
+        if (requireAuth) router.replace('/sign-in');
+      })
+      .finally(() => setChecking(false));
   }, [requireAuth, router]);
 
   if (checking || !session) {
@@ -52,7 +52,8 @@ export function AdminShell({ children, requireAuth = true }: AdminShellProps) {
     );
   }
 
-  const allowed = canAccess(session.role, pathname);
+  // Clearance is driven by authority tier, not functional role.
+  const allowed = canAccess(session.tier, pathname);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F5F7FB]">
@@ -81,8 +82,8 @@ function AccessDenied({ session, pathname }: { session: AdminSession; pathname: 
           This page is outside your role clearance.
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-500">
-          {getAccessDeniedMessage(session.role, pathname)} You are currently signed in as{' '}
-          <span className="font-bold text-navy-950">{roleLabel(session.role)}</span>.
+          {getAccessDeniedMessage(session.tier, pathname)} You are currently signed in as{' '}
+          <span className="font-bold text-navy-950">{roleLabel(session.tier)}</span>.
         </p>
       </div>
     </div>

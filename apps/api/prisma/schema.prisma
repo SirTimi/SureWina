@@ -102,6 +102,13 @@ enum AgentStatus {
   TERMINATED
 }
 
+enum AdminTier {
+  BASIC
+  INTERMEDIATE
+  SUPER
+  AUDITOR
+}
+
 // ─── ADMIN USERS ───────────────────────────────────────────
 
 model AdminUser {
@@ -110,6 +117,7 @@ model AdminUser {
   fullName       String    @map("full_name")
   passwordHash   String    @map("password_hash")
   role           AdminRole
+  tier           AdminTier  @default(BASIC)   // ← authority tier (maker-checker)
   isActive       Boolean   @default(true) @map("is_active")
   mfaSecret      String?   @map("mfa_secret")
   mfaEnabled     Boolean   @default(false) @map("mfa_enabled")

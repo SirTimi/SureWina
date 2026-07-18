@@ -23,7 +23,7 @@ export function NotificationBell({ session }: NotificationBellProps) {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
 
   const refresh = () => {
-    setNotifications(listNotifications(session.role));
+    setNotifications(listNotifications(session.tier));
   };
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export function NotificationBell({ session }: NotificationBellProps) {
     return () => {
       window.removeEventListener('surewina:notifications-changed', refresh);
     };
-  }, [session.role]);
+  }, [session.tier]);
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => !notification.read).length,
@@ -43,7 +43,7 @@ export function NotificationBell({ session }: NotificationBellProps) {
   const latest = notifications.slice(0, 6);
 
   const markAll = () => {
-    markAllNotificationsRead(session.role);
+    markAllNotificationsRead(session.tier);
     refresh();
   };
 

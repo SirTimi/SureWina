@@ -42,7 +42,7 @@ export function GuardedActionButton({
   audit,
   onClick,
 }: GuardedActionButtonProps) {
-  const allowed = canPerformAdminAction(session.role, action);
+  const allowed = canPerformAdminAction(session.tier, action);
 
   if (!allowed && hideWhenDenied) return null;
 
@@ -51,7 +51,7 @@ export function GuardedActionButton({
       <button
         type="button"
         disabled
-        title={getAdminActionDeniedReason(session.role, action)}
+        title={getAdminActionDeniedReason(session.tier, action)}
         className="inline-flex cursor-not-allowed items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-400"
       >
         <Lock className="h-4 w-4" />
@@ -72,7 +72,7 @@ export function GuardedActionButton({
         action: audit.action,
         actorName: session.fullName,
         actorEmail: session.email,
-        actorRole: session.role,
+        actorRole: session.tier,
         target: audit.target,
         oldValue: audit.oldValue ?? null,
         newValue: audit.newValue ?? null,

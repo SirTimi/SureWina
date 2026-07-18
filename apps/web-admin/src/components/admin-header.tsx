@@ -48,11 +48,11 @@ export function AdminHeader({ session }: AdminHeaderProps) {
           </span>
 
           <span
-            title={`Current access role: ${roleLabel(session.role)}`}
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${roleBadgeTone(session.role)}`}
+            title={`Current access role: ${roleLabel(session.tier)}`}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${roleBadgeTone(session.tier)}`}
           >
             <ShieldCheck className="h-3 w-3" />
-            {roleLabel(session.role)}
+            {roleLabel(session.tier)}
           </span>
 
           <NotificationBell session={session} />
@@ -89,10 +89,10 @@ function greeting() {
   return 'Good evening';
 }
 
-function roleBadgeTone(role: AdminSession['role']) {
-  if (role === 'BASIC_ADMIN') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-  if (role === 'INTERMEDIATE_ADMIN') return 'border-sky-200 bg-sky-50 text-sky-700';
-  if (role === 'SUPER_ADMIN') return 'border-amber-200 bg-amber-50 text-amber-700';
-  if (role === 'AUDITOR') return 'border-violet-200 bg-violet-50 text-violet-700';
-  return roleTone(role);
+function roleBadgeTone(tier: AdminSession['tier']) {
+  if (tier === 'BASIC_ADMIN') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  if (tier === 'INTERMEDIATE_ADMIN') return 'border-sky-200 bg-sky-50 text-sky-700';
+  if (tier === 'SUPER_ADMIN') return 'border-amber-200 bg-amber-50 text-amber-700';
+  if (tier === 'AUDITOR') return 'border-violet-200 bg-violet-50 text-violet-700';
+  return roleTone(tier);
 }

@@ -21,7 +21,7 @@ import {
 export default function WorkflowsPage() {
   return (
     <AdminShell>
-      {(session) => <Body role={session.role} />}
+      {(session) => <Body role={session.tier} />}
     </AdminShell>
   );
 }

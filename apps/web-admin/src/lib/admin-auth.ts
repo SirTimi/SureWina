@@ -1,10 +1,13 @@
 export type AdminRole = 'BASIC_ADMIN' | 'INTERMEDIATE_ADMIN' | 'SUPER_ADMIN' | 'AUDITOR';
 
+export type AdminFunction = 'OPERATOR' | 'COMPLIANCE_OFFICER' | 'FINANCE_OFFICER' | 'SUPPORT_AGENT';
+
 export interface AdminSession {
   adminUserId: string;
   email: string;
   fullName: string;
-  role: AdminRole;
+  role: AdminFunction;   // department / functional role (guards backend endpoints)
+  tier: AdminRole;       // authority tier — drives the permission maps below
   mfaEnabled: boolean;
   lastLoginAt: string;
 }
@@ -164,14 +167,6 @@ export function isMutationAction(action: AdminAction): boolean {
 }
 const SESSION_KEY = 'surewina_admin_session';
 
-const DEFAULT_SESSION: AdminSession = {
-  adminUserId: 'usr_super_admin_001',
-  email: 'super.admin@surewina.ng',
-  fullName: 'Tunde Adekunle',
-  role: 'SUPER_ADMIN',
-  mfaEnabled: true,
-  lastLoginAt: new Date().toISOString(),
-};
 
 const rolePermissions: Record<AdminRole, AdminPermission[]> = {
   BASIC_ADMIN: [
@@ -285,7 +280,7 @@ export function getStoredSession(): AdminSession | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as AdminSession;
-    if (!isSupportedRole(parsed.role)) return null;
+    if (!isSupportedRole(parsed.tier)) return null;   // validate tier, not role
     return parsed;
   } catch {
     return null;
@@ -302,13 +297,7 @@ export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
 }
 
-/** Returns the default seed session — used by the layout to start signed-in for demos. */
-export function seedSessionIfMissing(): AdminSession {
-  const existing = getStoredSession();
-  if (existing) return existing;
-  saveSession(DEFAULT_SESSION);
-  return DEFAULT_SESSION;
-}
+
 
 export function roleLabel(role: AdminRole): string {
   switch (role) {
