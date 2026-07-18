@@ -7,10 +7,8 @@ const SWEEP_MS = 5 * 60_000;
 const WAT_OFFSET_MS = 60 * 60 * 1000;
 
 // Keeps the storefront stocked: ensures a DAILY_STANDARD draw exists for
-// today and tomorrow (WAT), and a SATURDAY_JACKPOT for the coming Saturday.
-// Catch-up style + idempotent on the unique drawCode, so downtime self-heals
-// and concurrent ticks can't double-create. The engine then commits seeds
-// and activates as usual — the pipeline becomes fully self-sustaining.
+// today and tomorrow (WAT, Sunday–Friday only — Saturday is jackpot-only),
+// and a SATURDAY_JACKPOT for the coming Saturday.
 @Injectable()
 export class DrawSchedulerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DrawSchedulerService.name);
@@ -52,10 +50,16 @@ export class DrawSchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 
   // ── ensure one daily draw for the given WAT calendar date ──
+  // ── ensure one daily draw for the given WAT calendar date ──
   private async ensureDaily(watDate: { y: number; m: number; d: number }, now: Date) {
+    // Saturday is jackpot-only — no daily draw that day.
+    const isSaturday = new Date(Date.UTC(watDate.y, watDate.m, watDate.d)).getUTCDay() === 6;
+    if (isSaturday) return;
+
     // 20:00 WAT draw, 19:00 WAT cutoff → 19:00Z / 18:00Z
     const scheduledAt = this.watTimeToUtc(watDate, 20, 0);
     const cutoffAt = this.watTimeToUtc(watDate, 19, 0);
+
     if (cutoffAt.getTime() <= now.getTime()) return; // day's window already past
 
     await this.createIfMissing({

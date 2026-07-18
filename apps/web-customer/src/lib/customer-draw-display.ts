@@ -8,7 +8,7 @@ const DAY_NAMES = [
   'Sure Wednesday',
   'Sure Thursday',
   'Sure Friday',
-  'Sure Jackpot', // Saturday
+  'Sure Saturday', // Saturday
 ] as const;
 
 const WAT_OFFSET_MS = 60 * 60 * 1000;
