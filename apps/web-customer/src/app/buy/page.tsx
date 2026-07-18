@@ -4,6 +4,8 @@ import { Button, Card, Container } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { api } from '@/lib/api';
 import { formatDrawDate, formatDrawTime } from '@/lib/draw-helpers';
+export const dynamic = 'force-dynamic';
+
 
 export default async function BuyTicketChoicePage() {
   const { draws } = await api.draws.listActive();
