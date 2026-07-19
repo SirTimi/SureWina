@@ -5,6 +5,8 @@ import {
   Patch,
   Post,
   UseGuards,
+  Get,
+  Query
 } from '@nestjs/common';
 import { AdminRole } from '@prisma/client';
 import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
@@ -15,12 +17,36 @@ import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 import { DrawsService } from './draws.service';
 import { CreateDrawDto } from './dto/create-draw.dto';
 import { UpdateDrawDto } from './dto/update-draw.dto';
+import { DrawStatus } from '@prisma/client';
+import { IsEnum, IsOptional } from 'class-validator'
+
+
+class ListDrawsQueryDto {
+  @IsOptional()
+  @IsEnum(DrawStatus)
+  status?: DrawStatus;
+}
 
 @Controller('admin/draws')
 @UseGuards(AdminJwtGuard, AdminRoleGuard)
 @AdminRoles(AdminRole.OPERATOR)
 export class AdminDrawsController {
   constructor(private readonly drawsService: DrawsService) {}
+
+  @Get()
+  list(@Query() q: ListDrawsQueryDto) {
+    return this.drawsService.listForAdmin(q.status);
+  }
+
+  @Get(':drawId')
+  detail(@Param('drawId') drawId: string) {
+    return this.drawsService.detailForAdmin(drawId);
+  }
+
+  @Get(':drawId/pre-checks')
+  preChecks(@Param('drawId') drawId: string) {
+    return this.drawsService.preChecks(drawId);
+  }
 
   @Post()
   create(@Body() dto: CreateDrawDto, @CurrentAdmin() admin: AdminJwtPayload) {

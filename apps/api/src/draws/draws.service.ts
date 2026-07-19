@@ -223,6 +223,186 @@ export class DrawsService {
     return draw;
   }
 
+  async listForAdmin(status?: DrawStatus) {
+    const draws = await this.prisma.draw.findMany({
+      where: status ? { status } : undefined,
+      orderBy: { scheduledAt: 'desc' },
+      take: 100,
+      include: {
+        _count: { select: { tickets: true } },
+      },
+    });
+
+    return {
+      draws: draws.map((d) => ({
+        drawId: d.drawId,
+        drawCode: d.drawCode,
+        drawType: d.drawType,
+        prizeDescription: d.prizeDescription,
+        prizeValueNgn: d.prizeValueNgn,
+        ticketPriceNgn: d.ticketPriceNgn,
+        ticketQuota: d.ticketQuota,
+        ticketsSold: d._count.tickets,
+        scheduledAt: d.scheduledAt.toISOString(),
+        cutoffAt: d.cutoffAt.toISOString(),
+        status: d.status,
+        createdAt: d.createdAt.toISOString(),
+      })),
+    };
+  }
+
+  async detailForAdmin(drawId: string) {
+    const draw = await this.prisma.draw.findUnique({
+      where: { drawId },
+      include: {
+        _count: { select: { tickets: true } },
+        seedCommit: true,
+        result: true,
+      },
+    });
+    if (!draw) throw new NotFoundException('Draw not found');
+
+    const [salesAgg, agentAgg] = await Promise.all([
+      this.prisma.ticket.aggregate({
+        where: { drawId },
+        _sum: { faceValueNgn: true },
+      }),
+      this.prisma.ticket.count({
+        where: { drawId, ticketType: 'AGENT' as never },
+      }).catch(() => 0),
+    ]);
+
+    return {
+      draw: {
+        drawId: draw.drawId,
+        drawCode: draw.drawCode,
+        drawType: draw.drawType,
+        prizeDescription: draw.prizeDescription,
+        prizeValueNgn: draw.prizeValueNgn,
+        prizeImageUrl: draw.prizeImageUrl,
+        ticketPriceNgn: draw.ticketPriceNgn,
+        ticketQuota: draw.ticketQuota,
+        scheduledAt: draw.scheduledAt.toISOString(),
+        cutoffAt: draw.cutoffAt.toISOString(),
+        status: draw.status,
+        createdAt: draw.createdAt.toISOString(),
+      },
+      sales: {
+        ticketsSold: draw._count.tickets,
+        grossSalesNgn: salesAgg._sum.faceValueNgn ?? 0,
+        agentTickets: agentAgg,
+      },
+      seed: draw.seedCommit
+        ? {
+            seedHash: draw.seedCommit.seedHash,
+            committedAt: draw.seedCommit.committedAt?.toISOString() ?? null,
+            revealed: !!draw.result,
+          }
+        : null,
+      result: draw.result
+        ? {
+            winnerTicketRef: draw.result.winnerTicketRef,
+            executedAt: draw.result.executedAt.toISOString(),
+            rngSeed: draw.result.rngSeed,
+            rngSeedHash: draw.result.rngSeedHash,
+            merkleRoot: draw.result.merkleRoot,
+            engineVersion: draw.result.engineVersion,
+            engineSignature: draw.result.engineSignature,
+            totalTicketsSold: draw.result.totalTicketsSold,
+            totalEligibleParticipants: draw.result.totalEligibleParticipants,
+            zeroInterventionConfirmed: draw.result.zeroInterventionConfirmed,
+            stateBreakdown: draw.result.stateBreakdown,
+          }
+        : null,
+    };
+  }
+
+  // Read-only readiness view. Deliberately has no execute action: draws are
+  // run by the engine alone, so no human can cause a draw to happen.
+  async preChecks(drawId: string) {
+    const draw = await this.prisma.draw.findUnique({
+      where: { drawId },
+      include: {
+        _count: { select: { tickets: true } },
+        seedCommit: true,
+        result: true,
+      },
+    });
+    if (!draw) throw new NotFoundException('Draw not found');
+
+    const now = Date.now();
+    const cutoffPassed = draw.cutoffAt.getTime() <= now;
+    const duePassed = draw.scheduledAt.getTime() <= now;
+    const ticketsSold = draw._count.tickets;
+
+    const checks = [
+      {
+        key: 'SEED_COMMITTED',
+        label: 'RNG seed committed',
+        detail: draw.seedCommit
+          ? `Committed ${draw.seedCommit.committedAt?.toISOString() ?? ''}`
+          : 'Engine has not committed a seed yet',
+        ok: !!draw.seedCommit,
+        blocking: true,
+      },
+      {
+        key: 'HAS_TICKETS',
+        label: 'Tickets sold',
+        detail: `${ticketsSold} ticket${ticketsSold === 1 ? '' : 's'} in the pool`,
+        ok: ticketsSold > 0,
+        blocking: true,
+      },
+      {
+        key: 'PRIZE_SET',
+        label: 'Prize configured',
+        detail: `${draw.prizeDescription} · ₦${draw.prizeValueNgn.toLocaleString('en-NG')}`,
+        ok: draw.prizeValueNgn > 0 && draw.prizeDescription.length >= 3,
+        blocking: true,
+      },
+      {
+        key: 'CUTOFF',
+        label: 'Sales cutoff reached',
+        detail: cutoffPassed
+          ? 'Sales are closed'
+          : `Sales close ${draw.cutoffAt.toISOString()}`,
+        ok: cutoffPassed,
+        blocking: false,
+      },
+      {
+        key: 'DUE',
+        label: 'Draw time reached',
+        detail: duePassed
+          ? 'Due — engine will execute on its next pass'
+          : `Runs ${draw.scheduledAt.toISOString()}`,
+        ok: duePassed,
+        blocking: false,
+      },
+      {
+        key: 'NOT_EXECUTED',
+        label: 'Not yet executed',
+        detail: draw.result
+          ? `Executed ${draw.result.executedAt.toISOString()}`
+          : 'Awaiting execution',
+        ok: !draw.result,
+        blocking: false,
+      },
+    ];
+
+    const blockers = checks.filter((c) => c.blocking && !c.ok);
+
+    return {
+      drawId: draw.drawId,
+      drawCode: draw.drawCode,
+      status: draw.status,
+      scheduledAt: draw.scheduledAt.toISOString(),
+      cutoffAt: draw.cutoffAt.toISOString(),
+      executed: !!draw.result,
+      readyToRun: blockers.length === 0 && !draw.result,
+      blockingIssues: blockers.map((b) => b.label),
+      checks,
+    };
+  }
+
   // ─── HELPERS ──────────────────────────────────────────────
 
   private assertScheduleValid(scheduledAt: Date, cutoffAt: Date): void {

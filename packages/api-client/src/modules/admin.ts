@@ -114,6 +114,72 @@ export interface AdminRemittanceRow {
   agentConfirmedAt: string | null;
   receivedAt: string | null;
 }
+
+export interface AdminDrawRow {
+  drawId: string;
+  drawCode: string;
+  drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+  prizeDescription: string;
+  prizeValueNgn: number;
+  ticketPriceNgn: number;
+  ticketQuota: number | null;
+  ticketsSold: number;
+  scheduledAt: string;
+  cutoffAt: string;
+  status: string;
+  seedCommittedHash: string | null;
+  createdAt: string;
+}
+
+export interface AdminDrawDetail {
+  draw: {
+    drawId: string;
+    drawCode: string;
+    drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+    prizeDescription: string;
+    prizeValueNgn: number;
+    prizeImageUrl: string | null;
+    ticketPriceNgn: number;
+    ticketQuota: number | null;
+    scheduledAt: string;
+    cutoffAt: string;
+    status: string;
+    createdAt: string;
+  };
+  sales: { ticketsSold: number; grossSalesNgn: number; agentTickets: number };
+  seed: { seedHash: string; committedAt: string | null; revealed: boolean } | null;
+  result: {
+    winnerTicketRef: string;
+    executedAt: string;
+    rngSeed: string;
+    rngSeedHash: string;
+    merkleRoot: string;
+    engineVersion: string;
+    engineSignature: string;
+    totalTicketsSold: number;
+    totalEligibleParticipants: number;
+    zeroInterventionConfirmed: boolean;
+    stateBreakdown: unknown;
+  } | null;
+}
+
+export interface AdminDrawPreChecks {
+  drawId: string;
+  drawCode: string;
+  status: string;
+  scheduledAt: string;
+  cutoffAt: string;
+  executed: boolean;
+  readyToRun: boolean;
+  blockingIssues: string[];
+  checks: {
+    key: string;
+    label: string;
+    detail: string;
+    ok: boolean;
+    blocking: boolean;
+  }[];
+}
 export class AdminModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -214,4 +280,47 @@ export class AdminModule {
     return this.client.get('/admin/finance/remittances', { query: { status } });
   }
 
+  async listDraws(status?: string): Promise<{ draws: AdminDrawRow[] }> {
+    return this.client.get('/admin/draws', { query: { status } });
+  }
+
+  async createDraw(input: {
+    drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+    prizeDescription: string;
+    prizeValueNgn: number;
+    ticketPriceNgn: number;
+    scheduledAt: string;
+    cutoffAt: string;
+    ticketQuota?: number;
+    prizeImageUrl?: string;
+  }): Promise<AdminDrawRow> {
+    return this.client.post('/admin/draws', input);
+  }
+
+  async cancelDraw(drawId: string): Promise<AdminDrawRow> {
+    return this.client.post(`/admin/draws/${encodeURIComponent(drawId)}/cancel`, {});
+  }
+
+  async drawDetail(drawId: string): Promise<AdminDrawDetail> {
+    return this.client.get(`/admin/draws/${encodeURIComponent(drawId)}`);
+  }
+
+  async updateDraw(
+    drawId: string,
+    input: Partial<{
+      prizeDescription: string;
+      prizeValueNgn: number;
+      prizeImageUrl: string;
+      ticketPriceNgn: number;
+      ticketQuota: number;
+      scheduledAt: string;
+      cutoffAt: string;
+    }>,
+  ): Promise<unknown> {
+    return this.client.patch(`/admin/draws/${encodeURIComponent(drawId)}`, input);
+  }
+
+  async drawPreChecks(drawId: string): Promise<AdminDrawPreChecks> {
+    return this.client.get(`/admin/draws/${encodeURIComponent(drawId)}/pre-checks`);
+  }
 }
