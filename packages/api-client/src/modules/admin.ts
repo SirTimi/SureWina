@@ -320,6 +320,47 @@ export interface AdminAgentPerformance {
   }[];
   totals: { activeSellers: number; tickets: number; salesNgn: number; estCommissionNgn: number };
 }
+
+export interface AdminAuditRow {
+  logId: string;
+  timestamp: string;
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+  actorType: 'SYSTEM' | 'CUSTOMER' | 'AGENT' | 'ADMIN' | 'ENGINE';
+  actorId: string | null;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  metadata: unknown;
+  ipAddress: string | null;
+}
+
+export interface AdminAuditSearch {
+  rows: AdminAuditRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminPayoutRow {
+  claimId: string;
+  winnerTicketRef: string;
+  winnerPhone: string;
+  status: string;
+  claimType: string | null;
+  grossPrizeValueNgn: number;
+  whtAmountNgn: number;
+  netPrizeValueNgn: number;
+  payoutReference: string | null;
+  channel: 'AGENT_CASH' | 'BANK_TRANSFER';
+  payoutInitiatedAt: string | null;
+  accountLast4: string | null;
+  fulfilledAt: string | null;
+}
+
+export interface AdminPayoutList {
+  payouts: AdminPayoutRow[];
+  totals: { count: number; grossNgn: number; netPaidNgn: number };
+}
 export class AdminModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -515,5 +556,28 @@ export class AdminModule {
 
   async agentPerformance(fromDate: string, toDate: string): Promise<AdminAgentPerformance> {
     return this.client.get('/admin/compliance/reports/agents', { query: { fromDate, toDate } });
+  }
+
+  async searchAudit(params?: {
+    action?: string;
+    actorType?: string;
+    actorId?: string;
+    resourceType?: string;
+    resourceId?: string;
+    severity?: string;
+    fromDate?: string;
+    toDate?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<AdminAuditSearch> {
+    return this.client.get('/admin/compliance/audit', { query: { ...params } });
+  }
+
+  async listPayouts(params?: {
+    status?: string;
+    fromDate?: string;
+    toDate?: string;
+  }): Promise<AdminPayoutList> {
+    return this.client.get('/admin/finance/payouts', { query: { ...params } });
   }
 }

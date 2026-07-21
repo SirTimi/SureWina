@@ -14,7 +14,12 @@ import {
   UserCog,
 } from 'lucide-react';
 import { formatNaira } from '@surewina/utils';
-import type { AdminDashboard } from '@surewina/api-client';
+import type {
+  AdminClaimRow,
+  AdminDailyReport,
+  AdminDashboard,
+  AdminRemittanceRow,
+} from '@surewina/api-client';
 import { AdminShell } from '@/components/admin-shell';
 import { KpiTile } from '@/components/kpi-tile';
 import { PageHeader } from '@/components/page-header';
@@ -38,7 +43,24 @@ export default function DashboardPage() {
   );
 }
 
+// Function drives content: each department lands on its own working view.
+// Tier still drives permissions inside each view.
 function DashboardBody({ session }: { session: AdminSession }) {
+  if (session.role === 'COMPLIANCE_OFFICER') return <ComplianceDashboard session={session} />;
+  if (session.role === 'FINANCE_OFFICER') return <FinanceDashboard session={session} />;
+  return <OperatorDashboard session={session} />;
+}
+
+function greetingWord() {
+  const h = new Date().getHours();
+  if (h < 12) return 'morning';
+  if (h < 17) return 'afternoon';
+  return 'evening';
+}
+
+/* ───────────────────────── Operator ───────────────────────── */
+
+function OperatorDashboard({ session }: { session: AdminSession }) {
   const [dash, setDash] = useState<AdminDashboard | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +72,7 @@ function DashboardBody({ session }: { session: AdminSession }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // Still mock — these become real in later Stage E steps (draws, tickets, audit).
+  // Still mock — these become real in later Stage E steps (tickets, rng-seeds).
   const todaysDraws = useMemo(() => adminMock.getTodaysDraws(), []);
   const failedPayments = useMemo(() => adminMock.getFailedPayments(), []);
   const [chain, setChain] = useState(() => adminMock.getAuditorChain());
@@ -153,7 +175,6 @@ function DashboardBody({ session }: { session: AdminSession }) {
           ) : null
         }
       />
-
       <div className="mx-auto max-w-[1400px] space-y-4 px-6 py-5">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">{visibleKpis}</div>
 
@@ -298,6 +319,203 @@ function DashboardBody({ session }: { session: AdminSession }) {
           {can('VIEW_CLAIMS') && <QuickLink href="/claims" icon={Trophy} label="Claims pipeline" />}
           {can('VIEW_PAYOUTS') && <QuickLink href="/payouts" icon={Banknote} label="Approve payouts" />}
           {can('VIEW_REPORTS') && <QuickLink href="/reports" icon={ShieldCheck} label="Compliance reports" />}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─────────────────────── Compliance ───────────────────────── */
+
+function ComplianceDashboard({ session }: { session: AdminSession }) {
+  const [claims, setClaims] = useState<AdminClaimRow[]>([]);
+  const [report, setReport] = useState<AdminDailyReport | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.allSettled([
+      api.admin.listClaims('KYC_PENDING'),
+      api.admin.dailyReport(new Date().toISOString().slice(0, 10)),
+    ])
+      .then(([c, r]) => {
+        if (c.status === 'fulfilled') setClaims(c.value.claims);
+        if (r.status === 'fulfilled') setReport(r.value);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-[1400px] px-6 py-8">
+        <div className="h-64 animate-pulse rounded-xl bg-white" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Compliance dashboard"
+        title={`Good ${greetingWord()}, ${session.fullName.split(' ')[0]}`}
+        description="KYC queue, today's draw integrity, and statutory reporting."
+      />
+      <div className="mx-auto max-w-[1400px] space-y-4 px-6 py-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <KpiTile
+            icon={ShieldCheck}
+            label="KYC awaiting review"
+            value={String(claims.length)}
+            tone={claims.length > 0 ? 'warning' : 'success'}
+            hint="Should be zero at day end"
+          />
+          <KpiTile
+            icon={Trophy}
+            label="Draws executed today"
+            value={String(report?.draws.length ?? 0)}
+            hint="With integrity artefacts"
+          />
+          <KpiTile
+            icon={Receipt}
+            label="WHT withheld today"
+            value={formatNaira(report?.totalWhtWithheldNgn ?? 0)}
+            hint="For onward remittance"
+          />
+          <KpiTile
+            icon={AlertOctagon}
+            label="Claims forfeited today"
+            value={String(report?.claimsForfeited ?? 0)}
+          />
+        </div>
+
+        {claims.length > 0 && (
+          <SectionCard
+            title="Oldest awaiting review"
+            description="First in, first reviewed."
+            padded={false}
+            rightSlot={
+              <Link href="/claims" className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline">
+                Open queue →
+              </Link>
+            }
+          >
+            <table className="min-w-full text-sm">
+              <tbody className="divide-y divide-slate-100">
+                {claims.slice(0, 5).map((c) => (
+                  <tr key={c.claimId}>
+                    <td className="px-4 py-2 font-mono text-xs">{c.winnerTicketRef}</td>
+                    <td className="px-4 py-2 text-xs">{c.winnerPhone}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{formatNaira(c.netPrizeValueNgn)}</td>
+                    <td className="px-4 py-2 text-right text-xs text-slate-500">
+                      {new Date(c.createdAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </SectionCard>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <QuickLink href="/claims" icon={Trophy} label="KYC review queue" />
+          <QuickLink href="/reports" icon={ShieldCheck} label="Daily NLRC report" />
+          <QuickLink href="/reports/levy" icon={Receipt} label="State levy" />
+          <QuickLink href="/audit-log" icon={Gauge} label="Audit log" />
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ───────────────────────── Finance ────────────────────────── */
+
+function FinanceDashboard({ session }: { session: AdminSession }) {
+  const [rows, setRows] = useState<AdminRemittanceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.admin
+      .listRemittances()
+      .then((res) => setRows(res.remittances))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-[1400px] px-6 py-8">
+        <div className="h-64 animate-pulse rounded-xl bg-white" />
+      </div>
+    );
+  }
+
+  const outstanding = rows
+    .filter((r) => r.status !== 'RECEIVED' && r.status !== 'WRITTEN_OFF')
+    .reduce((s, r) => s + r.amountDueNgn, 0);
+  const awaiting = rows.filter((r) => r.status === 'AGENT_CONFIRMED');
+  const late = rows.filter((r) => r.status === 'LATE').length;
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Finance dashboard"
+        title={`Good ${greetingWord()}, ${session.fullName.split(' ')[0]}`}
+        description="Remittances awaiting verification, outstanding balances, and money movement."
+      />
+      <div className="mx-auto max-w-[1400px] space-y-4 px-6 py-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <KpiTile
+            icon={Banknote}
+            label="Outstanding remittance"
+            value={formatNaira(outstanding)}
+            tone={outstanding > 0 ? 'warning' : 'success'}
+          />
+          <KpiTile
+            icon={Clock}
+            label="Awaiting your verification"
+            value={String(awaiting.length)}
+            tone={awaiting.length > 0 ? 'warning' : 'success'}
+            hint="Agent-confirmed transfers"
+          />
+          <KpiTile
+            icon={AlertOctagon}
+            label="Late periods"
+            value={String(late)}
+            tone={late > 0 ? 'danger' : 'success'}
+          />
+          <KpiTile icon={Receipt} label="Open periods shown" value={String(rows.length)} />
+        </div>
+
+        {awaiting.length > 0 && (
+          <SectionCard
+            title="Verify these transfers"
+            description="Agents say the money has been sent — confirm receipt to release their commission."
+            padded={false}
+            rightSlot={
+              <Link href="/remittance" className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline">
+                Open remittances →
+              </Link>
+            }
+          >
+            <table className="min-w-full text-sm">
+              <tbody className="divide-y divide-slate-100">
+                {awaiting.slice(0, 5).map((r) => (
+                  <tr key={r.remittanceId}>
+                    <td className="px-4 py-2 font-bold">{r.agentName}</td>
+                    <td className="px-4 py-2 text-xs text-slate-500">{r.periodDate}</td>
+                    <td className="px-4 py-2 font-mono text-xs">{r.bankTransferRef ?? '—'}</td>
+                    <td className="px-4 py-2 text-right font-bold tabular-nums">{formatNaira(r.amountDueNgn)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </SectionCard>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <QuickLink href="/remittance" icon={Banknote} label="Remittances" />
+          <QuickLink href="/reports/sales" icon={Receipt} label="Sales review" />
+          <QuickLink href="/reports/financial" icon={Gauge} label="Operating P&L" />
+          <QuickLink href="/reports/agents" icon={UserCog} label="Agent performance" />
         </div>
       </div>
     </>

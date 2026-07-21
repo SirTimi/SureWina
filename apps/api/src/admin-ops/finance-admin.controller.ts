@@ -7,8 +7,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { AdminRole } from '@prisma/client';
-import { IsISO8601, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { AdminRole, PrizeClaimStatus } from '@prisma/client';
+import { IsDateString, IsEnum, IsISO8601, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
 import { AdminRoleGuard } from '../admin-auth/guards/admin-role.guard';
 import { AdminRoles } from '../admin-auth/decorators/admin-roles.decorator';
@@ -29,6 +29,12 @@ class RefundDto {
   @IsNotEmpty()
   @MaxLength(300)
   reason!: string;
+}
+
+class ListPayoutsQueryDto {
+  @IsOptional() @IsEnum(PrizeClaimStatus) status?: PrizeClaimStatus;
+  @IsOptional() @IsDateString() fromDate?: string;
+  @IsOptional() @IsDateString() toDate?: string;
 }
 
 @Controller('admin/finance')
@@ -57,5 +63,10 @@ export class FinanceAdminController {
     @CurrentAdmin() admin: AdminJwtPayload,
   ) {
     return this.financeAdmin.retryCommission(disbId, admin.sub);
+  }
+
+  @Get('payouts')
+  listPayouts(@Query() q: ListPayoutsQueryDto) {
+    return this.financeAdmin.listPayouts(q);
   }
 }
