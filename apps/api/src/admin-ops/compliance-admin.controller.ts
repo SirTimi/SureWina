@@ -2,6 +2,7 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AdminRole, AuditActorType, AuditSeverity } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+    IsDateString,
   IsEnum,
   IsInt,
   IsISO8601,
@@ -33,6 +34,11 @@ class ReportQueryDto {
   date!: string;
 }
 
+class RangeQueryDto {
+  @IsDateString() fromDate!: string;
+  @IsDateString() toDate!: string;
+}
+
 @Controller('admin/compliance')
 @UseGuards(AdminJwtGuard, AdminRoleGuard)
 @AdminRoles(AdminRole.COMPLIANCE_OFFICER)
@@ -47,5 +53,10 @@ export class ComplianceAdminController {
   @Get('reports/daily')
   dailyReport(@Query() q: ReportQueryDto) {
     return this.compliance.dailyReport(q.date);
+  }
+
+  @Get('reports/levy')
+  levyReport(@Query() q: RangeQueryDto) {
+    return this.compliance.levyReport(q.fromDate, q.toDate);
   }
 }

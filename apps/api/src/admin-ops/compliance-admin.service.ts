@@ -7,6 +7,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { ConfigService } from '@nestjs/config'
 
 export type AuditSearchFilters = {
   action?: string;
@@ -23,7 +24,10 @@ export type AuditSearchFilters = {
 
 @Injectable()
 export class ComplianceAdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {}
 
   async searchAudit(f: AuditSearchFilters) {
     const page = f.page ?? 1;
@@ -144,7 +148,54 @@ export class ComplianceAdminService {
       claimsForfeited: forfeited,
     };
   }
+
+  // Statutory levy owed to each State Games Management Board, computed from
+  // tickets' state of play. RATE IS PROVISIONAL (env-configurable) — confirm
+  // the rate and remittance mechanics with the regulatory advisor before
+  // treating these figures as amounts due.
+  async levyReport(fromDate: string, toDate: string) {
+    const from = new Date(fromDate);
+    from.setUTCHours(0, 0, 0, 0);
+    const to = new Date(toDate);
+    to.setUTCHours(23, 59, 59, 999);
+
+    const ratePercent = Number(this.config.get('LEVY_RATE_PERCENT') ?? 2.5);
+    const rate = ratePercent / 100;
+
+    const rows = await this.prisma.ticket.groupBy({
+      by: ['stateOfPlayCode'],
+      where: { createdAt: { gte: from, lte: to } },
+      _sum: { faceValueNgn: true },
+      _count: true,
+    });
+
+    const states = rows
+      .map((r) => {
+        const salesNgn = r._sum.faceValueNgn ?? 0;
+        return {
+          stateCode: r.stateOfPlayCode,
+          tickets: r._count,
+          salesNgn,
+          levyDueNgn: Math.round(salesNgn * rate),
+        };
+      })
+      .sort((a, b) => b.salesNgn - a.salesNgn);
+
+    return {
+      fromDate,
+      toDate,
+      ratePercent,
+      generatedAt: new Date().toISOString(),
+      states,
+      totals: {
+        tickets: states.reduce((s, r) => s + r.tickets, 0),
+        salesNgn: states.reduce((s, r) => s + r.salesNgn, 0),
+        levyDueNgn: states.reduce((s, r) => s + r.levyDueNgn, 0),
+      },
+    };
+  }
 }
+
 
 function endOfDay(iso: string): Date {
   const d = new Date(iso);

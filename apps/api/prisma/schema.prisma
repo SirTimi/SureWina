@@ -583,3 +583,63 @@ model BlockedPhone {
 
   @@map("blocked_phones")
 }
+
+enum ConfigVersionStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  SUPERSEDED
+  REJECTED
+}
+
+enum DrawTemplateType {
+  DAILY_STANDARD
+  SATURDAY_JACKPOT
+}
+
+// Versioned recurring-draw configuration. The scheduler resolves the ACTIVE
+// version whose effective window covers "now". Changes are proposed by one
+// admin and approved by another (maker-checker), never edited in place.
+model DrawTemplate {
+  templateId   String            @id @default(uuid()) @map("template_id")
+  templateType DrawTemplateType  @map("template_type")
+
+  // Human label, e.g. "Daily draw — standard pricing"
+  label        String
+
+  // What the scheduler stamps onto created draws
+  prizeDescription String @map("prize_description")
+  prizeValueNgn    Int    @map("prize_value_ngn")
+  ticketPriceNgn   Int    @map("ticket_price_ngn")
+  ticketQuota      Int?   @map("ticket_quota")
+
+  // WAT wall-clock times, stored as minutes past midnight (0–1439)
+  cutoffMinutesWat    Int @map("cutoff_minutes_wat")
+  scheduledMinutesWat Int @map("scheduled_minutes_wat")
+
+  // Which WAT weekdays this template applies to (0=Sun … 6=Sat)
+  weekdays Int[] @map("weekdays")
+
+  // Version lifecycle
+  version       Int                 @default(1)
+  status        ConfigVersionStatus @default(DRAFT)
+  effectiveFrom DateTime            @map("effective_from")
+  effectiveTo   DateTime?           @map("effective_to")
+
+  // Maker-checker trail
+  createdByAdminId  String    @map("created_by_admin_id")
+  approvedByAdminId String?   @map("approved_by_admin_id")
+  approvedAt        DateTime? @map("approved_at")
+  rejectionNote     String?   @map("rejection_note")
+
+  // Links a new version back to the one it replaces
+  supersedesId String?        @unique @map("supersedes_id")
+  supersedes   DrawTemplate?  @relation("TemplateVersions", fields: [supersedesId], references: [templateId])
+  supersededBy DrawTemplate?  @relation("TemplateVersions")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([templateType, status, effectiveFrom])
+  @@map("draw_templates")
+}

@@ -180,6 +180,83 @@ export interface AdminDrawPreChecks {
     blocking: boolean;
   }[];
 }
+
+export interface AdminDrawTemplate {
+  templateId: string;
+  templateType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+  label: string;
+  prizeDescription: string;
+  prizeValueNgn: number;
+  ticketPriceNgn: number;
+  ticketQuota: number | null;
+  cutoffMinutesWat: number;
+  scheduledMinutesWat: number;
+  weekdays: number[];
+  version: number;
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'ACTIVE' | 'SUPERSEDED' | 'REJECTED';
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  createdByAdminId: string;
+  approvedByAdminId: string | null;
+  approvedAt: string | null;
+  rejectionNote: string | null;
+  supersedesId: string | null;
+  createdAt: string;
+}
+
+export interface AdminDailyReport {
+  reportDate: string;
+  generatedAt: string;
+  draws: {
+    drawCode: string;
+    drawType: string;
+    executedAt: string | null;
+    seedCommittedAt: string | null;
+    integrity: {
+      winnerTicketRef: string;
+      participants: number;
+      ticketsSold: number;
+      prizeValueNgn: number;
+      rngSeedHash: string;
+      merkleRoot: string;
+      engineVersion: string;
+      engineSignature: string;
+      zeroInterventionConfirmed: boolean;
+    } | null;
+  }[];
+  salesByChannel: {
+    gateway: string;
+    amountNgn: number;
+    tickets: number;
+    transactions: number;
+  }[];
+  totalSalesNgn: number;
+  prizesSettled: {
+    claimId: string;
+    winnerTicketRef: string;
+    claimType: string | null;
+    status: string;
+    grossPrizeValueNgn: number;
+    whtAmountNgn: number;
+    netPrizeValueNgn: number;
+  }[];
+  totalWhtWithheldNgn: number;
+  claimsForfeited: number;
+}
+
+export interface AdminLevyReport {
+  fromDate: string;
+  toDate: string;
+  ratePercent: number;
+  generatedAt: string;
+  states: {
+    stateCode: string;
+    tickets: number;
+    salesNgn: number;
+    levyDueNgn: number;
+  }[];
+  totals: { tickets: number; salesNgn: number; levyDueNgn: number };
+}
 export class AdminModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -322,5 +399,42 @@ export class AdminModule {
 
   async drawPreChecks(drawId: string): Promise<AdminDrawPreChecks> {
     return this.client.get(`/admin/draws/${encodeURIComponent(drawId)}/pre-checks`);
+  }
+
+  async listDrawTemplates(status?: string): Promise<{ templates: AdminDrawTemplate[] }> {
+    return this.client.get('/admin/draw-templates', { query: { status } });
+  }
+
+  async proposeDrawTemplate(input: {
+    templateType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+    label: string;
+    prizeDescription: string;
+    prizeValueNgn: number;
+    ticketPriceNgn: number;
+    ticketQuota?: number;
+    cutoffMinutesWat: number;
+    scheduledMinutesWat: number;
+    weekdays: number[];
+    effectiveFrom?: string;
+  }): Promise<AdminDrawTemplate> {
+    return this.client.post('/admin/draw-templates', input);
+  }
+
+  async approveDrawTemplate(templateId: string): Promise<AdminDrawTemplate> {
+    return this.client.post(`/admin/draw-templates/${encodeURIComponent(templateId)}/approve`, {});
+  }
+
+  async rejectDrawTemplate(templateId: string, note: string): Promise<AdminDrawTemplate> {
+    return this.client.post(`/admin/draw-templates/${encodeURIComponent(templateId)}/reject`, { note });
+  }
+  
+  async dailyReport(date: string): Promise<AdminDailyReport> {
+    return this.client.get('/admin/compliance/reports/daily', { query: { date } });
+  }
+
+  async levyReport(fromDate: string, toDate: string): Promise<AdminLevyReport> {
+    return this.client.get('/admin/compliance/reports/levy', {
+      query: { fromDate, toDate },
+    });
   }
 }

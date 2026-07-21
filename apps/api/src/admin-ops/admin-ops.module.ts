@@ -10,9 +10,10 @@ import { ComplianceAdminService} from './compliance-admin.service'
 import { FinanceAdminController} from './finance-admin.controller'
 import { ComplianceAdminController} from './compliance-admin.controller'
 import {CustomerAdminController } from './customer-admin.controller'
+import { DrawTemplateController }  from './draw-template.controller'
 @Module({
   imports: [JwtModule.register({})],
-  controllers: [AdminOpsController, AgentAdminController, ComplianceAdminController, FinanceAdminController, CustomerAdminController],
+  controllers: [AdminOpsController, AgentAdminController, ComplianceAdminController, FinanceAdminController, CustomerAdminController, DrawTemplateController],
   providers: [AdminDashboardService, CustomerAdminService, AgentAdminService, FinanceAdminService, ComplianceAdminService],
   exports: [CustomerAdminService]
 })
