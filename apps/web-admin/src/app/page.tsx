@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertOctagon,
   Banknote,
@@ -18,14 +18,16 @@ import type {
   AdminClaimRow,
   AdminDailyReport,
   AdminDashboard,
+  AdminDrawRow,
+  AdminPaymentRow,
   AdminRemittanceRow,
+  AdminSeedRow,
 } from '@surewina/api-client';
 import { AdminShell } from '@/components/admin-shell';
 import { KpiTile } from '@/components/kpi-tile';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
 import { StatusPill, statusToTone } from '@/components/status-pill';
-import { adminMock } from '@/lib/admin-mock';
 import {
   type AdminPermission,
   type AdminSession,
@@ -58,6 +60,16 @@ function greetingWord() {
   return 'evening';
 }
 
+function isTodayLocal(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
 /* ───────────────────────── Operator ───────────────────────── */
 
 function OperatorDashboard({ session }: { session: AdminSession }) {
@@ -72,14 +84,39 @@ function OperatorDashboard({ session }: { session: AdminSession }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // Still mock — these become real in later Stage E steps (tickets, rng-seeds).
-  const todaysDraws = useMemo(() => adminMock.getTodaysDraws(), []);
-  const failedPayments = useMemo(() => adminMock.getFailedPayments(), []);
-  const [chain, setChain] = useState(() => adminMock.getAuditorChain());
-
+  // Real: today's draws from the admin list.
+  const [todaysDraws, setTodaysDraws] = useState<AdminDrawRow[]>([]);
   useEffect(() => {
-    const id = setInterval(() => setChain(adminMock.getAuditorChain()), 1000);
-    return () => clearInterval(id);
+    api.admin
+      .listDraws()
+      .then((res) =>
+        setTodaysDraws(
+          res.draws.filter(
+            (d) =>
+              isTodayLocal(d.scheduledAt) &&
+              (d.status === 'SCHEDULED' || d.status === 'ACTIVE' || d.status === 'SALES_CLOSED'),
+          ),
+        ),
+      )
+      .catch(() => setTodaysDraws([]));
+  }, []);
+
+  // Real: recent failed payments.
+  const [failedPayments, setFailedPayments] = useState<AdminPaymentRow[]>([]);
+  useEffect(() => {
+    api.admin
+      .listPayments({ status: 'FAILED' })
+      .then((res) => setFailedPayments(res.payments.slice(0, 6)))
+      .catch(() => setFailedPayments([]));
+  }, []);
+
+  // Real: latest RNG seed commitments from the registry.
+  const [seedFeed, setSeedFeed] = useState<AdminSeedRow[]>([]);
+  useEffect(() => {
+    api.admin
+      .seedRegistry()
+      .then((res) => setSeedFeed(res.seeds.slice(0, 8)))
+      .catch(() => setSeedFeed([]));
   }, []);
 
   const can = (permission: AdminPermission) => hasPermission(session.tier, permission);
@@ -182,7 +219,7 @@ function OperatorDashboard({ session }: { session: AdminSession }) {
           {can('VIEW_DRAWS') && (
             <SectionCard
               title="Today's draws"
-              description="Open and scheduled draws for today, with live ticket counts."
+              description="Open and scheduled draws for today, with ticket counts."
               rightSlot={
                 <Link href="/draws" className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline">
                   Open list →
@@ -195,7 +232,7 @@ function OperatorDashboard({ session }: { session: AdminSession }) {
                   <tr>
                     <th className="px-4 py-2 text-left">Draw</th>
                     <th className="px-4 py-2 text-left">Status</th>
-                    <th className="px-4 py-2 text-right">Sold / cap</th>
+                    <th className="px-4 py-2 text-right">Sold</th>
                     <th className="px-4 py-2 text-right">Cutoff</th>
                     <th className="px-4 py-2"></th>
                   </tr>
@@ -208,36 +245,31 @@ function OperatorDashboard({ session }: { session: AdminSession }) {
                       </td>
                     </tr>
                   ) : (
-                    todaysDraws.map((d) => {
-                      const pct = Math.min(100, (d.ticketsSold / d.ticketCap) * 100);
-                      return (
-                        <tr key={d.drawCode}>
-                          <td className="px-4 py-3">
-                            <p className="font-bold text-[#0B1220]">{d.prizeDescription}</p>
-                            <p className="font-mono text-xs text-slate-500">{d.drawCode}</p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <StatusPill tone={statusToTone(d.status)}>{d.status}</StatusPill>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <p className="font-display text-sm font-black tabular-nums">
-                              {d.ticketsSold.toLocaleString('en-NG')} / {d.ticketCap.toLocaleString('en-NG')}
-                            </p>
-                            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                              <div className="h-full rounded-full bg-success" style={{ width: `${pct}%` }} />
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right text-xs text-slate-500">
-                            {new Date(d.cutoffAt).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <Link href={`/draws/${d.drawCode}`} className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline">
-                              Open
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })
+                    todaysDraws.map((d) => (
+                      <tr key={d.drawId}>
+                        <td className="px-4 py-3">
+                          <p className="font-bold text-[#0B1220]">{d.prizeDescription}</p>
+                          <p className="font-mono text-xs text-slate-500">{d.drawCode}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusPill tone={statusToTone(d.status)}>{d.status}</StatusPill>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <p className="font-display text-sm font-black tabular-nums">
+                            {d.ticketsSold.toLocaleString('en-NG')}
+                            {d.ticketQuota ? ` / ${d.ticketQuota.toLocaleString('en-NG')}` : ''}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs text-slate-500">
+                          {new Date(d.cutoffAt).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Link href={`/draws/${d.drawId}`} className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline">
+                            Open
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
@@ -245,26 +277,52 @@ function OperatorDashboard({ session }: { session: AdminSession }) {
           )}
 
           {can('VIEW_AUDIT_LOGS') && (
-            <SectionCard title="Auditor chain" description="Signed ticket counter — last few seconds. Anchored to RNG seed hash." padded={false}>
+            <SectionCard
+              title="Seed commitments"
+              description="Latest RNG commitments and their reveal state."
+              padded={false}
+              rightSlot={
+                <Link href="/rng-seeds" className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline">
+                  Registry →
+                </Link>
+              }
+            >
               <div className="thin-scrollbar max-h-[330px] overflow-y-auto">
                 <table className="min-w-full text-xs">
-                  <thead className="bg-navy-50 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                    <tr>
-                      <th className="px-3 py-2 text-left">At</th>
-                      <th className="px-3 py-2 text-right">Tickets</th>
-                      <th className="px-3 py-2 text-left">Signature</th>
-                    </tr>
-                  </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {chain.map((c, i) => (
-                      <tr key={i} className={i === 0 ? 'bg-amber-50' : ''}>
-                        <td className="px-3 py-2 font-mono">
-                          {new Date(c.at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    {seedFeed.length === 0 ? (
+                      <tr>
+                        <td className="px-3 py-6 text-center text-sm text-slate-500">
+                          No seed commitments yet.
                         </td>
-                        <td className="px-3 py-2 text-right font-bold tabular-nums">{c.tickets.toLocaleString('en-NG')}</td>
-                        <td className="px-3 py-2 font-mono text-[10px] text-slate-500">{c.signature}</td>
                       </tr>
-                    ))}
+                    ) : (
+                      seedFeed.map((s) => (
+                        <tr key={s.drawId}>
+                          <td className="px-3 py-2 font-mono text-[10px] font-black text-navy-700">
+                            {s.drawCode}
+                          </td>
+                          <td className="max-w-[120px] truncate px-3 py-2 font-mono text-[10px] text-slate-500">
+                            {s.committedHash.slice(0, 16)}…
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {!s.revealed ? (
+                              <span className="text-[10px] font-black uppercase text-slate-400">
+                                Sealed
+                              </span>
+                            ) : s.revealMatches ? (
+                              <span className="text-[10px] font-black uppercase text-emerald-600">
+                                Verified
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-black uppercase text-red-600">
+                                MISMATCH
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -275,10 +333,10 @@ function OperatorDashboard({ session }: { session: AdminSession }) {
         {can('VIEW_TICKETS') && (
           <SectionCard
             title="Failed payments"
-            description={`${failedPayments.length} declined in the last hour. Investigate before they retry through agents.`}
+            description={`${failedPayments.length} recent failed payment${failedPayments.length === 1 ? '' : 's'}.`}
             padded={false}
             rightSlot={
-              <Link href="/tickets?status=FAILED" className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline">
+              <Link href="/tickets" className="text-xs font-black uppercase tracking-[0.14em] text-navy-700 hover:underline">
                 Open all
               </Link>
             }
@@ -288,27 +346,35 @@ function OperatorDashboard({ session }: { session: AdminSession }) {
                 <tr>
                   <th className="px-4 py-2 text-left">When</th>
                   <th className="px-4 py-2 text-left">Customer</th>
-                  <th className="px-4 py-2 text-left">Channel</th>
+                  <th className="px-4 py-2 text-left">Gateway</th>
                   <th className="px-4 py-2 text-right">Amount</th>
                   <th className="px-4 py-2 text-left">Reason</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {failedPayments.map((p) => (
-                  <tr key={p.paymentId}>
-                    <td className="px-4 py-2 text-xs text-slate-500">
-                      {new Date(p.at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="px-4 py-2 font-mono text-xs">{p.customerPhoneE164}</td>
-                    <td className="px-4 py-2 text-xs">{p.channel}</td>
-                    <td className="px-4 py-2 text-right font-bold tabular-nums">{formatNaira(p.amountNgn)}</td>
-                    <td className="px-4 py-2">
-                      <StatusPill tone="danger" icon={<AlertOctagon className="h-3 w-3" />}>
-                        {p.reason}
-                      </StatusPill>
+                {failedPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
+                      No failed payments — all clear.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  failedPayments.map((p) => (
+                    <tr key={p.txnId}>
+                      <td className="px-4 py-2 text-xs text-slate-500">
+                        {new Date(p.createdAt).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-2 font-mono text-xs">{p.buyerPhone}</td>
+                      <td className="px-4 py-2 text-xs">{p.gateway}</td>
+                      <td className="px-4 py-2 text-right font-bold tabular-nums">{formatNaira(p.amountNgn)}</td>
+                      <td className="px-4 py-2">
+                        <StatusPill tone="danger" icon={<AlertOctagon className="h-3 w-3" />}>
+                          {p.failureReason ?? 'Failed'}
+                        </StatusPill>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </SectionCard>

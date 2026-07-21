@@ -69,4 +69,9 @@ export class AdminDrawsController {
   ) {
     return this.drawsService.cancel(drawId, admin.sub);
   }
+
+  @Get('seeds/list')
+  seeds(@Query() q: ListDrawsQueryDto) {
+    return this.drawsService.seedRegistry(q.status);
+  }
 }

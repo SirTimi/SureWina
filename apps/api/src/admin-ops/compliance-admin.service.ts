@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   AuditActorType,
   AuditSeverity,
@@ -6,8 +6,11 @@ import {
   PaymentStatus,
   Prisma,
 } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import type { FastifyReply } from 'fastify';
+import * as fs from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../database/prisma.service';
-import { ConfigService } from '@nestjs/config'
 
 export type AuditSearchFilters = {
   action?: string;
@@ -60,7 +63,124 @@ export class ComplianceAdminService {
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return { entries: rows, total, page, pageSize };
+    return { rows, total, page, pageSize };
+  }
+
+  // Full claim view for compliance review: KYC state, payout state, and the
+  // draw context. Document paths never leave the server — only booleans.
+  async claimDetail(claimId: string) {
+    const claim = await this.prisma.prizeClaim.findUnique({
+      where: { claimId },
+      include: {
+        drawResult: {
+          select: {
+            draw: {
+              select: {
+                drawCode: true,
+                prizeDescription: true,
+                prizeValueNgn: true,
+                drawType: true,
+              },
+            },
+            executedAt: true,
+          },
+        },
+        collectionPoint: {
+          select: { name: true, stateCode: true, address: true },
+        },
+        whtDeduction: {
+          select: { deductionRef: true, whtAmountNgn: true, deductedAt: true },
+        },
+      },
+    });
+    if (!claim) throw new NotFoundException('Claim not found');
+
+    return {
+      claimId: claim.claimId,
+      winnerTicketRef: claim.winnerTicketRef,
+      winnerPhone: claim.winnerPhone,
+      status: claim.status,
+      claimType: claim.claimType,
+      claimTypeSelectedAt: claim.claimTypeSelectedAt?.toISOString() ?? null,
+      grossPrizeValueNgn: claim.grossPrizeValueNgn,
+      whtAmountNgn: claim.whtAmountNgn,
+      netPrizeValueNgn: claim.netPrizeValueNgn,
+      selectionDeadlineAt: claim.selectionDeadlineAt.toISOString(),
+      claimDeadlineAt: claim.claimDeadlineAt.toISOString(),
+      forfeitedAt: claim.forfeitedAt?.toISOString() ?? null,
+      createdAt: claim.createdAt.toISOString(),
+      draw: {
+        drawCode: claim.drawResult.draw.drawCode,
+        drawType: claim.drawResult.draw.drawType,
+        prizeDescription: claim.drawResult.draw.prizeDescription,
+        prizeValueNgn: claim.drawResult.draw.prizeValueNgn,
+        executedAt: claim.drawResult.executedAt.toISOString(),
+      },
+      kyc: {
+        bvnVerified: !!claim.kycBvnVerifiedAt,
+        bvnVerifiedAt: claim.kycBvnVerifiedAt?.toISOString() ?? null,
+        bvnLast4: null, // hash only is stored — the raw BVN is never retained
+        hasIdDoc: !!claim.kycIdDocPath,
+        hasSelfie: !!claim.kycSelfiePath,
+        bank: claim.kycBankAccountName
+          ? {
+              bankCode: claim.kycBankCode,
+              accountLast4: claim.kycBankAccountLast4,
+              accountName: claim.kycBankAccountName,
+            }
+          : null,
+        reviewedBy: claim.kycReviewedBy,
+        reviewedAt: claim.kycReviewedAt?.toISOString() ?? null,
+      },
+      payout: claim.payoutReference
+        ? {
+            reference: claim.payoutReference,
+            initiatedAt: claim.payoutInitiatedAt?.toISOString() ?? null,
+            accountLast4: claim.payoutAccountNumber?.slice(-4) ?? null,
+          }
+        : null,
+      collection: claim.collectionPoint
+        ? {
+            pointName: claim.collectionPoint.name,
+            stateCode: claim.collectionPoint.stateCode,
+            address: claim.collectionPoint.address,
+            scheduledAt: claim.collectionScheduledAt?.toISOString() ?? null,
+          }
+        : null,
+      whtDeduction: claim.whtDeduction
+        ? {
+            deductionRef: claim.whtDeduction.deductionRef,
+            whtAmountNgn: claim.whtDeduction.whtAmountNgn,
+            deductedAt: claim.whtDeduction.deductedAt.toISOString(),
+          }
+        : null,
+      fulfilledAt: claim.fulfilledAt?.toISOString() ?? null,
+    };
+  }
+
+  // Streams KYC evidence to an authenticated compliance admin. Files never
+  // get public URLs; the JWT+role guards on the controller are the gate.
+  async streamEvidence(claimId: string, kind: string, reply: FastifyReply) {
+    const claim = await this.prisma.prizeClaim.findUnique({
+      where: { claimId },
+      select: { kycIdDocPath: true, kycSelfiePath: true },
+    });
+    if (!claim) throw new NotFoundException('Claim not found');
+
+    const filePath = kind === 'id-doc' ? claim.kycIdDocPath : claim.kycSelfiePath;
+    if (!filePath) throw new NotFoundException('No such document on this claim');
+
+    const resolved = path.resolve(filePath);
+    if (!fs.existsSync(resolved)) throw new NotFoundException('File missing from storage');
+
+    const ext = path.extname(resolved).toLowerCase();
+    const mime =
+      ext === '.png' ? 'image/png' : ext === '.pdf' ? 'application/pdf' : 'image/jpeg';
+
+    reply.header('Content-Type', mime);
+    reply.header('Content-Disposition', 'inline');
+    reply.header('Cache-Control', 'no-store');
+    return reply.send(fs.createReadStream(resolved));
   }
 
   // Daily operational summary in NLRC-friendly shape: draws executed with
@@ -154,10 +274,7 @@ export class ComplianceAdminService {
   // the rate and remittance mechanics with the regulatory advisor before
   // treating these figures as amounts due.
   async levyReport(fromDate: string, toDate: string) {
-    const from = new Date(fromDate);
-    from.setUTCHours(0, 0, 0, 0);
-    const to = new Date(toDate);
-    to.setUTCHours(23, 59, 59, 999);
+    const { from, to } = this.rangeOf(fromDate, toDate);
 
     const ratePercent = Number(this.config.get('LEVY_RATE_PERCENT') ?? 2.5);
     const rate = ratePercent / 100;
@@ -198,10 +315,7 @@ export class ComplianceAdminService {
   // WHT remittance schedule: every deduction withheld in the period, as filed
   // with the tax authority. Rate/destination pending tax-advisor confirmation.
   async whtSchedule(fromDate: string, toDate: string) {
-    const from = new Date(fromDate);
-    from.setUTCHours(0, 0, 0, 0);
-    const to = new Date(toDate);
-    to.setUTCHours(23, 59, 59, 999);
+    const { from, to } = this.rangeOf(fromDate, toDate);
 
     const rows = await this.prisma.whtDeduction.findMany({
       where: { deductedAt: { gte: from, lte: to } },
@@ -255,7 +369,7 @@ export class ComplianceAdminService {
         _count: true,
       }),
       this.prisma.$queryRaw<
-        { day: Date; sales_ngn: string | null; tickets: string }[]
+        { day: Date; sales_ngn: string | null; tickets: string | null }[]
       >`SELECT date_trunc('day', created_at) AS day,
                SUM(face_value_ngn) AS sales_ngn,
                COUNT(*) AS tickets
@@ -411,7 +525,6 @@ export class ComplianceAdminService {
     };
   }
 }
-
 
 function endOfDay(iso: string): Date {
   const d = new Date(iso);

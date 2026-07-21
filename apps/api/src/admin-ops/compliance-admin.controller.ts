@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
 import { AdminRole, AuditActorType, AuditSeverity } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
@@ -15,6 +15,7 @@ import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
 import { AdminRoleGuard } from '../admin-auth/guards/admin-role.guard';
 import { AdminRoles } from '../admin-auth/decorators/admin-roles.decorator';
 import { ComplianceAdminService } from './compliance-admin.service';
+import { FastifyReply } from 'fastify';
 
 class AuditSearchDto {
   @IsOptional() @IsString() action?: string;
@@ -78,5 +79,19 @@ export class ComplianceAdminController {
   @Get('reports/agents')
   agentPerformance(@Query() q: RangeQueryDto) {
     return this.compliance.agentPerformance(q.fromDate, q.toDate);
+  }
+
+  @Get('claims/:claimId')
+  claimDetail(@Param('claimId') claimId: string) {
+    return this.compliance.claimDetail(claimId);
+  }
+
+  @Get('claims/:claimId/evidence/:kind')
+  async evidence(
+    @Param('claimId') claimId: string,
+    @Param('kind') kind: 'id-doc' | 'selfie',
+    @Res() reply: FastifyReply,
+  ) {
+    return this.compliance.streamEvidence(claimId, kind, reply);
   }
 }

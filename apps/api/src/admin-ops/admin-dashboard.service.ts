@@ -110,4 +110,72 @@ export class AdminDashboardService {
       },
     };
   }
+
+  // The jackpot has no monetary fund: a fixed template prize, paid direct
+  // entries, and free entries earned via 10-for-1 accumulation. This is the
+  // visibility view of that entries system.
+  async jackpotOverview() {
+    const draws = await this.prisma.draw.findMany({
+      where: {
+        drawType: 'SATURDAY_JACKPOT',
+        status: { in: ['SCHEDULED', 'ACTIVE'] },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      take: 4,
+      select: { drawId: true, drawCode: true, scheduledAt: true, status: true, prizeValueNgn: true, ticketPriceNgn: true },
+    });
+
+    const perDraw = await Promise.all(
+      draws.map(async (d) => {
+        const bySource = await this.prisma.jackpotEntry.groupBy({
+          by: ['source'],
+          where: { drawId: d.drawId, status: 'ACTIVE' },
+          _count: true,
+        });
+        const counts = Object.fromEntries(bySource.map((s) => [s.source, s._count]));
+        return {
+          drawId: d.drawId,
+          drawCode: d.drawCode,
+          scheduledAt: d.scheduledAt.toISOString(),
+          status: d.status,
+          prizeValueNgn: d.prizeValueNgn,
+          ticketPriceNgn: d.ticketPriceNgn,
+          entries: {
+            direct: counts['DIRECT_PURCHASE'] ?? 0,
+            accumulated: counts['ACCUMULATION'] ?? 0,
+            total: bySource.reduce((s, r) => s + r._count, 0),
+          },
+        };
+      }),
+    );
+
+    const [accumAgg, nearThreshold] = await Promise.all([
+      this.prisma.jackpotAccumulation.aggregate({
+        _count: true,
+        _sum: { cumulativeCount: true, jackpotEntriesTotal: true },
+      }),
+      this.prisma.jackpotAccumulation.findMany({
+        where: { cumulativeCount: { gte: 7 } },
+        orderBy: { cumulativeCount: 'desc' },
+        take: 10,
+        select: { buyerPhone: true, cumulativeCount: true, jackpotEntriesTotal: true, lastTicketAt: true },
+      }),
+    ]);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      upcomingDraws: perDraw,
+      accumulation: {
+        participants: accumAgg._count,
+        totalEntriesEarned: accumAgg._sum.jackpotEntriesTotal ?? 0,
+        ticketsCounted: accumAgg._sum.cumulativeCount ?? 0,
+        nearThreshold: nearThreshold.map((n) => ({
+          buyerPhone: n.buyerPhone,
+          progress: n.cumulativeCount % 10,
+          entriesEarned: n.jackpotEntriesTotal,
+          lastTicketAt: n.lastTicketAt.toISOString(),
+        })),
+      },
+    };
+  }
 }

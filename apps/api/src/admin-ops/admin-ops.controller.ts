@@ -15,4 +15,9 @@ export class AdminOpsController {
   summary() {
     return this.dashboard.summary();
   }
+
+  @Get('jackpot')
+  jackpot() {
+    return this.dashboard.jackpotOverview();
+  }
 }

@@ -75,6 +75,29 @@ export class ApiClient {
     }
   }
 
+  // Binary fetch through the same URL/auth pipeline as JSON requests.
+  // Used for authenticated file streams (e.g. KYC evidence images).
+  async getBlob(path: string, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<Blob> {
+    const { query, headers: requestHeaders, skipAuth = false } = options;
+
+    const url = this.buildUrl(path, query);
+    const headers = await this.buildHeaders(skipAuth, requestHeaders, undefined);
+
+    const response = await fetch(url, { method: 'GET', headers });
+
+    if (response.status === 401 && this.config.onUnauthorized) {
+      this.config.onUnauthorized();
+    }
+    if (!response.ok) {
+      throw new ApiError({
+        message: `File request failed (${response.status})`,
+        status: response.status,
+        code: 'FILE_FETCH_FAILED',
+      });
+    }
+    return response.blob();
+  }
+
   get<T>(path: string, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<T> {
     return this.request<T>(path, { ...options, method: 'GET' });
   }
@@ -94,6 +117,8 @@ export class ApiClient {
   delete<T>(path: string, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<T> {
     return this.request<T>(path, { ...options, method: 'DELETE' });
   }
+
+  
 
   private buildUrl(path: string, query?: RequestOptions['query']): string {
     const base = this.config.baseUrl.replace(/\/$/, '');

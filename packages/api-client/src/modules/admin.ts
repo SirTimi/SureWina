@@ -361,6 +361,115 @@ export interface AdminPayoutList {
   payouts: AdminPayoutRow[];
   totals: { count: number; grossNgn: number; netPaidNgn: number };
 }
+
+export interface AdminSeedRow {
+  drawId: string;
+  drawCode: string;
+  drawType: string;
+  status: string;
+  scheduledAt: string;
+  committedHash: string;
+  committedAt: string | null;
+  revealed: boolean;
+  revealedSeed: string | null;
+  revealMatches: boolean | null;
+  executedAt: string | null;
+  engineSignature: string | null;
+}
+
+export interface AdminJackpotOverview {
+  generatedAt: string;
+  upcomingDraws: {
+    drawId: string;
+    drawCode: string;
+    scheduledAt: string;
+    status: string;
+    prizeValueNgn: number;
+    ticketPriceNgn: number;
+    entries: { direct: number; accumulated: number; total: number };
+  }[];
+  accumulation: {
+    participants: number;
+    totalEntriesEarned: number;
+    ticketsCounted: number;
+    nearThreshold: {
+      buyerPhone: string;
+      progress: number;
+      entriesEarned: number;
+      lastTicketAt: string;
+    }[];
+  };
+}
+
+export interface AdminTicketSearchRow {
+  ticketRef: string;
+  drawCode: string;
+  drawStatus: string;
+  prizeDescription: string;
+  buyerPhone: string;
+  faceValueNgn: number;
+  channel: string;
+  stateOfPlayCode: string;
+  status: string;
+  isWinner: boolean;
+  agentCode: string | null;
+  payment: { txnId: string; gateway: string; status: string; gatewayReference: string };
+  createdAt: string;
+}
+
+export interface AdminPaymentRow {
+  txnId: string;
+  gatewayReference: string;
+  gateway: string;
+  status: string;
+  buyerPhone: string;
+  amountNgn: number;
+  ticketCount: number;
+  failureReason: string | null;
+  confirmedAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminClaimDetail {
+  claimId: string;
+  winnerTicketRef: string;
+  winnerPhone: string;
+  status: string;
+  claimType: string | null;
+  claimTypeSelectedAt: string | null;
+  grossPrizeValueNgn: number;
+  whtAmountNgn: number;
+  netPrizeValueNgn: number;
+  selectionDeadlineAt: string;
+  claimDeadlineAt: string;
+  forfeitedAt: string | null;
+  createdAt: string;
+  draw: {
+    drawCode: string;
+    drawType: string;
+    prizeDescription: string;
+    prizeValueNgn: number;
+    executedAt: string;
+  };
+  kyc: {
+    bvnVerified: boolean;
+    bvnVerifiedAt: string | null;
+    hasIdDoc: boolean;
+    hasSelfie: boolean;
+    bank: { bankCode: string | null; accountLast4: string | null; accountName: string } | null;
+    reviewedBy: string | null;
+    reviewedAt: string | null;
+  };
+  payout: { reference: string; initiatedAt: string | null; accountLast4: string | null } | null;
+  collection: {
+    pointName: string;
+    stateCode: string;
+    address: string;
+    scheduledAt: string | null;
+  } | null;
+  whtDeduction: { deductionRef: string; whtAmountNgn: number; deductedAt: string } | null;
+  fulfilledAt: string | null;
+}
 export class AdminModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -579,5 +688,37 @@ export class AdminModule {
     toDate?: string;
   }): Promise<AdminPayoutList> {
     return this.client.get('/admin/finance/payouts', { query: { ...params } });
+  }
+
+  async seedRegistry(status?: string): Promise<{ seeds: AdminSeedRow[] }> {
+    return this.client.get('/admin/draws/seeds/list', { query: { status } });
+  }
+
+  async jackpotOverview(): Promise<AdminJackpotOverview> {
+    return this.client.get('/admin/dashboard/jackpot');
+  }
+
+  async searchTickets(q: string): Promise<{ tickets: AdminTicketSearchRow[] }> {
+    return this.client.get('/admin/tickets/search', { query: { q } });
+  }
+
+  async listPayments(params?: {
+    status?: string;
+    fromDate?: string;
+    toDate?: string;
+  }): Promise<{ payments: AdminPaymentRow[] }> {
+    return this.client.get('/admin/tickets/payments', { query: { ...params } });
+  }
+
+  async claimDetail(claimId: string): Promise<AdminClaimDetail> {
+    return this.client.get(`/admin/compliance/claims/${encodeURIComponent(claimId)}`);
+  }
+
+  // Authed binary fetch: <img src> can't carry the JWT, so we fetch the bytes
+  // ourselves and hand the page a Blob to object-URL.
+  async fetchClaimEvidence(claimId: string, kind: 'id-doc' | 'selfie'): Promise<Blob> {
+    return this.client.getBlob(
+      `/admin/compliance/claims/${encodeURIComponent(claimId)}/evidence/${kind}`,
+    );
   }
 }

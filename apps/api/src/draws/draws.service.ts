@@ -403,6 +403,47 @@ export class DrawsService {
     };
   }
 
+  // The commit-reveal registry: every seed commitment with its reveal state.
+  // This page is the operator's view of the same chain the public verifier walks.
+  async seedRegistry(status?: DrawStatus) {
+    const draws = await this.prisma.draw.findMany({
+      where: {
+        seedCommit: { isNot: null },
+        ...(status ? { status } : {}),
+      },
+      orderBy: { scheduledAt: 'desc' },
+      take: 100,
+      include: {
+        seedCommit: true,
+        result: {
+          select: {
+            rngSeed: true,
+            rngSeedHash: true,
+            executedAt: true,
+            engineSignature: true,
+          },
+        },
+      },
+    });
+
+    return {
+      seeds: draws.map((d) => ({
+        drawId: d.drawId,
+        drawCode: d.drawCode,
+        drawType: d.drawType,
+        status: d.status,
+        scheduledAt: d.scheduledAt.toISOString(),
+        committedHash: d.seedCommit!.seedHash,
+        committedAt: d.seedCommit!.committedAt?.toISOString() ?? null,
+        revealed: !!d.result,
+        revealedSeed: d.result?.rngSeed ?? null,
+        revealMatches: d.result ? d.result.rngSeedHash === d.seedCommit!.seedHash : null,
+        executedAt: d.result?.executedAt?.toISOString() ?? null,
+        engineSignature: d.result?.engineSignature ?? null,
+      })),
+    };
+  }
+
   // ─── HELPERS ──────────────────────────────────────────────
 
   private assertScheduleValid(scheduledAt: Date, cutoffAt: Date): void {
