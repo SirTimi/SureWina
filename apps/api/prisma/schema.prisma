@@ -450,6 +450,8 @@ model PrizeClaim {
   whtApplicable       Boolean          @default(false) @map("wht_applicable")
   whtAmountNgn        Int              @default(0) @map("wht_amount_ngn")
   netPrizeValueNgn    Int              @map("net_prize_value_ngn")
+  whtDeduction WhtDeduction?
+
 
   selectionDeadlineAt DateTime         @map("selection_deadline_at")
   claimDeadlineAt     DateTime         @map("claim_deadline_at")
@@ -642,4 +644,26 @@ model DrawTemplate {
 
   @@index([templateType, status, effectiveFrom])
   @@map("draw_templates")
+}
+
+// Immutable record of WHT withheld from a fulfilled prize. These rows feed
+// the periodic remittance schedule filed with the tax authority — the
+// authority issues any credit note to the winner, not us.
+model WhtDeduction {
+  deductionSeq Int    @id @default(autoincrement()) @map("deduction_seq")
+  deductionRef String @unique @map("deduction_ref")
+  claimId      String @unique @map("claim_id")
+  claim        PrizeClaim @relation(fields: [claimId], references: [claimId])
+
+  winnerTicketRef String  @map("winner_ticket_ref")
+  winnerPhone     String  @map("winner_phone")
+  grossPrizeNgn   Int     @map("gross_prize_ngn")
+  whtRatePercent  Decimal @map("wht_rate_percent") @db.Decimal(5, 2)
+  whtAmountNgn    Int     @map("wht_amount_ngn")
+  netPrizeNgn     Int     @map("net_prize_ngn")
+
+  deductedAt DateTime @default(now()) @map("deducted_at")
+
+  @@index([deductedAt])
+  @@map("wht_deductions")
 }

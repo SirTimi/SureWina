@@ -19,6 +19,7 @@ import { BankResolveService } from './kyc/bank-resolve.service';
 import { StorageService } from '../storage/storage.service';
 import { ConfigService } from '@nestjs/config';
 import { PaystackTransferService } from './payout/paystack-transfer.service';
+import { WhtDeductionService } from './wht-deduction.service';
 export type ClaimViewDto = {
   claimId: string;
   winnerTicketRef: string;
@@ -58,6 +59,7 @@ export class ClaimsService {
     private readonly storage: StorageService,
     private readonly config: ConfigService,
     private readonly transfers: PaystackTransferService,
+    private readonly whtDeductions: WhtDeductionService
   ) {}
 
   async listMine(phoneNumber: string): Promise<{ claims: ClaimViewDto[] }> {
@@ -321,6 +323,7 @@ export class ClaimsService {
       },
       include: this.viewInclude(),
     });
+    await this.whtDeductions.recordForClaim(claimId);
     await this.audit.write({
       severity: AuditSeverity.INFO,
       actor: { type: AuditActorType.ADMIN, id: adminId },
@@ -349,6 +352,7 @@ export class ClaimsService {
       data: { status: PrizeClaimStatus.DELIVERED, fulfilledAt: new Date() },
       include: this.viewInclude(),
     });
+    await this.whtDeductions.recordForClaim(claimId);
     await this.audit.write({
       severity: AuditSeverity.INFO,
       actor: { type: AuditActorType.ADMIN, id: adminId },

@@ -6,10 +6,11 @@ import { BvnVerificationService } from './kyc/bvn-verification.service';
 import { BankResolveService } from './kyc/bank-resolve.service';
 import { AdminClaimsController } from './admin-claims.controller';
 import { PaystackTransferService } from './payout/paystack-transfer.service';
+import {WhtDeductionService } from './wht-deduction.service'
 @Module({
   imports: [JwtModule.register({})], // CustomerJwtGuard injects JwtService
   controllers: [ClaimsController, AdminClaimsController],
-  providers: [ClaimsService, BvnVerificationService, BankResolveService, PaystackTransferService],
-  exports: [ClaimsService, BankResolveService],
+  providers: [ClaimsService, BvnVerificationService, BankResolveService, PaystackTransferService, WhtDeductionService],
+  exports: [ClaimsService, BankResolveService, WhtDeductionService],
 })
 export class ClaimsModule {}

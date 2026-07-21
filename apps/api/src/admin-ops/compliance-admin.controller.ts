@@ -59,4 +59,24 @@ export class ComplianceAdminController {
   levyReport(@Query() q: RangeQueryDto) {
     return this.compliance.levyReport(q.fromDate, q.toDate);
   }
+
+  @Get('reports/wht')
+  whtSchedule(@Query() q: RangeQueryDto) {
+    return this.compliance.whtSchedule(q.fromDate, q.toDate);
+  }
+
+  @Get('reports/sales')
+  salesReport(@Query() q: RangeQueryDto) {
+    return this.compliance.salesReport(q.fromDate, q.toDate);
+  }
+
+  @Get('reports/financial')
+  financialReport(@Query() q: RangeQueryDto) {
+    return this.compliance.financialReport(q.fromDate, q.toDate);
+  }
+
+  @Get('reports/agents')
+  agentPerformance(@Query() q: RangeQueryDto) {
+    return this.compliance.agentPerformance(q.fromDate, q.toDate);
+  }
 }

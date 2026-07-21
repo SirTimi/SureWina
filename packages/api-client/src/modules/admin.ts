@@ -257,6 +257,69 @@ export interface AdminLevyReport {
   }[];
   totals: { tickets: number; salesNgn: number; levyDueNgn: number };
 }
+
+export interface AdminWhtSchedule {
+  fromDate: string;
+  toDate: string;
+  generatedAt: string;
+  deductions: {
+    deductionRef: string;
+    winnerTicketRef: string;
+    winnerPhone: string;
+    grossPrizeNgn: number;
+    whtRatePercent: number;
+    whtAmountNgn: number;
+    netPrizeNgn: number;
+    deductedAt: string;
+  }[];
+  totals: { deductions: number; grossPrizeNgn: number; whtPayableNgn: number };
+}
+
+export interface AdminSalesReport {
+  fromDate: string;
+  toDate: string;
+  generatedAt: string;
+  byGateway: { gateway: string; transactions: number; tickets: number; amountNgn: number }[];
+  byState: { stateCode: string; tickets: number; salesNgn: number }[];
+  byDay: { day: string; tickets: number; salesNgn: number }[];
+  totals: { salesNgn: number; tickets: number };
+}
+
+export interface AdminFinancialReport {
+  fromDate: string;
+  toDate: string;
+  generatedAt: string;
+  revenue: { grossSalesNgn: number; transactions: number };
+  costs: {
+    prizesGrossNgn: number;
+    prizesSettled: number;
+    commissionNgn: number;
+    commissionCount: number;
+    levyAccruedNgn: number;
+    levyRatePercent: number;
+  };
+  memo: { whtWithheldNgn: number };
+  net: { grossMarginNgn: number };
+}
+
+export interface AdminAgentPerformance {
+  fromDate: string;
+  toDate: string;
+  generatedAt: string;
+  agents: {
+    agentId: string;
+    agentCode: string;
+    fullName: string;
+    tier: string | null;
+    status: string | null;
+    stateCode: string | null;
+    tickets: number;
+    salesNgn: number;
+    commissionRatePercent: number;
+    estCommissionNgn: number;
+  }[];
+  totals: { activeSellers: number; tickets: number; salesNgn: number; estCommissionNgn: number };
+}
 export class AdminModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -436,5 +499,21 @@ export class AdminModule {
     return this.client.get('/admin/compliance/reports/levy', {
       query: { fromDate, toDate },
     });
+  }
+
+  async whtSchedule(fromDate: string, toDate: string): Promise<AdminWhtSchedule> {
+    return this.client.get('/admin/compliance/reports/wht', { query: { fromDate, toDate } });
+  }
+
+  async salesReport(fromDate: string, toDate: string): Promise<AdminSalesReport> {
+    return this.client.get('/admin/compliance/reports/sales', { query: { fromDate, toDate } });
+  }
+
+  async financialReport(fromDate: string, toDate: string): Promise<AdminFinancialReport> {
+    return this.client.get('/admin/compliance/reports/financial', { query: { fromDate, toDate } });
+  }
+
+  async agentPerformance(fromDate: string, toDate: string): Promise<AdminAgentPerformance> {
+    return this.client.get('/admin/compliance/reports/agents', { query: { fromDate, toDate } });
   }
 }

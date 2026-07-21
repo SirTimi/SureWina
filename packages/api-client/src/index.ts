@@ -49,4 +49,4 @@ export { ApiClient } from './client.js';
 export { ApiError } from './types.js';
 export type { ApiClientConfig, RequestOptions } from './types.js';
 export type { HealthResponse } from './modules/health.js';
-export type { AdminDashboard, AdminMe, AdminFunction, AdminTier, AdminAgentRow, AdminCustomerDetail, AdminClaimRow, AdminRemittanceRow, AdminDrawRow, AdminDrawDetail, AdminDrawPreChecks, AdminDrawTemplate, AdminDailyReport, AdminLevyReport } from './modules/admin.js';
+export type { AdminDashboard, AdminMe, AdminFunction, AdminTier, AdminAgentRow, AdminCustomerDetail, AdminClaimRow, AdminRemittanceRow, AdminDrawRow, AdminDrawDetail, AdminDrawPreChecks, AdminDrawTemplate, AdminDailyReport, AdminLevyReport, AdminWhtSchedule, AdminFinancialReport, AdminSalesReport, AdminAgentPerformance } from './modules/admin.js';

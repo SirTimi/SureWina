@@ -194,6 +194,222 @@ export class ComplianceAdminService {
       },
     };
   }
+
+  // WHT remittance schedule: every deduction withheld in the period, as filed
+  // with the tax authority. Rate/destination pending tax-advisor confirmation.
+  async whtSchedule(fromDate: string, toDate: string) {
+    const from = new Date(fromDate);
+    from.setUTCHours(0, 0, 0, 0);
+    const to = new Date(toDate);
+    to.setUTCHours(23, 59, 59, 999);
+
+    const rows = await this.prisma.whtDeduction.findMany({
+      where: { deductedAt: { gte: from, lte: to } },
+      orderBy: { deductedAt: 'asc' },
+    });
+
+    return {
+      fromDate,
+      toDate,
+      generatedAt: new Date().toISOString(),
+      deductions: rows.map((d) => ({
+        deductionRef: d.deductionRef,
+        winnerTicketRef: d.winnerTicketRef,
+        winnerPhone: d.winnerPhone,
+        grossPrizeNgn: d.grossPrizeNgn,
+        whtRatePercent: Number(d.whtRatePercent),
+        whtAmountNgn: d.whtAmountNgn,
+        netPrizeNgn: d.netPrizeNgn,
+        deductedAt: d.deductedAt.toISOString(),
+      })),
+      totals: {
+        deductions: rows.length,
+        grossPrizeNgn: rows.reduce((s, d) => s + d.grossPrizeNgn, 0),
+        whtPayableNgn: rows.reduce((s, d) => s + d.whtAmountNgn, 0),
+      },
+    };
+  }
+
+  private rangeOf(fromDate: string, toDate: string) {
+    const from = new Date(fromDate);
+    from.setUTCHours(0, 0, 0, 0);
+    const to = new Date(toDate);
+    to.setUTCHours(23, 59, 59, 999);
+    return { from, to };
+  }
+
+  async salesReport(fromDate: string, toDate: string) {
+    const { from, to } = this.rangeOf(fromDate, toDate);
+
+    const [byGateway, byState, byDay] = await Promise.all([
+      this.prisma.paymentTransaction.groupBy({
+        by: ['gateway'],
+        where: { status: PaymentStatus.CONFIRMED, confirmedAt: { gte: from, lte: to } },
+        _sum: { amountNgn: true, ticketCount: true },
+        _count: true,
+      }),
+      this.prisma.ticket.groupBy({
+        by: ['stateOfPlayCode'],
+        where: { createdAt: { gte: from, lte: to } },
+        _sum: { faceValueNgn: true },
+        _count: true,
+      }),
+      this.prisma.$queryRaw<
+        { day: Date; sales_ngn: string | null; tickets: string }[]
+      >`SELECT date_trunc('day', created_at) AS day,
+               SUM(face_value_ngn) AS sales_ngn,
+               COUNT(*) AS tickets
+        FROM tickets
+        WHERE created_at >= ${from} AND created_at <= ${to}
+        GROUP BY 1 ORDER BY 1`,
+    ]);
+
+    return {
+      fromDate,
+      toDate,
+      generatedAt: new Date().toISOString(),
+      byGateway: byGateway.map((g) => ({
+        gateway: g.gateway,
+        transactions: g._count,
+        tickets: g._sum.ticketCount ?? 0,
+        amountNgn: g._sum.amountNgn ?? 0,
+      })),
+      byState: byState
+        .map((s) => ({
+          stateCode: s.stateOfPlayCode,
+          tickets: s._count,
+          salesNgn: s._sum.faceValueNgn ?? 0,
+        }))
+        .sort((a, b) => b.salesNgn - a.salesNgn),
+      byDay: byDay.map((d) => ({
+        day: d.day.toISOString().slice(0, 10),
+        tickets: Number(d.tickets),
+        salesNgn: Number(d.sales_ngn ?? 0),
+      })),
+      totals: {
+        salesNgn: byState.reduce((s, r) => s + (r._sum.faceValueNgn ?? 0), 0),
+        tickets: byState.reduce((s, r) => s + r._count, 0),
+      },
+    };
+  }
+
+  // Operating P&L from ledger data. Accrual-approximate ops reporting — the
+  // statutory books come from the accountant, not this endpoint.
+  async financialReport(fromDate: string, toDate: string) {
+    const { from, to } = this.rangeOf(fromDate, toDate);
+    const levyRate = Number(this.config.get('LEVY_RATE_PERCENT') ?? 2.5) / 100;
+
+    const [sales, prizes, wht, commission] = await Promise.all([
+      this.prisma.paymentTransaction.aggregate({
+        where: { status: PaymentStatus.CONFIRMED, confirmedAt: { gte: from, lte: to } },
+        _sum: { amountNgn: true },
+        _count: true,
+      }),
+      this.prisma.prizeClaim.aggregate({
+        where: { fulfilledAt: { gte: from, lte: to } },
+        _sum: { grossPrizeValueNgn: true },
+        _count: true,
+      }),
+      this.prisma.whtDeduction.aggregate({
+        where: { deductedAt: { gte: from, lte: to } },
+        _sum: { whtAmountNgn: true },
+      }),
+      this.prisma.commissionDisbursement.aggregate({
+        where: { createdAt: { gte: from, lte: to } },
+        _sum: { amountNgn: true },
+        _count: true,
+      }),
+    ]);
+
+    const grossSalesNgn = sales._sum.amountNgn ?? 0;
+    const prizesGrossNgn = prizes._sum.grossPrizeValueNgn ?? 0;
+    const commissionNgn = commission._sum.amountNgn ?? 0;
+    const levyAccruedNgn = Math.round(grossSalesNgn * levyRate);
+
+    return {
+      fromDate,
+      toDate,
+      generatedAt: new Date().toISOString(),
+      revenue: { grossSalesNgn, transactions: sales._count },
+      costs: {
+        prizesGrossNgn,
+        prizesSettled: prizes._count,
+        commissionNgn,
+        commissionCount: commission._count,
+        levyAccruedNgn,
+        levyRatePercent: levyRate * 100,
+      },
+      memo: {
+        // Withheld from winners, owed onward to the tax authority — a
+        // liability pass-through, not a cost line.
+        whtWithheldNgn: wht._sum.whtAmountNgn ?? 0,
+      },
+      net: {
+        grossMarginNgn: grossSalesNgn - prizesGrossNgn - commissionNgn - levyAccruedNgn,
+      },
+    };
+  }
+
+  // Agent ranking by sales in the period. Commission column is an estimate
+  // (rate × sales) — authoritative figures live in disbursement records.
+  async agentPerformance(fromDate: string, toDate: string) {
+    const { from, to } = this.rangeOf(fromDate, toDate);
+
+    const grouped = await this.prisma.ticket.groupBy({
+      by: ['agentId'],
+      where: { agentId: { not: null }, createdAt: { gte: from, lte: to } },
+      _sum: { faceValueNgn: true },
+      _count: true,
+    });
+
+    const agentIds = grouped.map((g) => g.agentId as string);
+    const agents = await this.prisma.agent.findMany({
+      where: { agentId: { in: agentIds } },
+      select: {
+        agentId: true,
+        agentCode: true,
+        fullName: true,
+        tier: true,
+        status: true,
+        commissionRate: true,
+        registeredStateCode: true,
+      },
+    });
+    const byId = new Map(agents.map((a) => [a.agentId, a]));
+
+    const rows = grouped
+      .map((g) => {
+        const a = byId.get(g.agentId as string);
+        const salesNgn = g._sum.faceValueNgn ?? 0;
+        const rate = a ? Number(a.commissionRate) : 0;
+        return {
+          agentId: g.agentId as string,
+          agentCode: a?.agentCode ?? 'UNKNOWN',
+          fullName: a?.fullName ?? 'Unknown agent',
+          tier: a?.tier ?? null,
+          status: a?.status ?? null,
+          stateCode: a?.registeredStateCode ?? null,
+          tickets: g._count,
+          salesNgn,
+          commissionRatePercent: Math.round(rate * 10000) / 100,
+          estCommissionNgn: Math.round(salesNgn * rate),
+        };
+      })
+      .sort((a, b) => b.salesNgn - a.salesNgn);
+
+    return {
+      fromDate,
+      toDate,
+      generatedAt: new Date().toISOString(),
+      agents: rows,
+      totals: {
+        activeSellers: rows.length,
+        tickets: rows.reduce((s, r) => s + r.tickets, 0),
+        salesNgn: rows.reduce((s, r) => s + r.salesNgn, 0),
+        estCommissionNgn: rows.reduce((s, r) => s + r.estCommissionNgn, 0),
+      },
+    };
+  }
 }
 
 

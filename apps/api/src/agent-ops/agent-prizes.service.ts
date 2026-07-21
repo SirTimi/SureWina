@@ -14,6 +14,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { WhtDeductionService } from '../claims/wht-deduction.service';
 
 // Claims an agent may settle in cash: not yet in KYC, not terminal.
 const AGENT_PAYABLE: PrizeClaimStatus[] = [
@@ -29,6 +30,7 @@ export class AgentPrizesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
+    private readonly whtDeductions: WhtDeductionService
   ) {}
 
   async lookup(ticketRefRaw: string) {
@@ -85,10 +87,12 @@ export class AgentPrizesService {
         payoutInitiatedAt: new Date(),
         fulfilledAt: new Date(),
       },
+      
     });
     if (result.count === 0) {
       throw new ConflictException('This prize can no longer be paid by an agent');
     }
+    await this.whtDeductions.recordForClaim(claim.claimId);
 
     await this.audit.write({
       severity: AuditSeverity.INFO,
