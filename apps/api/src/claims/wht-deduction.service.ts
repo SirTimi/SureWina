@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
+import { SettingsService } from '../config/settings.service';
 
 // Issues an immutable WHT certificate for a fulfilled, WHT-applicable claim.
 // Idempotent: one certificate per claim, enforced by the unique claimId.
@@ -11,6 +12,7 @@ export class WhtDeductionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly settings: SettingsService,
   ) {}
 
   async recordForClaim(claimId: string): Promise<void> {
@@ -32,7 +34,7 @@ export class WhtDeductionService {
     if (!claim.whtApplicable || claim.whtAmountNgn <= 0) return;
     if (claim.whtDeduction) return; // already issued — idempotent
 
-    const rate = Number(this.config.get('WHT_RATE_PERCENT') ?? 5);
+    const rate = await this.settings.getNumber('WHT_RATE_PERCENT', 5);
 
     try {
       const certNo = await this.prisma.$transaction(async (tx) => {

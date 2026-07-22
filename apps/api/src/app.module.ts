@@ -22,6 +22,7 @@ import {StorageModule} from './storage/storage.module';
 import { AgentOpsModule } from './agent-ops/agent-ops.module';
 import { AdminOpsModule } from './admin-ops/admin-ops.module';
 import { AccountModule } from './account/account.module'
+import { SettingsModule } from './config/settings.module'
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -51,7 +52,8 @@ import { AccountModule } from './account/account.module'
     StorageModule,
     AgentOpsModule,
     AdminOpsModule,
-    AccountModule
+    AccountModule,
+    SettingsModule
   ],
   providers: [
     {

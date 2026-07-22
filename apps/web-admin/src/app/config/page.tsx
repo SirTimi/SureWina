@@ -1,166 +1,232 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import { Bell, Save, Settings2 } from 'lucide-react';
-import { Button } from '@surewina/ui';
+import { useEffect, useState } from 'react';
+import { Calendar, Check, Pencil, Settings2, ShieldAlert, X } from 'lucide-react';
+import type { AdminSetting } from '@surewina/api-client';
 import { AdminShell } from '@/components/admin-shell';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
+import {
+  canPerformAdminAction,
+  type AdminSession,
+} from '@/lib/admin-auth';
+import { api } from '@/lib/api';
 
-export default function SystemConfigPage() {
-  return (
-    <AdminShell>
-      {() => <Body />}
-    </AdminShell>
-  );
+// Presentation metadata per key — the API stays generic.
+const META: Record<string, { label: string; unit: string; caution?: string }> = {
+  WHT_RATE_PERCENT: {
+    label: 'WHT rate',
+    unit: '%',
+    caution: 'Changes how much tax is withheld from every cash prize. Confirm with the tax advisor first.',
+  },
+  WHT_THRESHOLD_NGN: {
+    label: 'WHT threshold',
+    unit: '₦',
+    caution: 'Prizes below this pay gross. 0 means WHT applies to all cash prizes.',
+  },
+  LEVY_RATE_PERCENT: {
+    label: 'State levy rate',
+    unit: '%',
+    caution: 'Drives the statutory levy report. Provisional until confirmed with the regulatory advisor.',
+  },
+  AGENT_PAYOUT_MAX_NGN: {
+    label: 'Agent cash payout limit',
+    unit: '₦',
+    caution: 'Largest prize an agent may settle in cash. Raising it raises cash-handling risk in the field.',
+  },
+};
+
+export default function ConfigPage() {
+  return <AdminShell>{(session) => <Body session={session} />}</AdminShell>;
 }
 
-function Body() {
-  const [dailyPrice, setDailyPrice] = useState('500');
-  const [jackpotPrice, setJackpotPrice] = useState('5000');
-  const [dailyCutoff, setDailyCutoff] = useState('19:00');
-  const [jackpotCutoff, setJackpotCutoff] = useState('19:00');
-  const [remitDeadline, setRemitDeadline] = useState('23:00');
-  const [graceMinutes, setGraceMinutes] = useState('60');
-  const [whtRate, setWhtRate] = useState('0.05');
-  const [stateLevy, setStateLevy] = useState('0.025');
+function Body({ session }: { session: AdminSession }) {
+  const [settings, setSettings] = useState<AdminSetting[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Settings edits are final-approval-grade actions: SUPER only.
+  const canEdit = canPerformAdminAction(session.tier, 'APPROVE_DRAW_SETUP');
+
+  const load = () => {
+    setLoading(true);
+    api.admin
+      .listSettings()
+      .then((res) => setSettings(res.settings))
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load settings.'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, []);
+
+  const save = async (key: string) => {
+    if (!/^\d+(\.\d+)?$/.test(draft.trim())) {
+      setError('Value must be a non-negative number.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await api.admin.updateSetting(key, draft.trim());
+      setEditingKey(null);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save setting.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <>
       <PageHeader
         eyebrow="System"
         title="Configuration"
-        description="Operational thresholds that wire into draws, agents, and finance. All edits are versioned + audited."
+        description="Business thresholds that apply immediately across the platform. Every change is audited with its previous value."
         breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Config' }]}
-        rightSlot={
-          <Button
-            variant="accent"
-            className="rounded-md !border-transparent bg-navy-800 font-black text-white hover:!border-transparent hover:bg-navy-900"
-          >
-            <Save className="h-4 w-4" />
-            Save changes
-          </Button>
-        }
       />
 
-      <div className="mx-auto max-w-[1200px] space-y-4 px-6 py-5">
-        <SectionCard title="Ticket pricing">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Daily standard ticket (₦)">
-              <input
-                inputMode="numeric"
-                value={dailyPrice}
-                onChange={(e) => setDailyPrice(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
-              />
-            </Field>
-            <Field label="Saturday jackpot ticket (₦)">
-              <input
-                inputMode="numeric"
-                value={jackpotPrice}
-                onChange={(e) => setJackpotPrice(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
-              />
-            </Field>
+      <div className="mx-auto max-w-[860px] space-y-4 px-6 py-5">
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {error}
           </div>
-        </SectionCard>
+        )}
 
-        <SectionCard title="Cutoffs & deadlines">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Daily draw sales cutoff (WAT)">
-              <input
-                type="time"
-                value={dailyCutoff}
-                onChange={(e) => setDailyCutoff(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
-              />
-            </Field>
-            <Field label="Saturday jackpot cutoff (WAT)">
-              <input
-                type="time"
-                value={jackpotCutoff}
-                onChange={(e) => setJackpotCutoff(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
-              />
-            </Field>
-            <Field label="Agent remittance deadline (WAT)">
-              <input
-                type="time"
-                value={remitDeadline}
-                onChange={(e) => setRemitDeadline(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 text-sm font-medium outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
-              />
-            </Field>
-            <Field label="Remittance grace window (minutes)">
-              <input
-                inputMode="numeric"
-                value={graceMinutes}
-                onChange={(e) => setGraceMinutes(e.target.value.replace(/\D/g, ''))}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
-              />
-            </Field>
-          </div>
-        </SectionCard>
+        {loading ? (
+          <div className="h-64 animate-pulse rounded-xl bg-white" />
+        ) : (
+          <SectionCard
+            title="Business settings"
+            description={canEdit ? 'Changes take effect within a minute — no redeploy.' : 'Read-only at your clearance. SUPER admins can edit.'}
+            padded={false}
+          >
+            <div className="divide-y divide-slate-100">
+              {settings.map((s) => {
+                const meta = META[s.key] ?? { label: s.key, unit: '' };
+                const isEditing = editingKey === s.key;
+                return (
+                  <div key={s.key} className="px-5 py-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-[#0B1220]">{meta.label}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{s.description}</p>
+                        <p className="mt-1 font-mono text-[10px] text-slate-400">
+                          {s.key} · updated{' '}
+                          {new Date(s.updatedAt).toLocaleString('en-NG', {
+                            day: '2-digit',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
 
-        <SectionCard title="Tax & levies">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="WHT rate (decimal)">
-              <input
-                value={whtRate}
-                onChange={(e) => setWhtRate(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
-              />
-            </Field>
-            <Field label="State Games Board levy (decimal)">
-              <input
-                value={stateLevy}
-                onChange={(e) => setStateLevy(e.target.value)}
-                className="h-11 w-full rounded-md border border-slate-200 px-3 font-mono text-sm font-bold outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30"
-              />
-            </Field>
-          </div>
-        </SectionCard>
+                      {isEditing ? (
+                        <div className="flex items-center gap-2">
+                          <div className="relative">
+                            <input
+                              value={draft}
+                              onChange={(e) => setDraft(e.target.value)}
+                              autoFocus
+                              className="h-10 w-36 rounded-md border border-navy-300 bg-white px-3 pr-8 text-right font-mono text-sm outline-none focus:border-navy-700"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                              {meta.unit}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => save(s.key)}
+                            className="flex h-10 w-10 items-center justify-center rounded-md bg-[#0B1220] text-white disabled:bg-slate-300"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingKey(null)}
+                            className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <p className="font-display text-xl font-black tabular-nums text-[#0B1220]">
+                            {s.value}
+                            <span className="ml-1 text-sm font-bold text-slate-400">{meta.unit}</span>
+                          </p>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingKey(s.key);
+                                setDraft(s.value);
+                                setError(null);
+                              }}
+                              className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 hover:border-navy-200 hover:text-navy-700"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {isEditing && meta.caution && (
+                      <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+                        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                        <p className="text-xs leading-relaxed text-amber-800">{meta.caution}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </SectionCard>
+        )}
 
         <SectionCard
           title="Linked configuration"
-          description="More granular settings live on dedicated pages."
+          description="Granular, versioned config lives on dedicated pages."
         >
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Link
-              href="/config/templates"
-              className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-[#0B1220] hover:border-navy-200 hover:bg-[#F8FAF4]"
+              href="/draws/schedule"
+              className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 transition hover:border-navy-200 hover:bg-navy-50"
             >
-              <span className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-navy-700" />
-                Notification templates
+              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-navy-50 text-navy-700">
+                <Calendar className="h-4 w-4" />
               </span>
-              <span className="text-xs text-navy-700">→</span>
+              <span>
+                <span className="block text-sm font-black text-[#0B1220]">Draw schedule & pricing</span>
+                <span className="block text-xs text-slate-500">
+                  Ticket prices, prizes, times — versioned with dual approval
+                </span>
+              </span>
             </Link>
             <Link
-              href="/agents/super"
-              className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3 text-sm font-bold text-[#0B1220] hover:border-navy-200 hover:bg-[#F8FAF4]"
+              href="/audit-log"
+              className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 transition hover:border-navy-200 hover:bg-navy-50"
             >
-              <span className="flex items-center gap-2">
-                <Settings2 className="h-4 w-4 text-navy-700" />
-                Commission tiers
+              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-navy-50 text-navy-700">
+                <Settings2 className="h-4 w-4" />
               </span>
-              <span className="text-xs text-navy-700">→</span>
+              <span>
+                <span className="block text-sm font-black text-[#0B1220]">Setting change history</span>
+                <span className="block text-xs text-slate-500">
+                  Filter the audit log for SYSTEM_SETTING_CHANGED
+                </span>
+              </span>
             </Link>
           </div>
         </SectionCard>
       </div>
     </>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-        {label}
-      </span>
-      {children}
-    </label>
   );
 }

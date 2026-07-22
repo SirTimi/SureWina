@@ -1,112 +1,233 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, Info, Send } from 'lucide-react';
-import { Button, Card } from '@surewina/ui';
+import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { AlertTriangle, Copy, KeyRound, UserPlus } from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
 import { PageHeader } from '@/components/page-header';
-import { StatusPill } from '@/components/status-pill';
-import { roleLabel } from '@/lib/admin-auth';
-import { adminRoleOptions, clearanceLabel } from '@/lib/admin-users-mock';
+import { SectionCard } from '@/components/section-card';
+import {
+  canPerformAdminAction,
+  getAdminActionDeniedReason,
+  type AdminSession,
+} from '@/lib/admin-auth';
+import { api } from '@/lib/api';
+
+const ROLES = [
+  { value: 'OPERATOR', label: 'Operator', hint: 'Draws, agents, tickets, day-to-day operations' },
+  { value: 'COMPLIANCE_OFFICER', label: 'Compliance officer', hint: 'KYC review, audit log, statutory reports' },
+  { value: 'FINANCE_OFFICER', label: 'Finance officer', hint: 'Remittances, payouts, refunds' },
+  { value: 'SUPPORT_AGENT', label: 'Support agent', hint: 'Lookups only — customer assistance' },
+];
+
+const TIERS = [
+  { value: 'BASIC', label: 'Basic', hint: 'View and routine actions' },
+  { value: 'INTERMEDIATE', label: 'Intermediate', hint: 'Propose changes needing approval' },
+  { value: 'SUPER', label: 'Super', hint: 'Final approval, config, user management' },
+  { value: 'AUDITOR', label: 'Auditor', hint: 'Read-only across the platform' },
+];
 
 export default function NewAdminUserPage() {
-  return (
-    <AdminShell>
-      {() => <Body />}
-    </AdminShell>
-  );
+  return <AdminShell>{(session) => <Body session={session} />}</AdminShell>;
 }
 
-function Body() {
+function Body({ session }: { session: AdminSession }) {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState('OPERATOR');
+  const [tier, setTier] = useState('BASIC');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ name: string; email: string; password: string } | null>(null);
+
+  const allowed = canPerformAdminAction(session.tier, 'APPROVE_DRAW_SETUP');
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!email.includes('@') || fullName.trim().length < 2) {
+      setError('Enter a valid email and full name.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await api.admin.createAdminUser({
+        email: email.trim().toLowerCase(),
+        fullName: fullName.trim(),
+        role,
+        tier,
+      });
+      setCreated({ name: res.fullName, email: res.email, password: res.temporaryPassword });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create admin.');
+      setSubmitting(false);
+    }
+  };
+
+  if (!allowed) {
+    return (
+      <>
+        <PageHeader eyebrow="System" title="New admin" breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Users', href: '/users' }, { label: 'New' }]} />
+        <div className="mx-auto max-w-[720px] px-6 py-10">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
+            <AlertTriangle className="mx-auto h-8 w-8 text-amber-600" />
+            <p className="mt-3 text-sm text-slate-700">
+              {getAdminActionDeniedReason(session.tier, 'APPROVE_DRAW_SETUP')}
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (created) {
+    return (
+      <>
+        <PageHeader eyebrow="System" title="Admin created" breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Users', href: '/users' }, { label: 'Created' }]} />
+        <div className="mx-auto max-w-[720px] px-6 py-5">
+          <SectionCard title={`${created.name} can now sign in`}>
+            <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
+              <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-amber-800">
+                <KeyRound className="h-4 w-4" />
+                Temporary password — shown once
+              </p>
+              <p className="mt-2 break-all rounded-md bg-white p-3 font-mono text-lg font-black text-[#0B1220]">
+                {created.password}
+              </p>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard?.writeText(created.password)}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-black text-amber-800"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copy
+              </button>
+              <p className="mt-3 text-xs leading-relaxed text-amber-800">
+                Give this to {created.name} in person or over a channel you trust — it is not stored
+                and cannot be shown again. If it is lost, reset the password from their profile.
+              </p>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <Link href="/users" className="rounded-md bg-[#0B1220] px-5 py-2.5 text-sm font-black text-white">
+                Back to users
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setCreated(null);
+                  setEmail('');
+                  setFullName('');
+                  setSubmitting(false);
+                }}
+                className="rounded-md border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600"
+              >
+                Create another
+              </button>
+            </div>
+          </SectionCard>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader
-        eyebrow="System · Admin users"
-        title="Create admin profile"
-        description="Create a pending admin profile. The account remains inactive until Super Admin authorization."
-        breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Admin users', href: '/users' }, { label: 'Create admin' }]}
+        eyebrow="System"
+        title="New admin"
+        description="Creates an account with a one-time temporary password."
+        breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Users', href: '/users' }, { label: 'New' }]}
       />
+      <div className="mx-auto max-w-[720px] px-6 py-5">
+        <form onSubmit={submit}>
+          <SectionCard title="Account">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-sm font-bold text-[#0B1220]">Full name</label>
+                  <input
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Amaka Obi"
+                    className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-navy-700"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-bold text-[#0B1220]">Work email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="amaka@surewina.ng"
+                    className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-navy-700"
+                  />
+                </div>
+              </div>
 
-      <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <Card variant="default" className="rounded-3xl border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-6 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">Admin profile details</p>
-              <h2 className="mt-1 font-display text-2xl font-black tracking-[-0.03em] text-[#0B1220]">New admin request</h2>
-            </div>
-            <StatusPill tone="warning">Pending approval</StatusPill>
-          </div>
+              <Picker label="Function" options={ROLES} value={role} onChange={setRole} />
+              <Picker label="Clearance" options={TIERS} value={tier} onChange={setTier} />
 
-          <form className="space-y-5">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Full name"><input className={inputClass} placeholder="Maryam Yusuf" /></Field>
-              <Field label="Email address"><input className={inputClass} type="email" placeholder="maryam.yusuf@surewina.ng" /></Field>
-              <Field label="Phone number"><input className={inputClass} placeholder="+2348010010005" /></Field>
-              <Field label="Department"><input className={inputClass} placeholder="Agent Support" /></Field>
-            </div>
+              {error && (
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
 
-            <Field label="Assigned role">
-              <select className={inputClass}>
-                {adminRoleOptions.map((option) => (
-                  <option key={option.role} value={option.role}>{option.label} · {clearanceLabel(option.clearanceLevel)}</option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Assigned function / scope">
-              <textarea className={`${inputClass} min-h-28 py-3`} placeholder="Describe exactly what this admin is allowed to do." />
-            </Field>
-
-            <Field label="Reason for access">
-              <textarea className={`${inputClass} min-h-24 py-3`} placeholder="Why is this admin access needed?" />
-            </Field>
-
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
-              <div className="flex gap-2">
-                <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                <p>Submitting this creates a pending admin profile only. The account is activated after Super Admin review.</p>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-md bg-[#0B1220] px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  {submitting ? 'Creating…' : 'Create admin'}
+                </button>
+                <Link href="/users" className="rounded-md border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600">
+                  Cancel
+                </Link>
               </div>
             </div>
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-              <Link href="/users" className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[#0B1220] hover:bg-slate-50">
-                <ArrowLeft className="h-4 w-4" />
-                Back to users
-              </Link>
-              <Button type="button" variant="accent" className="rounded-md font-black">
-                <Send className="h-4 w-4" />
-                Create pending admin
-              </Button>
-            </div>
-          </form>
-        </Card>
-
-        <aside className="space-y-3">
-          <Card variant="default" className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">Role guide</p>
-            <div className="mt-4 space-y-3">
-              {adminRoleOptions.map((option) => (
-                <div key={option.role} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                  <p className="font-bold text-[#0B1220]">{roleLabel(option.role)}</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">{clearanceLabel(option.clearanceLevel)}</p>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-500">{option.description}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </aside>
+          </SectionCard>
+        </form>
       </div>
     </>
   );
 }
 
-const inputClass = 'h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-[#0B1220] outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/30';
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Picker({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: string; label: string; hint: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-black text-[#0B1220]">{label}</span>
-      {children}
-    </label>
+    <div>
+      <p className="mb-1.5 text-sm font-bold text-[#0B1220]">{label}</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            className={
+              value === o.value
+                ? 'rounded-lg border-2 border-navy-700 bg-navy-50 p-3 text-left'
+                : 'rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-slate-300'
+            }
+          >
+            <span className="block text-sm font-black text-[#0B1220]">{o.label}</span>
+            <span className="mt-0.5 block text-xs text-slate-500">{o.hint}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

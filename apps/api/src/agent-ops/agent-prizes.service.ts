@@ -15,6 +15,7 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { WhtDeductionService } from '../claims/wht-deduction.service';
+import { SettingsService } from '../config/settings.service';
 
 // Claims an agent may settle in cash: not yet in KYC, not terminal.
 const AGENT_PAYABLE: PrizeClaimStatus[] = [
@@ -30,7 +31,9 @@ export class AgentPrizesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
-    private readonly whtDeductions: WhtDeductionService
+    private readonly whtDeductions: WhtDeductionService,
+    private readonly settings: SettingsService,
+
   ) {}
 
   async lookup(ticketRefRaw: string) {
@@ -138,7 +141,7 @@ export class AgentPrizesService {
         })
       : null;
 
-    const maxNgn = Number(this.config.get('AGENT_PAYOUT_MAX_NGN') ?? 50000);
+    const maxNgn = await this.settings.getNumber('AGENT_PAYOUT_MAX_NGN', 50000);
     return { ticket, claim, maxNgn };
   }
 }

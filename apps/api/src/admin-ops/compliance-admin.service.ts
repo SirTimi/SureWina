@@ -11,6 +11,7 @@ import type { FastifyReply } from 'fastify';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaService } from '../database/prisma.service';
+import { SettingsService } from '../config/settings.service';
 
 export type AuditSearchFilters = {
   action?: string;
@@ -30,6 +31,7 @@ export class ComplianceAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly settings: SettingsService,
   ) {}
 
   async searchAudit(f: AuditSearchFilters) {
@@ -276,7 +278,7 @@ export class ComplianceAdminService {
   async levyReport(fromDate: string, toDate: string) {
     const { from, to } = this.rangeOf(fromDate, toDate);
 
-    const ratePercent = Number(this.config.get('LEVY_RATE_PERCENT') ?? 2.5);
+    const ratePercent = await this.settings.getNumber('LEVY_RATE_PERCENT', 2.5);
     const rate = ratePercent / 100;
 
     const rows = await this.prisma.ticket.groupBy({
@@ -411,7 +413,7 @@ export class ComplianceAdminService {
   // statutory books come from the accountant, not this endpoint.
   async financialReport(fromDate: string, toDate: string) {
     const { from, to } = this.rangeOf(fromDate, toDate);
-    const levyRate = Number(this.config.get('LEVY_RATE_PERCENT') ?? 2.5) / 100;
+    const levyRate = (await this.settings.getNumber('LEVY_RATE_PERCENT', 2.5)) / 100;
 
     const [sales, prizes, wht, commission] = await Promise.all([
       this.prisma.paymentTransaction.aggregate({

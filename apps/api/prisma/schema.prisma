@@ -667,3 +667,103 @@ model WhtDeduction {
   @@index([deductedAt])
   @@map("wht_deductions")
 }
+
+// Scalar business settings, editable in admin instead of redeploying.
+// Values are strings; the service parses. Every change is CRITICAL-audited.
+model SystemSetting {
+  key         String   @id
+  value       String
+  description String
+  updatedByAdminId String?  @map("updated_by_admin_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("system_settings")
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  ESCALATED
+  RESOLVED
+  REJECTED
+}
+
+enum DisputeCategory {
+  PAYMENT_NO_TICKET      // debited but no ticket issued
+  PRIZE_NOT_RECEIVED     // won but prize not delivered/paid
+  AGENT_CASH_ISSUE       // paid agent cash, no ticket / dispute over agent payout
+  RESULT_CONTESTED       // disputes a draw outcome
+  ACCOUNT_ACCESS         // can't access account / claim
+  OTHER
+}
+
+enum DisputeRaisedByType {
+  CUSTOMER
+  ADMIN
+  SYSTEM
+}
+
+enum DisputeEventType {
+  CREATED
+  STATUS_CHANGED
+  NOTE_ADDED
+  ASSIGNED
+  RESOLUTION_RECORDED
+}
+
+model Dispute {
+  disputeId   String   @id @default(uuid()) @map("dispute_id")
+  disputeRef  String   @unique @map("dispute_ref")   // DSP-YYYY-NNNNNN
+  disputeSeq  Int      @unique @default(autoincrement()) @map("dispute_seq")
+
+  category    DisputeCategory
+  status      DisputeStatus @default(OPEN)
+
+  // Who it's about / from — phone is the customer anchor (matches your auth)
+  raisedByType DisputeRaisedByType @map("raised_by_type")
+  raisedByAdminId String?          @map("raised_by_admin_id")
+  customerPhone   String           @map("customer_phone")
+
+  subject     String   @db.Text          // customer's own words / summary
+  // Optional links to the thing in dispute (any may be null)
+  ticketRef   String?  @map("ticket_ref")
+  paymentTxnId String? @map("payment_txn_id")
+  claimId     String?  @map("claim_id")
+  agentCode   String?  @map("agent_code")
+
+  assignedToAdminId String?   @map("assigned_to_admin_id")
+  resolutionNote    String?   @db.Text @map("resolution_note")
+  resolvedByAdminId String?   @map("resolved_by_admin_id")
+  resolvedAt        DateTime? @map("resolved_at")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  events      DisputeEvent[]
+
+  @@index([status, createdAt])
+  @@index([customerPhone])
+  @@map("disputes")
+}
+
+// Append-only timeline. Never updated or deleted — the case history.
+model DisputeEvent {
+  eventId     String   @id @default(uuid()) @map("event_id")
+  disputeId   String   @map("dispute_id")
+  dispute     Dispute  @relation(fields: [disputeId], references: [disputeId])
+
+  type        DisputeEventType
+  // Actor: admin id, or 'CUSTOMER:<phone>', or 'SYSTEM'
+  actorType   DisputeRaisedByType @map("actor_type")
+  actorId     String              @map("actor_id")
+
+  note        String?  @db.Text          // note text or status-change detail
+  fromStatus  DisputeStatus? @map("from_status")
+  toStatus    DisputeStatus? @map("to_status")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([disputeId, createdAt])
+  @@map("dispute_events")
+}

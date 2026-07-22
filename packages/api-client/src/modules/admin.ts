@@ -470,6 +470,27 @@ export interface AdminClaimDetail {
   whtDeduction: { deductionRef: string; whtAmountNgn: number; deductedAt: string } | null;
   fulfilledAt: string | null;
 }
+
+export interface AdminSetting {
+  key: string;
+  value: string;
+  description: string;
+  updatedByAdminId: string | null;
+  updatedAt: string;
+}
+
+export interface AdminUserRow {
+  adminUserId: string;
+  email: string;
+  fullName: string;
+  role: 'OPERATOR' | 'COMPLIANCE_OFFICER' | 'FINANCE_OFFICER' | 'SUPPORT_AGENT';
+  tier: 'BASIC' | 'INTERMEDIATE' | 'SUPER' | 'AUDITOR';
+  isActive: boolean;
+  mfaEnabled: boolean;
+  lastLoginAt: string | null;
+  locked: boolean;
+  createdAt: string;
+}
 export class AdminModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -720,5 +741,43 @@ export class AdminModule {
     return this.client.getBlob(
       `/admin/compliance/claims/${encodeURIComponent(claimId)}/evidence/${kind}`,
     );
+  }
+
+  async listSettings(): Promise<{ settings: AdminSetting[] }> {
+    return this.client.get('/admin/settings');
+  }
+
+  async updateSetting(key: string, value: string): Promise<AdminSetting> {
+    return this.client.patch(`/admin/settings/${encodeURIComponent(key)}`, { value });
+  }
+
+  async listAdminUsers(): Promise<{ users: AdminUserRow[] }> {
+    return this.client.get('/admin/users');
+  }
+
+  async adminUserDetail(adminUserId: string): Promise<AdminUserRow> {
+    return this.client.get(`/admin/users/${encodeURIComponent(adminUserId)}`);
+  }
+
+  async createAdminUser(input: {
+    email: string;
+    fullName: string;
+    role: string;
+    tier: string;
+  }): Promise<AdminUserRow & { temporaryPassword: string }> {
+    return this.client.post('/admin/users', input);
+  }
+
+  async updateAdminUser(
+    adminUserId: string,
+    input: { role?: string; tier?: string; isActive?: boolean },
+  ): Promise<AdminUserRow> {
+    return this.client.patch(`/admin/users/${encodeURIComponent(adminUserId)}`, input);
+  }
+
+  async resetAdminPassword(
+    adminUserId: string,
+  ): Promise<{ adminUserId: string; temporaryPassword: string }> {
+    return this.client.post(`/admin/users/${encodeURIComponent(adminUserId)}/reset-password`, {});
   }
 }

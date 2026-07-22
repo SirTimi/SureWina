@@ -20,6 +20,7 @@ import { StorageService } from '../storage/storage.service';
 import { ConfigService } from '@nestjs/config';
 import { PaystackTransferService } from './payout/paystack-transfer.service';
 import { WhtDeductionService } from './wht-deduction.service';
+import { SettingsService } from '../config/settings.service';
 export type ClaimViewDto = {
   claimId: string;
   winnerTicketRef: string;
@@ -59,7 +60,8 @@ export class ClaimsService {
     private readonly storage: StorageService,
     private readonly config: ConfigService,
     private readonly transfers: PaystackTransferService,
-    private readonly whtDeductions: WhtDeductionService
+    private readonly whtDeductions: WhtDeductionService,
+    private readonly settings: SettingsService,
   ) {}
 
   async listMine(phoneNumber: string): Promise<{ claims: ClaimViewDto[] }> {
@@ -97,13 +99,15 @@ export class ClaimsService {
       throw new ConflictException('The selection window for this claim has closed');
     }
 
+    const wht = await this.computeWht(claim.grossPrizeValueNgn, path);
+
     const updated = await this.prisma.prizeClaim.update({
       where: { claimId: claim.claimId },
       data: {
         claimType: path,
         claimTypeSelectedAt: new Date(),
         status: PrizeClaimStatus.SELECTION_MADE,
-        ...this.computeWht(claim.grossPrizeValueNgn, path),
+        ...wht,
       },
       include: this.viewInclude(),
     });
@@ -169,6 +173,8 @@ export class ClaimsService {
         throw new ConflictException(`Cannot approve — missing: ${missing.join(', ')}`);
       }
 
+      const wht = await this.computeWht(claim.grossPrizeValueNgn, claim.claimType!);
+
       const updated = await this.prisma.prizeClaim.update({
         where: { claimId },
         data: {
@@ -176,7 +182,7 @@ export class ClaimsService {
           kycReviewedBy: adminId,
           kycReviewedAt: new Date(),
           // Finalize WHT at certification time (backfills pre-WHT claims).
-          ...this.computeWht(claim.grossPrizeValueNgn, claim.claimType!),
+          ...wht,
         },
         include: this.viewInclude(),
       });
@@ -571,9 +577,11 @@ export class ClaimsService {
 
   // WHT applies to CASH prizes at/above the threshold. Integer naira,
   // rounded down in the winner's favour on the tax side.
-  private computeWht(grossNgn: number, path: ClaimType) {
-    const rate = Number(this.config.get('WHT_RATE_PERCENT') ?? 5);
-    const threshold = Number(this.config.get('WHT_THRESHOLD_NGN') ?? 0);
+ // WHT applies to CASH prizes at/above the threshold. Integer naira,
+  // rounded down in the winner's favour on the tax side.
+  private async computeWht(grossNgn: number, path: ClaimType) {
+    const rate = await this.settings.getNumber('WHT_RATE_PERCENT', 5);
+    const threshold = await this.settings.getNumber('WHT_THRESHOLD_NGN', 0);
 
     if (path !== ClaimType.CASH || grossNgn < threshold || rate === 0) {
       return { whtApplicable: false, whtAmountNgn: 0, netPrizeValueNgn: grossNgn };
