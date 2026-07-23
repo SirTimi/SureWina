@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Job, Worker } from 'bullmq';
 import { PrismaService } from './prisma.service';
-import { TermiiService } from './termii.service';
+import { V2nSmsService } from './v2n-sms.service';
 import {
   JOB_TICKET_CONFIRMATION_SMS,
   JOB_WINNER_SMS,
@@ -15,6 +15,7 @@ import {
   NOTIFICATIONS_QUEUE,
   TicketConfirmationSmsJob,
 } from './queue.contract';
+import { ticketPurchase, winnerNotice } from './sms-templates';
 
 @Injectable()
 export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
@@ -24,7 +25,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
-    private readonly termii: TermiiService,
+    private readonly sms: V2nSmsService,
   ) {}
 
   onModuleInit() {
@@ -78,6 +79,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
       this.config.get<string>('CLAIM_WINDOW_DAYS') ?? '30',
     );
     const now = Date.now();
+    const claimDeadlineAt = new Date(now + claimDays * 86_400_000);
 
     let claimId: string;
     try {
@@ -89,7 +91,7 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
           grossPrizeValueNgn: data.prizeValueNgn,
           netPrizeValueNgn: data.prizeValueNgn, // WHT applied at selection (8.5)
           selectionDeadlineAt: new Date(now + selectionDays * 86_400_000),
-          claimDeadlineAt: new Date(now + claimDays * 86_400_000),
+          claimDeadlineAt,
         },
       });
       claimId = claim.claimId;
@@ -107,27 +109,30 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    // 2. SMS, now with claiming instructions.
-    const webBase =
-      this.config.get<string>('PUBLIC_WEB_BASE_URL') ?? 'http://localhost:3000';
-    const message =
-      `Surewina: CONGRATULATIONS! Your entry ${data.winnerRef} WON the ` +
-      `${data.drawCode} draw: ${data.prizeDescription} ` +
-      `(worth NGN ${data.prizeValueNgn.toLocaleString('en-NG')}). ` +
-      `Sign in with this phone number at ${webBase} to claim. ` +
-      `You have ${selectionDays} days to choose your prize option.`;
+    // 2. Approved winner copy (SUREWINA_SMS_Draft), one segment.
+    const message = winnerNotice({
+      drawCode: data.drawCode,
+      scheduledAt: data.drawScheduledAt,
+      winnerRef: data.winnerRef,
+      prizeDescription: data.prizeDescription,
+      claimDeadlineAt,
+    });
 
-    await this.termii.sendSms(data.winnerPhone, message);
+    // Stable id: a BullMQ retry after a delivered-but-unacknowledged send is
+    // rejected by V2N as a duplicate rather than texting the winner twice.
+    await this.sms.sendSms(data.winnerPhone, message, `win-${claimId}`);
     this.logger.log(`Winner SMS processed for draw ${data.drawCode} (claim ${claimId})`);
   }
 
   private async handleTicketConfirmation(data: TicketConfirmationSmsJob) {
-    const refs = data.ticketRefs.join(', ');
-    const message =
-      `Surewina: payment of NGN ${data.amountNgn.toLocaleString('en-NG')} confirmed. ` +
-      `Your ticket${data.ticketRefs.length > 1 ? 's' : ''} for draw ${data.drawCode}: ${refs}. Good luck!`;
+    const message = ticketPurchase({
+      drawCode: data.drawCode,
+      scheduledAt: data.drawScheduledAt,
+      ticketRefs: data.ticketRefs,
+      amountNgn: data.amountNgn,
+    });
 
-    await this.termii.sendSms(data.buyerPhone, message);
+    await this.sms.sendSms(data.buyerPhone, message, `txn-${data.txnId}`);
 
     await this.prisma.ticket.updateMany({
       where: { paymentTxnId: data.txnId },

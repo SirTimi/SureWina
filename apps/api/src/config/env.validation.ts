@@ -47,4 +47,7 @@ export const envValidationSchema = Joi.object({
   PAYOUTS_MODE: Joi.string().valid('dev', 'paystack').default('dev'),
   AGENT_PAYOUT_MAX_NGN: Joi.number().integer().min(0).default(50000),
   REFUNDS_MODE: Joi.string().valid('dev', 'paystack').default('dev'),
+  V2N_USERNAME: Joi.string().allow('').optional(),
+  V2N_PASSWORD: Joi.string().allow('').optional(),
+  V2N_SENDER_ID: Joi.string().allow('').default('SureWina'),
 });

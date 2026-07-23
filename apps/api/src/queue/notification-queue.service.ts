@@ -15,6 +15,7 @@ export type TicketConfirmationSmsJob = {
   txnId: string;
   buyerPhone: string;
   drawCode: string;
+  drawScheduledAt: string;
   ticketRefs: string[];
   amountNgn: number;
 };

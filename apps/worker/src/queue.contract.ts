@@ -7,6 +7,7 @@ export type TicketConfirmationSmsJob = {
   buyerPhone: string;
   drawCode: string;
   ticketRefs: string[];
+  drawScheduledAt: string;
   amountNgn: number;
 };
 
@@ -18,5 +19,6 @@ export type WinnerSmsJob = {
   winnerPhone: string;
   winnerRef: string; // ticketRef or ENTRY-<id>
   prizeDescription: string;
+  drawScheduledAt: string;
   prizeValueNgn: number;
 };

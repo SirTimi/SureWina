@@ -25,6 +25,7 @@ import { AccountModule } from './account/account.module'
 import { SettingsModule } from './config/settings.module'
 import { DisputesModule } from './disputes/disputes.module'
 import {IdentityModule } from './agent-ops/kyc/identity.module'
+import { NotificationsModule} from './notifications/notifications.module'
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -57,7 +58,8 @@ import {IdentityModule } from './agent-ops/kyc/identity.module'
     AccountModule,
     SettingsModule, 
     DisputesModule, 
-    IdentityModule
+    IdentityModule,
+    NotificationsModule
   ],
   providers: [
     {

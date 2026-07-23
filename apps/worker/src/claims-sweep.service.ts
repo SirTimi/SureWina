@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { AuditActorType, AuditSeverity, PrizeClaimStatus } from '@prisma/client';
 import { PrismaService } from './prisma.service';
-import { TermiiService } from './termii.service';
+import { V2nSmsService } from './v2n-sms.service';
 
 const SWEEP_MS = 60_000;
 
@@ -23,7 +23,7 @@ export class ClaimsSweepService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly termii: TermiiService,
+    private readonly sms: V2nSmsService,
     private readonly config: ConfigService,
   ) {}
 
@@ -40,6 +40,7 @@ export class ClaimsSweepService implements OnModuleInit, OnModuleDestroy {
   private async tick(): Promise<void> {
     if (this.running) return;
     this.running = true;
+
     try {
       const now = new Date();
       const expired = await this.prisma.prizeClaim.findMany({
@@ -100,9 +101,10 @@ export class ClaimsSweepService implements OnModuleInit, OnModuleDestroy {
 
     // Honest closure SMS. Failure is non-fatal — the forfeiture stands.
     try {
-      await this.termii.sendSms(
+      await this.sms.sendSms(
         winnerPhone,
         `Surewina: the claim window for your winning entry ${winnerRef} has closed and the prize is now forfeited. If you believe this is an error, contact support.`,
+        `forfeit-${claimId}`,
       );
     } catch (error) {
       this.logger.warn(
