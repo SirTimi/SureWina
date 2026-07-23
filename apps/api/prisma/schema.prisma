@@ -76,6 +76,12 @@ model Agent {
   bankAccountLast4    String? @map("bank_account_last4")
   bankAccountNameHash String? @map("bank_account_name_hash")
 
+  ninHash             String? @map("nin_hash")
+  idDocPath           String? @map("id_doc_path")
+  idDocType           String? @map("id_doc_type")      // NIN_SLIP | DRIVERS_LICENCE | VOTERS_CARD | PASSPORT
+  onboardedByAdminId  String? @map("onboarded_by_admin_id")
+  onboardingNote      String? @db.Text @map("onboarding_note")
+
   createdAt           DateTime             @default(now()) @map("created_at")
   updatedAt           DateTime             @updatedAt @map("updated_at")
   tickets             Ticket[]

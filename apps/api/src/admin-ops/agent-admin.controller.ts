@@ -8,13 +8,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AdminRole, AgentStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEmail, IsEnum, IsIn, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
 import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
 import { AdminRoleGuard } from '../admin-auth/guards/admin-role.guard';
 import { AdminRoles } from '../admin-auth/decorators/admin-roles.decorator';
 import { CurrentAdmin } from '../admin-auth/guards/current-admin.decorator';
 import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
-import { AgentAdminService } from './agent-admin.service';
+import { AgentAdminService, type OnboardAgentInput } from './agent-admin.service';
 
 class ListAgentsQueryDto {
   @IsOptional()
@@ -29,6 +29,19 @@ class AgentActionDto {
   reason?: string;
 }
 
+class OnboardAgentDto {
+  @IsString() @Length(2, 120) fullName!: string;
+  @Matches(/^\+234\d{10}$/, { message: 'phoneNumber must be E.164 Nigerian (+234…)' })
+  phoneNumber!: string;
+  @IsOptional() @IsEmail() email?: string;
+  @IsString() @Length(2, 10) registeredStateCode!: string;
+  @Matches(/^\d{11}$/, { message: 'NIN must be 11 digits' }) nin!: string;
+  @Matches(/^\d{11}$/, { message: 'BVN must be 11 digits' }) bvn!: string;
+  @IsIn(['NIN_SLIP', 'DRIVERS_LICENCE', 'VOTERS_CARD', 'PASSPORT'])
+  idDocType!: string;
+  @IsOptional() @IsString() @Length(0, 1000) onboardingNote?: string;
+}
+
 @Controller('admin/agents')
 @UseGuards(AdminJwtGuard, AdminRoleGuard)
 @AdminRoles(AdminRole.OPERATOR)
@@ -38,6 +51,11 @@ export class AgentAdminController {
   @Get()
   list(@Query() q: ListAgentsQueryDto) {
     return this.agentAdmin.list(q.status);
+  }
+
+  @Post('onboard')
+  onboard(@Body() dto: OnboardAgentDto, @CurrentAdmin() admin: AdminJwtPayload) {
+    return this.agentAdmin.onboard(dto as OnboardAgentInput, admin.sub);
   }
 
   @Get(':agentId')

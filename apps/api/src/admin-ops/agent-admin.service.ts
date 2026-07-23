@@ -11,10 +11,25 @@ import {
   PaymentStatus,
   Prisma,
 } from '@prisma/client';
+import { createHash } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { IdentityVerificationService } from '../agent-ops/kyc/identity-verification.service';
 
 export type AgentAction = 'APPROVE' | 'SUSPEND' | 'REACTIVATE' | 'TERMINATE';
+
+// Shape captured at in-office onboarding. The controller's DTO validates it;
+// this type is what the service consumes.
+export type OnboardAgentInput = {
+  fullName: string;
+  phoneNumber: string;
+  email?: string;
+  registeredStateCode: string;
+  nin: string;
+  bvn: string;
+  idDocType: string;
+  onboardingNote?: string;
+};
 
 // Legal transitions. TERMINATED is terminal — rehiring is a new record.
 const TRANSITIONS: Record<AgentAction, { from: AgentStatus[]; to: AgentStatus }> = {
@@ -39,10 +54,12 @@ export class AgentAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly identity: IdentityVerificationService,
   ) {}
 
   async list(status?: AgentStatus, page = 1, pageSize = 20) {
     const where: Prisma.AgentWhereInput = status ? { status } : {};
+
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.agent.findMany({
         where,
@@ -63,6 +80,7 @@ export class AgentAdminService {
       }),
       this.prisma.agent.count({ where }),
     ]);
+
     return { agents: rows, total, page, pageSize };
   }
 
@@ -91,7 +109,9 @@ export class AgentAdminService {
       }),
     ]);
 
-    const { bvnHash: _bvn, ...safeAgent } = agent; // never surface the hash
+    // Identity hashes never leave the server.
+    const { bvnHash: _bvn, ninHash: _nin, idDocPath: _doc, ...safeAgent } = agent;
+
     return {
       agent: safeAgent,
       lifetime: {
@@ -118,6 +138,7 @@ export class AgentAdminService {
     const rule = TRANSITIONS[action];
     const agent = await this.prisma.agent.findUnique({ where: { agentId } });
     if (!agent) throw new NotFoundException('Agent not found');
+
     if (!rule.from.includes(agent.status)) {
       throw new ConflictException(
         `Cannot ${action} an agent in status ${agent.status}`,
@@ -150,5 +171,69 @@ export class AgentAdminService {
     });
 
     return { agentId, agentCode: agent.agentCode, status: rule.to };
+  }
+
+  // In-office onboarding: an admin captures identity documents in person.
+  // Creates the agent in PENDING_KYC — activation is the separate approve step.
+  async onboard(dto: OnboardAgentInput, adminId: string) {
+    const existing = await this.prisma.agent.findFirst({
+      where: {
+        OR: [{ phoneNumber: dto.phoneNumber }, ...(dto.email ? [{ email: dto.email }] : [])],
+      },
+    });
+    if (existing) {
+      throw new ConflictException('An agent with this phone or email already exists');
+    }
+
+    const [ninCheck, bvnCheck] = await Promise.all([
+      this.identity.verifyNin(dto.nin, dto.fullName),
+      this.identity.verifyBvn(dto.bvn, dto.fullName),
+    ]);
+    if (!ninCheck.verified) throw new ConflictException('NIN verification failed');
+    if (!bvnCheck.verified) throw new ConflictException('BVN verification failed');
+
+    const agentCode = await this.nextAgentCode(dto.registeredStateCode);
+
+    const agent = await this.prisma.agent.create({
+      data: {
+        agentCode,
+        fullName: dto.fullName,
+        phoneNumber: dto.phoneNumber,
+        email: dto.email ?? null,
+        registeredStateCode: dto.registeredStateCode.toUpperCase(),
+        status: AgentStatus.PENDING_KYC,
+        // Raw NIN/BVN are never stored — only their hashes.
+        bvnHash: createHash('sha256').update(dto.bvn).digest('hex'),
+        ninHash: createHash('sha256').update(dto.nin).digest('hex'),
+        idDocType: dto.idDocType,
+        onboardedByAdminId: adminId,
+        onboardingNote: dto.onboardingNote ?? null,
+      },
+    });
+
+    await this.audit.write({
+      severity: AuditSeverity.WARNING,
+      actor: { type: AuditActorType.ADMIN, id: adminId },
+      action: 'AGENT_ONBOARDED',
+      resource: { type: 'Agent', id: agent.agentId },
+      metadata: {
+        agentCode,
+        stateCode: agent.registeredStateCode,
+        ninLast4: dto.nin.slice(-4),
+        bvnLast4: dto.bvn.slice(-4),
+        idDocType: dto.idDocType,
+        // Flags agents onboarded before a real identity provider was wired.
+        devModeVerification: ninCheck.devMode || bvnCheck.devMode,
+      },
+    });
+
+    return { agentId: agent.agentId, agentCode, status: agent.status };
+  }
+
+  // Sequential per-state code. Count-based, so it can race under concurrent
+  // onboarding — acceptable while onboarding is one-admin-at-a-time in office.
+  private async nextAgentCode(stateCode: string): Promise<string> {
+    const count = await this.prisma.agent.count();
+    return `RD-AGT-${stateCode.toUpperCase()}${String(count + 1).padStart(4, '0')}`;
   }
 }
