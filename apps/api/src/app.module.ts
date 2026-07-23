@@ -24,7 +24,7 @@ import { AdminOpsModule } from './admin-ops/admin-ops.module';
 import { AccountModule } from './account/account.module'
 import { SettingsModule } from './config/settings.module'
 import { DisputesModule } from './disputes/disputes.module'
-
+import {IdentityModule } from './agent-ops/kyc/identity.module'
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -56,7 +56,8 @@ import { DisputesModule } from './disputes/disputes.module'
     AdminOpsModule,
     AccountModule,
     SettingsModule, 
-    DisputesModule
+    DisputesModule, 
+    IdentityModule
   ],
   providers: [
     {
