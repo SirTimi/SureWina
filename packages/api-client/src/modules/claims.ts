@@ -6,6 +6,7 @@ import type {
   SubmitKycBankRequest, SubmitKycBankResponse, SubmitKycBvnRequest,
   SubmitKycBvnResponse, SubmitKycDocumentRequest, SubmitKycDocumentResponse,
   ClaimKycStatus, ClaimPath,
+  ListCustomerDisputesResponse, RaiseDisputeRequest, RaiseDisputeResponse,
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
 
@@ -49,6 +50,7 @@ function toKycStatus(c: BackendClaim): ClaimKycStatus {
           : c.kycBvnVerified
             ? 'BVN_VERIFIED'
             : 'NOT_STARTED';
+
   return {
     claimId: c.claimId,
     status,
@@ -77,6 +79,7 @@ function base64ToBlob(input: string): Blob {
   for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
   return new Blob([arr], { type: mime });
 }
+
 export class ClaimsModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -90,6 +93,7 @@ export class ClaimsModule {
       .get<{ result: { rngSeedHash: string; executedAt: string } }>(
         `/results/${encodeURIComponent(c.drawCode)}`, { skipAuth: true })
       .catch(() => null);
+
     return {
       notification: {
         claimId: c.claimId,
@@ -246,5 +250,15 @@ export class ClaimsModule {
     };
   }
 
-  
+  // ── Disputes (E17) ────────────────────────────────────────
+  // Phone-scoped server-side by the customer JWT: a customer only ever sees
+  // and raises their own.
+
+  async listDisputes(): Promise<ListCustomerDisputesResponse> {
+    return this.client.get<ListCustomerDisputesResponse>('/disputes');
+  }
+
+  async raiseDispute(req: RaiseDisputeRequest): Promise<RaiseDisputeResponse> {
+    return this.client.post<RaiseDisputeResponse>('/disputes', req);
+  }
 }

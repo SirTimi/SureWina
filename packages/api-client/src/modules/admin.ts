@@ -491,6 +491,55 @@ export interface AdminUserRow {
   locked: boolean;
   createdAt: string;
 }
+
+export interface AdminDisputeRow {
+  disputeId: string;
+  disputeRef: string;
+  category: string;
+  status: 'OPEN' | 'UNDER_REVIEW' | 'ESCALATED' | 'RESOLVED' | 'REJECTED';
+  customerPhone: string;
+  subject: string;
+  raisedByType: 'CUSTOMER' | 'ADMIN' | 'SYSTEM';
+  assignedToAdminId: string | null;
+  eventCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminDisputeEvent {
+  eventId: string;
+  type: string;
+  actorType: string;
+  actorId: string;
+  note: string | null;
+  fromStatus: string | null;
+  toStatus: string | null;
+  createdAt: string;
+}
+
+export interface AdminDisputeDetail {
+  disputeId: string;
+  disputeRef: string;
+  category: string;
+  status: AdminDisputeRow['status'];
+  raisedByType: string;
+  raisedByAdminId: string | null;
+  customerPhone: string;
+  subject: string;
+  links: {
+    ticketRef: string | null;
+    paymentTxnId: string | null;
+    claimId: string | null;
+    agentCode: string | null;
+  };
+  assignedToAdminId: string | null;
+  resolutionNote: string | null;
+  resolvedByAdminId: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  events: AdminDisputeEvent[];
+}
 export class AdminModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -779,5 +828,33 @@ export class AdminModule {
     adminUserId: string,
   ): Promise<{ adminUserId: string; temporaryPassword: string }> {
     return this.client.post(`/admin/users/${encodeURIComponent(adminUserId)}/reset-password`, {});
+  }
+
+  async listDisputes(params?: { status?: string; customerPhone?: string }): Promise<{ disputes: AdminDisputeRow[] }> {
+    return this.client.get('/admin/disputes', { query: { ...params } });
+  }
+
+  async disputeDetail(disputeId: string): Promise<AdminDisputeDetail> {
+    return this.client.get(`/admin/disputes/${encodeURIComponent(disputeId)}`);
+  }
+
+  async createDispute(input: {
+    category: string;
+    subject: string;
+    customerPhone: string;
+    ticketRef?: string;
+    paymentTxnId?: string;
+    claimId?: string;
+    agentCode?: string;
+  }): Promise<AdminDisputeDetail> {
+    return this.client.post('/admin/disputes', input);
+  }
+
+  async addDisputeNote(disputeId: string, note: string): Promise<AdminDisputeDetail> {
+    return this.client.post(`/admin/disputes/${encodeURIComponent(disputeId)}/notes`, { note });
+  }
+
+  async transitionDispute(disputeId: string, to: string, note?: string): Promise<AdminDisputeDetail> {
+    return this.client.post(`/admin/disputes/${encodeURIComponent(disputeId)}/transition`, { to, note });
   }
 }

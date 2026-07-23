@@ -316,6 +316,37 @@ export interface GetClaimPathResponse {
   claim: ClaimPath;
 }
 
+export type CustomerDisputeStatus =
+  | 'OPEN'
+  | 'UNDER_REVIEW'
+  | 'ESCALATED'
+  | 'RESOLVED'
+  | 'REJECTED';
+
+export interface CustomerDisputeRow {
+  disputeRef: string;
+  category: string;
+  status: CustomerDisputeStatus;
+  subject: string;
+  createdAt: string;
+  resolutionNote: string | null;
+}
+
+export interface ListCustomerDisputesResponse {
+  disputes: CustomerDisputeRow[];
+}
+
+export interface RaiseDisputeRequest {
+  category: string;
+  subject: string;
+  ticketRef?: string;
+  paymentTxnId?: string;
+  claimId?: string;
+}
+
+export interface RaiseDisputeResponse {
+  disputeRef: string;
+}
 export interface ChooseClaimPathRequest {
   claimId: string;
   path: 'PRODUCT' | 'CASH';
@@ -497,3 +528,4 @@ export interface VerifyAgentOtpResponse {
   /** True on the agent's very first sign-in. UI shows agent code prominently. */
   isFirstSignIn: boolean;
 }
+
