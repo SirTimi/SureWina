@@ -857,4 +857,21 @@ export class AdminModule {
   async transitionDispute(disputeId: string, to: string, note?: string): Promise<AdminDisputeDetail> {
     return this.client.post(`/admin/disputes/${encodeURIComponent(disputeId)}/transition`, { to, note });
   }
+
+  async onboardAgent(input: {
+    fullName: string;
+    phoneNumber: string;
+    email?: string;
+    registeredStateCode: string;
+    nin: string;
+    bvn: string;
+    idDocType: string;
+    onboardingNote?: string;
+  }): Promise<{ agentId: string; agentCode: string; status: string }> {
+    return this.client.post('/admin/agents/onboard', input);
+  }
+
+  async approveAgent(agentId: string): Promise<{ agentId: string; agentCode: string; status: string }> {
+    return this.client.post(`/admin/agents/${encodeURIComponent(agentId)}/approve`, {});
+  }
 }
