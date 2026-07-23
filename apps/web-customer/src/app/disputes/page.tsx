@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { CustomerDisputeRow } from '@surewina/api-client';
 import { api } from '@/lib/api';
-import { isSignedIn } from '@/lib/auth'; // ← match the customer portal's auth hook
+import { isSignedIn } from '@/lib/auth';
 
 const CATEGORIES = [
   { value: 'PAYMENT_NO_TICKET', label: 'I paid but got no ticket' },
@@ -39,6 +39,7 @@ export default function CustomerDisputesPage() {
       .finally(() => setLoading(false));
   };
 
+  // localStorage isn't available during SSR, so the check runs after mount.
   useEffect(() => {
     const ok = isSignedIn();
     setSignedIn(ok);
@@ -46,7 +47,7 @@ export default function CustomerDisputesPage() {
     else setLoading(false);
   }, []);
 
-  if (!isSignedIn) {
+  if (!signedIn) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="text-2xl font-black text-[#0B1220]">Report a problem</h1>
@@ -63,7 +64,9 @@ export default function CustomerDisputesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-[#0B1220]">Your reports</h1>
-          <p className="mt-1 text-sm text-slate-600">Problems you've reported and where they stand.</p>
+          <p className="mt-1 text-sm text-slate-600">
+            Problems you&apos;ve reported and where they stand.
+          </p>
         </div>
         <button
           type="button"
@@ -85,7 +88,8 @@ export default function CustomerDisputesPage() {
           <div className="h-32 animate-pulse rounded-xl bg-slate-100" />
         ) : rows.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            You haven't reported any problems. If something's wrong, tap "Report a problem".
+            You haven&apos;t reported any problems. If something&apos;s wrong, tap
+            &quot;Report a problem&quot;.
           </div>
         ) : (
           rows.map((d) => {
@@ -146,7 +150,9 @@ function RaiseForm({ onDone, onError }: { onDone: () => void; onError: (m: strin
   return (
     <form onSubmit={submit} className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-5">
       <div>
-        <label className="mb-1.5 block text-sm font-bold text-[#0B1220]">What's the problem?</label>
+        <label className="mb-1.5 block text-sm font-bold text-[#0B1220]">
+          What&apos;s the problem?
+        </label>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
