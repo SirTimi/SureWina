@@ -29,8 +29,24 @@ async function bootstrap() {
 
   // CORS first: preflights must be answered before anything else can
   // interfere. Browser clients (the Next portals) depend on this.
+  // Explicit allowlist. `origin: true` reflects any origin, which combined
+  // with credentials lets any site use a visitor's refresh cookie to mint
+  // access tokens. Requests with no Origin (webhooks, curl, server-to-server)
+  // are allowed through — CORS is a browser mechanism and doesn't apply.
+  const allowedOrigins = (
+    process.env.CORS_ALLOWED_ORIGINS ??
+    'http://localhost:3000,http://localhost:3001,http://localhost:3002'
+  )
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   await app.register(cors as never, {
-    origin: true,
+    origin: (origin: string | undefined, cb: (err: Error | null, allow: boolean) => void) => {
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error(`Origin ${origin} is not allowed`), false);
+    },
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
