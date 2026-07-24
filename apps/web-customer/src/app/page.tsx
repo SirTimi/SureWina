@@ -8,6 +8,10 @@ import { JackpotExplainer } from '@/components/jackpot-explainer';
 import { RecentWinners } from '@/components/recent-winners';
 import { MarqueeBar } from '@/components/marquee-bar';
 
+
+// Draws change daily — never serve a build-time snapshot.
+export const revalidate = 60;
+
 export default async function HomePage() {
   const [{ draws }, recentStats] = await Promise.all([
     api.draws.listActive(),
