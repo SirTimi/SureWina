@@ -227,6 +227,7 @@ export class ExecutionService implements OnModuleInit, OnModuleDestroy {
         drawCode: draw.drawCode,
         winnerPhone: winner.buyerPhone,
         winnerRef: winner.id,
+        drawScheduledAt: draw.scheduledAt.toISOString(),
         prizeDescription: draw.prizeDescription,
         prizeValueNgn: draw.prizeValueNgn,
       });

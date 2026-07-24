@@ -121,6 +121,7 @@ export class AgentSalesService {
         txnId: txn.txnId,
         buyerPhone: dto.customerPhone,
         drawCode: draw.drawCode,
+        drawScheduledAt: draw.scheduledAt.toISOString(),
         ticketRefs,
         amountNgn,
       });

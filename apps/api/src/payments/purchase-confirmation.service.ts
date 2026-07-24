@@ -19,6 +19,7 @@ export type ConfirmedPurchase = {
   txnId: string;
   buyerPhone: string;
   drawCode: string;
+  drawScheduledAt: string;
   ticketRefs: string[];
   amountNgn: number;
 };
@@ -159,6 +160,7 @@ export class PurchaseConfirmationService {
         txnId,
         buyerPhone: txn.buyerPhone,
         drawCode: draw.drawCode,
+        drawScheduledAt: draw.scheduledAt.toISOString(),
         ticketRefs: ticketsData.map((t) => t.ticketRef),
         amountNgn: txn.amountNgn,
       };

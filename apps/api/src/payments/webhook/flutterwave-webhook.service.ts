@@ -45,6 +45,7 @@ export class FlutterwaveWebhookService {
           txnId: confirmed.txnId,
           buyerPhone: confirmed.buyerPhone,
           drawCode: confirmed.drawCode,
+          drawScheduledAt: confirmed.drawScheduledAt,
           ticketRefs: confirmed.ticketRefs,
           amountNgn: confirmed.amountNgn,
         });

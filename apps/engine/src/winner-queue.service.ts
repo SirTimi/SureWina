@@ -14,6 +14,7 @@ const JOB_WINNER_SMS = 'winner-sms';
 export type WinnerSmsJob = {
   drawId: string;
   drawCode: string;
+  drawScheduledAt: string;
   winnerPhone: string;
   winnerRef: string;
   prizeDescription: string;

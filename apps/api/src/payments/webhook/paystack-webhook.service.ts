@@ -51,6 +51,7 @@ export class PaystackWebhookService {
           buyerPhone: confirmed.buyerPhone,
           drawCode: confirmed.drawCode,
           ticketRefs: confirmed.ticketRefs,
+          drawScheduledAt: confirmed.drawScheduledAt,
           amountNgn: confirmed.amountNgn,
         });
       }
