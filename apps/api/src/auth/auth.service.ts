@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -19,9 +20,11 @@ import {
 } from './auth.types';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { V2nSmsProvider } from '../notifications/v2n-sms.provider';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly otpKeyPrefix = 'auth:customer:otp';
   private readonly refreshSessionKeyPrefix = 'auth:customer:refresh-session';
 
@@ -31,6 +34,7 @@ export class AuthService {
     private readonly prismaService: PrismaService,
     private readonly redisService: RedisService,
     private readonly auditService: AuditService,
+    private readonly sms: V2nSmsProvider,
   ) {}
 
   async requestOtp(dto: RequestOtpDto) {
@@ -58,6 +62,27 @@ export class AuthService {
       ttlSeconds,
     );
 
+    // Deliver the code. A send failure is logged, not thrown: the challenge
+    // already exists, and surfacing delivery status would tell an attacker
+    // which numbers are reachable.
+    const delivery = await this.sms.send(
+      dto.phoneE164,
+      [
+        'SUREWINA',
+        `OTP: ${otp}`,
+        `Expiry: ${Math.round(ttlSeconds / 60)} Mins`,
+        'Do not share this code with anyone.',
+        'Customer care: 080 8000 9000',
+      ].join('\n'),
+      `otp-${challengeId}`,
+    );
+
+    if (!delivery.sent) {
+      this.logger.error(
+        `OTP SMS failed for ${this.maskPhone(dto.phoneE164)}: ${delivery.reason ?? 'unknown'}`,
+      );
+    }
+
     await this.auditService.write({
       actor: {
         type: AuditActorType.CUSTOMER,
@@ -70,6 +95,8 @@ export class AuthService {
       metadata: {
         phoneE164: this.maskPhone(dto.phoneE164),
         expiresAt: expiresAt.toISOString(),
+        smsSent: delivery.sent,
+        smsDevMode: delivery.devMode,
       },
     });
 
