@@ -15,7 +15,8 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { CurrentUser } from './guards/current-user.decorator';
 import { CustomerJwtGuard } from './guards/customer-jwt.guard';
 import { AccountService } from '../account/account.service'
-
+import { Throttle } from '@nestjs/throttler';
+import { OtpRateLimitGuard } from './guards/otp-rate-limit.guard'
 type RequestWithCookies = FastifyRequest & {
   cookies?: Record<string, string>;
 };
@@ -37,6 +38,8 @@ export class AuthController {
   
   ) {}
 
+  @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
+  @UseGuards(OtpRateLimitGuard)
   @Post('otp/request')
   requestOtp(@Body() dto: RequestOtpDto) {
     return this.authService.requestOtp(dto);

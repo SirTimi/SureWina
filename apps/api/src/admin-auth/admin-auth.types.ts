@@ -4,6 +4,7 @@ export type AdminJwtPayload = {
   sub: string;
   email: string;
   role: AdminRole;
+  tier: AdminTier;
   type: 'admin';
 };
 

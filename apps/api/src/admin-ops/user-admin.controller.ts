@@ -27,6 +27,8 @@ import { CurrentAdmin } from '../admin-auth/guards/current-admin.decorator';
 import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../database/prisma.service';
+import { AdminTierGuard } from '../admin-auth/guards/admin-tier.guard';
+import { MinTier } from '../admin-auth/decorators/min-tier.decorator';
 
 class CreateAdminDto {
   @IsEmail() email!: string;
@@ -61,7 +63,7 @@ const SAFE_SELECT = {
 } as const;
 
 @Controller('admin/users')
-@UseGuards(AdminJwtGuard, AdminRoleGuard)
+@UseGuards(AdminJwtGuard, AdminRoleGuard, AdminTierGuard)
 @AdminRoles(AdminRole.OPERATOR)
 export class UserAdminController {
   constructor(
@@ -88,6 +90,7 @@ export class UserAdminController {
     return this.toView(u);
   }
 
+  @MinTier(AdminTier.SUPER)
   @Post()
   async create(@Body() dto: CreateAdminDto, @CurrentAdmin() actor: AdminJwtPayload) {
     const exists = await this.prisma.adminUser.findUnique({ where: { email: dto.email } });
@@ -119,6 +122,8 @@ export class UserAdminController {
     return { ...this.toView(created), temporaryPassword: password };
   }
 
+
+  @MinTier(AdminTier.SUPER)
   @Patch(':adminUserId')
   async update(
     @Param('adminUserId') adminUserId: string,
@@ -157,6 +162,7 @@ export class UserAdminController {
     return this.toView(updated);
   }
 
+  @MinTier(AdminTier.SUPER)
   @Post(':adminUserId/reset-password')
   async resetPassword(
     @Param('adminUserId') adminUserId: string,

@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import {
   AdminRole,
+  AdminTier,
   AuditActorType,
   AuditSeverity,
   ConfigVersionStatus,
@@ -35,6 +36,7 @@ import { CurrentAdmin } from '../admin-auth/guards/current-admin.decorator';
 import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../database/prisma.service';
+import { MinTier } from '../admin-auth/decorators/min-tier.decorator';
 
 class ProposeTemplateDto {
   @IsEnum(DrawTemplateType) templateType!: DrawTemplateType;
@@ -78,6 +80,7 @@ export class DrawTemplateController {
 
   // Proposing never edits in place: it creates the next version in
   // PENDING_APPROVAL, leaving the current ACTIVE config untouched.
+  @MinTier(AdminTier.INTERMEDIATE)
   @Post()
   async propose(
     @Body() dto: ProposeTemplateDto,
@@ -143,6 +146,7 @@ export class DrawTemplateController {
     return this.toView(created);
   }
 
+  @MinTier(AdminTier.SUPER)
   @Post(':templateId/approve')
   async approve(
     @Param('templateId') templateId: string,
@@ -198,6 +202,7 @@ export class DrawTemplateController {
     return this.toView(activated);
   }
 
+  @MinTier(AdminTier.SUPER)
   @Post(':templateId/reject')
   async reject(
     @Param('templateId') templateId: string,

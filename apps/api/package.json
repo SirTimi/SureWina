@@ -31,6 +31,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-fastify": "^11.0.1",
+    "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.16.0",
     "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^3.0.0",

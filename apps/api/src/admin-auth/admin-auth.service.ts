@@ -153,6 +153,7 @@ export class AdminAuthService {
       sub: updatedAdmin.adminUserId,
       email: updatedAdmin.email,
       role: updatedAdmin.role,
+      tier: updatedAdmin.tier,
       type: 'admin',
     });
 
@@ -168,6 +169,7 @@ export class AdminAuthService {
       },
       metadata: {
         role: updatedAdmin.role,
+        tier: updatedAdmin.tier,
       },
     });
 

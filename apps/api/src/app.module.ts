@@ -26,6 +26,8 @@ import { SettingsModule } from './config/settings.module'
 import { DisputesModule } from './disputes/disputes.module'
 import {IdentityModule } from './agent-ops/kyc/identity.module'
 import { NotificationsModule} from './notifications/notifications.module'
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -59,12 +61,22 @@ import { NotificationsModule} from './notifications/notifications.module'
     SettingsModule, 
     DisputesModule, 
     IdentityModule,
-    NotificationsModule
+    NotificationsModule,
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: 120,
+      },
+    ]),
   ],
   providers: [
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
+    },
+    {
+      provide: APP_GUARD, useClass: ThrottlerGuard
     },
   ],
 })

@@ -17,6 +17,9 @@ import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../database/prisma.service';
 import { SettingsService } from '../config/settings.service';
+import { AdminTier } from '@prisma/client';
+import { AdminTierGuard } from '../admin-auth/guards/admin-tier.guard';
+import { MinTier } from '../admin-auth/decorators/min-tier.decorator';
 
 class UpdateSettingDto {
   // Settings are numeric-only today; the pattern keeps garbage out at the door.
@@ -27,7 +30,7 @@ class UpdateSettingDto {
 }
 
 @Controller('admin/settings')
-@UseGuards(AdminJwtGuard, AdminRoleGuard)
+@UseGuards(AdminJwtGuard, AdminRoleGuard, AdminTierGuard)
 @AdminRoles(AdminRole.OPERATOR)
 export class SettingsAdminController {
   constructor(
@@ -50,6 +53,7 @@ export class SettingsAdminController {
     };
   }
 
+  @MinTier(AdminTier.SUPER)
   @Patch(':key')
   async update(
     @Param('key') key: string,
