@@ -13,6 +13,9 @@ import { formatNaira } from '@surewina/utils';
 import { api } from '@/lib/api';
 import { DrawCard } from '@/components/draw-card';
 
+// Draws change daily — never serve a build-time snapshot.
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: 'Active draws · Surewina',
   description:

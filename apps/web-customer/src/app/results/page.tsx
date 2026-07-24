@@ -5,6 +5,9 @@ import { formatNaira } from '@surewina/utils';
 import { api } from '@/lib/api';
 import { formatDrawDateShort, formatDrawTime } from '@/lib/draw-helpers';
 
+// Draws change daily — never serve a build-time snapshot.
+export const revalidate = 60;
+
 export default async function ResultsPage() {
   const { results } = await api.draws.listResults({ pageSize: 20 });
 

@@ -14,6 +14,9 @@ import {
 import { Button, Card, Container } from '@surewina/ui';
 import { LegalPageHeader } from '@/components/legal-page-header';
 
+// Draws change daily — never serve a build-time snapshot.
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: 'Audit Method · Surewina',
   description:
