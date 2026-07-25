@@ -18,6 +18,20 @@ export interface AdminMe {
   lastLoginAt: string | null;
 }
 
+export interface AdminAuthResponse {
+  accessToken: string;
+  tokenType: string;
+  expiresInSeconds: number;
+  admin: AdminMe;
+}
+export interface AdminMfaChallenge {
+  mfaRequired: true;
+  challengeId: string;
+  expiresInSeconds: number;
+}
+
+export type AdminLoginResult = AdminAuthResponse | AdminMfaChallenge;
+
 export interface AdminDashboard {
   asOf: string;
   today: {
@@ -540,18 +554,36 @@ export interface AdminDisputeDetail {
   updatedAt: string;
   events: AdminDisputeEvent[];
 }
+
 export class AdminModule {
   constructor(private readonly client: ApiClient) {}
 
-  async login(
-    email: string,
-    password: string,
-  ): Promise<{ accessToken: string; tokenType: string; expiresInSeconds: number; admin: AdminMe }> {
+  // Returns either a token, or an MFA challenge when the admin has MFA on.
+  async login(email: string, password: string): Promise<AdminLoginResult> {
     return this.client.post(
       '/admin/auth/login',
       { email, password },
       { skipAuth: true },
     );
+  }
+
+  // Second stage of login — accepts a TOTP code or a backup code.
+  async verifyMfa(challengeId: string, code: string): Promise<AdminAuthResponse> {
+    return this.client.post(
+      '/admin/auth/mfa/verify',
+      { challengeId, code },
+      { skipAuth: true },
+    );
+  }
+
+  // Enrollment: returns the secret + otpauth URI for the QR code.
+  async setupMfa(): Promise<{ secret: string; otpauthUri: string }> {
+    return this.client.post('/admin/auth/mfa/setup', {});
+  }
+
+  // Confirms enrollment with a live code; backup codes are shown once.
+  async activateMfa(token: string): Promise<{ backupCodes: string[] }> {
+    return this.client.post('/admin/auth/mfa/activate', { token });
   }
 
   async getMe(): Promise<AdminMe> {

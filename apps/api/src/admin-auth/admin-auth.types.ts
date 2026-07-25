@@ -22,3 +22,16 @@ export type AdminAuthResponse = {
     lastLoginAt: Date | null;
   };
 };
+
+export type AdminMfaChallengeResponse = {
+  mfaRequired: true;
+  challengeId: string;
+  expiresInSeconds: number;
+};
+
+export type AdminLoginResult = AdminAuthResponse | AdminMfaChallengeResponse;
+
+export type AdminMfaChallenge = {
+  adminUserId: string;
+  createdAt: string;
+};
