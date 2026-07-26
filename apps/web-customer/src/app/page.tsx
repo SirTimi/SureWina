@@ -31,7 +31,14 @@ export default async function HomePage() {
 
   const dailyDraw = drawsWithStats.find((d) => d.draw.drawType === 'DAILY_STANDARD');
 
-  const homepageDraws = drawsWithStats.slice(0, 2);
+  // Today's daily plus the next jackpot — the two a visitor can act on now.
+  // Falls back to the earliest draws if either is missing.
+  const nextDaily = drawsWithStats.find((d) => d.draw.drawType === 'DAILY_STANDARD');
+  const nextJackpot = drawsWithStats.find((d) => d.draw.drawType === 'SATURDAY_JACKPOT');
+
+  const homepageDraws = [nextDaily, nextJackpot].filter(
+    (d): d is NonNullable<typeof d> => Boolean(d),
+  );
 
   return (
     <>

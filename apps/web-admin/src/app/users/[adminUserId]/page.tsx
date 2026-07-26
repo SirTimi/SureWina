@@ -10,6 +10,7 @@ import { SectionCard } from '@/components/section-card';
 import { StatusPill } from '@/components/status-pill';
 import { canPerformAdminAction, type AdminSession } from '@/lib/admin-auth';
 import { api } from '@/lib/api';
+import { MfaEnrollment } from '@/components/mfa-enrollment';
 
 const ROLES = ['OPERATOR', 'COMPLIANCE_OFFICER', 'FINANCE_OFFICER', 'SUPPORT_AGENT'];
 const TIERS = ['BASIC', 'INTERMEDIATE', 'SUPER', 'AUDITOR'];
@@ -27,7 +28,8 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
   const [newPassword, setNewPassword] = useState<string | null>(null);
 
   const canManage = canPerformAdminAction(session.tier, 'APPROVE_DRAW_SETUP');
-  const isSelf = user?.email === session.email;
+  // Identity, not email: ids are stable and unique, emails can be edited.
+  const isSelf = user?.adminUserId === session.adminUserId;
 
   const load = () => {
     setLoading(true);
@@ -150,6 +152,10 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
             })}
           </Row>
         </SectionCard>
+
+        {isSelf && (
+          <MfaEnrollment mfaEnabled={user.mfaEnabled} onEnrolled={load} />
+        )}
 
         {canManage && !isSelf && (
           <SectionCard title="Manage" description="Changes are audited with their previous values.">
