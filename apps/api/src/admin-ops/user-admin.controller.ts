@@ -29,6 +29,7 @@ import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../database/prisma.service';
 import { AdminTierGuard } from '../admin-auth/guards/admin-tier.guard';
 import { MinTier } from '../admin-auth/decorators/min-tier.decorator';
+import { AdminTokenRevocationService } from '../admin-auth/admin-token-revocation.service';
 
 class CreateAdminDto {
   @IsEmail() email!: string;
@@ -69,6 +70,7 @@ export class UserAdminController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly revocation: AdminTokenRevocationService
   ) {}
 
   @Get()
@@ -138,6 +140,10 @@ export class UserAdminController {
       throw new ConflictException('You cannot change your own role, tier, or active status');
     }
 
+    if (dto.isActive === false || dto.tier || dto.role) {
+      await this.revocation.revokeAll(adminUserId)
+    }
+
     const updated = await this.prisma.adminUser.update({
       where: { adminUserId },
       data: {
@@ -178,6 +184,8 @@ export class UserAdminController {
       where: { adminUserId },
       data: { passwordHash, failedAttempts: 0, lockedUntil: null },
     });
+
+    await this.revocation.revokeAll(adminUserId)
 
     await this.audit.write({
       severity: AuditSeverity.CRITICAL,

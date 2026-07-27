@@ -8,12 +8,14 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { FastifyRequest } from 'fastify';
 import { AdminJwtPayload } from '../admin-auth.types';
+import { AdminTokenRevocationService } from '../admin-token-revocation.service';
 
 @Injectable()
 export class AdminJwtGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly revocation: AdminTokenRevocationService
   ) {}
 
   async canActivate(context: ExecutionContext) {
@@ -40,6 +42,10 @@ export class AdminJwtGuard implements CanActivate {
 
       if (payload.type !== 'admin') {
         throw new UnauthorizedException('Invalid token type');
+      }
+
+      if (await this.revocation.isRevoked(payload.sub, payload.iat)) {
+        throw new UnauthorizedException('Session revoked - please sign in again')
       }
 
       request.user = payload;

@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
-
+import { RedisService } from '../redis/redis.service'
+import { Redis } from 'ioredis';
 export type SmsSendResult = {
   sent: boolean;
   devMode: boolean;
@@ -19,7 +20,10 @@ const V2N_BASE = 'https://v2nmobile.com/api';
 export class V2nSmsProvider {
   private readonly logger = new Logger(V2nSmsProvider.name);
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly redis: RedisService
+  ) {}
 
   private credentials(): { auth: string; sender: string } | null {
     const user = this.config.get<string>('V2N_USERNAME');
@@ -36,12 +40,28 @@ export class V2nSmsProvider {
     return phone.replace(/\D/g, '');
   }
 
+  private dailyCapKey(): string {
+    return `sms:sent:${new Date().toISOString().slice(0, 10)}`;
+  }
+
   async send(to: string, message: string, messageId?: string): Promise<SmsSendResult> {
     const creds = this.credentials();
 
     if (!creds) {
       this.logger.warn(`[DEV SMS] to ${to}: ${message}`);
       return { sent: true, devMode: true };
+    }
+
+    const dailyCap = Number(this.config.get('SMS_DAILY_CAP') ?? 300);
+    const key = this.dailyCapKey();
+    const sentToday = await this.redis.increment(key);
+    if (sentToday === 1) await this.redis.expire(key, 172_800); // 48h, self-cleaning
+
+    if (sentToday > dailyCap) {
+      this.logger.error(
+        `SMS daily cap reached (${sentToday}/${dailyCap}) — refusing to send to ${to.slice(-4)}`,
+      );
+      return { sent: false, devMode: false, reason: 'DAILY_CAP_REACHED' };
     }
 
     // id must be unique per message — V2N rejects duplicates outright.

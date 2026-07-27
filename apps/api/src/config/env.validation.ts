@@ -50,4 +50,5 @@ export const envValidationSchema = Joi.object({
   V2N_USERNAME: Joi.string().allow('').optional(),
   V2N_PASSWORD: Joi.string().allow('').optional(),
   V2N_SENDER_ID: Joi.string().allow('').default('SureWina'),
+  SMS_DAILY_CAP: Joi.number().integer().min(1).default(300)
 });

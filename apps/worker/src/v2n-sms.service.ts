@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
+import Redis from 'ioredis'
 
 const V2N_BASE = 'https://v2nmobile.com/api';
 

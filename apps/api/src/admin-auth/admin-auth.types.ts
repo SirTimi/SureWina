@@ -6,6 +6,7 @@ export type AdminJwtPayload = {
   role: AdminRole;
   tier: AdminTier;
   type: 'admin';
+  iat?: number;
 };
 
 export type AdminAuthResponse = {
