@@ -67,7 +67,6 @@ export interface InitiatePurchaseRequest {
   quantity: number;
   phoneE164: string;
   stateOfPlayCode: string;
-  paymentMethod: PaymentMethod;
 }
 
 export interface InitiatePurchaseResponse {

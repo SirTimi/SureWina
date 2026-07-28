@@ -20,9 +20,6 @@ export const purchaseSchema = z.object({
     .refine((val) => isValidStateCode(val), {
       message: 'Invalid state code',
     }),
-  paymentMethod: z.enum(['CARD', 'TRANSFER', 'USSD', 'OPAY'], {
-    message: 'Select a payment method',
-  }),
   // Use boolean + refine instead of z.literal(true) so the form input type
   // accepts `false` for the unchecked default state, but rejects it on submit.
   ageConfirmed: z.boolean().refine((v) => v === true, {

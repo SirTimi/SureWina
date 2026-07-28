@@ -24,13 +24,6 @@ interface BuyFormProps {
   initialQuantity: number;
 }
 
-const paymentMethods = [
-  { id: 'CARD' as const, label: 'Card / Bank', sublabel: 'Visa, Verve, Mastercard' },
-  { id: 'TRANSFER' as const, label: 'Bank transfer', sublabel: 'Direct from your bank app' },
-  { id: 'USSD' as const, label: 'USSD', sublabel: '*894#' },
-  { id: 'OPAY' as const, label: 'OPay wallet', sublabel: 'Pay from OPay balance' },
-];
-
 export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
   const router = useRouter();
   const states = getAllStatesSorted();
@@ -48,16 +41,15 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
       quantity: initialQuantity,
       phone: '',
       stateOfPlayCode: '',
-      paymentMethod: 'CARD',
       ageConfirmed: false,
     },
   });
 
   const quantity = watch('quantity');
-  const paymentMethod = watch('paymentMethod');
+
   const isJackpotPurchase = draw.drawType === 'SATURDAY_JACKPOT';
-const freeJackpotEntries = getFreeJackpotEntriesFromRegularTickets(quantity ?? 0);
-const ticketsToNextJackpotEntry = getTicketsToNextFreeJackpotEntry(quantity ?? 0);
+  const freeJackpotEntries = getFreeJackpotEntriesFromRegularTickets(quantity ?? 0);
+  const ticketsToNextJackpotEntry = getTicketsToNextFreeJackpotEntry(quantity ?? 0);
 
   const adjustQuantity = (delta: number) => {
     const next = Math.max(1, Math.min(100, (quantity ?? 1) + delta));
@@ -73,7 +65,6 @@ const ticketsToNextJackpotEntry = getTicketsToNextFreeJackpotEntry(quantity ?? 0
         quantity: data.quantity,
         phoneE164: data.phone,
         stateOfPlayCode: data.stateOfPlayCode,
-        paymentMethod: data.paymentMethod,
       });
 
       router.push(result.redirectUrl);
@@ -134,34 +125,34 @@ const ticketsToNextJackpotEntry = getTicketsToNextFreeJackpotEntry(quantity ?? 0
         {errors.quantity && <FieldError message={errors.quantity.message} />}
 
         {!isJackpotPurchase && quantity >= 1 && (
-  <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
-    <p className="text-sm font-bold text-navy-950">
-      {freeJackpotEntries > 0
-        ? `${freeJackpotEntries} free Sure Jackpot ${
-            freeJackpotEntries === 1 ? 'entry' : 'entries'
-          } unlocked with this purchase.`
-        : `${ticketsToNextJackpotEntry} more regular ticket${
-            ticketsToNextJackpotEntry === 1 ? '' : 's'
-          } to unlock 1 free Sure Jackpot entry.`}
-    </p>
-    <p className="mt-1 text-xs leading-relaxed text-slate-500">
-      Every 10 regular ₦500 tickets gives the customer 1 free entry into the coming
-      Saturday jackpot draw.
-    </p>
-  </div>
-)}
+          <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+            <p className="text-sm font-bold text-navy-950">
+              {freeJackpotEntries > 0
+                ? `${freeJackpotEntries} free Sure Jackpot ${
+                    freeJackpotEntries === 1 ? 'entry' : 'entries'
+                  } unlocked with this purchase.`
+                : `${ticketsToNextJackpotEntry} more regular ticket${
+                    ticketsToNextJackpotEntry === 1 ? '' : 's'
+                  } to unlock 1 free Sure Jackpot entry.`}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Every 10 regular ₦500 tickets gives the customer 1 free entry into the coming
+              Saturday jackpot draw.
+            </p>
+          </div>
+        )}
 
-{isJackpotPurchase && (
-  <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
-    <p className="text-sm font-bold text-navy-950">
-      This is a direct Sure Jackpot ticket.
-    </p>
-    <p className="mt-1 text-xs leading-relaxed text-slate-500">
-      Jackpot tickets bought directly go straight into the coming Saturday jackpot
-      draw bucket.
-    </p>
-  </div>
-)}
+        {isJackpotPurchase && (
+          <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+            <p className="text-sm font-bold text-navy-950">
+              This is a direct Sure Jackpot ticket.
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Jackpot tickets bought directly go straight into the coming Saturday jackpot
+              draw bucket.
+            </p>
+          </div>
+        )}
       </Card>
 
       <Card
@@ -248,41 +239,18 @@ const ticketsToNextJackpotEntry = getTicketsToNextFreeJackpotEntry(quantity ?? 0
         className="rounded-3xl border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] sm:p-6"
       >
         <p className="mb-5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">
-          Payment method
+          Payment
         </p>
 
-        <p className="mb-3 block text-sm font-black text-navy-950">Pay with</p>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {paymentMethods.map((m) => {
-            const isSelected = paymentMethod === m.id;
-
-            return (
-              <label
-                key={m.id}
-                className={
-                  isSelected
-                    ? 'flex cursor-pointer items-start gap-3 rounded-sm border-2 border-navy-700 bg-amber-50 p-3 sm:p-4'
-                    : 'flex cursor-pointer items-start gap-3 rounded-sm border border-slate-200 bg-white p-3 transition hover:border-amber-500 sm:p-4'
-                }
-              >
-                <input
-                  type="radio"
-                  value={m.id}
-                  {...register('paymentMethod')}
-                  className="mt-1 h-4 w-4 shrink-0 accent-navy-700"
-                />
-
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-sm font-black text-navy-950">{m.label}</span>
-                  <span className="text-xs text-slate-500">{m.sublabel}</span>
-                </div>
-              </label>
-            );
-          })}
+        {/* No method picker here: Paystack's checkout offers card, transfer,
+            USSD and mobile money, so choosing twice was redundant. */}
+        <div className="rounded-sm border border-slate-200 bg-[#F8FAF4] p-4">
+          <p className="text-sm font-black text-navy-950">Pay with Paystack</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            Card, bank transfer, USSD or mobile money — choose your method on the next
+            screen.
+          </p>
         </div>
-
-        {errors.paymentMethod && <FieldError message={errors.paymentMethod.message} />}
       </Card>
 
       <Card
@@ -302,11 +270,7 @@ const ticketsToNextJackpotEntry = getTicketsToNextFreeJackpotEntry(quantity ?? 0
               raffle rules
             </a>{' '}
             and{' '}
-            <a
-              href="/privacy"
-              className="font-bold text-navy-700 underline"
-              target="_blank"
-            >
+            <a href="/privacy" className="font-bold text-navy-700 underline" target="_blank">
               privacy policy
             </a>
             .
@@ -337,7 +301,7 @@ const ticketsToNextJackpotEntry = getTicketsToNextFreeJackpotEntry(quantity ?? 0
 
         <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-slate-500">
           <Lock className="h-3 w-3 text-navy-700" />
-          Payment is processed by your gateway. We never store card details.
+          Payment is processed securely by Paystack. We never store card details.
         </p>
       </Card>
     </form>
