@@ -14,10 +14,11 @@ import { DrawTemplateController }  from './draw-template.controller'
 import { TicketAdminController } from './ticket-admin.controller'
 import { SettingsAdminController } from './settings-admin.controller'
 import { AuditModule } from '../audit/audit.module'
+import { AdminNotificationsService } from './admin-notifications.service'
 @Module({
   imports: [JwtModule.register({}), AuditModule],
   controllers: [AdminOpsController, AgentAdminController, ComplianceAdminController, FinanceAdminController, CustomerAdminController, DrawTemplateController, TicketAdminController, SettingsAdminController],
-  providers: [AdminDashboardService, CustomerAdminService, AgentAdminService, FinanceAdminService, ComplianceAdminService],
+  providers: [AdminDashboardService, CustomerAdminService, AgentAdminService, FinanceAdminService, ComplianceAdminService, AdminNotificationsService],
   exports: [CustomerAdminService]
 })
 export class AdminOpsModule {}

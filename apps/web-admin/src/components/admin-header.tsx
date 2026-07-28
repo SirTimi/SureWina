@@ -40,14 +40,6 @@ export function AdminHeader({ session }: AdminHeaderProps) {
 
         <div className="flex items-center gap-3">
           <span
-            title="Backend is currently using mock data in this admin demo environment."
-            className="hidden items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700 sm:inline-flex"
-          >
-            <Wifi className="h-3 w-3" />
-            Backend mocked
-          </span>
-
-          <span
             title={`Current access role: ${roleLabel(session.tier)}`}
             className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${roleBadgeTone(session.tier)}`}
           >
