@@ -18,10 +18,13 @@ import {
   AgentJwtPayload,
   AgentOtpChallenge,
 } from './agent-auth.types';
+import { Logger } from '@nestjs/common'
+import { V2nSmsProvider } from '../notifications/v2n-sms.provider'
 
 @Injectable()
 export class AgentAuthService {
   private readonly otpKeyPrefix = 'auth:agent:otp';
+  private readonly logger = new Logger(AgentAuthService.name)
 
   constructor(
     private readonly configService: ConfigService,
@@ -29,6 +32,7 @@ export class AgentAuthService {
     private readonly prismaService: PrismaService,
     private readonly redisService: RedisService,
     private readonly auditService: AuditService,
+    private readonly sms: V2nSmsProvider
   ) {}
 
   async requestOtp(dto: RequestOtpDto) {
@@ -73,6 +77,22 @@ export class AgentAuthService {
       challenge,
       ttlSeconds,
     );
+
+    const delivery = await this.sms.send(
+      dto.phoneE164,
+      [
+        'SUREWINA AGENT',
+        `OTP: ${otp}`,
+        `Expiry: ${Math.round(ttlSeconds / 60)} Mins`,
+        'Do not share this code with anyone.',
+        'Customer care: 080 8000 9000',
+      ].join('\n'),
+      `agent-otp-${challengeId}`,
+    );
+
+    if (!delivery.sent) {
+      this.logger.error(`Agent OTP SMS failed: ${delivery.reason ?? 'unknown'}`);
+    }
 
     await this.auditService.write({
       actor: {

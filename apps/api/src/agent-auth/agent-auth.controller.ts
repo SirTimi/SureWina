@@ -5,11 +5,14 @@ import { AgentAuthService } from './agent-auth.service';
 import { AgentJwtPayload } from './agent-auth.types';
 import { AgentJwtGuard } from './guards/agent-jwt.guard';
 import { CurrentAgent } from './guards/current-agent.decorator';
-
+import { Throttle } from '@nestjs/throttler'
+import { OtpRateLimitGuard } from '../auth/guards/otp-rate-limit.guard'
 @Controller('agents/auth')
 export class AgentAuthController {
   constructor(private readonly agentAuthService: AgentAuthService) {}
 
+  @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
+  @UseGuards(OtpRateLimitGuard)
   @Post('otp/request')
   requestOtp(@Body() dto: RequestOtpDto) {
     return this.agentAuthService.requestOtp(dto);
