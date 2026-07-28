@@ -3,31 +3,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  AlertOctagon,
   Banknote,
   BookOpen,
+  CalendarClock,
   ClipboardCheck,
-  Coins,
   FileBarChart,
   Flag,
   Gauge,
-  GitBranch,
   KeyRound,
   LayoutDashboard,
   MessageSquare,
-  Receipt,
   ScrollText,
   Settings,
-  ShieldCheck,
   Ticket,
   Trophy,
   UserCog,
   Users,
   Wallet,
-  GitPullRequestArrow,
-  Bell,
-  CalendarClock,
-  FlagTriangleRight,
 } from 'lucide-react';
 import { Logo } from '@surewina/ui';
 import type { AdminPermission, AdminSession } from '@/lib/admin-auth';
@@ -46,30 +38,38 @@ const navGroups: Array<{
 }> = [
   {
     label: 'Overview',
-    items: [{ label: 'Dashboard', href: '/', icon: LayoutDashboard, help: 'Main admin dashboard and operational overview', permission: 'VIEW_DASHBOARD' }],
-  },
-  {
-    label: 'Notifications',
     items: [
-      { 
-        label: 'All notifications', 
-        href: '/notifications', 
-        icon: Bell, 
-        help: 'View approval alerts, escalations, overdue tasks, and workflow notifications', 
-        permission: 'VIEW_NOTIFICATIONS' 
+      {
+        label: 'Dashboard',
+        href: '/',
+        icon: LayoutDashboard,
+        help: 'Main admin dashboard and operational overview',
+        permission: 'VIEW_DASHBOARD',
       },
     ],
   },
   {
     label: 'Draws',
     items: [
-      { label: 'All draws', href: '/draws', icon: Trophy, help: 'View and manage draw records', permission: 'VIEW_DRAWS' },
-      { label: 'RNG seeds', href: '/rng-seeds', icon: KeyRound, help: 'Review RNG seed commitments and draw verification', permission: 'VIEW_DRAWS' },
+      {
+        label: 'All draws',
+        href: '/draws',
+        icon: Trophy,
+        help: 'View and manage draw records',
+        permission: 'VIEW_DRAWS',
+      },
+      {
+        label: 'RNG seeds',
+        href: '/rng-seeds',
+        icon: KeyRound,
+        help: 'Review RNG seed commitments and draw verification',
+        permission: 'VIEW_DRAWS',
+      },
       {
         label: 'Schedule config',
         href: '/draws/schedule',
         icon: CalendarClock,
-        help: 'Configure recurring draw schedules, cutoff rules, price versions, and effective dates',
+        help: 'Recurring draw prices, prizes, and times — versioned with dual approval',
         permission: 'VIEW_DRAW_SCHEDULE',
       },
     ],
@@ -77,71 +77,125 @@ const navGroups: Array<{
   {
     label: 'Customers',
     items: [
-      { label: 'Tickets', href: '/tickets', icon: Ticket, help: 'Search and review customer ticket records', permission: 'VIEW_TICKETS' },
-      { label: 'Customers', href: '/customers', icon: Users, help: 'View customer profiles and account status', permission: 'VIEW_CUSTOMERS' },
-      { label: 'Disputes', href: '/disputes', icon: MessageSquare, help: 'Review customer disputes and complaints', permission: 'VIEW_DISPUTES' },
+      {
+        label: 'Tickets',
+        href: '/tickets',
+        icon: Ticket,
+        help: 'Search tickets by reference or phone, and browse payments',
+        permission: 'VIEW_TICKETS',
+      },
+      {
+        label: 'Customers',
+        href: '/customers',
+        icon: Users,
+        help: 'Look up customer profiles and account status',
+        permission: 'VIEW_CUSTOMERS',
+      },
+      {
+        label: 'Disputes',
+        href: '/disputes',
+        icon: MessageSquare,
+        help: 'Customer complaints and internal flags, open to resolution',
+        permission: 'VIEW_DISPUTES',
+      },
     ],
   },
   {
     label: 'Agents',
     items: [
-      { label: 'Agents', href: '/agents', icon: UserCog, help: 'Manage agent records and performance status', permission: 'VIEW_AGENTS' },
-      { label: 'Onboarding', href: '/agents/onboarding', icon: ClipboardCheck, help: 'Review agent onboarding and profiling requests', permission: 'REVIEW_AGENT_ONBOARDING' },
-      { label: 'Super-agents', href: '/agents/super', icon: GitBranch, help: 'Manage super-agent hierarchy and reporting lines', permission: 'VIEW_AGENTS' },
+      {
+        label: 'Agents',
+        href: '/agents',
+        icon: UserCog,
+        help: 'Manage agent records and account status',
+        permission: 'VIEW_AGENTS',
+      },
+      {
+        label: 'Onboarding',
+        href: '/agents/onboarding',
+        icon: ClipboardCheck,
+        help: 'Register agents in office and activate them',
+        permission: 'REVIEW_AGENT_ONBOARDING',
+      },
     ],
   },
   {
     label: 'Claims & payouts',
     items: [
-      { label: 'Claims pipeline', href: '/claims', icon: Flag, help: 'Track prize claims from submission to closure', permission: 'VIEW_CLAIMS' },
-      { label: 'KYC review', href: '/kyc/review', icon: ShieldCheck, help: 'Review customer identity and payout documents', permission: 'REVIEW_KYC' },
-      { label: 'Payouts', href: '/payouts', icon: Banknote, help: 'Review and approve payout activity', permission: 'VIEW_PAYOUTS' },
+      {
+        label: 'Claims pipeline',
+        href: '/claims',
+        icon: Flag,
+        help: 'Track prize claims from notification to fulfilment, including KYC review',
+        permission: 'VIEW_CLAIMS',
+      },
+      {
+        label: 'Payouts',
+        href: '/payouts',
+        icon: Banknote,
+        help: 'Prize payouts by bank transfer and agent cash',
+        permission: 'VIEW_PAYOUTS',
+      },
     ],
   },
   {
     label: 'Finance',
     items: [
-      { label: 'Remittance', href: '/remittance', icon: Wallet, help: 'Track agent remittance and outstanding balances', permission: 'VIEW_FINANCE' },
-      { label: 'Commission', href: '/commission', icon: Coins, help: 'Review agent commissions and earning rules', permission: 'VIEW_FINANCE' },
-      { label: 'Jackpot fund', href: '/jackpot-fund', icon: Gauge, help: 'Monitor jackpot fund status and controls', permission: 'VIEW_FINANCE' },
+      {
+        label: 'Remittance',
+        href: '/remittance',
+        icon: Wallet,
+        help: 'Agent remittances and outstanding balances',
+        permission: 'VIEW_FINANCE',
+      },
+      {
+        label: 'Jackpot entries',
+        href: '/jackpot-fund',
+        icon: Gauge,
+        help: 'Entries into upcoming jackpot draws, direct and accumulated',
+        permission: 'VIEW_FINANCE',
+      },
     ],
   },
   {
     label: 'Compliance',
     items: [
-      { label: 'Reports', href: '/reports', icon: FileBarChart, help: 'Open compliance, finance, and operations reports', permission: 'VIEW_REPORTS' },
-      { label: 'AML flags', href: '/compliance/aml', icon: AlertOctagon, help: 'Review suspicious activity and AML alerts', permission: 'VIEW_AUDIT_LOGS' },
-      { label: 'Audit log', href: '/audit-log', icon: ScrollText, help: 'View admin action history and audit trails', permission: 'VIEW_AUDIT_LOGS' },
       {
-        label: 'Escalations',
-        href: '/escalations',
-        icon: FlagTriangleRight,
-        help: 'Auditor escalation channel for management review outside normal approval flow',
-        permission: 'VIEW_ESCALATIONS',
+        label: 'Reports',
+        href: '/reports',
+        icon: FileBarChart,
+        help: 'Daily regulatory report, levy, WHT, sales, financial, and agent reports',
+        permission: 'VIEW_REPORTS',
+      },
+      {
+        label: 'Audit log',
+        href: '/audit-log',
+        icon: ScrollText,
+        help: 'Append-only record of every consequential action, with integrity checkpoints',
+        permission: 'VIEW_AUDIT_LOGS',
       },
     ],
   },
   {
     label: 'System',
     items: [
-      { label: 'Promotions', href: '/promotions', icon: Receipt, help: 'Manage platform promotions and campaign rules', permission: 'VIEW_SYSTEM_CONFIG' },
-      { label: 'Config', href: '/config', icon: Settings, help: 'View platform configuration settings', permission: 'VIEW_SYSTEM_CONFIG' },
-      { label: 'Admin users', href: '/users', icon: BookOpen, help: 'Manage admin users and access profiles', permission: 'MANAGE_ADMINS' },
-    ],
-  },
-  {
-    label: 'Workflows',
-    items: [
       {
-        label: 'Approval workflows',
-        href: '/workflows',
-        icon: GitPullRequestArrow,
-        help: 'Track sensitive requests moving through review and approval stages',
-        permission: 'VIEW_WORKFLOWS',
+        label: 'Config',
+        href: '/config',
+        icon: Settings,
+        help: 'Business thresholds: WHT, levy, and agent payout limits',
+        permission: 'VIEW_SYSTEM_CONFIG',
+      },
+      {
+        label: 'Admin users',
+        href: '/users',
+        icon: BookOpen,
+        help: 'Manage admin accounts, clearance, and access',
+        permission: 'MANAGE_ADMINS',
       },
     ],
   },
-  ];
+];
 
 export function Sidebar({ session }: { session: AdminSession }) {
   const pathname = usePathname();
