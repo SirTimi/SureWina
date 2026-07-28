@@ -5,7 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AdminRole } from '@prisma/client';
+import { AdminRole, AdminTier } from '@prisma/client';
 import { ADMIN_ROLES_KEY } from '../decorators/admin-roles.decorator';
 import { AdminJwtPayload } from '../admin-auth.types';
 
@@ -31,6 +31,14 @@ export class AdminRoleGuard implements CanActivate {
 
     if (!admin) {
       throw new ForbiddenException('Admin context missing');
+    }
+
+    // SUPER clearance spans departments. Not a loosening: a SUPER admin can
+    // already create an account in any role and sign in as it, so blocking
+    // them here would be friction rather than a control. What still binds
+    // them is maker-checker on config changes and the audit log.
+    if (admin.tier === AdminTier.SUPER) {
+      return true;
     }
 
     if (!requiredRoles.includes(admin.role)) {

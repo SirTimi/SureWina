@@ -22,7 +22,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { Logo } from '@surewina/ui';
-import type { AdminPermission, AdminSession } from '@/lib/admin-auth';
+import type { AdminFunction, AdminPermission, AdminSession } from '@/lib/admin-auth';
 import { hasPermission, roleDescription, roleLabel } from '@/lib/admin-auth';
 
 const navGroups: Array<{
@@ -33,6 +33,8 @@ const navGroups: Array<{
     icon: typeof Gauge;
     help: string;
     permission: AdminPermission;
+    /** Departments whose endpoints back this page. Omit = open to all. */
+    roles?: AdminFunction[];
     readOnly?: boolean;
   }>;
 }> = [
@@ -57,6 +59,7 @@ const navGroups: Array<{
         icon: Trophy,
         help: 'View and manage draw records',
         permission: 'VIEW_DRAWS',
+        roles: ['OPERATOR'],
       },
       {
         label: 'RNG seeds',
@@ -64,6 +67,7 @@ const navGroups: Array<{
         icon: KeyRound,
         help: 'Review RNG seed commitments and draw verification',
         permission: 'VIEW_DRAWS',
+        roles: ['OPERATOR'],
       },
       {
         label: 'Schedule config',
@@ -71,6 +75,7 @@ const navGroups: Array<{
         icon: CalendarClock,
         help: 'Recurring draw prices, prizes, and times — versioned with dual approval',
         permission: 'VIEW_DRAW_SCHEDULE',
+        roles: ['OPERATOR'],
       },
     ],
   },
@@ -83,6 +88,7 @@ const navGroups: Array<{
         icon: Ticket,
         help: 'Search tickets by reference or phone, and browse payments',
         permission: 'VIEW_TICKETS',
+        roles: ['OPERATOR'],
       },
       {
         label: 'Customers',
@@ -90,6 +96,7 @@ const navGroups: Array<{
         icon: Users,
         help: 'Look up customer profiles and account status',
         permission: 'VIEW_CUSTOMERS',
+        roles: ['OPERATOR'],
       },
       {
         label: 'Disputes',
@@ -97,6 +104,7 @@ const navGroups: Array<{
         icon: MessageSquare,
         help: 'Customer complaints and internal flags, open to resolution',
         permission: 'VIEW_DISPUTES',
+        roles: ['OPERATOR'],
       },
     ],
   },
@@ -109,6 +117,7 @@ const navGroups: Array<{
         icon: UserCog,
         help: 'Manage agent records and account status',
         permission: 'VIEW_AGENTS',
+        roles: ['OPERATOR'],
       },
       {
         label: 'Onboarding',
@@ -116,6 +125,7 @@ const navGroups: Array<{
         icon: ClipboardCheck,
         help: 'Register agents in office and activate them',
         permission: 'REVIEW_AGENT_ONBOARDING',
+        roles: ['OPERATOR'],
       },
     ],
   },
@@ -128,6 +138,7 @@ const navGroups: Array<{
         icon: Flag,
         help: 'Track prize claims from notification to fulfilment, including KYC review',
         permission: 'VIEW_CLAIMS',
+        roles: ['COMPLIANCE_OFFICER'],
       },
       {
         label: 'Payouts',
@@ -135,6 +146,7 @@ const navGroups: Array<{
         icon: Banknote,
         help: 'Prize payouts by bank transfer and agent cash',
         permission: 'VIEW_PAYOUTS',
+        roles: ['FINANCE_OFFICER'],
       },
     ],
   },
@@ -147,6 +159,7 @@ const navGroups: Array<{
         icon: Wallet,
         help: 'Agent remittances and outstanding balances',
         permission: 'VIEW_FINANCE',
+        roles: ['FINANCE_OFFICER'],
       },
       {
         label: 'Jackpot entries',
@@ -154,6 +167,7 @@ const navGroups: Array<{
         icon: Gauge,
         help: 'Entries into upcoming jackpot draws, direct and accumulated',
         permission: 'VIEW_FINANCE',
+        roles: ['OPERATOR'],
       },
     ],
   },
@@ -166,6 +180,7 @@ const navGroups: Array<{
         icon: FileBarChart,
         help: 'Daily regulatory report, levy, WHT, sales, financial, and agent reports',
         permission: 'VIEW_REPORTS',
+        roles: ['COMPLIANCE_OFFICER'],
       },
       {
         label: 'Audit log',
@@ -173,6 +188,7 @@ const navGroups: Array<{
         icon: ScrollText,
         help: 'Append-only record of every consequential action, with integrity checkpoints',
         permission: 'VIEW_AUDIT_LOGS',
+        roles: ['COMPLIANCE_OFFICER'],
       },
     ],
   },
@@ -185,6 +201,7 @@ const navGroups: Array<{
         icon: Settings,
         help: 'Business thresholds: WHT, levy, and agent payout limits',
         permission: 'VIEW_SYSTEM_CONFIG',
+        roles: ['OPERATOR'],
       },
       {
         label: 'Admin users',
@@ -192,6 +209,7 @@ const navGroups: Array<{
         icon: BookOpen,
         help: 'Manage admin accounts, clearance, and access',
         permission: 'MANAGE_ADMINS',
+        roles: ['OPERATOR'],
       },
     ],
   },
@@ -199,10 +217,21 @@ const navGroups: Array<{
 
 export function Sidebar({ session }: { session: AdminSession }) {
   const pathname = usePathname();
+
+  // Two gates, matching the backend: clearance decides how consequential an
+  // action may be, department decides which endpoints answer at all. SUPER
+  // spans departments — same rule the role guard applies server-side, so the
+  // nav never shows a link that would 403.
   const visibleGroups = navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => hasPermission(session.tier, item.permission)),
+      items: group.items.filter(
+        (item) =>
+          hasPermission(session.tier, item.permission) &&
+          (!item.roles ||
+            session.tier === 'SUPER_ADMIN' ||
+            item.roles.includes(session.role)),
+      ),
     }))
     .filter((group) => group.items.length > 0);
 
