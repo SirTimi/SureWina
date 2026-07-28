@@ -572,6 +572,21 @@ export interface AdminAuditIntegrity {
   }[];
 }
 
+export interface AdminNotification {
+  id: string;
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+  title: string;
+  detail: string;
+  count: number;
+  href: string;
+}
+
+export interface AdminNotificationList {
+  notifications: AdminNotification[];
+  total: number;
+  generatedAt: string;
+}
+
 export class AdminModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -930,5 +945,9 @@ export class AdminModule {
 
   async auditIntegrity(): Promise<AdminAuditIntegrity> {
     return this.client.get('/admin/compliance/audit/integrity');
+  }
+
+  async notifications(): Promise<AdminNotificationList> {
+    return this.client.get('/admin/notifications');
   }
 }
