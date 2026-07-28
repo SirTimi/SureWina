@@ -189,6 +189,7 @@ export class AdminAuthService {
       role: updatedAdmin.role,
       tier: updatedAdmin.tier,
       type: 'admin',
+      mustChangePassword: updatedAdmin.mustChangePassword
     });
 
     await this.auditService.write({
@@ -220,6 +221,7 @@ export class AdminAuthService {
         tier: updatedAdmin.tier,
         mfaEnabled: updatedAdmin.mfaEnabled,
         lastLoginAt: updatedAdmin.lastLoginAt,
+        mustChangePassword: updatedAdmin.mustChangePassword,
       },
     };
   }
@@ -307,6 +309,7 @@ export class AdminAuthService {
       role: updatedAdmin.role,
       tier: updatedAdmin.tier,
       type: 'admin',
+      mustChangePassword: updatedAdmin.mustChangePassword
     });
 
     await this.auditService.write({
@@ -344,6 +347,7 @@ export class AdminAuthService {
         tier: updatedAdmin.tier,
         mfaEnabled: updatedAdmin.mfaEnabled,
         lastLoginAt: updatedAdmin.lastLoginAt,
+        mustChangePassword: updatedAdmin.mustChangePassword
       },
     };
   }
@@ -447,6 +451,41 @@ export class AdminAuthService {
     });
 
     return { backupCodes };
+  }
+
+  // Self-service password change. Also the exit from a forced rotation, so
+  // it must work for an admin whose only credential is a temp password.
+  async changePassword(adminUserId: string, currentPassword: string, newPassword: string) {
+    const admin = await this.prismaService.adminUser.findUnique({
+      where: { adminUserId },
+    });
+    if (!admin) throw new UnauthorizedException('Admin not found');
+
+    const valid = await bcrypt.compare(currentPassword, admin.passwordHash);
+    if (!valid) throw new UnauthorizedException('Current password is incorrect');
+
+    if (await bcrypt.compare(newPassword, admin.passwordHash)) {
+      throw new ConflictException('New password must be different from the current one');
+    }
+
+    await this.prismaService.adminUser.update({
+      where: { adminUserId },
+      data: {
+        passwordHash: await bcrypt.hash(newPassword, 12),
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    await this.auditService.write({
+      severity: AuditSeverity.WARNING,
+      actor: { type: AuditActorType.ADMIN, id: adminUserId },
+      action: 'ADMIN_PASSWORD_CHANGED',
+      resource: { type: 'AdminUser', id: adminUserId },
+      metadata: { self: true },
+    });
+
+    return { success: true };
   }
 
   // Stored as bcrypt hashes — these are credentials, not tokens.

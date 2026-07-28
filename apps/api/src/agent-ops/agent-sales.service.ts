@@ -25,6 +25,8 @@ import { generateTicketRef } from '../payments/ticket-ref.util';
 import { CustomerAdminService } from '../admin-ops/customer-admin.service';
 import { SellTicketsDto } from './dto/sell-tickets.dto';
 import { AccountService } from '../account/account.service'
+import { drawDisplayName, drawShortCode } from './draw-naming.util';
+
 @Injectable()
 export class AgentSalesService {
   private readonly logger = new Logger(AgentSalesService.name);
@@ -153,6 +155,63 @@ export class AgentSalesService {
       ticketRefs,
       customerNotified: !!dto.customerPhone,
       soldAt: txn.confirmedAt!.toISOString(),
+    };
+  }
+
+  // Everything a printed ticket needs, in one call. Also the reprint path —
+  // query params can't serve a receipt an hour after the sale.
+  async saleForPrint(agentId: string, reference: string) {
+    const txn = await this.prisma.paymentTransaction.findFirst({
+      where: { gatewayReference: reference, agentId },
+      include: {
+        tickets: {
+          select: {
+            ticketRef: true,
+            faceValueNgn: true,
+            draw: {
+              select: {
+                drawNumber: true,
+                drawType: true,
+                scheduledAt: true,
+                cutoffAt: true,
+                ticketPriceNgn: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+        agent: { select: { terminalNumber: true, agentCode: true } },
+      },
+    });
+    if (!txn) throw new NotFoundException('Sale not found');
+
+    const draw = await this.prisma.draw.findFirst({
+      where: { tickets: { some: { paymentTxnId: txn.txnId } } },
+      select: {
+        drawNumber: true,
+        drawType: true,
+        scheduledAt: true,
+        cutoffAt: true,
+        ticketPriceNgn: true,
+      },
+    });
+    if (!draw) throw new NotFoundException('Draw not found for this sale');
+
+    return {
+      saleReference: reference,
+      terminal: txn.agent?.terminalNumber
+        ? String(txn.agent.terminalNumber).padStart(6, '0')
+        : 'ONLINE',
+      drawNumber: String(draw.drawNumber).padStart(4, '0'),
+      drawType: draw.drawType,
+      drawName: drawDisplayName(draw.drawType, draw.scheduledAt),
+      drawShortCode: drawShortCode(draw.drawType, draw.scheduledAt),
+      scheduledAt: draw.scheduledAt.toISOString(),
+      cutoffAt: draw.cutoffAt.toISOString(),
+      soldAt: (txn.confirmedAt ?? txn.createdAt).toISOString(),
+      ticketPriceNgn: draw.ticketPriceNgn,
+      amountNgn: txn.amountNgn,
+      tickets: txn.tickets.map((t) => t.ticketRef),
     };
   }
 }

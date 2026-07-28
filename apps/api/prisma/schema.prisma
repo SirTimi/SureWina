@@ -5,7 +5,6 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 // ─── USERS ─────────────────────────────────────────────────
@@ -72,6 +71,8 @@ model Agent {
   agentAgreementSignedAt DateTime?   @map("agent_agreement_signed_at")
   monthlyTicketCount     Int         @default(0) @map("monthly_ticket_count")
   gracePeriodUsedAt      DateTime?   @map("grace_period_used_at")
+  // POS terminal identifier printed on tickets sold at this agent.
+  terminalNumber Int? @unique @default(autoincrement()) @map("terminal_number")
 
   bankCode            String? @map("bank_code")
   bankAccountLast4    String? @map("bank_account_last4")
@@ -134,6 +135,8 @@ model AdminUser {
   createdAt      DateTime  @default(now()) @map("created_at")
   mfaBackupCodes String[]  @map("mfa_backup_codes")
   mfaEnrolledAt  DateTime? @map("mfa_enrolled_at")
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  passwordChangedAt  DateTime? @map("password_changed_at")
 
   @@map("admin_users")
 }
@@ -160,6 +163,7 @@ model AuditLog {
   ipAddress    String?        @map("ip_address")
   userAgent    String?        @map("user_agent")
   signature    String?
+  seq Int @unique @default(autoincrement())
 
   @@index([timestamp])
   @@index([actorType, actorId])
@@ -179,6 +183,30 @@ enum AuditActorType {
   ADMIN
   ENGINE
   SYSTEM
+}
+
+// Periodic integrity roots over the audit log. Each checkpoint hashes every
+// entry in its window; altering any row changes the recomputed root and no
+// longer matches what was stored. Cheap to produce (nothing on the write
+// path) and the root is exactly what gets published for external anchoring.
+model AuditCheckpoint {
+  checkpointId String   @id @default(uuid()) @map("checkpoint_id")
+
+  windowStart  DateTime @map("window_start")
+  windowEnd    DateTime @map("window_end")
+  fromSeq      Int      @map("from_seq")
+  toSeq        Int      @map("to_seq")
+  entryCount   Int      @map("entry_count")
+
+  // SHA-256 over the window's entries, chained to the previous checkpoint's
+  // root — so tampering with an old window breaks every root after it too.
+  rootHash     String   @map("root_hash")
+  previousRootHash String? @map("previous_root_hash")
+
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([windowEnd])
+  @@map("audit_checkpoints")
 }
 
 // ─── DRAWS ──────────────────────────────────────────────────
@@ -202,6 +230,9 @@ model Draw {
 
   rescheduledFrom String? @map("rescheduled_from")
   configVersion   Int     @default(1) @map("config_version")
+  // Short human reference for the printed ticket and support calls.
+  // RD-DRAW-20260728-DAILY is precise but unusable over the phone.
+  drawNumber Int @unique @default(autoincrement()) @map("draw_number")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

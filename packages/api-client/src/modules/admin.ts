@@ -16,6 +16,7 @@ export interface AdminMe {
   tier: AdminTier;
   mfaEnabled: boolean;
   lastLoginAt: string | null;
+  mustChangePassword: boolean;
 }
 
 export interface AdminAuthResponse {
@@ -555,6 +556,22 @@ export interface AdminDisputeDetail {
   events: AdminDisputeEvent[];
 }
 
+export interface AdminAuditIntegrity {
+  checkpoints: number;
+  intact: boolean;
+  brokenWindows: number;
+  latestRootHash: string | null;
+  results: {
+    checkpointId: string;
+    fromSeq: number;
+    toSeq: number;
+    windowEnd: string;
+    expectedEntries: number;
+    foundEntries: number;
+    intact: boolean;
+  }[];
+}
+
 export class AdminModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -592,6 +609,10 @@ export class AdminModule {
 
   async dashboard(): Promise<AdminDashboard> {
     return this.client.get('/admin/dashboard');
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean }> {
+    return this.client.post('/admin/auth/change-password', { currentPassword, newPassword });
   }
 
   async listAgents(params?: { status?: string }): Promise<{
@@ -905,5 +926,9 @@ export class AdminModule {
 
   async approveAgent(agentId: string): Promise<{ agentId: string; agentCode: string; status: string }> {
     return this.client.post(`/admin/agents/${encodeURIComponent(agentId)}/approve`, {});
+  }
+
+  async auditIntegrity(): Promise<AdminAuditIntegrity> {
+    return this.client.get('/admin/compliance/audit/integrity');
   }
 }

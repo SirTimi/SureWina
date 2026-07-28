@@ -14,6 +14,12 @@ class VerifyMfaDto {
   @IsString() challengeId!: string;
   @IsString() @Length(6, 11) code!: string;   // 6-digit TOTP or XXXXX-XXXXX backup
 }
+
+class ChangePasswordDto {
+  @IsString() currentPassword!: string;
+  @IsString() @Length(10,200) newPassword!: string;
+}
+
 @Controller('admin/auth')
 export class AdminAuthController {
   constructor(private readonly adminAuthService: AdminAuthService) {}
@@ -44,5 +50,18 @@ export class AdminAuthController {
   @Post('mfa/verify')
   verifyMfa(@Body() dto: VerifyMfaDto) {
     return this.adminAuthService.verifyMfa(dto.challengeId, dto.code);
+  }
+
+  @UseGuards(AdminJwtGuard)
+  @Post('change-password')
+  changePassword(
+    @CurrentAdmin() admin: AdminJwtPayload,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.adminAuthService.changePassword(
+      admin.sub,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 }

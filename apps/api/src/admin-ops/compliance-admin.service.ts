@@ -193,7 +193,7 @@ export class ComplianceAdminService {
     const to = new Date(from.getTime() + 86_400_000);
     const range = { gte: from, lt: to };
 
-    const [drawsExecuted, sales, claimsSettled, forfeited] = await Promise.all([
+    const [drawsExecuted, sales, claimsSettled, forfeited, auditRoot] = await Promise.all([
       this.prisma.draw.findMany({
         where: { status: DrawStatus.COMPLETED, executedAt: range },
         include: {
@@ -232,6 +232,14 @@ export class ComplianceAdminService {
         },
       }),
       this.prisma.prizeClaim.count({ where: { forfeitedAt: range } }),
+      // Latest sealed audit root as of this report date. Publishing it with
+      // the filing anchors the log externally: any later alteration to
+      // entries before this point no longer recomputes to this hash.
+      this.prisma.auditCheckpoint.findFirst({
+        where: { windowEnd: { lt: to } },
+        orderBy: { toSeq: 'desc' },
+        select: { rootHash: true, toSeq: true, windowEnd: true },
+      }),
     ]);
 
     return {
@@ -268,6 +276,13 @@ export class ComplianceAdminService {
       prizesSettled: claimsSettled,
       totalWhtWithheldNgn: claimsSettled.reduce((s, c) => s + c.whtAmountNgn, 0),
       claimsForfeited: forfeited,
+      auditIntegrity: auditRoot
+        ? {
+            rootHash: auditRoot.rootHash,
+            throughSeq: auditRoot.toSeq,
+            sealedAt: auditRoot.windowEnd.toISOString(),
+          }
+        : null,
     };
   }
 

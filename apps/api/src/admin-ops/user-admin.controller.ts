@@ -108,6 +108,7 @@ export class UserAdminController {
         role: dto.role,
         tier: dto.tier,
         passwordHash,
+        mustChangePassword: true
       },
       select: SAFE_SELECT,
     });
@@ -150,6 +151,7 @@ export class UserAdminController {
         ...(dto.role ? { role: dto.role } : {}),
         ...(dto.tier ? { tier: dto.tier } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        
       },
       select: SAFE_SELECT,
     });
@@ -182,7 +184,12 @@ export class UserAdminController {
 
     await this.prisma.adminUser.update({
       where: { adminUserId },
-      data: { passwordHash, failedAttempts: 0, lockedUntil: null },
+      data: { 
+        passwordHash, 
+        failedAttempts: 0, 
+        lockedUntil: null,
+        mustChangePassword: true 
+      },
     });
 
     await this.revocation.revokeAll(adminUserId)

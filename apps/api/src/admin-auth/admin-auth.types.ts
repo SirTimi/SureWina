@@ -7,6 +7,7 @@ export type AdminJwtPayload = {
   tier: AdminTier;
   type: 'admin';
   iat?: number;
+  mustChangePassword: boolean
 };
 
 export type AdminAuthResponse = {
@@ -21,6 +22,7 @@ export type AdminAuthResponse = {
     tier: AdminTier
     mfaEnabled: boolean;
     lastLoginAt: Date | null;
+    mustChangePassword: boolean;
   };
 };
 

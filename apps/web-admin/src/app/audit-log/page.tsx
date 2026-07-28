@@ -1,8 +1,8 @@
 'use client';
 
 import { Fragment, useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight, Lock, Search } from 'lucide-react';
-import type { AdminAuditRow, AdminAuditSearch } from '@surewina/api-client';
+import { ChevronDown, ChevronRight, Lock, Search, ShieldAlert, ShieldCheck } from 'lucide-react';
+import type { AdminAuditIntegrity, AdminAuditRow, AdminAuditSearch } from '@surewina/api-client';
 import { AdminShell } from '@/components/admin-shell';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
@@ -28,6 +28,14 @@ function Body() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [integrity, setIntegrity] = useState<AdminAuditIntegrity | null>(null);
+
+  useEffect(() => {
+    api.admin
+      .auditIntegrity()
+      .then(setIntegrity)
+      .catch(() => setIntegrity(null));
+  }, []);
 
   const load = () => {
     setLoading(true);
@@ -70,6 +78,48 @@ function Body() {
       />
 
       <div className="mx-auto max-w-[1400px] space-y-4 px-6 py-5">
+        {integrity && integrity.checkpoints > 0 && (
+          <div
+            className={
+              integrity.intact
+                ? 'flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4'
+                : 'flex items-start gap-3 rounded-xl border-2 border-red-400 bg-red-50 p-4'
+            }
+          >
+            {integrity.intact ? (
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+            ) : (
+              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+            )}
+            <div className="min-w-0">
+              {integrity.intact ? (
+                <>
+                  <p className="text-sm font-black text-emerald-800">
+                    Integrity verified — {integrity.checkpoints} checkpoint
+                    {integrity.checkpoints === 1 ? '' : 's'} recomputed and matching
+                  </p>
+                  <p className="mt-0.5 break-all font-mono text-[10px] text-emerald-700">
+                    Latest root: {integrity.latestRootHash}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-black text-red-800">
+                    {integrity.brokenWindows} checkpoint
+                    {integrity.brokenWindows === 1 ? '' : 's'} failed verification — audit entries
+                    were altered or removed after sealing. Investigate immediately.
+                  </p>
+                  <p className="mt-1 font-mono text-[10px] text-red-700">
+                    {integrity.results
+                      .filter((r) => !r.intact)
+                      .map((r) => `seq ${r.fromSeq}–${r.toSeq} (${r.foundEntries}/${r.expectedEntries} entries)`)
+                      .join(' · ')}
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
         <SectionCard title="Filters">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
             <input
@@ -263,8 +313,10 @@ function Body() {
           <Lock className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
           <p className="text-xs leading-relaxed text-slate-600">
             This log is append-only, enforced at the database level: UPDATE and DELETE are rejected
-            by triggers regardless of application code. Hash-chaining for tamper evidence is
-            planned in security hardening.
+            by triggers regardless of application code. Entries are additionally sealed into
+            periodic checkpoints — each hashes its window and chains to the one before, so an
+            alteration made directly in the database still fails verification. The latest root is
+            published with the daily regulatory report.
           </p>
         </div>
       </div>

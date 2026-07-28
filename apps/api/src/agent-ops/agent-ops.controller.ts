@@ -81,4 +81,12 @@ export class AgentOpsController {
   prizeLogPayment(@CurrentAgent() a: AgentJwtPayload, @Body() dto: LookupPrizeDto) {
     return this.agentPrizes.logPayment(a.sub, dto.ticketRef);
   }
+
+  @Get('tickets/sale/:reference')
+  saleForPrint(
+    @CurrentAgent() agent: AgentJwtPayload,
+    @Param('reference') reference: string,
+  ) {
+    return this.agentSales.saleForPrint(agent.sub, reference);
+  }
 }

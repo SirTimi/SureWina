@@ -8,6 +8,21 @@ import type {
 import type { ApiClient } from '../client.js';
 
 type PeriodAgg = { grossSalesNgn: number; ticketsSold: number; saleCount: number };
+
+export interface AgentSalePrint {
+  saleReference: string;
+  terminal: string;
+  drawNumber: string;
+  drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+  drawName: string;
+  drawShortCode: string;
+  scheduledAt: string;
+  cutoffAt: string;
+  soldAt: string;
+  ticketPriceNgn: number;
+  amountNgn: number;
+  tickets: string[];
+}
 export class AgentsModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -136,5 +151,9 @@ export class AgentsModule {
     amountNgn: number;
   }> {
     return this.client.post('/agent/prizes/log-payment', { ticketRef });
+  }
+
+  async saleForPrint(reference: string): Promise<AgentSalePrint> {
+    return this.client.get(`/agent/tickets/sale/${encodeURIComponent(reference)}`);
   }
 }

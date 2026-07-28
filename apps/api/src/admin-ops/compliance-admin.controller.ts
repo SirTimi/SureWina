@@ -1,5 +1,5 @@
-import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
-import { AdminRole, AuditActorType, AuditSeverity } from '@prisma/client';
+import { Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { AdminRole, AdminTier, AuditActorType, AuditSeverity } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
     IsDateString,
@@ -16,6 +16,8 @@ import { AdminRoleGuard } from '../admin-auth/guards/admin-role.guard';
 import { AdminRoles } from '../admin-auth/decorators/admin-roles.decorator';
 import { ComplianceAdminService } from './compliance-admin.service';
 import { FastifyReply } from 'fastify';
+import { AuditCheckpointService } from '../audit/audit-checkpoint.service';
+import { MinTier } from '../admin-auth/decorators/min-tier.decorator';
 
 class AuditSearchDto {
   @IsOptional() @IsString() action?: string;
@@ -44,7 +46,10 @@ class RangeQueryDto {
 @UseGuards(AdminJwtGuard, AdminRoleGuard)
 @AdminRoles(AdminRole.COMPLIANCE_OFFICER)
 export class ComplianceAdminController {
-  constructor(private readonly compliance: ComplianceAdminService) {}
+  constructor(
+    private readonly compliance: ComplianceAdminService,
+    private readonly checkpoints: AuditCheckpointService
+  ) {}
 
   @Get('audit')
   searchAudit(@Query() q: AuditSearchDto) {
@@ -93,5 +98,16 @@ export class ComplianceAdminController {
     @Res() reply: FastifyReply,
   ) {
     return this.compliance.streamEvidence(claimId, kind, reply);
+  }
+
+  @Get('audit/integrity')
+  auditIntegrity() {
+    return this.checkpoints.verify();
+  }
+
+  @Post('audit/checkpoint')
+  @MinTier(AdminTier.SUPER)
+  sealCheckpoint() {
+    return this.checkpoints.seal();
   }
 }

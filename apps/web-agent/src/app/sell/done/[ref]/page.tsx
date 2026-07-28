@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { use, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Check, Clock, Copy, Megaphone, Printer, QrCode, Sparkles } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
@@ -9,6 +9,9 @@ import { formatNaira } from '@surewina/utils';
 import { AgentShell } from '@/components/agent-shell';
 import { SaleStepper } from '@/components/sale-stepper';
 import { SectionHeading } from '@/components/section-heading';
+import { api } from '@/lib/api';
+import { AgentSalePrint } from '@surewina/api-client';
+import { TicketReceipt } from '@/components/ticket-reciept';
 
 export default function SellDonePage({
   params,
@@ -69,6 +72,16 @@ function DoneBody({ ref_ }: { ref_: string }) {
     if (!sale || queued || ticketRefs.length === 0) return;
     window.print();
   };
+
+  const [printSale, setPrintSale] = useState<AgentSalePrint | null>(null);
+
+  useEffect(() => {
+    if (queued) return; // offline sale — nothing to print yet
+    api.agents
+      .saleForPrint(ref_)
+      .then(setPrintSale)
+      .catch(() => setPrintSale(null));
+  }, [ref_, queued]);
 
   return (
     <>
@@ -253,8 +266,53 @@ function DoneBody({ ref_ }: { ref_: string }) {
             onClick={printTicket}
             className="rounded-sm border-navy-200 bg-white text-navy-700 hover:bg-navy-50 disabled:opacity-50"
           >
-            <Printer className="h-5 w-5" />
-            Print {ticketRefs.length > 1 ? `${ticketRefs.length} tickets` : 'ticket'}
+            {printSale && (
+        <>
+          <Button onClick={() => window.print()} className="no-print">
+            <Printer className="h-4 w-4" />
+            Print {printSale.tickets.length > 1 ? `${printSale.tickets.length} tickets` : 'ticket'}
+          </Button>
+
+          <div className="print-area">
+            {printSale.tickets.map((t) => (
+              <div key={t} className="receipt-page">
+                <TicketReceipt sale={printSale} ticketRef={t} />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <style jsx global>{`
+        .print-area {
+          display: none;
+        }
+        @media print {
+          @page {
+            size: 75mm auto;
+            margin: 0;
+          }
+          body * {
+            visibility: hidden;
+          }
+          .print-area,
+          .print-area * {
+            visibility: visible;
+          }
+          .print-area {
+            display: block;
+            position: absolute;
+            left: 0;
+            top: 0;
+          }
+          .receipt-page {
+            page-break-after: always;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
           </Button>
 
           <Link href="/sell">

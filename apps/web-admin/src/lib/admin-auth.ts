@@ -10,6 +10,7 @@ export interface AdminSession {
   tier: AdminRole;       // authority tier — drives the permission maps below
   mfaEnabled: boolean;
   lastLoginAt: string;
+  mustChangePassword: boolean;
 }
 
 export type AdminPermission =

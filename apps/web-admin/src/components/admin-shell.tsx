@@ -44,7 +44,16 @@ export function AdminShell({ children, requireAuth = true }: AdminShellProps) {
       .finally(() => setChecking(false));
   }, [requireAuth, router]);
 
-  if (checking || !session) {
+  // An admin still on a temporary password issued by someone else sets their
+  // own before doing anything. /change-password sits outside this shell, so
+  // there's no redirect loop.
+  useEffect(() => {
+    if (session?.mustChangePassword) {
+      router.replace('/change-password');
+    }
+  }, [session, router]);
+
+  if (checking || !session || session.mustChangePassword) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F5F7FB]">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-navy-700" />
