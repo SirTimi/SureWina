@@ -67,6 +67,7 @@ const roleActionMap: Record<AdminRole, AdminAction[]> = {
   ],
 
   INTERMEDIATE_ADMIN: [
+    'INITIATE_AGENT_PROFILING',
     'APPROVE_AGENT_ONBOARDING',
     'CREATE_DRAW_SETUP_REQUEST',
     'APPROVE_WORKFLOW_STAGE',
