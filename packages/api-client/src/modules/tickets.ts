@@ -7,6 +7,19 @@ import type {
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
 
+export interface TicketReceipt {
+  terminal: string;
+  drawNumber: string;
+  drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+  scheduledAt: string;
+  cutoffAt: string;
+  soldAt: string;
+  ticketPriceNgn: number;
+  amountNgn: number;
+  tickets: string[];
+  buyerPhone: string;
+}
+
 export class TicketsModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -100,5 +113,12 @@ export class TicketsModule {
     }
 
     throw new Error('Payment confirmation timed out — check your tickets shortly');
+  }
+
+  // Public: the signed token in the path is the credential, so no auth header.
+  async receipt(token: string): Promise<TicketReceipt> {
+    return this.client.get(`/tickets/receipt/${encodeURIComponent(token)}`, {
+      skipAuth: true,
+    });
   }
 }

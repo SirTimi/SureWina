@@ -50,5 +50,10 @@ export const envValidationSchema = Joi.object({
   V2N_USERNAME: Joi.string().allow('').optional(),
   V2N_PASSWORD: Joi.string().allow('').optional(),
   V2N_SENDER_ID: Joi.string().allow('').default('SureWina'),
-  SMS_DAILY_CAP: Joi.number().integer().min(1).default(300)
+  SMS_DAILY_CAP: Joi.number().integer().min(1).default(300),
+  ZOHO_SMTP_HOST: Joi.string().allow('').default('smtp.zoho.com'),
+  ZOHO_SMTP_PORT: Joi.number().default(465),
+  ZOHO_SMTP_USER: Joi.string().allow('').optional(),
+  ZOHO_SMTP_PASSWORD: Joi.string().allow('').optional(),
+  ZOHO_FROM_ADDRESS: Joi.string().allow('').optional(),
 });

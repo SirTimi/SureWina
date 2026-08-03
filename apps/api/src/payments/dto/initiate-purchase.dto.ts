@@ -6,6 +6,8 @@ import {
   Matches,
   Max,
   Min,
+  IsOptional,
+  IsEmail,
 } from 'class-validator';
 
 export class InitiatePurchaseDto {
@@ -30,4 +32,8 @@ export class InitiatePurchaseDto {
   @IsNotEmpty()
   @Matches(/^[A-Z]{2,4}$/, { message: 'stateOfPlayCode must be 2-4 uppercase letters' })
   stateOfPlayCode!: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'buyerEmail must be a valid email address'})
+  buyerEmail?: string;
 }

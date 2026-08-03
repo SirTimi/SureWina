@@ -25,7 +25,7 @@ import { generateTicketRef } from '../payments/ticket-ref.util';
 import { CustomerAdminService } from '../admin-ops/customer-admin.service';
 import { SellTicketsDto } from './dto/sell-tickets.dto';
 import { AccountService } from '../account/account.service'
-import { drawDisplayName, drawShortCode } from './draw-naming.util';
+import { drawDisplayName, drawShortCode } from '../common/draw-naming.util';
 
 @Injectable()
 export class AgentSalesService {

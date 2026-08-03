@@ -87,6 +87,7 @@ export class PaymentsService {
         gatewayReference: reference,
         gateway: this.paystack.gateway,
         amountNgn,
+        buyerEmail: dto.buyerEmail?.trim().toLowerCase() ?? null,
         buyerPhone: dto.phoneE164,
         channel: PurchaseChannel.DIRECT,
         ticketCount: dto.quantity,
@@ -94,12 +95,24 @@ export class PaymentsService {
       },
     });
 
+    // A purchase is the one moment most customers give us an email. Attach it
+    // to their account so it can also serve as a sign-in route later. Best
+    // effort: a clash with another account must not fail the purchase.
+    if (dto.buyerEmail) {
+      await this.prisma.user
+        .updateMany({
+          where: { phoneNumber: dto.phoneE164, email: null },
+          data: { email: dto.buyerEmail.trim().toLowerCase() },
+        })
+        .catch(() => undefined);
+    }
+
     // 5. Try Paystack, fall back to Flutterwave. If both fail, mark FAILED.
     try {
       const init = await this.initializeWithFallback(txn.txnId, {
         amountKobo,
         reference,
-        email: this.syntheticEmail(dto.phoneE164),
+        email: dto.buyerEmail?.trim().toLowerCase() ?? this.syntheticEmail(dto.phoneE164),
         callbackUrl: `${this.config.getOrThrow<string>(
           'PAYMENT_CALLBACK_BASE_URL',
         )}/payment/callback`,

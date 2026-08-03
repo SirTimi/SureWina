@@ -67,6 +67,7 @@ export interface InitiatePurchaseRequest {
   quantity: number;
   phoneE164: string;
   stateOfPlayCode: string;
+  buyerEmail?: string;
 }
 
 export interface InitiatePurchaseResponse {

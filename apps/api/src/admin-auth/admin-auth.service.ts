@@ -20,12 +20,16 @@ import {
   AdminMfaChallenge,
 } from './admin-auth.types';
 import { AdminLoginDto } from './dto/admin-login.dto';
+import { ZohoEmailProvider } from '../notifications/zoho-email.provider';
+import { adminLoginAlert } from '../notifications/email.templates'
+import { Logger } from '@nestjs/common';
 
 // Accept the adjacent 30s step either side — phone clocks drift.
 const EPOCH_TOLERANCE_SECONDS = 30;
 
 @Injectable()
 export class AdminAuthService {
+  private readonly logger = new Logger(AdminAuthService.name)
   private readonly maxFailedAttempts = 5;
   private readonly lockoutMinutes = 15;
   private readonly mfaChallengePrefix = 'admin:mfa:challenge';
@@ -37,6 +41,7 @@ export class AdminAuthService {
     private readonly prismaService: PrismaService,
     private readonly auditService: AuditService,
     private readonly redisService: RedisService,
+    private readonly email: ZohoEmailProvider
   ) {}
 
   async login(dto: AdminLoginDto): Promise<AdminLoginResult> {
@@ -165,10 +170,12 @@ export class AdminAuthService {
         },
       });
 
+
       return {
         mfaRequired: true as const,
         challengeId,
         expiresInSeconds: this.mfaChallengeTtlSeconds,
+        
       };
     }
 
@@ -208,6 +215,8 @@ export class AdminAuthService {
         mfa: 'none',
       },
     });
+
+    this.notifySignIn(updatedAdmin, false, null);
 
     return {
       accessToken,
@@ -335,6 +344,8 @@ export class AdminAuthService {
       },
     });
 
+    this.notifySignIn(updatedAdmin, true, null);
+
     return {
       accessToken,
       tokenType: 'Bearer',
@@ -375,6 +386,31 @@ export class AdminAuthService {
     }
 
     return admin;
+  }
+
+  // Fire-and-forget: a failed alert must never block a valid sign-in. The
+  // value is the admin noticing a login they didn't make, which is only
+  // useful if it doesn't also break logins that they did.
+  private notifySignIn(
+    admin: { fullName: string; email: string; role: string; tier: string },
+    usedMfa: boolean,
+    ipAddress: string | null,
+  ) {
+    const mail = adminLoginAlert({
+      fullName: admin.fullName,
+      email: admin.email,
+      role: admin.role,
+      tier: admin.tier,
+      at: new Date(),
+      ipAddress,
+      usedMfa,
+    });
+
+    void this.email
+      .send({ to: admin.email, ...mail })
+      .catch((e) =>
+        this.logger.error(`Login alert email failed: ${e instanceof Error ? e.message : 'unknown'}`),
+      );
   }
 
   // Starts enrollment: stores a secret but leaves MFA OFF. An abandoned

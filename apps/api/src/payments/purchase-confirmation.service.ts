@@ -12,6 +12,10 @@ import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { generateTicketRef } from './ticket-ref.util';
 import { JackpotAccumulationService } from './jackpot-accumulation.service';
+import { ZohoEmailProvider } from '../notifications/zoho-email.provider'
+import { ReceiptService } from '../tickets/receipt.service'
+import { ticketReceipt } from '../notifications/email.templates'
+import { drawDisplayName, drawShortCode } from '../common/draw-naming.util';
 
 // What the confirmation transaction hands back for post-commit side effects
 // (SMS enqueue lives in the callers, never inside the transaction).
@@ -46,6 +50,8 @@ export class PurchaseConfirmationService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly jackpotAccumulation: JackpotAccumulationService,
+    private readonly receipts: ReceiptService,
+    private readonly email: ZohoEmailProvider,
   ) {}
 
   async confirmAndCreateTickets(
@@ -155,6 +161,28 @@ export class PurchaseConfirmationService {
       this.logger.log(
         `Confirmed ${reference}: ${txn.ticketCount} ticket(s) for ${draw.drawCode}`,
       );
+
+      // Receipt email. Post-commit and non-blocking: a mail failure must
+      // never undo a confirmed purchase or fail the webhook.
+      if (txn.buyerEmail) {
+        const mail = ticketReceipt({
+          drawName: drawDisplayName(draw.drawType, draw.scheduledAt),
+          drawShortCode: drawShortCode(draw.drawType, draw.scheduledAt),
+          drawDate: draw.scheduledAt,
+          cutoffAt: draw.cutoffAt,
+          ticketRefs: ticketsData.map((t) => t.ticketRef),
+          amountNgn: txn.amountNgn,
+          receiptUrl: await this.receipts.receiptUrl(txnId),
+        });
+
+        void this.email
+          .send({ to: txn.buyerEmail, ...mail })
+          .catch((e) =>
+            this.logger.error(
+              `Receipt email failed for ${txnId}: ${e instanceof Error ? e.message : 'unknown'}`,
+            ),
+          );
+      }
 
       return {
         txnId,

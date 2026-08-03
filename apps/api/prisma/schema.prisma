@@ -297,6 +297,7 @@ model PaymentTransaction {
   confirmedAt    DateTime? @map("confirmed_at")
   failureReason  String?   @map("failure_reason")
   webhookPayload Json?     @map("webhook_payload")
+  buyerEmail String? @map("buyer_email")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

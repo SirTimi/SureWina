@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Lock, Minus, Phone, Plus } from 'lucide-react';
+import { AlertCircle, Lock, Mail, Minus, Phone, Plus } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira, getAllStatesSorted } from '@surewina/utils';
 import type { DrawPublic } from '@surewina/types';
@@ -40,6 +40,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
     defaultValues: {
       quantity: initialQuantity,
       phone: '',
+      email: '',
       stateOfPlayCode: '',
       ageConfirmed: false,
     },
@@ -65,6 +66,8 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         quantity: data.quantity,
         phoneE164: data.phone,
         stateOfPlayCode: data.stateOfPlayCode,
+        // Omitted entirely when blank — an empty string fails @IsEmail.
+        ...(data.email ? { buyerEmail: data.email } : {}),
       });
 
       router.push(result.redirectUrl);
@@ -190,6 +193,31 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         <p className="mt-2 text-xs leading-relaxed text-slate-500">
           Your ticket reference goes here by SMS within 30 seconds. We never share your
           number.
+        </p>
+
+        <label htmlFor="email" className="mb-3 mt-5 block text-sm font-black text-navy-950">
+          Email <span className="font-medium text-slate-400">(optional)</span>
+        </label>
+
+        <div className="flex max-w-md overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-navy-700 focus-within:ring-2 focus-within:ring-amber-400/35">
+          <div className="relative flex-1">
+            <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-700" />
+            <input
+              id="email"
+              type="email"
+              {...register('email')}
+              placeholder="you@example.com"
+              className="h-12 w-full bg-white pl-10 pr-3 text-base text-navy-950 outline-none placeholder:text-slate-400"
+              autoComplete="email"
+            />
+          </div>
+        </div>
+
+        {errors.email && <FieldError message={errors.email.message} />}
+
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          We&apos;ll email your ticket with a link to print it. You can also use this email
+          to sign in if the SMS code doesn&apos;t arrive.
         </p>
       </Card>
 

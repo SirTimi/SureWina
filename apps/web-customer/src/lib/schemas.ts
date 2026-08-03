@@ -25,6 +25,13 @@ export const purchaseSchema = z.object({
   ageConfirmed: z.boolean().refine((v) => v === true, {
     message: 'You must confirm you are 18 or older',
   }),
+
+  email: z
+    .string()
+    .trim()
+    .email('Enter a valid email address')
+    .optional()
+    .or(z.literal(''))
 });
 
 export type PurchaseFormValues = z.input<typeof purchaseSchema>;
