@@ -5,14 +5,16 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AlertCircle, ArrowRight, Lock, Phone } from 'lucide-react';
+import { AlertCircle, ArrowRight, Lock, Mail, Phone } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { isValidNigerianPhone, normalizePhone } from '@surewina/utils';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 
-const signInSchema = z.object({
-  phone: z
+type Mode = 'phone' | 'email';
+
+const phoneSchema = z.object({
+  credential: z
     .string()
     .min(1, 'Phone number is required')
     .refine((val) => isValidNigerianPhone(val), {
@@ -21,7 +23,15 @@ const signInSchema = z.object({
     .transform((val) => normalizePhone(val) as string),
 });
 
-type SignInFormValues = z.input<typeof signInSchema>;
+const emailSchema = z.object({
+  credential: z
+    .string()
+    .min(1, 'Email address is required')
+    .email('Enter a valid email address')
+    .transform((val) => val.trim().toLowerCase()),
+});
+
+type SignInFormValues = { credential: string };
 
 interface SignInFormProps {
   nextPath: string;
@@ -29,27 +39,41 @@ interface SignInFormProps {
 
 export function SignInForm({ nextPath }: SignInFormProps) {
   const router = useRouter();
+  const [mode, setMode] = useState<Mode>('phone');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<SignInFormValues>({
-    resolver: zodResolver(signInSchema),
-    defaultValues: { phone: '' },
+    resolver: zodResolver(mode === 'phone' ? phoneSchema : emailSchema),
+    defaultValues: { credential: '' },
   });
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setSubmitError(null);
+    reset({ credential: '' });
+  };
 
   const onSubmit = async (data: SignInFormValues) => {
     setSubmitError(null);
 
     try {
-      const result = await api.auth.requestOtp({ phoneE164: data.phone as string });
+      const result = await api.auth.requestOtp(
+        mode === 'phone' ? { phoneE164: data.credential } : { email: data.credential },
+      );
+
       const params = new URLSearchParams({
         challenge: result.challengeId,
-        phone: data.phone as string,
         next: nextPath,
-        ...(result.mockOtp ? { mockOtp: result.mockOtp } : {}),
+        // The verify screen tells the user where to look for the code.
+        ...(mode === 'phone'
+          ? { phone: data.credential }
+          : { email: data.credential }),
+        ...(result.debugOtp ? { debugOtp: result.debugOtp } : {}),
       });
 
       router.push(`/sign-in/verify?${params.toString()}`);
@@ -57,10 +81,14 @@ export function SignInForm({ nextPath }: SignInFormProps) {
       setSubmitError(
         err instanceof Error
           ? err.message
-          : 'Could not send code. Try again or use a different number.',
+          : mode === 'phone'
+            ? 'Could not send code. Try again or use a different number.'
+            : 'Could not send code. Try again or sign in with your phone number.',
       );
     }
   };
+
+  const isPhone = mode === 'phone';
 
   return (
     <Card
@@ -83,38 +111,82 @@ export function SignInForm({ nextPath }: SignInFormProps) {
         </h1>
 
         <p className="mt-4 text-base leading-relaxed text-slate-600">
-          We&apos;ll text you a 6-digit code. No password to remember, no app to download.
+          {isPhone
+            ? 'We\u2019ll text you a 6-digit code. No password to remember, no app to download.'
+            : 'We\u2019ll email you a 6-digit code, and text it too. Use this if your SMS isn\u2019t arriving.'}
         </p>
       </div>
 
+      <div className="mb-5 inline-flex rounded-sm border border-slate-200 bg-[#F8FAF4] p-1">
+        <button
+          type="button"
+          onClick={() => switchMode('phone')}
+          className={
+            isPhone
+              ? 'rounded-sm bg-navy-800 px-4 py-2 text-xs font-black uppercase tracking-[0.1em] text-white'
+              : 'rounded-sm px-4 py-2 text-xs font-black uppercase tracking-[0.1em] text-slate-500'
+          }
+        >
+          Phone
+        </button>
+        <button
+          type="button"
+          onClick={() => switchMode('email')}
+          className={
+            !isPhone
+              ? 'rounded-sm bg-navy-800 px-4 py-2 text-xs font-black uppercase tracking-[0.1em] text-white'
+              : 'rounded-sm px-4 py-2 text-xs font-black uppercase tracking-[0.1em] text-slate-500'
+          }
+        >
+          Email
+        </button>
+      </div>
+
       <form onSubmit={handleSubmit(onSubmit)}>
-        <label htmlFor="phone" className="mb-2 block text-sm font-black text-navy-950">
-          Phone number
+        <label htmlFor="credential" className="mb-2 block text-sm font-black text-navy-950">
+          {isPhone ? 'Phone number' : 'Email address'}
         </label>
 
         <div className="flex overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-navy-700 focus-within:ring-2 focus-within:ring-amber-400/35">
-          <span className="inline-flex items-center border-r border-slate-200 bg-[#F8FAF4] px-3 font-mono text-xs font-bold text-navy-700">
-            NG +234
-          </span>
+          {isPhone && (
+            <span className="inline-flex items-center border-r border-slate-200 bg-[#F8FAF4] px-3 font-mono text-xs font-bold text-navy-700">
+              NG +234
+            </span>
+          )}
 
           <div className="relative flex-1">
-            <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-700" />
+            {isPhone ? (
+              <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-700" />
+            ) : (
+              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-700" />
+            )}
+
             <input
-              id="phone"
-              type="tel"
-              {...register('phone')}
-              placeholder="803 412 9018"
+              id="credential"
+              // key forces a fresh input when switching, so the browser doesn't
+              // keep the old value or autofill the wrong credential type.
+              key={mode}
+              type={isPhone ? 'tel' : 'email'}
+              {...register('credential')}
+              placeholder={isPhone ? '803 412 9018' : 'you@example.com'}
               className="h-12 w-full bg-white pl-10 pr-3 text-base text-navy-950 outline-none placeholder:text-slate-400"
-              autoComplete="tel-national"
+              autoComplete={isPhone ? 'tel-national' : 'email'}
               autoFocus
             />
           </div>
         </div>
 
-        {errors.phone && (
+        {errors.credential && (
           <p className="mt-2 flex items-start gap-1 text-xs text-red-600">
             <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
-            {errors.phone.message}
+            {errors.credential.message}
+          </p>
+        )}
+
+        {!isPhone && (
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            This only works for an email already on your account. If you haven&apos;t added
+            one, sign in with your phone first.
           </p>
         )}
 
@@ -141,7 +213,7 @@ export function SignInForm({ nextPath }: SignInFormProps) {
       <p className="mt-6 flex items-start gap-1.5 text-xs leading-relaxed text-slate-500">
         <Lock className="mt-0.5 h-3 w-3 shrink-0 text-navy-700" />
         <span>
-          By continuing you confirm you are 18 or older. We never share your number with
+          By continuing you confirm you are 18 or older. We never share your details with
           third parties.
         </span>
       </p>

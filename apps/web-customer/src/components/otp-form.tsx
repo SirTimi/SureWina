@@ -3,30 +3,41 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, ArrowLeft, Phone, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Mail, Phone, ShieldCheck } from 'lucide-react';
 import { Card } from '@surewina/ui';
 import { formatPhoneForDisplay } from '@surewina/utils';
 import { api } from '@/lib/api';
 
 interface OtpFormProps {
   challengeId: string;
-  phoneE164: string;
+  /** Present when signing in by phone. */
+  phoneE164?: string;
+  /** Present when signing in by email. Exactly one of these is set. */
+  email?: string;
   nextPath: string;
-  mockOtp?: string;
+  debugOtp?: string;
 }
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_S = 30;
 
-export function OtpForm({ challengeId, phoneE164, nextPath, mockOtp }: OtpFormProps) {
+export function OtpForm({
+  challengeId,
+  phoneE164,
+  email,
+  nextPath,
+  debugOtp,
+}: OtpFormProps) {
   const router = useRouter();
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_S);
   const [activeChallengeId, setActiveChallengeId] = useState(challengeId);
-  const [activeMockOtp, setActiveMockOtp] = useState(mockOtp);
+  const [activeDebugOtp, setActiveDebugOtp] = useState(debugOtp);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+  const byEmail = !phoneE164 && !!email;
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -114,9 +125,13 @@ export function OtpForm({ challengeId, phoneE164, nextPath, mockOtp }: OtpFormPr
     setError(null);
 
     try {
-      const result = await api.auth.requestOtp({ phoneE164 });
+      // Resend by the same route the user chose — switching would send the
+      // code somewhere they aren't looking.
+      const result = await api.auth.requestOtp(
+        byEmail ? { email } : { phoneE164 },
+      );
       setActiveChallengeId(result.challengeId);
-      setActiveMockOtp(result.mockOtp);
+      setActiveDebugOtp(result.debugOtp);
       setResendCooldown(RESEND_COOLDOWN_S);
       setDigits(Array(OTP_LENGTH).fill(''));
       inputRefs.current[0]?.focus();
@@ -140,13 +155,13 @@ export function OtpForm({ challengeId, phoneE164, nextPath, mockOtp }: OtpFormPr
         className="mb-6 inline-flex items-center gap-1 text-sm font-bold text-navy-700 transition hover:text-navy-800"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        Use a different number
+        {byEmail ? 'Use a different account' : 'Use a different number'}
       </Link>
 
       <div className="mb-8">
         <div className="mb-5 inline-flex items-center gap-2 rounded-sm border border-white/30 bg-navy-800/90 px-4 py-2 text-sm font-semibold text-white shadow-sm">
           <ShieldCheck className="h-4 w-4 text-white" />
-          Verify your phone
+          {byEmail ? 'Verify your identity' : 'Verify your phone'}
         </div>
 
         <h1 className="font-display text-4xl font-black leading-[0.98] tracking-[-0.05em] text-navy-950 sm:text-5xl">
@@ -154,19 +169,29 @@ export function OtpForm({ challengeId, phoneE164, nextPath, mockOtp }: OtpFormPr
         </h1>
 
         <p className="mt-4 text-base leading-relaxed text-slate-600">
-          We sent a 6-digit code to{' '}
-          <span className="font-mono font-black text-navy-950">
-            {formatPhoneForDisplay(phoneE164)}
-          </span>
+          {byEmail ? (
+            <>
+              We sent a 6-digit code to{' '}
+              <span className="font-black text-navy-950">{email}</span> and by SMS to the
+              number on your account.
+            </>
+          ) : (
+            <>
+              We sent a 6-digit code to{' '}
+              <span className="font-mono font-black text-navy-950">
+                {formatPhoneForDisplay(phoneE164 ?? '')}
+              </span>
+            </>
+          )}
         </p>
       </div>
 
-      {activeMockOtp && (
+      {activeDebugOtp && (
         <div className="mb-6 rounded-sm border border-amber-500/40 bg-amber-50 p-3 text-xs">
           <span className="font-black text-navy-700">Dev mode:</span>{' '}
           <span className="text-slate-700">
             Use code{' '}
-            <span className="font-mono font-black text-navy-950">{activeMockOtp}</span>
+            <span className="font-mono font-black text-navy-950">{activeDebugOtp}</span>
           </span>
         </div>
       )}
@@ -220,6 +245,16 @@ export function OtpForm({ challengeId, phoneE164, nextPath, mockOtp }: OtpFormPr
             </button>
           )}
         </p>
+
+        {!byEmail && (
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+            <Mail className="h-3 w-3 text-navy-700" />
+            SMS not arriving?{' '}
+            <Link href="/sign-in" className="font-bold text-navy-700 hover:text-navy-800">
+              Try your email instead
+            </Link>
+          </p>
+        )}
 
         <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
           <Phone className="h-3 w-3 text-navy-700" />

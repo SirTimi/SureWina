@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -21,6 +22,8 @@ import {
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { V2nSmsProvider } from '../notifications/v2n-sms.provider';
+import { ZohoEmailProvider } from '../notifications/zoho-email.provider';
+import { signInCode } from '../notifications/email.templates';
 
 @Injectable()
 export class AuthService {
@@ -35,9 +38,40 @@ export class AuthService {
     private readonly redisService: RedisService,
     private readonly auditService: AuditService,
     private readonly sms: V2nSmsProvider,
+    private readonly email: ZohoEmailProvider,
   ) {}
 
   async requestOtp(dto: RequestOtpDto) {
+    // Resolve to a phone number first: a challenge is always keyed on phone,
+    // whichever credential started it, so verify and everything downstream
+    // stays identical.
+    let phoneE164 = dto.phoneE164;
+    const normalizedEmail = dto.email?.trim().toLowerCase();
+
+    if (!phoneE164 && normalizedEmail) {
+      const user = await this.prismaService.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { phoneNumber: true },
+      });
+
+      if (!user) {
+        // Deliberately explicit rather than silent. An unknown email here is
+        // almost always a real customer who hasn't added one yet, and telling
+        // them what to do beats a vague failure. The tradeoff — confirming
+        // whether an address is registered — is acceptable: the rate limiter
+        // caps enumeration, and there's no password to attack.
+        throw new NotFoundException(
+          'No account uses that email. Sign in with your phone number, then add your email in account settings.',
+        );
+      }
+
+      phoneE164 = user.phoneNumber;
+    }
+
+    if (!phoneE164) {
+      throw new BadRequestException('Enter your phone number or email address');
+    }
+
     const ttlSeconds = this.configService.get<number>('OTP_TTL_SECONDS') ?? 300;
 
     const challengeId = randomUUID();
@@ -49,7 +83,7 @@ export class AuthService {
 
     const challenge: OtpChallenge = {
       challengeId,
-      phoneE164: dto.phoneE164,
+      phoneE164,
       otpHash,
       attempts: 0,
       createdAt: now.toISOString(),
@@ -66,7 +100,7 @@ export class AuthService {
     // already exists, and surfacing delivery status would tell an attacker
     // which numbers are reachable.
     const delivery = await this.sms.send(
-      dto.phoneE164,
+      phoneE164,
       [
         'SUREWINA',
         `OTP: ${otp}`,
@@ -79,8 +113,22 @@ export class AuthService {
 
     if (!delivery.sent) {
       this.logger.error(
-        `OTP SMS failed for ${this.maskPhone(dto.phoneE164)}: ${delivery.reason ?? 'unknown'}`,
+        `OTP SMS failed for ${this.maskPhone(phoneE164)}: ${delivery.reason ?? 'unknown'}`,
       );
+    }
+
+    // Asked by email, answer by email as well as SMS — the whole point of
+    // this route is that their SMS may not be arriving.
+    if (normalizedEmail) {
+      const mail = signInCode(otp, Math.round(ttlSeconds / 60));
+
+      void this.email
+        .send({ to: normalizedEmail, ...mail })
+        .catch((e) =>
+          this.logger.error(
+            `Sign-in code email failed: ${e instanceof Error ? e.message : 'unknown'}`,
+          ),
+        );
     }
 
     await this.auditService.write({
@@ -93,7 +141,10 @@ export class AuthService {
         id: challengeId,
       },
       metadata: {
-        phoneE164: this.maskPhone(dto.phoneE164),
+        phoneE164: this.maskPhone(phoneE164),
+        // Which credential started it — useful when someone reports that
+        // sign-in isn't working and you need to know which route they used.
+        via: normalizedEmail ? 'email' : 'phone',
         expiresAt: expiresAt.toISOString(),
         smsSent: delivery.sent,
         smsDevMode: delivery.devMode,
@@ -103,6 +154,7 @@ export class AuthService {
     return {
       challengeId,
       expiresInSeconds: ttlSeconds,
+      channel: normalizedEmail ? ('SMS_AND_EMAIL' as const) : ('SMS' as const),
       debugOtp:
         this.configService.get<string>('NODE_ENV') === 'production'
           ? undefined

@@ -154,3 +154,31 @@ export function ticketReceipt(args: {
     html,
   };
 }
+
+export function signInCode(otp: string, expiryMinutes: number) {
+  const text = [
+    `Your Surewina sign-in code is ${otp}.`,
+    ``,
+    `It expires in ${expiryMinutes} minutes.`,
+    `Do not share this code with anyone — Surewina staff will never ask for it.`,
+    ``,
+    `If you didn't try to sign in, you can ignore this email.`,
+  ].join('\n');
+
+  const html = layout(
+    'Your sign-in code',
+    `
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6">
+      Enter this code to finish signing in:
+    </p>
+    <div style="margin:0 0 16px;padding:18px;background:#f8faf4;border-radius:8px;text-align:center">
+      <span style="font-family:monospace;font-size:32px;font-weight:bold;letter-spacing:8px">${otp}</span>
+    </div>
+    <p style="margin:0;font-size:13px;line-height:1.6;color:#5e5f62">
+      It expires in ${expiryMinutes} minutes. Do not share this code with anyone —
+      Surewina staff will never ask for it. If you didn't try to sign in, ignore this email.
+    </p>`,
+  );
+
+  return { subject: `${otp} is your Surewina sign-in code`, text, html };
+}

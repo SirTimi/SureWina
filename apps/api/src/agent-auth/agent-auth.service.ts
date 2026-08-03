@@ -36,9 +36,17 @@ export class AgentAuthService {
   ) {}
 
   async requestOtp(dto: RequestOtpDto) {
+    // Agents sign in by phone only: the number is verified at in-office
+    // onboarding and is how the platform identifies them. The shared DTO
+    // allows email for customers, so narrow it here.
+    const phoneE164 = dto.phoneE164;
+    if (!phoneE164) {
+      throw new BadRequestException('Enter your registered phone number');
+    }
+
     const agent = await this.prismaService.agent.findUnique({
       where: {
-        phoneNumber: dto.phoneE164,
+        phoneNumber: phoneE164,
       },
     });
 
@@ -64,7 +72,7 @@ export class AgentAuthService {
 
     const challenge: AgentOtpChallenge = {
       challengeId,
-      phoneE164: dto.phoneE164,
+      phoneE164,
       agentId: agent.agentId,
       otpHash,
       attempts: 0,
@@ -79,7 +87,7 @@ export class AgentAuthService {
     );
 
     const delivery = await this.sms.send(
-      dto.phoneE164,
+      phoneE164,
       [
         'SUREWINA AGENT',
         `OTP: ${otp}`,

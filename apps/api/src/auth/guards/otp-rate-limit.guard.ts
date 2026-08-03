@@ -25,9 +25,9 @@ export class OtpRateLimitGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context
       .switchToHttp()
-      .getRequest<{ body?: { phoneE164?: string } }>();
+      .getRequest<{ body?: { phoneE164?: string; email?: string } }>();
 
-    const raw = request.body?.phoneE164;
+    const raw = request.body?.phoneE164 ?? request.body?.email;
 
     // No usable phone in the body — let the validation pipe return a 400
     // rather than masking a malformed request as a rate-limit error.

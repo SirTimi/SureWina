@@ -6,12 +6,12 @@ import { useSearchParams } from 'next/navigation';
 import { Check, Clock, Copy, Megaphone, Printer, QrCode, Sparkles } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
+import type { AgentSalePrint } from '@surewina/api-client';
 import { AgentShell } from '@/components/agent-shell';
 import { SaleStepper } from '@/components/sale-stepper';
 import { SectionHeading } from '@/components/section-heading';
-import { api } from '@/lib/api';
-import { AgentSalePrint } from '@surewina/api-client';
 import { TicketReceipt } from '@/components/ticket-reciept';
+import { api } from '@/lib/api';
 
 export default function SellDonePage({
   params,
@@ -41,7 +41,7 @@ function DoneBody({ ref_ }: { ref_: string }) {
   const queued = search.get('queued') === '1';
   const [copied, setCopied] = useState(false);
 
-  // Sale details come from the confirm redirect — no lookup needed.
+  // Screen details come from the confirm redirect — instant, no loading flash.
   const amount = Number(search.get('amount') ?? '0');
   const ticketRefs = (search.get('tickets') ?? '').split(',').filter(Boolean);
   const sale: DoneSale | null = queued
@@ -54,6 +54,21 @@ function DoneBody({ ref_ }: { ref_: string }) {
         customerPhone: search.get('phone') || null,
         notified: search.get('notified') === '1',
       };
+
+  // Print data is fetched, not passed: the receipt needs terminal, draw
+  // number and cutoff, which don't belong in a URL — and this is also the
+  // reprint path when an agent returns to a sale later.
+  const [printSale, setPrintSale] = useState<AgentSalePrint | null>(null);
+  const [printLoading, setPrintLoading] = useState(!queued);
+
+  useEffect(() => {
+    if (queued) return; // offline sale — no tickets issued yet
+    api.agents
+      .saleForPrint(ref_)
+      .then(setPrintSale)
+      .catch(() => setPrintSale(null))
+      .finally(() => setPrintLoading(false));
+  }, [ref_, queued]);
 
   const commission = sale ? Math.round(sale.amountNgn * 0.1) : 0;
   const jackpotMessage = getJackpotMessage(sale);
@@ -68,82 +83,31 @@ function DoneBody({ ref_ }: { ref_: string }) {
     }
   };
 
-  const printTicket = () => {
-    if (!sale || queued || ticketRefs.length === 0) return;
-    window.print();
-  };
-
-  const [printSale, setPrintSale] = useState<AgentSalePrint | null>(null);
-
-  useEffect(() => {
-    if (queued) return; // offline sale — nothing to print yet
-    api.agents
-      .saleForPrint(ref_)
-      .then(setPrintSale)
-      .catch(() => setPrintSale(null));
-  }, [ref_, queued]);
-
   return (
     <>
       <style jsx global>{`
-        @media screen {
-          .surewina-print-ticket {
-            display: none !important;
-          }
+        .surewina-print-area {
+          display: none;
         }
         @media print {
+          @page {
+            size: 75mm auto;
+            margin: 0;
+          }
           body {
-            background: white !important;
+            background: #fff !important;
           }
           .surewina-screen {
             display: none !important;
           }
-          .surewina-print-ticket {
-            display: block !important;
-            padding: 24px;
-            color: #1a1816;
-            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          .surewina-print-area {
+            display: block;
           }
-          .surewina-ticket-paper {
-            width: 100%;
-            max-width: 360px;
-            margin: 0 auto 24px;
-            border: 1px solid #1a1816;
-            padding: 18px;
+          .surewina-receipt-page {
             page-break-after: always;
           }
-          .surewina-ticket-label {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.14em;
-            color: #5e5f62;
-            margin: 0 0 4px;
-          }
-          .surewina-ticket-value {
-            font-size: 14px;
-            font-weight: 800;
-            margin: 0 0 12px;
-          }
-          .surewina-ticket-ref {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 26px;
-            font-weight: 900;
-            letter-spacing: 0.12em;
-            margin: 8px 0 18px;
-            text-align: center;
-          }
-          .surewina-ticket-title {
-            font-size: 22px;
-            font-weight: 900;
-            margin: 0;
-            text-align: center;
-          }
-          .surewina-ticket-note {
-            border-top: 1px dashed #999ea7;
-            margin-top: 14px;
-            padding-top: 12px;
-            font-size: 12px;
-            line-height: 1.5;
+          .surewina-receipt-page:last-child {
+            page-break-after: auto;
           }
         }
       `}</style>
@@ -262,57 +226,16 @@ function DoneBody({ ref_ }: { ref_: string }) {
             variant="secondary"
             size="lg"
             fullWidth
-            disabled={!sale || queued || ticketRefs.length === 0}
-            onClick={printTicket}
+            disabled={!printSale}
+            onClick={() => window.print()}
             className="rounded-sm border-navy-200 bg-white text-navy-700 hover:bg-navy-50 disabled:opacity-50"
           >
-            {printSale && (
-        <>
-          <Button onClick={() => window.print()} className="no-print">
-            <Printer className="h-4 w-4" />
-            Print {printSale.tickets.length > 1 ? `${printSale.tickets.length} tickets` : 'ticket'}
-          </Button>
-
-          <div className="print-area">
-            {printSale.tickets.map((t) => (
-              <div key={t} className="receipt-page">
-                <TicketReceipt sale={printSale} ticketRef={t} />
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      <style jsx global>{`
-        .print-area {
-          display: none;
-        }
-        @media print {
-          @page {
-            size: 75mm auto;
-            margin: 0;
-          }
-          body * {
-            visibility: hidden;
-          }
-          .print-area,
-          .print-area * {
-            visibility: visible;
-          }
-          .print-area {
-            display: block;
-            position: absolute;
-            left: 0;
-            top: 0;
-          }
-          .receipt-page {
-            page-break-after: always;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
+            <Printer className="h-5 w-5" />
+            {printLoading
+              ? 'Preparing…'
+              : printSale
+                ? `Print ${printSale.tickets.length > 1 ? `${printSale.tickets.length} tickets` : 'ticket'}`
+                : 'Print unavailable'}
           </Button>
 
           <Link href="/sell">
@@ -338,34 +261,21 @@ function DoneBody({ ref_ }: { ref_: string }) {
             </Button>
           </Link>
         </div>
+
+        {!queued && !printLoading && !printSale && (
+          <p className="mt-3 text-center text-xs text-slate-500">
+            Ticket details could not be loaded, so printing is unavailable. The sale itself
+            is complete — reload this page to try again.
+          </p>
+        )}
       </main>
 
-      {sale && ticketRefs.length > 0 && (
-        <section className="surewina-print-ticket">
-          {ticketRefs.map((tref) => (
-            <div key={tref} className="surewina-ticket-paper">
-              <p className="surewina-ticket-title">Surewina Ticket</p>
-
-              <p className="surewina-ticket-ref">{tref}</p>
-
-              <p className="surewina-ticket-label">Draw name</p>
-              <p className="surewina-ticket-value">{sale.drawLabel}</p>
-
-              <p className="surewina-ticket-label">Ticket type</p>
-              <p className="surewina-ticket-value">{formatTicketType(sale.kind)}</p>
-
-              <p className="surewina-ticket-label">Customer phone</p>
-              <p className="surewina-ticket-value">{sale.customerPhone ?? 'Not provided'}</p>
-
-              <p className="surewina-ticket-label">Amount paid (this ticket)</p>
-              <p className="surewina-ticket-value">
-                {formatNaira(Math.round(sale.amountNgn / sale.quantity))}
-              </p>
-
-              <p className="surewina-ticket-note">
-                Keep this ticket safe. This reference is required for prize claim
-                verification.
-              </p>
+      {/* One receipt per ticket, 75mm thermal. Hidden on screen. */}
+      {printSale && (
+        <section className="surewina-print-area">
+          {printSale.tickets.map((tref) => (
+            <div key={tref} className="surewina-receipt-page">
+              <TicketReceipt sale={printSale} ticketRef={tref} />
             </div>
           ))}
         </section>

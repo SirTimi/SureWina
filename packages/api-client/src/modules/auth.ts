@@ -13,7 +13,9 @@ export class AuthModule {
   async requestOtp(req: RequestOtpRequest): Promise<RequestOtpResponse> {
     return this.client.post<RequestOtpResponse>(
       '/auth/otp/request',
-      { phoneE164: req.phoneE164 },
+      // Send only what was given: an empty string fails the API's validation,
+      // and sending both would make the phone win silently.
+      req.email ? { email: req.email } : { phoneE164: req.phoneE164 },
       { skipAuth: true },
     );
   }

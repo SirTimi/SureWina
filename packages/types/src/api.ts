@@ -93,14 +93,17 @@ export interface ConfirmPurchaseResponse {
 }
 
 export interface RequestOtpRequest {
-  phoneE164: string;
+  phoneE164?: string;
+  email?: string;
 }
 
 export interface RequestOtpResponse {
   challengeId: string;
-  channel: 'SMS';
-  expiresAt: string;
-  mockOtp?: string;
+  expiresInSeconds: number;
+  /** Where the code went. Email is only used when the request came by email. */
+  channel: 'SMS' | 'SMS_AND_EMAIL';
+  /** Non-production only: lets local testing skip the SMS round trip. */
+  debugOtp?: string;
 }
 
 export interface VerifyOtpRequest {

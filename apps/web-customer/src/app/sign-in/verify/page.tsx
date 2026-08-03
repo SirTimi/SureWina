@@ -8,15 +8,17 @@ interface VerifyPageProps {
   searchParams: Promise<{
     challenge?: string;
     phone?: string;
+    email?: string;
     next?: string;
-    mockOtp?: string;
+    debugOtp?: string;
   }>;
 }
 
 export default async function VerifyPage({ searchParams }: VerifyPageProps) {
-  const { challenge, phone, next, mockOtp } = await searchParams;
+  const { challenge, phone, email, next, debugOtp } = await searchParams;
 
-  if (!challenge || !phone) {
+  // Either credential is enough — one of them started the challenge.
+  if (!challenge || (!phone && !email)) {
     redirect('/sign-in');
   }
 
@@ -33,8 +35,9 @@ export default async function VerifyPage({ searchParams }: VerifyPageProps) {
               <OtpForm
                 challengeId={challenge}
                 phoneE164={phone}
+                email={email}
                 nextPath={next ?? '/dashboard'}
-                mockOtp={mockOtp}
+                debugOtp={debugOtp}
               />
             </Suspense>
           </section>
