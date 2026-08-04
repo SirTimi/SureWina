@@ -33,7 +33,7 @@ class OnboardAgentDto {
   @IsString() @Length(2, 120) fullName!: string;
   @Matches(/^\+234\d{10}$/, { message: 'phoneNumber must be E.164 Nigerian (+234…)' })
   phoneNumber!: string;
-  @IsOptional() @IsEmail() email?: string;
+  @IsEmail() email!: string;
   @IsString() @Length(2, 10) registeredStateCode!: string;
   @Matches(/^\d{11}$/, { message: 'NIN must be 11 digits' }) nin!: string;
   @Matches(/^\d{11}$/, { message: 'BVN must be 11 digits' }) bvn!: string;
@@ -42,9 +42,11 @@ class OnboardAgentDto {
   @IsOptional() @IsString() @Length(0, 1000) onboardingNote?: string;
 }
 
+import { DepartmentOnly } from '../admin-auth/decorators/department-only.decorator';
+
 @Controller('admin/agents')
 @UseGuards(AdminJwtGuard, AdminRoleGuard)
-@AdminRoles(AdminRole.OPERATOR)
+@AdminRoles(AdminRole.OPERATOR, AdminRole.COMPLIANCE_OFFICER)
 export class AgentAdminController {
   constructor(private readonly agentAdmin: AgentAdminService) {}
 
@@ -64,6 +66,8 @@ export class AgentAdminController {
   }
 
   @Post(':agentId/approve')
+  @AdminRoles(AdminRole.COMPLIANCE_OFFICER)
+  @DepartmentOnly()
   approve(@Param('agentId') id: string, @CurrentAdmin() a: AdminJwtPayload) {
     return this.agentAdmin.transition(id, 'APPROVE', a.sub);
   }
@@ -78,6 +82,8 @@ export class AgentAdminController {
   }
 
   @Post(':agentId/reactivate')
+  @AdminRoles(AdminRole.COMPLIANCE_OFFICER)
+  @DepartmentOnly()
   reactivate(@Param('agentId') id: string, @CurrentAdmin() a: AdminJwtPayload) {
     return this.agentAdmin.transition(id, 'REACTIVATE', a.sub);
   }

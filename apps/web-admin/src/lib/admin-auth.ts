@@ -50,6 +50,8 @@ export type AdminAction =
   | 'REVOKE_ADMIN'
   | 'INITIATE_AGENT_PROFILING'
   | 'APPROVE_AGENT_ONBOARDING'
+  | 'REACTIVATE_AGENT'
+  | 'REVIEW_CLAIM_KYC'
   | 'CREATE_DRAW_SETUP_REQUEST'
   | 'APPROVE_DRAW_SETUP'
   | 'CHANGE_TICKET_PRICE'
@@ -72,6 +74,8 @@ const roleActionMap: Record<AdminRole, AdminAction[]> = {
     'CREATE_DRAW_SETUP_REQUEST',
     'APPROVE_WORKFLOW_STAGE',
     'REJECT_WORKFLOW_STAGE',
+    'REACTIVATE_AGENT',
+    'REVIEW_CLAIM_KYC'
     
   ],
 
@@ -91,6 +95,8 @@ const roleActionMap: Record<AdminRole, AdminAction[]> = {
     'APPROVE_WORKFLOW_STAGE',
     'REJECT_WORKFLOW_STAGE',
     'RESPOND_TO_ESCALATION',
+    'REACTIVATE_AGENT',
+    'REVIEW_CLAIM_KYC'
     
   ],
 
@@ -126,8 +132,29 @@ const mutationActions = new Set<AdminAction>([
   'REJECT_WORKFLOW_STAGE',
   'RAISE_ESCALATION',
   'RESPOND_TO_ESCALATION',
+  'REACTIVATE_AGENT',
+  'REVIEW_CLAIM_KYC'
 ]);
 
+// ─── DEPARTMENT GATING ─────────────────────────────────────
+//
+// Tier answers "is this person senior enough?". Department answers "is this
+// their job?". Most actions only need the first. A few need both, because the
+// officer performing them is attesting to something only their department can
+// attest to — a compliance sign-off is worthless if operations can issue it.
+//
+// Mirrors @AdminRoles(...) + @DepartmentOnly() on the backend routes. Keep the
+// two in step: a mismatch shows an enabled button that then 403s.
+const actionRequiredFunctions: Partial<Record<AdminAction, AdminFunction[]>> = {
+  // Letting an agent sell — first time, or after a suspension.
+  APPROVE_AGENT_ONBOARDING: ['COMPLIANCE_OFFICER'],
+  REACTIVATE_AGENT: ['COMPLIANCE_OFFICER'],
+  // Identity review on a prize claim.
+  REVIEW_CLAIM_KYC: ['COMPLIANCE_OFFICER'],
+};
+
+// Tier-only check. Correct for actions with no department requirement; for the
+// rest prefer canPerformAction(session, action), which applies both gates.
 export function canPerformAdminAction(role: AdminRole, action: AdminAction): boolean {
   if (
     role === 'AUDITOR' &&
@@ -160,6 +187,41 @@ export function getAdminActionDeniedReason(role: AdminRole, action: AdminAction)
   return `${roleLabel(role)} does not have permission to perform this action.`;
 }
 
+// Both gates. Tier is checked first so an auditor is told they are read-only
+// rather than told they are in the wrong department.
+export function canPerformAction(session: AdminSession, action: AdminAction): boolean {
+  if (!canPerformAdminAction(session.tier, action)) return false;
+
+  const departments = actionRequiredFunctions[action];
+  if (departments && !departments.includes(session.role)) return false;
+
+  return true;
+}
+
+export function getActionDeniedReason(session: AdminSession, action: AdminAction): string {
+  if (!canPerformAdminAction(session.tier, action)) {
+    return getAdminActionDeniedReason(session.tier, action);
+  }
+
+  const departments = actionRequiredFunctions[action];
+  if (departments && !departments.includes(session.role)) {
+    const allowed = departments.map(functionLabel).join(' or ');
+    return `This action is restricted to ${allowed}. Your account is registered to ${functionLabel(
+      session.role,
+    )}, so it cannot be performed here regardless of clearance.`;
+  }
+
+  return `${roleLabel(session.tier)} does not have permission to perform this action.`;
+}
+
+export function getActionRequiredFunctions(action: AdminAction): AdminFunction[] | null {
+  return actionRequiredFunctions[action] ?? null;
+}
+
+export function isDepartmentGatedAction(action: AdminAction): boolean {
+  return action in actionRequiredFunctions;
+}
+
 export function isFinalApprovalAction(action: AdminAction): boolean {
   return finalApprovalActions.has(action);
 }
@@ -187,6 +249,7 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_TICKETS',
     'VIEW_CUSTOMERS',
     'VIEW_AGENTS',
+    'INITIATE_AGENT_PROFILING',
     'REVIEW_AGENT_ONBOARDING',
     'VIEW_CLAIMS',
     'REVIEW_KYC',
@@ -283,6 +346,10 @@ export function getStoredSession(): AdminSession | null {
   try {
     const parsed = JSON.parse(raw) as AdminSession;
     if (!isSupportedRole(parsed.tier)) return null;   // validate tier, not role
+    // Sessions stored before department gating existed carry no functional
+    // role. Treating that as "no department" would silently deny compliance
+    // actions, so force a fresh sign-in instead.
+    if (!isSupportedFunction(parsed.role)) return null;
     return parsed;
   } catch {
     return null;
@@ -311,6 +378,19 @@ export function roleLabel(role: AdminRole): string {
       return 'Super Admin';
     case 'AUDITOR':
       return 'Auditor';
+  }
+}
+
+export function functionLabel(fn: AdminFunction): string {
+  switch (fn) {
+    case 'OPERATOR':
+      return 'Operations';
+    case 'COMPLIANCE_OFFICER':
+      return 'Compliance';
+    case 'FINANCE_OFFICER':
+      return 'Finance';
+    case 'SUPPORT_AGENT':
+      return 'Support';
   }
 }
 
@@ -372,4 +452,8 @@ function findRoutePermission(screen: string) {
 
 function isSupportedRole(role: string): role is AdminRole {
   return ['BASIC_ADMIN', 'INTERMEDIATE_ADMIN', 'SUPER_ADMIN', 'AUDITOR'].includes(role);
+}
+
+function isSupportedFunction(fn: string): fn is AdminFunction {
+  return ['OPERATOR', 'COMPLIANCE_OFFICER', 'FINANCE_OFFICER', 'SUPPORT_AGENT'].includes(fn);
 }

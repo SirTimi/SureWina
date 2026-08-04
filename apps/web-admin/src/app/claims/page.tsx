@@ -198,7 +198,7 @@ function Body({ session }: { session: AdminSession }) {
                         <div className="mt-4">
                           <GuardedActionButton
                             session={session}
-                            action="APPROVE_AGENT_ONBOARDING"
+                            action="REVIEW_CLAIM_KYC"
                             icon={<FileCheck className="h-4 w-4" />}
                             onClick={() => {
                               setOpenReview(c.claimId);

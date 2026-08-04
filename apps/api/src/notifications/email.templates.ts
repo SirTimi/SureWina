@@ -182,3 +182,51 @@ export function signInCode(otp: string, expiryMinutes: number) {
 
   return { subject: `${otp} is your Surewina sign-in code`, text, html };
 }
+
+export function agentOnboardingPending(args: { fullName: string; agentCode: string }) {
+  const firstName = args.fullName.trim().split(/\s+/)[0];
+
+  const text = [
+    `Hello ${firstName},`,
+    ``,
+    `Your registration as a Surewina agent has been received and is now with`,
+    `our compliance team for review.`,
+    ``,
+    `Agent code: ${args.agentCode}`,
+    `Status: Pending approval`,
+    ``,
+    `You cannot sell tickets yet. We'll email you again once compliance has`,
+    `completed their checks and your account is active.`,
+    ``,
+    `No action is needed from you in the meantime. If you have a question,`,
+    `contact the office where you registered.`,
+    ``,
+    `Customer care: 080 8000 9000`,
+  ].join('\n');
+
+  const html = layout(
+    'Your agent registration is being processed',
+    `
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.6">
+      Hello ${firstName}, your registration as a Surewina agent has been received
+      and is now with our compliance team for review.
+    </p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;line-height:1.8">
+      <tr><td style="color:#5e5f62">Agent code</td><td align="right"><strong>${args.agentCode}</strong></td></tr>
+      <tr><td style="color:#5e5f62">Status</td><td align="right"><strong>Pending approval</strong></td></tr>
+    </table>
+
+    <div style="margin-top:20px;padding:14px;background:#fff8e6;border:1px solid #f2d98a;border-radius:8px;font-size:13px;line-height:1.6">
+      <strong>You cannot sell tickets yet.</strong> We'll email you again once
+      compliance has completed their checks and your account is active.
+    </div>
+
+    <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#5e5f62">
+      No action is needed from you in the meantime. If you have a question,
+      contact the office where you registered. Customer care: 080 8000 9000
+    </p>`,
+  );
+
+  return { subject: 'Your Surewina agent registration is being processed', text, html };
+}

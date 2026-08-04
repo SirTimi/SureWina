@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -15,6 +16,8 @@ import { createHash } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { IdentityVerificationService } from '../agent-ops/kyc/identity-verification.service';
+import { ZohoEmailProvider } from '../notifications/zoho-email.provider';
+import { agentOnboardingPending } from '../notifications/email.templates';
 
 export type AgentAction = 'APPROVE' | 'SUSPEND' | 'REACTIVATE' | 'TERMINATE';
 
@@ -23,7 +26,7 @@ export type AgentAction = 'APPROVE' | 'SUSPEND' | 'REACTIVATE' | 'TERMINATE';
 export type OnboardAgentInput = {
   fullName: string;
   phoneNumber: string;
-  email?: string;
+  email: string;
   registeredStateCode: string;
   nin: string;
   bvn: string;
@@ -51,10 +54,13 @@ const AUDIT_ACTIONS: Record<AgentAction, string> = {
 
 @Injectable()
 export class AgentAdminService {
+
+  private readonly logger = new Logger(AgentAdminService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly identity: IdentityVerificationService,
+    private readonly email: ZohoEmailProvider,
   ) {}
 
   async list(status?: AgentStatus, page = 1, pageSize = 20) {
@@ -177,9 +183,7 @@ export class AgentAdminService {
   // Creates the agent in PENDING_KYC — activation is the separate approve step.
   async onboard(dto: OnboardAgentInput, adminId: string) {
     const existing = await this.prisma.agent.findFirst({
-      where: {
-        OR: [{ phoneNumber: dto.phoneNumber }, ...(dto.email ? [{ email: dto.email }] : [])],
-      },
+      where: { OR: [{ phoneNumber: dto.phoneNumber }, { email: dto.email }] },
     });
     if (existing) {
       throw new ConflictException('An agent with this phone or email already exists');
@@ -226,6 +230,22 @@ export class AgentAdminService {
         devModeVerification: ninCheck.devMode || bvnCheck.devMode,
       },
     });
+
+    // Non-blocking: the agent record and its audit trail are already committed.
+    // A mail outage must never fail an in-office registration with the person
+    // sitting across the desk.
+    const mail = agentOnboardingPending({
+      fullName: agent.fullName,
+      agentCode: agent.agentCode,
+    });
+
+    void this.email
+      .send({ to: agent.email!, ...mail })
+      .catch((e) =>
+        this.logger.error(
+          `Onboarding email failed for ${agentCode}: ${e instanceof Error ? e.message : 'unknown'}`,
+        ),
+      );
 
     return { agentId: agent.agentId, agentCode, status: agent.status };
   }

@@ -59,7 +59,7 @@ function Body({ session }: { session: AdminSession }) {
       const res = await api.admin.onboardAgent({
         fullName: fullName.trim(),
         phoneNumber,
-        ...(email.trim() ? { email: email.trim().toLowerCase() } : {}),
+        email: email.trim().toLowerCase(),
         registeredStateCode: stateCode,
         nin,
         bvn,
@@ -141,7 +141,7 @@ function Body({ session }: { session: AdminSession }) {
                 <Field label="Phone (E.164)">
                   <input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="+2348012345678" className={`${inputCls} font-mono`} />
                 </Field>
-                <Field label="Email (optional)">
+                <Field label="Email">
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
                 </Field>
                 <Field label="State of operation">

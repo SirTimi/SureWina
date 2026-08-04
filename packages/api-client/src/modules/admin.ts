@@ -929,7 +929,7 @@ export class AdminModule {
   async onboardAgent(input: {
     fullName: string;
     phoneNumber: string;
-    email?: string;
+    email: string;
     registeredStateCode: string;
     nin: string;
     bvn: string;

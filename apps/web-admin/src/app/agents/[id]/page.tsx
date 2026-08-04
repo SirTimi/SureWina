@@ -161,7 +161,7 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
             {agent.status === 'SUSPENDED' && (
               <GuardedActionButton
                 session={session}
-                action="APPROVE_AGENT_ONBOARDING"
+                action="REACTIVATE_AGENT"
                 icon={<PlayCircle className="h-4 w-4" />}
                 onClick={() => runAction('reactivate')}
                 className="rounded-md border-emerald-200 bg-emerald-50 text-emerald-700"
