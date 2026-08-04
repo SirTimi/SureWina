@@ -5,8 +5,8 @@ import { Button } from '@surewina/ui';
 import {
   type AdminAction,
   type AdminSession,
-  canPerformAdminAction,
-  getAdminActionDeniedReason,
+  canPerformAction,
+  getActionDeniedReason,
 } from '@/lib/admin-auth';
 
 interface GuardedActionButtonProps {
@@ -18,6 +18,8 @@ interface GuardedActionButtonProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   hideWhenDenied?: boolean;
+  disabled?: boolean;
+  isLoading?: boolean;
   onClick?: () => void;
 }
 
@@ -30,10 +32,11 @@ export function GuardedActionButton({
   size = 'sm',
   className,
   hideWhenDenied = false,
+  disabled = false,
+  isLoading = false,
   onClick,
 }: GuardedActionButtonProps) {
-  const allowed = canPerformAdminAction(session.tier, action);
-
+  const allowed = canPerformAction(session, action);
   if (!allowed && hideWhenDenied) return null;
 
   if (!allowed) {
@@ -41,7 +44,7 @@ export function GuardedActionButton({
       <button
         type="button"
         disabled
-        title={getAdminActionDeniedReason(session.tier, action)}
+        title={getActionDeniedReason(session, action)}
         className="inline-flex cursor-not-allowed items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-400"
       >
         <Lock className="h-4 w-4" />
@@ -52,15 +55,14 @@ export function GuardedActionButton({
 
   return (
     <Button
-  type="button"
-  variant={variant}
-  size={size}
-  onClick={() => {
-    onClick?.();
-  }}
-  className={className}
-  title="Frontend permission allowed. Backend enforcement will be added later."
->
+      type="button"
+      variant={variant}
+      size={size}
+      disabled={disabled}
+      isLoading={isLoading}
+      onClick={onClick}
+      className={className}
+    >
       {icon}
       {children}
     </Button>
