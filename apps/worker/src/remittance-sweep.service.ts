@@ -59,6 +59,10 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
 
         const gross = g._sum.amountNgn ?? 0;
         const commission = Math.floor(gross * Number(agent.commissionRate));
+        // Net model: the agent kept their commission out of the cash at the
+        // point of sale, so only the balance comes back. Commission is never
+        // transferred separately — see CommissionSweepService for why.
+        const amountDue = gross - commission;
 
         try {
           const rem = await this.prisma.remittance.create({
@@ -67,7 +71,7 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
               periodDate,
               grossSalesNgn: gross,
               commissionNgn: commission,
-              amountDueNgn: gross, // gross model: full cash comes in
+              amountDueNgn: amountDue,
               ticketCount: g._sum.ticketCount ?? 0,
             },
           });
@@ -78,11 +82,17 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
               action: 'REMITTANCE_CREATED',
               resourceType: 'Remittance',
               resourceId: rem.remittanceId,
-              metadata: { agentCode: agent.agentCode, gross, commission },
+              metadata: { agentCode: agent.agentCode, gross, commission, amountDue },
             },
           });
           this.logger.log(
-            `Remittance created: ${agent.agentCode} owes NGN ${gross.toLocaleString('en-NG')} for ${periodDate.toISOString().slice(0, 10)}`,
+            `Remittance created: ${agent.agentCode} owes NGN ${amountDue.toLocaleString(
+              'en-NG',
+            )} (gross ${gross.toLocaleString(
+              'en-NG',
+            )} less commission ${commission.toLocaleString(
+              'en-NG',
+            )}) for ${periodDate.toISOString().slice(0, 10)}`,
           );
         } catch (error) {
           if ((error as { code?: string }).code !== 'P2002') throw error; // exists → fine

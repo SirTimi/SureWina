@@ -15,7 +15,9 @@ import {
   NOTIFICATIONS_QUEUE,
   TicketConfirmationSmsJob,
 } from './queue.contract';
-import { ticketPurchase, winnerNotice } from './sms-templates';
+import { smsPlan, ticketPurchase, winnerNotice } from './sms-templates';
+
+
 
 @Injectable()
 export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
@@ -125,20 +127,81 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleTicketConfirmation(data: TicketConfirmationSmsJob) {
-    const message = ticketPurchase({
-      drawCode: data.drawCode,
-      scheduledAt: data.drawScheduledAt,
-      ticketRefs: data.ticketRefs,
-      amountNgn: data.amountNgn,
-    });
-
-    await this.sms.sendSms(data.buyerPhone, message, `txn-${data.txnId}`);
-
-    await this.prisma.ticket.updateMany({
+    // The DB is the source of truth, not job.ticketRefs — each message needs
+    // that ticket's own face value, and per-ticket send state has to survive
+    // a retry.
+    //
+    // Ordering: tickets minted in one transaction usually share a createdAt
+    // to the millisecond, so ticketRef breaks the tie. The ref is random, so
+    // the order is arbitrary — but it is *stable*, which is what matters:
+    // a retry must not renumber the slips a buyer already holds.
+    const tickets = await this.prisma.ticket.findMany({
       where: { paymentTxnId: data.txnId },
-      data: { confirmationSmsSentAt: new Date() },
+      select: {
+        ticketId: true,
+        ticketRef: true,
+        faceValueNgn: true,
+        confirmationSmsSentAt: true,
+      },
+      orderBy: [{ createdAt: 'asc' }, { ticketRef: 'asc' }],
     });
 
-    this.logger.log(`Confirmation SMS processed for txn ${data.txnId} (${data.ticketRefs.length} tickets)`);
+    if (tickets.length === 0) {
+      // Webhook raced ahead of the commit, or the txn id is wrong. Throwing
+      // lets BullMQ back off and retry rather than silently sending nothing.
+      throw new Error(`No tickets found for txn ${data.txnId} — retrying`);
+    }
+
+    if (tickets.length !== data.ticketRefs.length) {
+      this.logger.warn(
+        `Ticket count mismatch for txn ${data.txnId}: job says ${data.ticketRefs.length}, DB has ${tickets.length}. Sending on the DB.`,
+      );
+    }
+
+    const total = tickets.length;
+    let sent = 0;
+    let alreadySent = 0;
+
+    for (let i = 0; i < tickets.length; i += 1) {
+      const ticket = tickets[i];
+
+      // Resuming a partial run: this one already went out.
+      if (ticket.confirmationSmsSentAt) {
+        alreadySent += 1;
+        continue;
+      }
+
+      // Position comes from the full list, not the unsent remainder — on a
+      // retry that resumes at ticket 3, it must still say "3 of 3".
+      const message = ticketPurchase({
+        drawCode: data.drawCode,
+        scheduledAt: data.drawScheduledAt,
+        ticketRef: ticket.ticketRef,
+        faceValueNgn: ticket.faceValueNgn,
+        sequence: { position: i + 1, total },
+      });
+
+      const plan = smsPlan(message);
+      if (plan.segments > 1) {
+        this.logger.warn(
+          `SMS for ${ticket.ticketRef} is ${plan.length} ${plan.encoding} chars = ${plan.segments} segments (billed ${plan.segments}x)`,
+        );
+      }
+
+      await this.sms.sendSms(data.buyerPhone, message, `tkt-${ticket.ticketRef}`);
+
+      // Stamped immediately, one row at a time. A crash after this point
+      // costs nothing; a crash before it re-sends only this ticket.
+      await this.prisma.ticket.update({
+        where: { ticketId: ticket.ticketId },
+        data: { confirmationSmsSentAt: new Date() },
+      });
+
+      sent += 1;
+    }
+
+    this.logger.log(
+      `Confirmation SMS for txn ${data.txnId}: ${sent} sent, ${alreadySent} already sent, ${total} tickets`,
+    );
   }
 }

@@ -24,7 +24,7 @@ export class AdminDashboardService {
   async summary() {
     const todayStart = startOfWatDay();
 
-    const [direct, agent, drawCounts, claimGroups, remOutstanding, commPending] =
+    const [direct, agent, drawCounts, claimGroups, remOutstanding, commOpen] =
       await Promise.all([
         // Today's confirmed direct (gateway) sales
         this.prisma.paymentTransaction.aggregate({
@@ -61,9 +61,22 @@ export class AdminDashboardService {
           _sum: { amountDueNgn: true },
           _count: true,
         }),
-        this.prisma.commissionDisbursement.aggregate({
-          where: { status: 'PENDING' },
-          _sum: { amountNgn: true },
+        // Net model: commission is retained by the agent at the point of
+        // sale, so nothing is ever pending disbursement. The figure that
+        // pairs with outstanding remittance is the commission already kept
+        // on those same open periods — the two sum to gross sales for the
+        // periods concerned.
+        this.prisma.remittance.aggregate({
+          where: {
+            status: {
+              in: [
+                RemittanceStatus.PENDING,
+                RemittanceStatus.AGENT_CONFIRMED,
+                RemittanceStatus.LATE,
+              ],
+            },
+          },
+          _sum: { commissionNgn: true },
           _count: true,
         }),
       ]);
@@ -93,8 +106,8 @@ export class AdminDashboardService {
         openCount: remOutstanding._count,
       },
       commission: {
-        pendingNgn: commPending._sum.amountNgn ?? 0,
-        pendingCount: commPending._count,
+        retainedNgn: commOpen._sum.commissionNgn ?? 0,
+        periodCount: commOpen._count,
       },
       // Claims awaiting compliance action — the number that should be zero
       // at end of each business day.

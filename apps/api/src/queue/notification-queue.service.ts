@@ -49,7 +49,8 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
   ): Promise<void> {
     try {
       await this.queue.add(JOB_TICKET_CONFIRMATION_SMS, job, {
-        jobId: `sms-${job.txnId}`, // idempotent: one SMS job per transaction        attempts: 5,
+        jobId: `sms-${job.txnId}`, // idempotent: one SMS job per transaction
+        attempts: 5,
         backoff: { type: 'exponential', delay: 2000 },
         removeOnComplete: 1000,
         removeOnFail: false,

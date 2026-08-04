@@ -35,14 +35,19 @@ export class AgentStatsService {
     const today = await this.salesBetween(agentId, todayStart, new Date());
 
     const commissionRate = Number(agent.commissionRate);
+    const commissionNgn = Math.floor(today.grossSalesNgn * commissionRate);
+
     return {
       agent,
-      today: {
-        ...today,
-        commissionNgn: Math.floor(today.grossSalesNgn * commissionRate),
+      today: { ...today, commissionNgn },
+      // Net model: the agent has already taken commission out of the cash in
+      // hand, so what they owe is the balance. Computed on the day's total
+      // gross — the same basis the sweep uses when the day closes, so the
+      // live figure and the settled remittance agree to the naira.
+      remittance: {
+        owedNgn: today.grossSalesNgn - commissionNgn,
+        status: 'ACCRUING',
       },
-      // Remittance snapshot joins in 9.4; shape is stable for the frontend.
-      remittance: { owedNgn: today.grossSalesNgn, status: 'ACCRUING' },
     };
   }
 

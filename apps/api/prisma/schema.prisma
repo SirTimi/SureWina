@@ -566,7 +566,7 @@ model Remittance {
   periodDate       DateTime         @map("period_date") @db.Date
   grossSalesNgn    Int              @map("gross_sales_ngn")
   commissionNgn    Int              @map("commission_ngn")
-  amountDueNgn     Int              @map("amount_due_ngn") // = gross; commission returns via disbursement
+  //amountDueNgn     Int              @map("amount_due_ngn") // = gross; commission returns via disbursement
   ticketCount      Int              @map("ticket_count")
   status           RemittanceStatus @default(PENDING)
   bankTransferRef  String?          @map("bank_transfer_ref")

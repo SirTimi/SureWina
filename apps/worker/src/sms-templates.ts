@@ -33,24 +33,30 @@ export function naira(amount: number): string {
 }
 
 // ── Purchase ──────────────────────────────────────────────
-// One summary message per transaction rather than one per ticket: same
-// information, a fraction of the cost on multi-ticket buys.
+// One message per ticket, not one per transaction. Agents print the SMS as
+// the physical slip, so each message must stand alone as a complete ticket:
+// its own ref, its own face value, and "1 of 3" so a buyer holding three
+// slips can tell none went missing.
+//
+// The sequence marker is omitted on single-ticket buys — "Ticket 1 of 1"
+// reads like a system artefact on a slip handed to a customer.
 export function ticketPurchase(args: {
   drawCode: string;
   scheduledAt: string | Date;
-  ticketRefs: string[];
-  amountNgn: number;
+  ticketRef: string;
+  faceValueNgn: number;
+  sequence?: { position: number; total: number };
 }): string {
-  const multiple = args.ticketRefs.length > 1;
-  const ticketLine = multiple
-    ? `Tickets (${args.ticketRefs.length}): ${args.ticketRefs.join(', ')}`
-    : `Ticket No: ${args.ticketRefs[0]}`;
+  const ticketLine =
+    args.sequence && args.sequence.total > 1
+      ? `Ticket ${args.sequence.position} of ${args.sequence.total}: ${args.ticketRef}`
+      : `Ticket No: ${args.ticketRef}`;
 
   return [
     drawHeader(args.drawCode, args.scheduledAt),
     ticketLine,
     `Draw Date: ${longDate(args.scheduledAt)}`,
-    `Amount Paid: ${naira(args.amountNgn)}`,
+    `Amount Paid: ${naira(args.faceValueNgn)}`,
     'Terms & Conditions apply.',
     `Customer care: ${SUPPORT_LINE}`,
   ].join('\n');
@@ -114,4 +120,51 @@ export function claimForfeited(winnerRef: string): string {
     'Your claim window has closed and this prize is forfeited.',
     `Customer care: ${SUPPORT_LINE}`,
   ].join('\n');
+}
+
+// ── Segment accounting ────────────────────────────────────
+// Every message in this file is meant to fit one segment. The worst case
+// below measures 159 of 160, so there is one character of slack — any copy
+// change can silently double the send cost. This makes that visible instead
+// of leaving it to an invoice three weeks later.
+
+// GSM 03.38 default alphabet. Anything outside it forces the whole message
+// to UCS-2, which cuts the single-segment limit from 160 to 70.
+const GSM7_BASE =
+  '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡' +
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';
+
+// Sent as an escape pair, so each costs two characters of the budget.
+const GSM7_EXTENDED = '^{}\\[~]|€';
+
+export function smsPlan(message: string): {
+  encoding: 'GSM7' | 'UCS2';
+  length: number;
+  segments: number;
+} {
+  let length = 0;
+
+  for (const ch of message) {
+    if (GSM7_BASE.includes(ch)) {
+      length += 1;
+    } else if (GSM7_EXTENDED.includes(ch)) {
+      length += 2;
+    } else {
+      // One stray character (a '₦', a curly quote pasted from Word) drops
+      // the whole message to UCS-2.
+      const ucs2 = [...message].length;
+      return {
+        encoding: 'UCS2',
+        length: ucs2,
+        segments: ucs2 <= 70 ? 1 : Math.ceil(ucs2 / 67),
+      };
+    }
+  }
+
+  return {
+    encoding: 'GSM7',
+    length,
+    // Concatenated messages spend 7 characters per segment on the UDH.
+    segments: length <= 160 ? 1 : Math.ceil(length / 153),
+  };
 }

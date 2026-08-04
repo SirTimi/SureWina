@@ -72,22 +72,36 @@ export class AgentRemittanceService {
     return this.toView(updated);
   }
 
+  // Net model: commission never transfers — the agent keeps it from the cash
+  // at the point of sale. The settled record is therefore the commission line
+  // on each day's remittance, not a disbursement.
   async commissionSummary(agentId: string) {
-    const disbursements = await this.prisma.commissionDisbursement.findMany({
+    const rows = await this.prisma.remittance.findMany({
       where: { agentId },
       orderBy: { periodDate: 'desc' },
       take: 30,
+      select: {
+        periodDate: true,
+        grossSalesNgn: true,
+        commissionNgn: true,
+        amountDueNgn: true,
+        status: true,
+      },
     });
-    const totalPaidNgn = disbursements
-      .filter((d) => d.status === 'INITIATED' || d.status === 'SETTLED')
-      .reduce((s, d) => s + d.amountNgn, 0);
+
+    // Earned at the moment of sale, since it never leaves the till. No
+    // status filter: unlike a disbursement, there is no state in which the
+    // agent is holding commission they have not yet received.
+    const totalEarnedNgn = rows.reduce((s, r) => s + r.commissionNgn, 0);
+
     return {
-      totalPaidNgn,
-      disbursements: disbursements.map((d) => ({
-        periodDate: d.periodDate.toISOString().slice(0, 10),
-        amountNgn: d.amountNgn,
-        status: d.status,
-        payoutReference: d.payoutReference,
+      totalEarnedNgn,
+      periods: rows.map((r) => ({
+        periodDate: r.periodDate.toISOString().slice(0, 10),
+        grossSalesNgn: r.grossSalesNgn,
+        commissionNgn: r.commissionNgn,
+        amountDueNgn: r.amountDueNgn,
+        remittanceStatus: r.status,
       })),
     };
   }

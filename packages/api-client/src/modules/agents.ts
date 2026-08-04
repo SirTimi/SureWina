@@ -125,8 +125,14 @@ export class AgentsModule {
   }
 
   async commissionSummary(): Promise<{
-    totalPaidNgn: number;
-    disbursements: { periodDate: string; amountNgn: number; status: string; payoutReference: string | null }[];
+    totalEarnedNgn: number;
+    periods: {
+      periodDate: string;
+      grossSalesNgn: number;
+      commissionNgn: number;
+      amountDueNgn: number;
+      remittanceStatus: string;
+    }[];
   }> {
     return this.client.get('/agent/commission/summary');
   }

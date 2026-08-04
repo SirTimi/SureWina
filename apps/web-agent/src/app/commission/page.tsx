@@ -9,11 +9,12 @@ import { AgentShell } from '@/components/agent-shell';
 import { SectionHeading } from '@/components/section-heading';
 import { api } from '@/lib/api';
 
-interface Disbursement {
+interface CommissionPeriod {
   periodDate: string;
-  amountNgn: number;
-  status: string;
-  payoutReference: string | null;
+  grossSalesNgn: number;
+  commissionNgn: number;
+  amountDueNgn: number;
+  remittanceStatus: string;
 }
 interface PeriodAgg {
   grossSalesNgn: number;
@@ -30,8 +31,8 @@ export default function CommissionPage() {
 }
 
 function CommissionBody({ agent }: { agent: AgentMe }) {
-  const [totalPaidNgn, setTotalPaidNgn] = useState(0);
-  const [disbursements, setDisbursements] = useState<Disbursement[]>([]);
+  const [totalEarnedNgn, setTotalEarnedNgn] = useState(0);
+  const [periods, setPeriods] = useState<CommissionPeriod[]>([]);
   const [perf, setPerf] = useState<{ today: PeriodAgg; month: PeriodAgg } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,20 +41,21 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
   useEffect(() => {
     Promise.all([api.agents.commissionSummary(), api.agents.performance()])
       .then(([c, p]) => {
-        setTotalPaidNgn(c.totalPaidNgn);
-        setDisbursements(c.disbursements);
+        setTotalEarnedNgn(c.totalEarnedNgn);
+        setPeriods(c.periods);
         setPerf({ today: p.today, month: p.month });
       })
       .catch(() => {
-        setDisbursements([]);
+        setPeriods([]);
       })
       .finally(() => setLoading(false));
   }, []);
 
   const download = () => {
-    const header = 'Period,Amount (NGN),Status,Payout Reference';
-    const rows = disbursements.map(
-      (d) => `${d.periodDate},${d.amountNgn},${d.status},${d.payoutReference ?? ''}`,
+    const header = 'Period,Sales (NGN),Commission (NGN),Remitted (NGN),Status';
+    const rows = periods.map(
+      (p) =>
+        `${p.periodDate},${p.grossSalesNgn},${p.commissionNgn},${p.amountDueNgn},${p.remittanceStatus}`,
     );
     const csv = [header, ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
@@ -75,8 +77,8 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
     );
   }
 
-  // Commission earned = a live estimate from sales × rate. Authoritative paid
-  // amount comes from disbursements (Surewina → agent), shown separately.
+  // Live estimate from sales × rate for the current day and month. The
+  // settled figure per closed day is in the table below.
   const todayEarned = Math.floor(perf.today.grossSalesNgn * rate);
   const monthEarned = Math.floor(perf.month.grossSalesNgn * rate);
 
@@ -84,8 +86,8 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
     <main className="mx-auto max-w-[860px] px-4 pb-10 pt-5">
       <SectionHeading
         eyebrow="Commission"
-        title="Earnings & payouts"
-        description="What you've earned from sales, and what Surewina has disbursed to you."
+        title="Your earnings"
+        description="Commission you keep from each sale, and what you remit to Surewina."
         backHref="/"
       />
 
@@ -132,13 +134,15 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
-              Total commission disbursed
+              Total commission kept
             </p>
             <p className="mt-1 font-display text-3xl font-black text-navy-950 tabular-nums">
-              {formatNaira(totalPaidNgn)}
+              {formatNaira(totalEarnedNgn)}
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Paid to you after each remittance is received by finance.
+              Across your last {periods.length} closed day{periods.length === 1 ? '' : 's'}. You
+              keep this from the cash at the point of sale — it is already deducted from what you
+              remit.
             </p>
           </div>
         </div>
@@ -148,13 +152,15 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
         <div className="flex items-center justify-between border-b border-slate-100 p-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
-              Disbursement history
+              Daily breakdown
             </p>
-            <p className="mt-1 text-sm text-slate-500">Commission Surewina has paid you.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Sales, commission kept, and cash remitted for each closed day.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-navy-700" />
-            {disbursements.length > 0 && (
+            {periods.length > 0 && (
               <Button
                 variant="secondary"
                 className="rounded-sm border-navy-200 bg-white text-navy-700"
@@ -167,33 +173,39 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
           </div>
         </div>
 
-        <div className="hidden grid-cols-4 gap-3 border-b border-slate-100 bg-[#F8FAF4] px-4 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 sm:grid">
+        <div className="hidden grid-cols-5 gap-3 border-b border-slate-100 bg-[#F8FAF4] px-4 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 sm:grid">
           <p>Period</p>
-          <p className="text-right">Amount</p>
+          <p className="text-right">Sales</p>
+          <p className="text-right">Commission</p>
+          <p className="text-right">Remitted</p>
           <p className="text-right">Status</p>
-          <p className="text-right">Reference</p>
         </div>
 
         <div className="max-h-[420px] overflow-auto">
-          {disbursements.length === 0 ? (
+          {periods.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-slate-500">
-              No disbursements yet. Commission is paid after finance confirms a remittance.
+              No closed days yet. Each day&apos;s figures appear here once ticket sales close.
             </div>
           ) : (
-            disbursements.map((d, i) => (
+            periods.map((p, i) => (
               <div
-                key={`${d.periodDate}-${i}`}
-                className="grid grid-cols-3 gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-4"
+                key={`${p.periodDate}-${i}`}
+                className="grid grid-cols-3 gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-5"
               >
                 <p className="text-sm font-bold text-navy-950">
-                  {new Date(d.periodDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}
+                  {new Date(p.periodDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}
+                </p>
+                <p className="hidden text-right font-display text-sm font-black text-navy-950 tabular-nums sm:block">
+                  {formatNaira(p.grossSalesNgn)}
+                </p>
+                <p className="text-right font-display text-sm font-black text-emerald-700 tabular-nums">
+                  {formatNaira(p.commissionNgn)}
                 </p>
                 <p className="text-right font-display text-sm font-black text-navy-700 tabular-nums">
-                  {formatNaira(d.amountNgn)}
+                  {formatNaira(p.amountDueNgn)}
                 </p>
-                <p className="hidden text-right text-xs font-bold text-slate-500 sm:block">{d.status}</p>
-                <p className="hidden truncate text-right font-mono text-xs text-slate-500 sm:block">
-                  {d.payoutReference ?? '—'}
+                <p className="hidden text-right text-xs font-bold text-slate-500 sm:block">
+                  {p.remittanceStatus}
                 </p>
               </div>
             ))

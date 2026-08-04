@@ -426,6 +426,8 @@ export class ComplianceAdminService {
 
   // Operating P&L from ledger data. Accrual-approximate ops reporting — the
   // statutory books come from the accountant, not this endpoint.
+  // Operating P&L from ledger data. Accrual-approximate ops reporting — the
+  // statutory books come from the accountant, not this endpoint.
   async financialReport(fromDate: string, toDate: string) {
     const { from, to } = this.rangeOf(fromDate, toDate);
     const levyRate = (await this.settings.getNumber('LEVY_RATE_PERCENT', 2.5)) / 100;
@@ -445,16 +447,19 @@ export class ComplianceAdminService {
         where: { deductedAt: { gte: from, lte: to } },
         _sum: { whtAmountNgn: true },
       }),
-      this.prisma.commissionDisbursement.aggregate({
-        where: { createdAt: { gte: from, lte: to } },
-        _sum: { amountNgn: true },
+      // Net model: commission is retained by the agent at the point of sale
+      // and never disbursed, so CommissionDisbursement no longer accrues.
+      // The commission line on each day's remittance is the settled record.
+      this.prisma.remittance.aggregate({
+        where: { periodDate: { gte: from, lte: to } },
+        _sum: { commissionNgn: true },
         _count: true,
       }),
     ]);
 
     const grossSalesNgn = sales._sum.amountNgn ?? 0;
     const prizesGrossNgn = prizes._sum.grossPrizeValueNgn ?? 0;
-    const commissionNgn = commission._sum.amountNgn ?? 0;
+    const commissionNgn = commission._sum.commissionNgn ?? 0;
     const levyAccruedNgn = Math.round(grossSalesNgn * levyRate);
 
     return {
@@ -467,6 +472,11 @@ export class ComplianceAdminService {
         prizesSettled: prizes._count,
         commissionNgn,
         commissionCount: commission._count,
+        // Remittances exist only for CLOSED business days, so commission for
+        // a day still in progress is not in this figure while that day's
+        // revenue already is. A range ending today understates cost and
+        // overstates margin until the sweep runs.
+        commissionBasis: 'SETTLED_REMITTANCES',
         levyAccruedNgn,
         levyRatePercent: levyRate * 100,
       },
@@ -482,7 +492,8 @@ export class ComplianceAdminService {
   }
 
   // Agent ranking by sales in the period. Commission column is an estimate
-  // (rate × sales) — authoritative figures live in disbursement records.
+  // (rate × sales) — the settled figure is the commission line on each day's
+  // remittance.
   async agentPerformance(fromDate: string, toDate: string) {
     const { from, to } = this.rangeOf(fromDate, toDate);
 

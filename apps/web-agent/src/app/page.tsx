@@ -72,10 +72,8 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
 
       <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard icon={<ReceiptText className="h-5 w-5" />} label="Today sales" value={formatNaira(today.grossSalesNgn)} hint={`${today.saleCount} ticket sales`} success />
-        <MetricCard icon={<Banknote className="h-5 w-5" />} label="Commission" value={formatNaira(today.commissionNgn)} hint={`${Math.round(commissionRate * 100)}% current rate`} success />
-        <MetricCard icon={<Trophy className="h-5 w-5" />} label="Tickets today" value={String(today.ticketsSold)} hint="Cash sales" accent />
-        <MetricCard icon={<Clock className="h-5 w-5" />} label="Owed to Surewina" value={formatNaira(owedNgn)} hint="Remittance accruing" />
-      </section>
+        <MetricCard icon={<Banknote className="h-5 w-5" />} label="Commission" value={formatNaira(today.commissionNgn)} hint={`${Math.round(commissionRate * 100)}% — keep from cash`} success />        <MetricCard icon={<Trophy className="h-5 w-5" />} label="Tickets today" value={String(today.ticketsSold)} hint="Cash sales" accent />
+        <MetricCard icon={<Clock className="h-5 w-5" />} label="Owed to Surewina" value={formatNaira(owedNgn)} hint="Sales less your commission" />      </section>
 
       <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card variant="default" className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm">
