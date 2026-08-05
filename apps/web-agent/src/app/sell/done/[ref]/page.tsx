@@ -12,6 +12,7 @@ import { SaleStepper } from '@/components/sale-stepper';
 import { SectionHeading } from '@/components/section-heading';
 import { TicketReceipt } from '@/components/ticket-reciept';
 import { api } from '@/lib/api';
+import { RECEIPT_WIDTH_MM } from '@/lib/receipt-config';
 
 export default function SellDonePage({
   params,
@@ -22,7 +23,9 @@ export default function SellDonePage({
 
   return (
     <AgentShell>
-      {() => <DoneBody ref_={ref} />}
+      {(agent) => (
+        <DoneBody ref_={ref} commissionRate={Number(agent.commissionRate)} />
+      )}
     </AgentShell>
   );
 }
@@ -36,7 +39,13 @@ interface DoneSale {
   notified: boolean;
 }
 
-function DoneBody({ ref_ }: { ref_: string }) {
+function DoneBody({
+  ref_,
+  commissionRate,
+}: {
+  ref_: string;
+  commissionRate: number;
+}) {
   const search = useSearchParams();
   const queued = search.get('queued') === '1';
   const [copied, setCopied] = useState(false);
@@ -70,7 +79,10 @@ function DoneBody({ ref_ }: { ref_: string }) {
       .finally(() => setPrintLoading(false));
   }, [ref_, queued]);
 
-  const commission = sale ? Math.round(sale.amountNgn * 0.1) : 0;
+  // The agent's own rate, floored — matches how the sweep computes the
+  // commission line on the day's record. A hardcoded 10% here showed
+  // non-BRONZE agents a figure their dashboard would contradict.
+  const commission = sale ? Math.floor(sale.amountNgn * commissionRate) : 0;
   const jackpotMessage = getJackpotMessage(sale);
 
   const copy = async () => {
@@ -91,10 +103,17 @@ function DoneBody({ ref_ }: { ref_: string }) {
         }
         @media print {
           @page {
-            size: 75mm auto;
+            size: ${RECEIPT_WIDTH_MM}mm auto;
             margin: 0;
           }
+          /* Without an explicit width and zeroed margins the browser keeps
+             its default page inset, which reads as a narrow slip however
+             wide the receipt element itself is. */
+          html,
           body {
+            width: ${RECEIPT_WIDTH_MM}mm;
+            margin: 0 !important;
+            padding: 0 !important;
             background: #fff !important;
           }
           .surewina-screen {
@@ -105,9 +124,11 @@ function DoneBody({ ref_ }: { ref_: string }) {
           }
           .surewina-receipt-page {
             page-break-after: always;
+            break-after: page;
           }
           .surewina-receipt-page:last-child {
             page-break-after: auto;
+            break-after: auto;
           }
         }
       `}</style>
@@ -270,12 +291,16 @@ function DoneBody({ ref_ }: { ref_: string }) {
         )}
       </main>
 
-      {/* One receipt per ticket, 75mm thermal. Hidden on screen. */}
+      {/* One slip per ticket, width from receipt-config. Hidden on screen. */}
       {printSale && (
         <section className="surewina-print-area">
-          {printSale.tickets.map((tref) => (
+          {printSale.tickets.map((tref, i) => (
             <div key={tref} className="surewina-receipt-page">
-              <TicketReceipt sale={printSale} ticketRef={tref} />
+              <TicketReceipt
+                sale={printSale}
+                ticketRef={tref}
+                sequence={{ position: i + 1, total: printSale.tickets.length }}
+              />
             </div>
           ))}
         </section>
