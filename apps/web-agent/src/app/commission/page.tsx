@@ -11,8 +11,14 @@ import { api } from '@/lib/api';
 
 interface CommissionPeriod {
   periodDate: string;
+  ticketCount: number;
+  standardTicketCount: number;
+  jackpotTicketCount: number;
   grossSalesNgn: number;
+  standardSalesNgn: number;
+  jackpotSalesNgn: number;
   commissionNgn: number;
+  winningsPaidOutNgn: number;
   amountDueNgn: number;
   remittanceStatus: string;
 }
@@ -34,6 +40,7 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
   const [totalEarnedNgn, setTotalEarnedNgn] = useState(0);
   const [periods, setPeriods] = useState<CommissionPeriod[]>([]);
   const [perf, setPerf] = useState<{ today: PeriodAgg; month: PeriodAgg } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const rate = Number(agent.commissionRate);
@@ -45,17 +52,29 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
         setPeriods(c.periods);
         setPerf({ today: p.today, month: p.month });
       })
-      .catch(() => {
-        setPeriods([]);
+      .catch((e) => {
+        // Without this the page sat on the loading skeleton forever: perf
+        // stayed null while loading went false.
+        setError(e instanceof Error ? e.message : 'Could not load your commission records.');
       })
       .finally(() => setLoading(false));
   }, []);
 
   const download = () => {
-    const header = 'Period,Sales (NGN),Commission (NGN),Remitted (NGN),Status';
-    const rows = periods.map(
-      (p) =>
-        `${p.periodDate},${p.grossSalesNgn},${p.commissionNgn},${p.amountDueNgn},${p.remittanceStatus}`,
+    const header =
+      'Period,Tickets,Ordinary,Jackpot,Sales (NGN),Commission (NGN),Winnings paid (NGN),Owed (NGN),Status';
+    const rows = periods.map((p) =>
+      [
+        p.periodDate,
+        p.ticketCount,
+        p.standardTicketCount,
+        p.jackpotTicketCount,
+        p.grossSalesNgn,
+        p.commissionNgn,
+        p.winningsPaidOutNgn,
+        p.amountDueNgn,
+        p.remittanceStatus,
+      ].join(','),
     );
     const csv = [header, ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
@@ -69,10 +88,20 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
     URL.revokeObjectURL(url);
   };
 
-  if (loading || !perf) {
+  if (loading) {
     return (
       <main className="mx-auto max-w-[860px] px-4 pb-10 pt-5">
         <div className="h-32 animate-pulse rounded-3xl bg-white" />
+      </main>
+    );
+  }
+
+  if (error || !perf) {
+    return (
+      <main className="mx-auto max-w-[860px] px-4 pb-10 pt-5">
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+          {error ?? 'Could not load your commission records.'}
+        </div>
       </main>
     );
   }
@@ -155,7 +184,7 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
               Daily breakdown
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              Sales, commission kept, and cash remitted for each closed day.
+              Tickets sold, commission kept, and cash owed for each closed day.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -177,7 +206,7 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
           <p>Period</p>
           <p className="text-right">Sales</p>
           <p className="text-right">Commission</p>
-          <p className="text-right">Remitted</p>
+          <p className="text-right">Owed</p>
           <p className="text-right">Status</p>
         </div>
 
@@ -192,18 +221,33 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
                 key={`${p.periodDate}-${i}`}
                 className="grid grid-cols-3 gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-5"
               >
-                <p className="text-sm font-bold text-navy-950">
-                  {new Date(p.periodDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}
-                </p>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-navy-950">
+                    {new Date(p.periodDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short' })}
+                  </p>
+                  {/* Paul's item 2: ordinary vs jackpot. A second line rather
+                      than two more columns — seven columns does not survive a
+                      phone, and this is read on a phone. */}
+                  <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                    {p.standardTicketCount} ordinary · {p.jackpotTicketCount} jackpot
+                  </p>
+                </div>
                 <p className="hidden text-right font-display text-sm font-black text-navy-950 tabular-nums sm:block">
                   {formatNaira(p.grossSalesNgn)}
                 </p>
                 <p className="text-right font-display text-sm font-black text-emerald-700 tabular-nums">
                   {formatNaira(p.commissionNgn)}
                 </p>
-                <p className="text-right font-display text-sm font-black text-navy-700 tabular-nums">
-                  {formatNaira(p.amountDueNgn)}
-                </p>
+                <div className="text-right">
+                  <p className="font-display text-sm font-black text-navy-700 tabular-nums">
+                    {formatNaira(p.amountDueNgn)}
+                  </p>
+                  {p.winningsPaidOutNgn > 0 && (
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      after {formatNaira(p.winningsPaidOutNgn)} prizes
+                    </p>
+                  )}
+                </div>
                 <p className="hidden text-right text-xs font-bold text-slate-500 sm:block">
                   {p.remittanceStatus}
                 </p>

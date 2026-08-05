@@ -65,6 +65,11 @@ export class AdminFinanceAgentsController {
         commissionNgn: r.commissionNgn,
         amountDueNgn: r.amountDueNgn,
         ticketCount: r.ticketCount,
+        standardTicketCount: r.standardTicketCount,
+        jackpotTicketCount: r.jackpotTicketCount,
+        standardSalesNgn: r.standardSalesNgn,
+        jackpotSalesNgn: r.jackpotSalesNgn,
+        winningsPaidOutNgn: r.winningsPaidOutNgn,
         status: r.status,
         bankTransferRef: r.bankTransferRef,
         agentConfirmedAt: r.agentConfirmedAt?.toISOString() ?? null,
@@ -100,5 +105,71 @@ export class AdminFinanceAgentsController {
     });
 
     return updated;
+  }
+
+  // An agent's daily records over a date range — the reconciliation view.
+  // Figures are read straight from the snapshot, never recomputed, so a
+  // later void or rate change cannot rewrite history.
+  @Get('agent/:agentId/statement')
+  async statement(
+    @Param('agentId') agentId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { agentId },
+      select: { agentCode: true, fullName: true, phoneNumber: true },
+    });
+    if (!agent) throw new NotFoundException('Agent not found');
+
+    const rows = await this.prisma.remittance.findMany({
+      where: {
+        agentId,
+        ...(from || to
+          ? {
+              periodDate: {
+                ...(from ? { gte: new Date(from) } : {}),
+                ...(to ? { lte: new Date(to) } : {}),
+              },
+            }
+          : {}),
+      },
+      orderBy: { periodDate: 'desc' },
+      take: 400,
+    });
+
+    const days = rows.map((r) => ({
+      periodDate: r.periodDate.toISOString().slice(0, 10),
+      ticketCount: r.ticketCount,
+      standardTicketCount: r.standardTicketCount,
+      jackpotTicketCount: r.jackpotTicketCount,
+      grossSalesNgn: r.grossSalesNgn,
+      standardSalesNgn: r.standardSalesNgn,
+      jackpotSalesNgn: r.jackpotSalesNgn,
+      commissionNgn: r.commissionNgn,
+      winningsPaidOutNgn: r.winningsPaidOutNgn,
+      amountDueNgn: r.amountDueNgn,
+      status: r.status,
+      bankTransferRef: r.bankTransferRef,
+      receivedAt: r.receivedAt?.toISOString() ?? null,
+    }));
+
+    return {
+      agent,
+      fromDate: from ?? null,
+      toDate: to ?? null,
+      generatedAt: new Date().toISOString(),
+      days,
+      totals: {
+        days: days.length,
+        tickets: days.reduce((s, d) => s + d.ticketCount, 0),
+        standardTickets: days.reduce((s, d) => s + d.standardTicketCount, 0),
+        jackpotTickets: days.reduce((s, d) => s + d.jackpotTicketCount, 0),
+        grossSalesNgn: days.reduce((s, d) => s + d.grossSalesNgn, 0),
+        commissionNgn: days.reduce((s, d) => s + d.commissionNgn, 0),
+        winningsPaidOutNgn: days.reduce((s, d) => s + d.winningsPaidOutNgn, 0),
+        amountDueNgn: days.reduce((s, d) => s + d.amountDueNgn, 0),
+      },
+    };
   }
 }

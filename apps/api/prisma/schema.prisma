@@ -566,8 +566,21 @@ model Remittance {
   periodDate       DateTime         @map("period_date") @db.Date
   grossSalesNgn    Int              @map("gross_sales_ngn")
   commissionNgn    Int              @map("commission_ngn")
-  //amountDueNgn     Int              @map("amount_due_ngn") // = gross; commission returns via disbursement
+  amountDueNgn     Int              @map("amount_due_ngn") // net: gross less commission and winnings paid out
   ticketCount      Int              @map("ticket_count")
+
+  // Ticket mix. Snapshotted rather than derived on read: a ticket voided in
+  // March must not change what January's record says was sold.
+  standardTicketCount Int @default(0) @map("standard_ticket_count")
+  jackpotTicketCount  Int @default(0) @map("jackpot_ticket_count")
+  standardSalesNgn    Int @default(0) @map("standard_sales_ngn")
+  jackpotSalesNgn     Int @default(0) @map("jackpot_sales_ngn")
+
+  // Prizes the agent paid winners from their own till, which reduce what
+  // they owe. Always 0 until agent payouts are captured server-side —
+  // today they live only in the agent's browser localStorage.
+  winningsPaidOutNgn  Int @default(0) @map("winnings_paid_out_ngn")
+
   status           RemittanceStatus @default(PENDING)
   bankTransferRef  String?          @map("bank_transfer_ref")
   agentConfirmedAt DateTime?        @map("agent_confirmed_at")

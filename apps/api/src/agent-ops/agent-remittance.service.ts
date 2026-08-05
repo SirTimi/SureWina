@@ -109,6 +109,9 @@ export class AgentRemittanceService {
   private toView = (r: {
     remittanceId: string; periodDate: Date; grossSalesNgn: number;
     commissionNgn: number; amountDueNgn: number; ticketCount: number;
+    standardTicketCount: number; jackpotTicketCount: number;
+    standardSalesNgn: number; jackpotSalesNgn: number;
+    winningsPaidOutNgn: number;
     status: RemittanceStatus; bankTransferRef: string | null;
   }) => ({
     remittanceId: r.remittanceId,
@@ -117,6 +120,11 @@ export class AgentRemittanceService {
     commissionNgn: r.commissionNgn,
     amountDueNgn: r.amountDueNgn,
     ticketCount: r.ticketCount,
+    standardTicketCount: r.standardTicketCount,
+    jackpotTicketCount: r.jackpotTicketCount,
+    standardSalesNgn: r.standardSalesNgn,
+    jackpotSalesNgn: r.jackpotSalesNgn,
+    winningsPaidOutNgn: r.winningsPaidOutNgn,
     status: r.status,
     bankTransferRef: r.bankTransferRef,
   });

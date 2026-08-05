@@ -23,6 +23,25 @@ export interface AgentSalePrint {
   amountNgn: number;
   tickets: string[];
 }
+
+// One agent's immutable record for one closed day. Mirrors
+// AgentRemittanceService.toView — keep the two in step.
+export interface AgentDailyRecord {
+  remittanceId: string;
+  periodDate: string;
+  ticketCount: number;
+  standardTicketCount: number;
+  jackpotTicketCount: number;
+  grossSalesNgn: number;
+  standardSalesNgn: number;
+  jackpotSalesNgn: number;
+  commissionNgn: number;
+  winningsPaidOutNgn: number;
+  amountDueNgn: number;
+  status: string;
+  bankTransferRef: string | null;
+}
+
 export class AgentsModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -54,6 +73,7 @@ export class AgentsModule {
   async dashboard(): Promise<{
     agent: { agentCode: string; fullName: string; tier: string; commissionRate: number; status: string };
     today: { grossSalesNgn: number; ticketsSold: number; saleCount: number; commissionNgn: number };
+    // Net model: owedNgn is sales less commission the agent already kept.
     remittance: { owedNgn: number; status: string };
   }> {
     return this.client.get('/agent/dashboard');
@@ -103,16 +123,16 @@ export class AgentsModule {
 
   async remittanceCurrent(): Promise<{
     totalOwedNgn: number;
-    remittances: { remittanceId: string; periodDate: string; grossSalesNgn: number; commissionNgn: number; amountDueNgn: number; ticketCount: number; status: string; bankTransferRef: string | null }[];
+    remittances: AgentDailyRecord[];
   }> {
     return this.client.get('/agent/remittance/current');
   }
 
-  async remittanceHistory(): Promise<{
-    remittances: { remittanceId: string; periodDate: string; grossSalesNgn: number; commissionNgn: number; amountDueNgn: number; ticketCount: number; status: string; bankTransferRef: string | null }[];
+  async remittanceHistory(page = 1, pageSize = 20): Promise<{
+    remittances: AgentDailyRecord[];
     total: number; page: number; pageSize: number;
   }> {
-    return this.client.get('/agent/remittance/history');
+    return this.client.get('/agent/remittance/history', { query: { page, pageSize } });
   }
 
   async confirmRemittance(remittanceId: string, bankTransferRef: string): Promise<{
@@ -124,12 +144,21 @@ export class AgentsModule {
     );
   }
 
+  // Same six figures per day as AgentDailyRecord, minus the remittance id and
+  // with the status renamed — kept as its own shape rather than forcing both
+  // endpoints into one type with optional fields.
   async commissionSummary(): Promise<{
     totalEarnedNgn: number;
     periods: {
       periodDate: string;
+      ticketCount: number;
+      standardTicketCount: number;
+      jackpotTicketCount: number;
       grossSalesNgn: number;
+      standardSalesNgn: number;
+      jackpotSalesNgn: number;
       commissionNgn: number;
+      winningsPaidOutNgn: number;
       amountDueNgn: number;
       remittanceStatus: string;
     }[];
