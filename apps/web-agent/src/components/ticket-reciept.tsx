@@ -8,6 +8,7 @@ import {
   RECEIPT_FONT_PX,
   RECEIPT_LOGO_MM,
   RECEIPT_PAD_MM,
+  RECEIPT_PAGE_H_MM,
   RECEIPT_WIDTH_MM,
 } from '@/lib/receipt-config';
 
@@ -15,11 +16,11 @@ import {
 // Monospace and fixed width because that is what the printer renders
 // predictably — this is not a responsive layout.
 //
-// The height budget is hard: anything that does not fit 125mm produces a
-// second sheet, not a longer slip. Every block below is deliberately tight.
-//
-// Data rows stay left-aligned on purpose. A column of values only reads as a
-// table when every value starts at the same x.
+// The slip is pinned to the exact sheet height with overflow hidden, so a
+// second page is impossible by construction rather than by careful counting.
+// The trade is that overflow is silently clipped — which is why the footer
+// sits last and is pushed to the bottom: if anything is ever lost it is the
+// closing boilerplate, never the barcode or the ticket number.
 
 function watStamp(iso: string, withSeconds = false) {
   const d = new Date(new Date(iso).getTime() + 60 * 60 * 1000);
@@ -104,10 +105,32 @@ export function TicketReceipt({
           : 'Any 10 weekday tickets = 1 free Jackpot entry'}
       </div>
 
+      {/* Pushed to the foot of the sheet by margin-top:auto. The B7 sheet is
+          a fixed 125mm and prints whether it carries anything or not, so this
+          space answers the questions a customer would otherwise call about. */}
+      <div className="footer">
+        <div className="rule" />
+        <div className="footer-line">Check results at www.surewina.com</div>
+        <div className="footer-line">or ask any Surewina agent</div>
+        <div className="footer-gap" />
+        <div className="footer-line">Keep this ticket. It is required to claim.</div>
+        <div className="footer-line">Customer care: 080 8000 9000</div>
+        <div className="footer-gap" />
+        <div className="footer-line">Terms &amp; Conditions apply.</div>
+        <div className="footer-line">Play responsibly. 18+</div>
+      </div>
+
       <style jsx>{`
         .receipt {
           box-sizing: border-box;
           width: ${RECEIPT_WIDTH_MM}mm;
+          /* Exactly one sheet. overflow:hidden is what makes a second page
+             impossible; without it a stray line of copy silently costs a
+             whole extra sheet per ticket sold. */
+          height: ${RECEIPT_PAGE_H_MM}mm;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
           /* Centres the slip on the B7 sheet. */
           margin: 0 auto;
           padding: 2.5mm ${RECEIPT_PAD_MM}mm 3mm;
@@ -187,7 +210,6 @@ export function TicketReceipt({
           text-align: center;
           font-weight: 700;
           font-size: ${RECEIPT_FONT_PX + 2}px;
-          margin-top: 2mm;
         }
         .barcode-text {
           text-align: center;
@@ -196,7 +218,7 @@ export function TicketReceipt({
           margin-top: 0.5mm;
         }
         /* Held at 10px deliberately. The sale reference is ~43 characters;
-           at 11px it exceeds the 74mm of usable width and gets clipped. */
+           at 11px it exceeds the usable width and the tail gets clipped. */
         .serial-foot {
           text-align: center;
           font-size: 10px;
@@ -207,6 +229,20 @@ export function TicketReceipt({
           text-align: center;
           font-size: ${RECEIPT_FONT_PX - 2}px;
           margin-top: 2mm;
+        }
+        .footer {
+          /* Absorbs whatever height is left, so the boilerplate sits at the
+             foot of the sheet instead of floating mid-page. */
+          margin-top: auto;
+          text-align: center;
+          font-size: ${RECEIPT_FONT_PX - 2}px;
+          line-height: 1.5;
+        }
+        .footer-line {
+          white-space: nowrap;
+        }
+        .footer-gap {
+          height: 1.5mm;
         }
       `}</style>
     </div>
