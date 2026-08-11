@@ -11,7 +11,7 @@ export const RECEIPT_PAD_MM = 2;
 
 // Base type size in px. Everything on the slip is sized from this, so one
 // change here rescales the whole receipt.
-export const RECEIPT_FONT_PX = 13.5;
+export const RECEIPT_FONT_PX = 12.8;
 
 // The three things a person actually reads off the slip: brand, agent code,
 // ticket number. Held at one size so they stay visually equal.
