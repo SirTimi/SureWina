@@ -24,7 +24,12 @@ export default function SellDonePage({
   return (
     <AgentShell>
       {(agent) => (
-        <DoneBody ref_={ref} commissionRate={Number(agent.commissionRate)} />
+        <DoneBody
+          ref_={ref}
+          commissionRate={Number(agent.commissionRate)}
+          agentCode={agent.agentCode}
+          stateCode={agent.registeredStateCode}
+        />
       )}
     </AgentShell>
   );
@@ -42,9 +47,13 @@ interface DoneSale {
 function DoneBody({
   ref_,
   commissionRate,
+  agentCode,
+  stateCode,
 }: {
   ref_: string;
   commissionRate: number;
+  agentCode: string;
+  stateCode: string;
 }) {
   const search = useSearchParams();
   const queued = search.get('queued') === '1';
@@ -108,13 +117,25 @@ function DoneBody({
           }
           /* Without an explicit width and zeroed margins the browser keeps
              its default page inset, which reads as a narrow slip however
-             wide the receipt element itself is. */
+             wide the receipt element itself is.
+
+             The height resets matter just as much: the root layout puts
+             min-h-screen on body, and in print 100vh resolves against the
+             page box — so that one utility forces a full-height page and
+             feeds the remainder of the slip out blank. */
           html,
           body {
             width: ${RECEIPT_WIDTH_MM}mm;
+            height: auto !important;
+            min-height: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
             background: #fff !important;
+          }
+          .surewina-print-area,
+          .surewina-receipt-page {
+            height: auto !important;
+            min-height: 0 !important;
           }
           .surewina-screen {
             display: none !important;
@@ -299,6 +320,8 @@ function DoneBody({
               <TicketReceipt
                 sale={printSale}
                 ticketRef={tref}
+                agentCode={agentCode}
+                stateCode={stateCode}
                 sequence={{ position: i + 1, total: printSale.tickets.length }}
               />
             </div>
