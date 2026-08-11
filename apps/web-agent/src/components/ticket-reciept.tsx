@@ -90,10 +90,6 @@ export function TicketReceipt({
 
       <div className="rule" />
 
-      <div className="rows">
-        <Row label="Total Stake" value={naira(sale.ticketPriceNgn)} />
-      </div>
-
       <div className="good-luck">GOOD LUCK !!!</div>
 
       <div className="rule" />
