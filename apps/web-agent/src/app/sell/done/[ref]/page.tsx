@@ -115,14 +115,6 @@ function DoneBody({
             size: ${RECEIPT_WIDTH_MM}mm auto;
             margin: 0;
           }
-          /* Without an explicit width and zeroed margins the browser keeps
-             its default page inset, which reads as a narrow slip however
-             wide the receipt element itself is.
-
-             The height resets matter just as much: the root layout puts
-             min-h-screen on body, and in print 100vh resolves against the
-             page box — so that one utility forces a full-height page and
-             feeds the remainder of the slip out blank. */
           html,
           body {
             width: ${RECEIPT_WIDTH_MM}mm;
@@ -132,16 +124,33 @@ function DoneBody({
             padding: 0 !important;
             background: #fff !important;
           }
-          .surewina-print-area,
-          .surewina-receipt-page {
+          /* AgentShell wraps everything in a min-h-screen div and renders
+             AgentHeader — logo, hamburger, remittance badge — as a sibling of
+             this page's content. That header was printing on every ticket.
+             Hide every child of the shell except the print area, and drop the
+             shell's own screen height so the page ends with the slip instead
+             of feeding blank roll. */
+          body > div {
             height: auto !important;
             min-height: 0 !important;
+          }
+          body > div > *:not(.surewina-print-area) {
+            display: none !important;
+          }
+          header,
+          nav {
+            display: none !important;
           }
           .surewina-screen {
             display: none !important;
           }
           .surewina-print-area {
             display: block;
+          }
+          .surewina-print-area,
+          .surewina-receipt-page {
+            height: auto !important;
+            min-height: 0 !important;
           }
           .surewina-receipt-page {
             page-break-after: always;

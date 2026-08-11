@@ -7,4 +7,8 @@
 export const RECEIPT_WIDTH_MM = 72;
 
 // Side padding. Thermal heads lose the outermost ~2mm on most units.
-export const RECEIPT_PAD_MM = 2;
+export const RECEIPT_PAD_MM = 3;
+
+// Base type size in px. Everything else on the slip is sized relative to
+// this, so one change here rescales the whole receipt.
+export const RECEIPT_FONT_PX = 16;

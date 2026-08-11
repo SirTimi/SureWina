@@ -13,6 +13,7 @@
     "@surewina/types": "workspace:*",
     "@surewina/ui": "workspace:*",
     "@surewina/utils": "workspace:*",
+    "jsbarcode": "^3.12.3",
     "lucide-react": "^1.14.0",
     "next": "15.5.15",
     "react": "19.1.0",
