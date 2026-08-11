@@ -6,6 +6,7 @@ import type { AgentSalePrint } from '@surewina/api-client';
 import {
   RECEIPT_EMPHASIS_PX,
   RECEIPT_FONT_PX,
+  RECEIPT_LOGO_MM,
   RECEIPT_PAD_MM,
   RECEIPT_WIDTH_MM,
 } from '@/lib/receipt-config';
@@ -126,19 +127,19 @@ export function TicketReceipt({
         }
         .logo {
           display: block;
-          width: 13mm;
-          height: 13mm;
+          width: ${RECEIPT_LOGO_MM}mm;
+          height: ${RECEIPT_LOGO_MM}mm;
           margin: 0 auto 1mm;
           object-fit: contain;
         }
         .brand {
           font-weight: 700;
-          font-size: ${RECEIPT_EMPHASIS_PX}px;
-          letter-spacing: 0.16em;
+          font-size: ${RECEIPT_EMPHASIS_PX + 4}px;
+          letter-spacing: 0.18em;
           line-height: 1.1;
         }
         .game {
-          font-size: ${RECEIPT_FONT_PX - 1}px;
+          font-size: ${RECEIPT_FONT_PX}px;
           letter-spacing: 0.08em;
           margin-top: 0.8mm;
         }
@@ -153,15 +154,14 @@ export function TicketReceipt({
           gap: 2.5mm;
         }
         .ident-label {
-          font-size: ${RECEIPT_FONT_PX - 3}px;
+          font-size: ${RECEIPT_FONT_PX - 2}px;
           letter-spacing: 0.16em;
         }
         .ident-value {
           font-weight: 700;
           font-size: ${RECEIPT_EMPHASIS_PX}px;
           letter-spacing: 0.04em;
-          /* Agent codes are long enough to wrap at the old size. They must
-             stay on one line — a code broken across two reads as two codes. */
+          /* A code broken across two lines reads as two codes. */
           white-space: nowrap;
         }
         .rule {
@@ -190,24 +190,26 @@ export function TicketReceipt({
         .good-luck {
           text-align: center;
           font-weight: 700;
-          font-size: ${RECEIPT_FONT_PX + 1}px;
+          font-size: ${RECEIPT_FONT_PX + 2}px;
           margin-top: 2mm;
         }
         .barcode-text {
           text-align: center;
-          font-size: ${RECEIPT_FONT_PX - 2}px;
+          font-size: ${RECEIPT_FONT_PX - 1}px;
           letter-spacing: 0.18em;
           margin-top: 0.5mm;
         }
+        /* Held at 10px deliberately. The sale reference is ~43 characters;
+           at 11px it exceeds the 74mm of usable width and gets clipped. */
         .serial-foot {
           text-align: center;
-          font-size: ${RECEIPT_FONT_PX - 4}px;
+          font-size: 10px;
           margin-top: 0.8mm;
           white-space: nowrap;
         }
         .promo {
           text-align: center;
-          font-size: ${RECEIPT_FONT_PX - 3}px;
+          font-size: ${RECEIPT_FONT_PX - 2}px;
           margin-top: 2mm;
         }
       `}</style>
@@ -270,7 +272,7 @@ function Row({ label, value }: { label: string; value: string }) {
         }
         .label {
           flex: 0 0 auto;
-          min-width: 24mm;
+          min-width: 25mm;
           white-space: nowrap;
         }
         .colon {
