@@ -4,21 +4,21 @@ import { useEffect, useRef } from 'react';
 import JsBarcode from 'jsbarcode';
 import type { AgentSalePrint } from '@surewina/api-client';
 import {
+  RECEIPT_EMPHASIS_PX,
   RECEIPT_FONT_PX,
   RECEIPT_PAD_MM,
   RECEIPT_WIDTH_MM,
 } from '@/lib/receipt-config';
 
-// Thermal receipt, one per ticket. Monospace and fixed width because that is
-// what the printer renders predictably — this is not a responsive layout.
+// Thermal receipt, one per ticket, sized for an ISO B7 sheet (88 x 125mm).
+// Monospace and fixed width because that is what the printer renders
+// predictably — this is not a responsive layout.
 //
-// Layout mirrors the Premier Lotto slip the client provided: centred identity
-// block, a fixed-label-column data table with aligned colons, the stake line,
-// the ticket number, then total, good luck, location, and a barcode.
+// The height budget is hard: anything that does not fit 125mm produces a
+// second sheet, not a longer slip. Every block below is deliberately tight.
 //
-// The data rows stay left-aligned on purpose. A column of values only reads
-// as a table when every value starts at the same x; centring those rows would
-// make the slip harder to scan, not easier.
+// Data rows stay left-aligned on purpose. A column of values only reads as a
+// table when every value starts at the same x.
 
 function watStamp(iso: string, withSeconds = false) {
   const d = new Date(new Date(iso).getTime() + 60 * 60 * 1000);
@@ -35,13 +35,11 @@ export function TicketReceipt({
   sale,
   ticketRef,
   agentCode,
-  stateCode,
   sequence,
 }: {
   sale: AgentSalePrint;
   ticketRef: string;
   agentCode: string;
-  stateCode: string;
   sequence?: { position: number; total: number };
 }) {
   const isJackpot = sale.drawType === 'SATURDAY_JACKPOT';
@@ -49,6 +47,9 @@ export function TicketReceipt({
   return (
     <div className="receipt">
       <div className="head">
+        {/* Colour raster on a 1-bit print head: this will dither. Replace
+            with a pure black-and-white asset when one exists. */}
+        <img className="logo" src="/surewina-icon.webp" alt="" />
         <div className="brand">SUREWINA</div>
         <div className="game">{sale.drawName.toUpperCase()}</div>
       </div>
@@ -76,9 +77,6 @@ export function TicketReceipt({
 
       <div className="rule" />
 
-      {/* Where Premier prints "NAP2 at N 500" then the picked numbers, we
-          print the game line then the ticket number. Same shape, and the
-          ticket number is what our customer has to keep. */}
       <div className="stake-line">
         {sale.drawShortCode} at {naira(sale.ticketPriceNgn)}
       </div>
@@ -96,7 +94,6 @@ export function TicketReceipt({
       </div>
 
       <div className="good-luck">GOOD LUCK !!!</div>
-      <div className="location">{stateCode.toUpperCase()}</div>
 
       <div className="rule" />
 
@@ -104,8 +101,6 @@ export function TicketReceipt({
       <div className="barcode-text">{ticketRef}</div>
       <div className="serial-foot">{sale.saleReference}</div>
 
-      {/* One promo line, not four blocks. This prints on every ticket now,
-          so anything here is paid for once per ticket sold. */}
       <div className="promo">
         {isJackpot
           ? 'Sure Jackpot draws every Saturday'
@@ -116,33 +111,40 @@ export function TicketReceipt({
         .receipt {
           box-sizing: border-box;
           width: ${RECEIPT_WIDTH_MM}mm;
-          /* Centres the slip if the paper is wider than the layout. */
+          /* Centres the slip on the B7 sheet. */
           margin: 0 auto;
-          padding: 3mm ${RECEIPT_PAD_MM}mm 4mm;
+          padding: 2.5mm ${RECEIPT_PAD_MM}mm 3mm;
           background: #fff;
           color: #000;
           font-family: 'Courier New', Courier, monospace;
           font-size: ${RECEIPT_FONT_PX}px;
-          line-height: 1.45;
+          line-height: 1.4;
         }
         .head {
           text-align: center;
-          margin-bottom: 3mm;
+          margin-bottom: 2mm;
+        }
+        .logo {
+          display: block;
+          width: 13mm;
+          height: 13mm;
+          margin: 0 auto 1mm;
+          object-fit: contain;
         }
         .brand {
           font-weight: 700;
-          font-size: ${RECEIPT_FONT_PX + 8}px;
-          letter-spacing: 0.14em;
+          font-size: ${RECEIPT_EMPHASIS_PX}px;
+          letter-spacing: 0.16em;
           line-height: 1.1;
         }
         .game {
-          font-size: ${RECEIPT_FONT_PX + 1}px;
+          font-size: ${RECEIPT_FONT_PX - 1}px;
           letter-spacing: 0.08em;
-          margin-top: 1mm;
+          margin-top: 0.8mm;
         }
         .ident {
           text-align: center;
-          margin-bottom: 2.5mm;
+          margin-bottom: 2mm;
         }
         .ident-row {
           display: flex;
@@ -151,18 +153,20 @@ export function TicketReceipt({
           gap: 2.5mm;
         }
         .ident-label {
-          font-size: ${RECEIPT_FONT_PX - 2}px;
+          font-size: ${RECEIPT_FONT_PX - 3}px;
           letter-spacing: 0.16em;
         }
         .ident-value {
           font-weight: 700;
-          font-size: ${RECEIPT_FONT_PX + 5}px;
-          letter-spacing: 0.06em;
+          font-size: ${RECEIPT_EMPHASIS_PX}px;
+          letter-spacing: 0.04em;
+          /* Agent codes are long enough to wrap at the old size. They must
+             stay on one line — a code broken across two reads as two codes. */
+          white-space: nowrap;
         }
-        /* Full-width rule, replacing the fixed-length "-+-+" string. */
         .rule {
           border-top: 1px dashed #000;
-          margin: 2.5mm 0;
+          margin: 2mm 0;
         }
         .rows {
           width: 100%;
@@ -172,28 +176,22 @@ export function TicketReceipt({
         }
         .ticket-ref {
           text-align: center;
-          font-size: ${RECEIPT_FONT_PX + 7}px;
+          font-size: ${RECEIPT_EMPHASIS_PX}px;
           font-weight: 700;
-          letter-spacing: 0.08em;
-          margin: 2mm 0 1mm;
-          /* A ticket ref must never break mid-code. */
+          letter-spacing: 0.1em;
+          margin: 1.5mm 0 0.8mm;
           white-space: nowrap;
         }
         .seq {
           text-align: center;
-          font-size: ${RECEIPT_FONT_PX - 2}px;
+          font-size: ${RECEIPT_FONT_PX - 3}px;
           letter-spacing: 0.1em;
         }
         .good-luck {
           text-align: center;
           font-weight: 700;
-          font-size: ${RECEIPT_FONT_PX + 2}px;
-          margin-top: 2.5mm;
-        }
-        .location {
-          text-align: center;
-          font-size: ${RECEIPT_FONT_PX}px;
-          letter-spacing: 0.1em;
+          font-size: ${RECEIPT_FONT_PX + 1}px;
+          margin-top: 2mm;
         }
         .barcode-text {
           text-align: center;
@@ -203,20 +201,21 @@ export function TicketReceipt({
         }
         .serial-foot {
           text-align: center;
-          font-size: ${RECEIPT_FONT_PX - 3}px;
-          margin-top: 1mm;
+          font-size: ${RECEIPT_FONT_PX - 4}px;
+          margin-top: 0.8mm;
+          white-space: nowrap;
         }
         .promo {
           text-align: center;
           font-size: ${RECEIPT_FONT_PX - 3}px;
-          margin-top: 2.5mm;
+          margin-top: 2mm;
         }
       `}</style>
     </div>
   );
 }
 
-// Code 128 over the ticket ref. Drawn as SVG so it scales cleanly to the
+// Code 128 over the ticket ref, drawn as SVG so it scales cleanly to the
 // print resolution — a raster barcode at 203dpi blurs at the bar edges and
 // scanners reject it.
 function Barcode({ value }: { value: string }) {
@@ -228,7 +227,7 @@ function Barcode({ value }: { value: string }) {
       JsBarcode(ref.current, value, {
         format: 'CODE128',
         width: 1.6,
-        height: 46,
+        height: 38,
         displayValue: false,
         margin: 0,
         background: '#ffffff',
@@ -247,16 +246,16 @@ function Barcode({ value }: { value: string }) {
         .barcode-wrap {
           display: flex;
           justify-content: center;
-          margin-top: 1mm;
+          margin-top: 0.8mm;
         }
       `}</style>
     </div>
   );
 }
 
-// Fixed label column with an aligned colon, as on the reference slip. Values
-// start at the same x on every row, which is what makes a monospace receipt
-// read as a table rather than a list.
+// Fixed label column with an aligned colon. min-width rather than a fixed
+// basis: a label longer than the column pushes its value right instead of
+// being clipped, which is what turned "Valid Until" into "Valid Unt".
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="row">
@@ -270,9 +269,9 @@ function Row({ label, value }: { label: string; value: string }) {
           width: 100%;
         }
         .label {
-          flex: 0 0 24mm;
+          flex: 0 0 auto;
+          min-width: 24mm;
           white-space: nowrap;
-          overflow: hidden;
         }
         .colon {
           flex: 0 0 3mm;

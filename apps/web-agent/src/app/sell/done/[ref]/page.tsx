@@ -12,7 +12,7 @@ import { SaleStepper } from '@/components/sale-stepper';
 import { SectionHeading } from '@/components/section-heading';
 import { TicketReceipt } from '@/components/ticket-reciept';
 import { api } from '@/lib/api';
-import { RECEIPT_WIDTH_MM } from '@/lib/receipt-config';
+import { RECEIPT_PAGE_H_MM, RECEIPT_PAGE_W_MM } from '@/lib/receipt-config';
 
 export default function SellDonePage({
   params,
@@ -28,7 +28,6 @@ export default function SellDonePage({
           ref_={ref}
           commissionRate={Number(agent.commissionRate)}
           agentCode={agent.agentCode}
-          stateCode={agent.registeredStateCode}
         />
       )}
     </AgentShell>
@@ -48,12 +47,10 @@ function DoneBody({
   ref_,
   commissionRate,
   agentCode,
-  stateCode,
 }: {
   ref_: string;
   commissionRate: number;
   agentCode: string;
-  stateCode: string;
 }) {
   const search = useSearchParams();
   const queued = search.get('queued') === '1';
@@ -111,13 +108,16 @@ function DoneBody({
           display: none;
         }
         @media print {
+          /* ISO B7 sheets: 88 x 125mm, fixed height. Not a continuous roll,
+             so anything past 125mm becomes a second sheet rather than a
+             longer slip. */
           @page {
-            size: ${RECEIPT_WIDTH_MM}mm auto;
+            size: ${RECEIPT_PAGE_W_MM}mm ${RECEIPT_PAGE_H_MM}mm;
             margin: 0;
           }
           html,
           body {
-            width: ${RECEIPT_WIDTH_MM}mm;
+            width: ${RECEIPT_PAGE_W_MM}mm;
             height: auto !important;
             min-height: 0 !important;
             margin: 0 !important;
@@ -128,8 +128,7 @@ function DoneBody({
              AgentHeader — logo, hamburger, remittance badge — as a sibling of
              this page's content. That header was printing on every ticket.
              Hide every child of the shell except the print area, and drop the
-             shell's own screen height so the page ends with the slip instead
-             of feeding blank roll. */
+             shell's own screen height so the sheet ends with the slip. */
           body > div {
             height: auto !important;
             min-height: 0 !important;
@@ -321,7 +320,7 @@ function DoneBody({
         )}
       </main>
 
-      {/* One slip per ticket, width from receipt-config. Hidden on screen. */}
+      {/* One slip per B7 sheet. Hidden on screen. */}
       {printSale && (
         <section className="surewina-print-area">
           {printSale.tickets.map((tref, i) => (
@@ -330,7 +329,6 @@ function DoneBody({
                 sale={printSale}
                 ticketRef={tref}
                 agentCode={agentCode}
-                stateCode={stateCode}
                 sequence={{ position: i + 1, total: printSale.tickets.length }}
               />
             </div>
