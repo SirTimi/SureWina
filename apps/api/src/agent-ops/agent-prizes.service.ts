@@ -89,6 +89,8 @@ export class AgentPrizesService {
         payoutReference: reference,
         payoutInitiatedAt: new Date(),
         fulfilledAt: new Date(),
+        paidByAgentId: agentId,
+        paidByAgentAt: new Date(),
       },
       
     });

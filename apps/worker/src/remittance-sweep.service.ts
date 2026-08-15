@@ -25,11 +25,11 @@ const emptyTally = (): DayTally => ({
   jackpotSalesNgn: 0,
 });
 
-// Rolls each completed WAT day's AGENT_CASH sales into one Remittance row
-// per agent — the agent's immutable record for that day. Catch-up style:
-// any completed day without a row gets one, so downtime self-heals.
-// Idempotent via @unique(agentId, periodDate); an existing row is never
-// rewritten, which is what makes the record safe to audit against.
+// Rolls each closed business day's AGENT_CASH sales and agent-paid prizes
+// into one Remittance row per agent — the agent's immutable record for that
+// day. Catch-up style: any closed day without a row gets one, so downtime
+// self-heals. Idempotent via @unique(agentId, periodDate); an existing row is
+// never rewritten, which is what makes the record safe to audit against.
 @Injectable()
 export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RemittanceSweepService.name);
@@ -51,8 +51,9 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
-      // Most recent COMPLETED WAT day. (Older gaps heal on later ticks once
-      // those sales exist; for dev this single-day sweep is sufficient.)
+      // Most recent business day whose 19:00 close has passed. (Older gaps
+      // heal on later ticks once those sales exist; for dev this single-day
+      // sweep is sufficient.)
       const { periodDate, startUtc, endUtc } = lastClosedBusinessDay(new Date());
 
       // Grouped over tickets rather than transactions so the ordinary /
@@ -60,29 +61,42 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
       // money: agent sales set faceValueNgn = draw.ticketPriceNgn on every
       // ticket and amountNgn = ticketPriceNgn * quantity, so the sum of face
       // values is the transaction total by construction.
-      const grouped = await this.prisma.ticket.groupBy({
-        by: ['agentId', 'ticketType'],
-        where: {
-          agentId: { not: null },
-          payment: {
-            gateway: PaymentGateway.AGENT_CASH,
-            status: PaymentStatus.CONFIRMED,
-            confirmedAt: { gte: startUtc, lt: endUtc },
+      const [soldGroups, payoutGroups] = await Promise.all([
+        this.prisma.ticket.groupBy({
+          by: ['agentId', 'ticketType'],
+          where: {
+            agentId: { not: null },
+            payment: {
+              gateway: PaymentGateway.AGENT_CASH,
+              status: PaymentStatus.CONFIRMED,
+              confirmedAt: { gte: startUtc, lt: endUtc },
+            },
           },
-        },
-        _sum: { faceValueNgn: true },
-        _count: true,
-      });
+          _sum: { faceValueNgn: true },
+          _count: true,
+        }),
+        // Prizes the agent settled from their own till. netPrizeValue rather
+        // than gross: where WHT applies the agent hands over the net, so
+        // crediting gross would let them keep the withholding.
+        this.prisma.prizeClaim.groupBy({
+          by: ['paidByAgentId'],
+          where: {
+            paidByAgentId: { not: null },
+            paidByAgentAt: { gte: startUtc, lt: endUtc },
+          },
+          _sum: { netPrizeValueNgn: true },
+          _count: true,
+        }),
+      ]);
 
-      const byAgent = new Map<string, DayTally>();
-      for (const row of grouped) {
+      const salesByAgent = new Map<string, DayTally>();
+      for (const row of soldGroups) {
         if (!row.agentId) continue;
-        const tally = byAgent.get(row.agentId) ?? emptyTally();
+        const tally = salesByAgent.get(row.agentId) ?? emptyTally();
         const sales = row._sum.faceValueNgn ?? 0;
 
-        // PRODUCT_PRIZE draws mint STANDARD tickets, so "ordinary" here
-        // means "not the Saturday jackpot" — which is the distinction the
-        // record is being asked for.
+        // PRODUCT_PRIZE draws mint STANDARD tickets, so "ordinary" here means
+        // "not the Saturday jackpot" — the distinction the record asks for.
         if (row.ticketType === TicketType.JACKPOT) {
           tally.jackpotTickets += row._count;
           tally.jackpotSalesNgn += sales;
@@ -90,29 +104,56 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
           tally.standardTickets += row._count;
           tally.standardSalesNgn += sales;
         }
-        byAgent.set(row.agentId, tally);
+        salesByAgent.set(row.agentId, tally);
       }
 
-      for (const [agentId, tally] of byAgent) {
+      const payoutsByAgent = new Map<string, { ngn: number; count: number }>();
+      for (const row of payoutGroups) {
+        if (!row.paidByAgentId) continue;
+        payoutsByAgent.set(row.paidByAgentId, {
+          ngn: row._sum.netPrizeValueNgn ?? 0,
+          count: row._count,
+        });
+      }
+
+      // Union, not just sellers: an agent who paid a prize on a day they sold
+      // nothing is still owed that money, and without a row for the day there
+      // is nowhere for the credit to live.
+      const agentIds = new Set<string>([
+        ...salesByAgent.keys(),
+        ...payoutsByAgent.keys(),
+      ]);
+
+      for (const agentId of agentIds) {
         const agent = await this.prisma.agent.findUnique({
           where: { agentId },
           select: { commissionRate: true, agentCode: true },
         });
         if (!agent) continue;
 
+        const tally = salesByAgent.get(agentId) ?? emptyTally();
+        const payout = payoutsByAgent.get(agentId) ?? { ngn: 0, count: 0 };
+
         const gross = tally.standardSalesNgn + tally.jackpotSalesNgn;
         const ticketCount = tally.standardTickets + tally.jackpotTickets;
         const commission = Math.floor(gross * Number(agent.commissionRate));
 
-        // Prizes paid by the agent from their own till reduce what they owe.
-        // Zero until those payouts are captured server-side — they currently
-        // exist only in the agent's browser localStorage, which cannot be
-        // allowed to reduce a cash obligation.
-        const winningsPaidOut = 0;
+        // Net model: commission was kept at the point of sale and prize cash
+        // already left the till, so only the balance comes back. Negative is
+        // a normal outcome — the agent payout cap is well above a typical
+        // day's sales — and means Surewina owes the agent. Left signed rather
+        // than clamped; the wallet credit reads it.
+        const amountDue = gross - commission - payout.ngn;
 
-        // Net model: commission was kept at the point of sale, prize payouts
-        // already left the till, so only the balance comes back.
-        const amountDue = gross - commission - winningsPaidOut;
+        if (amountDue < 0) {
+          this.logger.warn(
+            `${agent.agentCode} is in credit for ${periodDate
+              .toISOString()
+              .slice(0, 10)}: paid out NGN ${payout.ngn.toLocaleString(
+              'en-NG',
+            )} against NGN ${gross.toLocaleString('en-NG')} of sales`,
+          );
+        }
 
         try {
           const rem = await this.prisma.remittance.create({
@@ -121,7 +162,7 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
               periodDate,
               grossSalesNgn: gross,
               commissionNgn: commission,
-              winningsPaidOutNgn: winningsPaidOut,
+              winningsPaidOutNgn: payout.ngn,
               amountDueNgn: amountDue,
               ticketCount,
               standardTicketCount: tally.standardTickets,
@@ -132,7 +173,7 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
           });
           await this.prisma.auditLog.create({
             data: {
-              severity: AuditSeverity.INFO,
+              severity: amountDue < 0 ? AuditSeverity.WARNING : AuditSeverity.INFO,
               actorType: AuditActorType.SYSTEM,
               action: 'REMITTANCE_CREATED',
               resourceType: 'Remittance',
@@ -141,7 +182,8 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
                 agentCode: agent.agentCode,
                 gross,
                 commission,
-                winningsPaidOut,
+                winningsPaidOut: payout.ngn,
+                prizesPaidCount: payout.count,
                 amountDue,
                 standardTickets: tally.standardTickets,
                 jackpotTickets: tally.jackpotTickets,
@@ -149,11 +191,15 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
             },
           });
           this.logger.log(
-            `Remittance created: ${agent.agentCode} owes NGN ${amountDue.toLocaleString(
+            `Remittance created: ${agent.agentCode} ${
+              amountDue < 0 ? 'is owed' : 'owes'
+            } NGN ${Math.abs(amountDue).toLocaleString(
               'en-NG',
             )} (gross ${gross.toLocaleString(
               'en-NG',
-            )} less commission ${commission.toLocaleString('en-NG')}) — ${
+            )} less commission ${commission.toLocaleString(
+              'en-NG',
+            )} less prizes ${payout.ngn.toLocaleString('en-NG')}) — ${
               tally.standardTickets
             } ordinary, ${tally.jackpotTickets} jackpot, for ${periodDate
               .toISOString()

@@ -26,10 +26,21 @@ export class AgentRemittanceService {
       },
       orderBy: { periodDate: 'asc' },
     });
+
+    // Only positive balances are money owed. A day where the agent paid out
+    // more in prizes than they sold carries a negative amount — that is a
+    // credit to them, and netting it off here would let a credit day mask a
+    // day they genuinely have not settled.
     const totalOwedNgn = open
       .filter((r) => r.status !== RemittanceStatus.AGENT_CONFIRMED)
-      .reduce((s, r) => s + r.amountDueNgn, 0);
-    return { totalOwedNgn, remittances: open.map(this.toView) };
+      .reduce((s, r) => s + Math.max(0, r.amountDueNgn), 0);
+
+    const totalCreditNgn = open.reduce(
+      (s, r) => s + Math.max(0, -r.amountDueNgn),
+      0,
+    );
+
+    return { totalOwedNgn, totalCreditNgn, remittances: open.map(this.toView) };
   }
 
   async history(agentId: string, page = 1, pageSize = 20) {
@@ -50,6 +61,16 @@ export class AgentRemittanceService {
       where: { remittanceId, agentId },
     });
     if (!rem) throw new NotFoundException('Remittance not found');
+
+    // Nothing to pay on a credit day — the agent's prize payouts covered
+    // their sales. Without this an agent could file a bank reference against
+    // a negative amount and appear to have settled a debt that never existed.
+    if (rem.amountDueNgn <= 0) {
+      throw new ConflictException(
+        'Nothing to remit for this day — your prize payouts covered your sales.',
+      );
+    }
+
     if (rem.status !== RemittanceStatus.PENDING && rem.status !== RemittanceStatus.LATE) {
       throw new ConflictException(`Remittance is ${rem.status}`);
     }
@@ -75,6 +96,11 @@ export class AgentRemittanceService {
   // Net model: commission never transfers — the agent keeps it from the cash
   // at the point of sale. The settled record is therefore the commission line
   // on each day's remittance, not a disbursement.
+  //
+  // Each row is the agent's immutable record for that day: what was sold, in
+  // what mix, what they kept, what they paid out, and what they owed. Read
+  // from the snapshot, never recomputed — a ticket voided later must not
+  // rewrite a closed day.
   async commissionSummary(agentId: string) {
     const rows = await this.prisma.remittance.findMany({
       where: { agentId },
@@ -82,8 +108,14 @@ export class AgentRemittanceService {
       take: 30,
       select: {
         periodDate: true,
+        ticketCount: true,
+        standardTicketCount: true,
+        jackpotTicketCount: true,
         grossSalesNgn: true,
+        standardSalesNgn: true,
+        jackpotSalesNgn: true,
         commissionNgn: true,
+        winningsPaidOutNgn: true,
         amountDueNgn: true,
         status: true,
       },
@@ -98,8 +130,14 @@ export class AgentRemittanceService {
       totalEarnedNgn,
       periods: rows.map((r) => ({
         periodDate: r.periodDate.toISOString().slice(0, 10),
+        ticketCount: r.ticketCount,
+        standardTicketCount: r.standardTicketCount,
+        jackpotTicketCount: r.jackpotTicketCount,
         grossSalesNgn: r.grossSalesNgn,
+        standardSalesNgn: r.standardSalesNgn,
+        jackpotSalesNgn: r.jackpotSalesNgn,
         commissionNgn: r.commissionNgn,
+        winningsPaidOutNgn: r.winningsPaidOutNgn,
         amountDueNgn: r.amountDueNgn,
         remittanceStatus: r.status,
       })),

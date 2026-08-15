@@ -90,6 +90,7 @@ model Agent {
   paymentTransactions PaymentTransaction[]
   remittances    Remittance[]
   disbursements  CommissionDisbursement[]
+  prizesPaid    PrizeClaim[]
 
   @@index([agentCode])
   @@index([status, tier])
@@ -516,16 +517,24 @@ model PrizeClaim {
   payoutReference       String?        @map("payout_reference")
   payoutInitiatedAt     DateTime?      @map("payout_initiated_at")
   payoutAccountNumber   String?        @map("payout_account_number")
+  // Set when an agent settles the prize in cash from their own till. Without
+  // this the paying agent is only recoverable by parsing payoutReference or
+  // reading the audit log — neither is something a cash obligation should
+  // depend on.
+  paidByAgentId         String?        @map("paid_by_agent_id")
+  paidByAgentAt         DateTime?      @map("paid_by_agent_at")
 
   createdAt           DateTime         @default(now()) @map("created_at")
   updatedAt           DateTime         @updatedAt @map("updated_at")
 
   drawResult      DrawResult       @relation(fields: [drawResultId], references: [resultId])
   collectionPoint CollectionPoint? @relation(fields: [collectionPointId], references: [pointId])
+  paidByAgent     Agent?           @relation(fields: [paidByAgentId], references: [agentId])
 
   @@map("prize_claims")
   @@index([winnerPhone])
   @@index([status, selectionDeadlineAt])
+  @@index([paidByAgentId, paidByAgentAt])
 }
 
 enum ClaimType {

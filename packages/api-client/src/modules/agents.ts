@@ -123,6 +123,7 @@ export class AgentsModule {
 
   async remittanceCurrent(): Promise<{
     totalOwedNgn: number;
+    totalCreditNgn: number;
     remittances: AgentDailyRecord[];
   }> {
     return this.client.get('/agent/remittance/current');
@@ -191,4 +192,6 @@ export class AgentsModule {
   async saleForPrint(reference: string): Promise<AgentSalePrint> {
     return this.client.get(`/agent/tickets/sale/${encodeURIComponent(reference)}`);
   }
+
+  
 }
