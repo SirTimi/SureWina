@@ -26,6 +26,7 @@ import { CustomerAdminService } from '../admin-ops/customer-admin.service';
 import { SellTicketsDto } from './dto/sell-tickets.dto';
 import { AccountService } from '../account/account.service'
 import { drawDisplayName, drawShortCode } from '../common/draw-naming.util';
+import { isWithinSalesWindow, salesWindowMessage } from '../common/sales-window.util';
 
 @Injectable()
 export class AgentSalesService {
@@ -44,6 +45,11 @@ export class AgentSalesService {
     const agent = await this.prisma.agent.findUnique({ where: { agentId } });
     if (!agent || agent.status !== AgentStatus.ACTIVE) {
       throw new ForbiddenException('Agent account is not active');
+    }
+
+    //sales close by 19:00WAT
+    if (!isWithinSalesWindow()) {
+      throw new ConflictException(salesWindowMessage());
     }
 
     // Blocked customers can't buy through agents either. Anonymous sales

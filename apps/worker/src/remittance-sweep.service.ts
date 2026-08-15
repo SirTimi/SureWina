@@ -7,7 +7,7 @@ import {
   TicketType,
 } from '@prisma/client';
 import { PrismaService } from './prisma.service';
-import { previousWatDay } from './wat-day.util';
+import { lastClosedBusinessDay } from './wat-day.util';
 
 const SWEEP_MS = 5 * 60_000;
 
@@ -53,7 +53,7 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
     try {
       // Most recent COMPLETED WAT day. (Older gaps heal on later ticks once
       // those sales exist; for dev this single-day sweep is sufficient.)
-      const { periodDate, startUtc, endUtc } = previousWatDay(new Date());
+      const { periodDate, startUtc, endUtc } = lastClosedBusinessDay(new Date());
 
       // Grouped over tickets rather than transactions so the ordinary /
       // jackpot split comes from the same pass. Safe substitution for the
