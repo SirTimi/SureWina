@@ -19,28 +19,31 @@ export class AgentRemittanceService {
   ) {}
 
   async current(agentId: string) {
-    const open = await this.prisma.remittance.findMany({
-      where: {
-        agentId,
-        status: { in: [RemittanceStatus.PENDING, RemittanceStatus.AGENT_CONFIRMED, RemittanceStatus.LATE] },
-      },
-      orderBy: { periodDate: 'asc' },
-    });
+    const [agent, open] = await Promise.all([
+      this.prisma.agent.findUnique({
+        where: { agentId },
+        select: { walletBalanceNgn: true },
+      }),
+      this.prisma.remittance.findMany({
+        where: {
+          agentId,
+          status: { in: [RemittanceStatus.PENDING, RemittanceStatus.AGENT_CONFIRMED, RemittanceStatus.LATE] },
+        },
+        orderBy: { periodDate: 'asc' },
+      }),
+    ]);
 
-    // Only positive balances are money owed. A day where the agent paid out
-    // more in prizes than they sold carries a negative amount — that is a
-    // credit to them, and netting it off here would let a credit day mask a
-    // day they genuinely have not settled.
+    // Credit days never appear here — they are closed at creation with
+    // CREDITED_TO_WALLET — so every open row is money genuinely owed.
     const totalOwedNgn = open
       .filter((r) => r.status !== RemittanceStatus.AGENT_CONFIRMED)
-      .reduce((s, r) => s + Math.max(0, r.amountDueNgn), 0);
+      .reduce((s, r) => s + r.amountDueNgn, 0);
 
-    const totalCreditNgn = open.reduce(
-      (s, r) => s + Math.max(0, -r.amountDueNgn),
-      0,
-    );
-
-    return { totalOwedNgn, totalCreditNgn, remittances: open.map(this.toView) };
+    return {
+      totalOwedNgn,
+      walletBalanceNgn: agent?.walletBalanceNgn ?? 0,
+      remittances: open.map(this.toView),
+    };
   }
 
   async history(agentId: string, page = 1, pageSize = 20) {
@@ -91,6 +94,60 @@ export class AgentRemittanceService {
       metadata: { bankTransferRef, amountDueNgn: rem.amountDueNgn },
     });
     return this.toView(updated);
+  }
+
+  // Settle a day's remittance out of wallet credit rather than a bank
+  // transfer. Explicit rather than automatic: an agent should decide when to
+  // spend their credit, not discover after the fact that it was consumed.
+  async settleFromWallet(agentId: string, remittanceId: string) {
+    const settled = await this.prisma.$transaction(async (tx) => {
+      const rem = await tx.remittance.findFirst({
+        where: { remittanceId, agentId },
+      });
+      if (!rem) throw new NotFoundException('Remittance not found');
+      if (rem.amountDueNgn <= 0) {
+        throw new ConflictException('Nothing to settle for this day.');
+      }
+      if (
+        rem.status !== RemittanceStatus.PENDING &&
+        rem.status !== RemittanceStatus.LATE
+      ) {
+        throw new ConflictException(`Remittance is ${rem.status}`);
+      }
+
+      // Guarded decrement: the balance condition is what stops two
+      // concurrent settlements spending the same credit twice.
+      const spend = await tx.agent.updateMany({
+        where: { agentId, walletBalanceNgn: { gte: rem.amountDueNgn } },
+        data: { walletBalanceNgn: { decrement: rem.amountDueNgn } },
+      });
+      if (spend.count === 0) {
+        throw new ConflictException(
+          'Wallet balance is not enough to cover this day.',
+        );
+      }
+
+      // No bank confirmation to wait for — the money never left Surewina.
+      return tx.remittance.update({
+        where: { remittanceId },
+        data: {
+          status: RemittanceStatus.RECEIVED,
+          bankTransferRef: `WALLET-${remittanceId.slice(0, 8).toUpperCase()}`,
+          agentConfirmedAt: new Date(),
+          receivedAt: new Date(),
+        },
+      });
+    });
+
+    await this.audit.write({
+      severity: AuditSeverity.INFO,
+      actor: { type: AuditActorType.AGENT, id: agentId },
+      action: 'REMITTANCE_SETTLED_FROM_WALLET',
+      resource: { type: 'Remittance', id: remittanceId },
+      metadata: { amountDueNgn: settled.amountDueNgn },
+    });
+
+    return this.toView(settled);
   }
 
   // Net model: commission never transfers — the agent keeps it from the cash

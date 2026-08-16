@@ -5,6 +5,7 @@ import {
   PaymentGateway,
   PaymentStatus,
   TicketType,
+  RemittanceStatus
 } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 import { lastClosedBusinessDay } from './wat-day.util';
@@ -147,7 +148,9 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
 
         if (amountDue < 0) {
           this.logger.warn(
-            `${agent.agentCode} is in credit for ${periodDate
+            `${agent.agentCode} credited NGN ${(-amountDue).toLocaleString(
+              'en-NG',
+            )} to wallet for ${periodDate
               .toISOString()
               .slice(0, 10)}: paid out NGN ${payout.ngn.toLocaleString(
               'en-NG',
@@ -156,19 +159,60 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
         }
 
         try {
-          const rem = await this.prisma.remittance.create({
+          // Row creation and the wallet credit must be one unit: if the row
+          // already exists (P2002) the whole thing rolls back, so a repeated
+          // sweep cannot credit the wallet twice.
+          const rem = await this.prisma.$transaction(async (tx) => {
+            const created = await tx.remittance.create({
+              data: {
+                agentId,
+                periodDate,
+                grossSalesNgn: gross,
+                commissionNgn: commission,
+                winningsPaidOutNgn: payout.ngn,
+                amountDueNgn: amountDue,
+                ticketCount,
+                standardTicketCount: tally.standardTickets,
+                jackpotTicketCount: tally.jackpotTickets,
+                standardSalesNgn: tally.standardSalesNgn,
+                jackpotSalesNgn: tally.jackpotSalesNgn,
+                // A credit day has nothing for the agent to pay, so it is
+                // settled the moment it is written rather than left open.
+                status:
+                  amountDue < 0
+                    ? RemittanceStatus.CREDITED_TO_WALLET
+                    : RemittanceStatus.PENDING,
+              },
+            });
+
+            if (amountDue < 0) {
+              await tx.agent.update({
+                where: { agentId },
+                data: { walletBalanceNgn: { increment: -amountDue } },
+              });
+            }
+
+            return created;
+          });
+
+          await this.prisma.auditLog.create({
             data: {
-              agentId,
-              periodDate,
-              grossSalesNgn: gross,
-              commissionNgn: commission,
-              winningsPaidOutNgn: payout.ngn,
-              amountDueNgn: amountDue,
-              ticketCount,
-              standardTicketCount: tally.standardTickets,
-              jackpotTicketCount: tally.jackpotTickets,
-              standardSalesNgn: tally.standardSalesNgn,
-              jackpotSalesNgn: tally.jackpotSalesNgn,
+              severity: amountDue < 0 ? AuditSeverity.WARNING : AuditSeverity.INFO,
+              actorType: AuditActorType.SYSTEM,
+              action: 'REMITTANCE_CREATED',
+              resourceType: 'Remittance',
+              resourceId: rem.remittanceId,
+              metadata: {
+                agentCode: agent.agentCode,
+                gross,
+                commission,
+                winningsPaidOut: payout.ngn,
+                prizesPaidCount: payout.count,
+                amountDue,
+                walletCreditNgn: amountDue < 0 ? -amountDue : 0,
+                standardTickets: tally.standardTickets,
+                jackpotTickets: tally.jackpotTickets,
+              },
             },
           });
           await this.prisma.auditLog.create({

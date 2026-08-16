@@ -73,6 +73,7 @@ model Agent {
   gracePeriodUsedAt      DateTime?   @map("grace_period_used_at")
   // POS terminal identifier printed on tickets sold at this agent.
   terminalNumber Int? @unique @default(autoincrement()) @map("terminal_number")
+  walletBalanceNgn Int @default(0) @map("wallet_balance_ngn")
 
   bankCode            String? @map("bank_code")
   bankAccountLast4    String? @map("bank_account_last4")
@@ -585,9 +586,7 @@ model Remittance {
   standardSalesNgn    Int @default(0) @map("standard_sales_ngn")
   jackpotSalesNgn     Int @default(0) @map("jackpot_sales_ngn")
 
-  // Prizes the agent paid winners from their own till, which reduce what
-  // they owe. Always 0 until agent payouts are captured server-side —
-  // today they live only in the agent's browser localStorage.
+  //Prizes the agent paid winners from their own till, which reduces what they owe as Sources from PrizeClaim.paidByAgentId
   winningsPaidOutNgn  Int @default(0) @map("winnings_paid_out_ngn")
 
   status           RemittanceStatus @default(PENDING)
@@ -610,6 +609,7 @@ enum RemittanceStatus {
   RECEIVED
   LATE
   WRITTEN_OFF
+  CREDITED_TO_WALLET
 }
 
 // ─── COMMISSION DISBURSEMENT (Surewina → agent, daily) ──────

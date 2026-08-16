@@ -67,6 +67,14 @@ export class AgentOpsController {
     return this.agentRemittance.confirmPayment(a.sub, remittanceId, dto.bankTransferRef);
   }
 
+  @Post('remittance/:remittanceId/settle-from-wallet')
+  settleFromWallet(
+    @Param('remittanceId') remittanceId: string,
+    @CurrentAgent() agent: AgentJwtPayload,
+  ) {
+    return this.agentRemittance.settleFromWallet(agent.sub, remittanceId);
+  }
+
   @Get('commission/summary')
   commissionSummary(@CurrentAgent() a: AgentJwtPayload) {
     return this.agentRemittance.commissionSummary(a.sub);
