@@ -84,6 +84,8 @@ model Agent {
   idDocType           String? @map("id_doc_type")      // NIN_SLIP | DRIVERS_LICENCE | VOTERS_CARD | PASSPORT
   onboardedByAdminId  String? @map("onboarded_by_admin_id")
   onboardingNote      String? @db.Text @map("onboarding_note")
+  suspensionReason    String? @map("suspension_reason")
+  suspendedAt         DateTime? @map("suspended_at")
 
   createdAt           DateTime             @default(now()) @map("created_at")
   updatedAt           DateTime             @updatedAt @map("updated_at")
@@ -592,6 +594,7 @@ model Remittance {
   status           RemittanceStatus @default(PENDING)
   bankTransferRef  String?          @map("bank_transfer_ref")
   agentConfirmedAt DateTime?        @map("agent_confirmed_at")
+  deadlineWarnedAt DateTime?        @map("deadline_warned_at")
   receivedAt       DateTime?        @map("received_at")
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
