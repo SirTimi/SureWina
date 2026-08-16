@@ -123,7 +123,7 @@ export class AgentsModule {
 
   async remittanceCurrent(): Promise<{
     totalOwedNgn: number;
-    totalCreditNgn: number;
+    walletBalanceNgn: number;
     remittances: AgentDailyRecord[];
   }> {
     return this.client.get('/agent/remittance/current');
@@ -142,6 +142,13 @@ export class AgentsModule {
     return this.client.post(
       `/agent/remittance/${encodeURIComponent(remittanceId)}/confirm-payment`,
       { bankTransferRef },
+    );
+  }
+
+  async settleFromWallet(remittanceId: string): Promise<AgentDailyRecord> {
+    return this.client.post(
+      `/agent/remittance/${encodeURIComponent(remittanceId)}/settle-from-wallet`,
+      {},
     );
   }
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Banknote, Building2, CheckCircle2, Copy, History } from 'lucide-react';
+import { AlertTriangle, Banknote, Building2, CheckCircle2, Copy, History, Wallet } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { AgentShell } from '@/components/agent-shell';
@@ -21,6 +21,7 @@ interface Remittance {
   periodDate: string;
   grossSalesNgn: number;
   commissionNgn: number;
+  winningsPaidOutNgn: number;
   amountDueNgn: number;
   ticketCount: number;
   status: string;
@@ -37,6 +38,7 @@ export default function RemittancePage() {
 
 function RemittanceBody() {
   const [totalOwed, setTotalOwed] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [remittances, setRemittances] = useState<Remittance[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
@@ -47,10 +49,12 @@ function RemittanceBody() {
       .remittanceCurrent()
       .then((res) => {
         setTotalOwed(res.totalOwedNgn);
+        setWalletBalance(res.walletBalanceNgn);
         setRemittances(res.remittances);
       })
       .catch(() => {
         setTotalOwed(0);
+        setWalletBalance(0);
         setRemittances([]);
       })
       .finally(() => setLoading(false));
@@ -81,7 +85,7 @@ function RemittanceBody() {
       <SectionHeading
         eyebrow="Remittance"
         title="Settle your remittance"
-        description="You hold customer money until you remit it. Settle each day's balance before cutoff."
+        description="You hold customer money until you remit it. Settle each day's balance by 11am the next day."
         backHref="/"
         rightSlot={
           <Link href="/remittance/history">
@@ -104,6 +108,30 @@ function RemittanceBody() {
           Across {remittances.length} open remittance period{remittances.length === 1 ? '' : 's'}, after your commission.
         </p>
       </Card>
+
+      {/* Credit from days where prize payouts exceeded sales. Shown only when
+          there is a balance — an empty wallet is noise on a settlement page. */}
+      {walletBalance > 0 && (
+        <Card className="mt-4 rounded-3xl border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-white text-emerald-700">
+              <Wallet className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-800">
+                Wallet balance
+              </p>
+              <p className="mt-1 font-display text-3xl font-black text-navy-950 tabular-nums">
+                {formatNaira(walletBalance)}
+              </p>
+              <p className="mt-1 text-sm text-emerald-900">
+                Surewina owes you this from days your prize payouts were more than your sales.
+                You can use it to settle any day below.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="mt-4 rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-start gap-3">
@@ -136,7 +164,12 @@ function RemittanceBody() {
           </Card>
         ) : (
           remittances.map((r) => (
-            <RemittanceRow key={r.remittanceId} remittance={r} onConfirmed={load} />
+            <RemittanceRow
+              key={r.remittanceId}
+              remittance={r}
+              walletBalanceNgn={walletBalance}
+              onConfirmed={load}
+            />
           ))
         )}
       </div>
@@ -144,29 +177,48 @@ function RemittanceBody() {
   );
 }
 
-function RemittanceRow({ remittance: r, onConfirmed }: { remittance: Remittance; onConfirmed: () => void }) {
+function RemittanceRow({
+  remittance: r,
+  walletBalanceNgn,
+  onConfirmed,
+}: {
+  remittance: Remittance;
+  walletBalanceNgn: number;
+  onConfirmed: () => void;
+}) {
   const [ref, setRef] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const alreadyPaid = r.status !== 'PENDING' && r.status !== 'OVERDUE';
-  const overdue = r.status === 'OVERDUE';
+  // LATE is the enum value for an unsettled overdue period. The previous
+  // check tested for 'OVERDUE', which does not exist — so a late day was
+  // treated as already paid and the agent had no way to settle it.
+  const overdue = r.status === 'LATE';
+  const settled = r.status !== 'PENDING' && !overdue;
+  const canUseWallet = walletBalanceNgn >= r.amountDueNgn;
 
-  const confirm = async () => {
+  const run = async (fn: () => Promise<unknown>) => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      await fn();
+      onConfirmed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not settle this period.');
+      setSubmitting(false);
+    }
+  };
+
+  const confirm = () => {
     if (ref.trim().length < 4) {
       setError('Enter the bank transfer reference from your receipt.');
       return;
     }
-    setError(null);
-    setSubmitting(true);
-    try {
-      await api.agents.confirmRemittance(r.remittanceId, ref.trim());
-      onConfirmed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not confirm payment.');
-      setSubmitting(false);
-    }
+    return run(() => api.agents.confirmRemittance(r.remittanceId, ref.trim()));
   };
+
+  const payFromWallet = () =>
+    run(() => api.agents.settleFromWallet(r.remittanceId));
 
   return (
     <Card className={`rounded-3xl border p-5 shadow-sm ${overdue ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}>
@@ -179,7 +231,7 @@ function RemittanceRow({ remittance: r, onConfirmed }: { remittance: Remittance;
                 <AlertTriangle className="h-3 w-3" /> Overdue
               </span>
             )}
-            {alreadyPaid && (
+            {settled && (
               <span className="inline-flex items-center gap-1 rounded-sm bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-700">
                 <CheckCircle2 className="h-3 w-3" /> {r.status}
               </span>
@@ -190,35 +242,56 @@ function RemittanceRow({ remittance: r, onConfirmed }: { remittance: Remittance;
           </p>
           <p className="mt-1 text-xs text-slate-500">
             {r.ticketCount} tickets · {formatNaira(r.grossSalesNgn)} gross · {formatNaira(r.commissionNgn)} commission
+            {r.winningsPaidOutNgn > 0 && <> · {formatNaira(r.winningsPaidOutNgn)} prizes paid</>}
           </p>
         </div>
       </div>
 
-      {alreadyPaid ? (
+      {settled ? (
         <div className="mt-4 flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-800">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           Payment logged{r.bankTransferRef ? ` · ref ${r.bankTransferRef}` : ''}. Awaiting finance reconciliation.
         </div>
       ) : (
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <input
-            value={ref}
-            onChange={(e) => setRef(e.target.value)}
-            placeholder="Bank transfer reference"
-            className="h-12 flex-1 rounded-xl border border-slate-200 bg-white px-4 font-mono text-sm text-navy-950 outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
-          />
-          <Button
-            variant="accent"
-            size="lg"
-            isLoading={submitting}
-            disabled={submitting}
-            onClick={confirm}
-            className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
-          >
-            <Banknote className="h-5 w-5" />
-            Confirm payment
-          </Button>
-        </div>
+        <>
+          {canUseWallet && (
+            <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-emerald-900">
+                Your wallet covers this day. No transfer needed.
+              </p>
+              <Button
+                variant="secondary"
+                isLoading={submitting}
+                disabled={submitting}
+                onClick={payFromWallet}
+                className="rounded-sm border-emerald-300 bg-white font-black text-emerald-800"
+              >
+                <Wallet className="h-4 w-4" />
+                Settle from wallet
+              </Button>
+            </div>
+          )}
+
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              value={ref}
+              onChange={(e) => setRef(e.target.value)}
+              placeholder="Bank transfer reference"
+              className="h-12 flex-1 rounded-xl border border-slate-200 bg-white px-4 font-mono text-sm text-navy-950 outline-none focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
+            />
+            <Button
+              variant="accent"
+              size="lg"
+              isLoading={submitting}
+              disabled={submitting}
+              onClick={confirm}
+              className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
+            >
+              <Banknote className="h-5 w-5" />
+              Confirm payment
+            </Button>
+          </div>
+        </>
       )}
 
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
