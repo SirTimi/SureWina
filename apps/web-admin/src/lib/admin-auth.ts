@@ -11,6 +11,10 @@ export interface AdminSession {
   mfaEnabled: boolean;
   lastLoginAt: string;
   mustChangePassword: boolean;
+  // Set for support staff who work a collection point. Null for everyone
+  // else, and null on a support account means unscoped — worth surfacing in
+  // the admin list, since it lets them redeem a claim booked anywhere.
+  collectionPointId?: string | null;
 }
 
 export type AdminPermission =
@@ -40,7 +44,8 @@ export type AdminPermission =
   | 'VIEW_DRAW_SCHEDULE'
   | 'VIEW_ESCALATIONS'
   | 'RAISE_ESCALATION'
-  | 'RESPOND_TO_ESCALATION';
+  | 'RESPOND_TO_ESCALATION'
+  | 'VIEW_COLLECTION_POINT';
 
 export type AdminAction =
   | 'CREATE_ADMIN_PROFILE'
@@ -52,6 +57,7 @@ export type AdminAction =
   | 'APPROVE_AGENT_ONBOARDING'
   | 'REACTIVATE_AGENT'
   | 'REVIEW_CLAIM_KYC'
+  | 'REDEEM_PRIZE'
   | 'CREATE_DRAW_SETUP_REQUEST'
   | 'APPROVE_DRAW_SETUP'
   | 'CHANGE_TICKET_PRICE'
@@ -65,7 +71,9 @@ export type AdminAction =
 const roleActionMap: Record<AdminRole, AdminAction[]> = {
   BASIC_ADMIN: [
     'INITIATE_AGENT_PROFILING',
-    
+    // Counter staff sit at the lowest tier — handing a prize over is the job,
+    // not a level of seniority. The department gate below is the real control.
+    'REDEEM_PRIZE',
   ],
 
   INTERMEDIATE_ADMIN: [
@@ -75,8 +83,8 @@ const roleActionMap: Record<AdminRole, AdminAction[]> = {
     'APPROVE_WORKFLOW_STAGE',
     'REJECT_WORKFLOW_STAGE',
     'REACTIVATE_AGENT',
-    'REVIEW_CLAIM_KYC'
-    
+    'REVIEW_CLAIM_KYC',
+    'REDEEM_PRIZE',
   ],
 
   SUPER_ADMIN: [
@@ -96,8 +104,8 @@ const roleActionMap: Record<AdminRole, AdminAction[]> = {
     'REJECT_WORKFLOW_STAGE',
     'RESPOND_TO_ESCALATION',
     'REACTIVATE_AGENT',
-    'REVIEW_CLAIM_KYC'
-    
+    'REVIEW_CLAIM_KYC',
+    'REDEEM_PRIZE',
   ],
 
   AUDITOR: [
@@ -133,7 +141,8 @@ const mutationActions = new Set<AdminAction>([
   'RAISE_ESCALATION',
   'RESPOND_TO_ESCALATION',
   'REACTIVATE_AGENT',
-  'REVIEW_CLAIM_KYC'
+  'REVIEW_CLAIM_KYC',
+  'REDEEM_PRIZE',
 ]);
 
 // ─── DEPARTMENT GATING ─────────────────────────────────────
@@ -151,6 +160,17 @@ const actionRequiredFunctions: Partial<Record<AdminAction, AdminFunction[]>> = {
   REACTIVATE_AGENT: ['COMPLIANCE_OFFICER'],
   // Identity review on a prize claim.
   REVIEW_CLAIM_KYC: ['COMPLIANCE_OFFICER'],
+  // Releasing a prize at the counter. The person handing over cash or goods
+  // is the person accountable for that counter — clearance does not
+  // substitute for standing behind it.
+  REDEEM_PRIZE: ['SUPPORT_AGENT'],
+};
+
+// Screens whose visibility follows the department rather than the tier. The
+// tier maps below grant these broadly; this narrows them so a finance officer
+// is not shown a counter they cannot use.
+const permissionRequiredFunctions: Partial<Record<AdminPermission, AdminFunction[]>> = {
+  VIEW_COLLECTION_POINT: ['SUPPORT_AGENT'],
 };
 
 // Tier-only check. Correct for actions with no department requirement; for the
@@ -242,12 +262,14 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'INITIATE_AGENT_PROFILING',
     'VIEW_CLAIMS',
     'VIEW_WORKFLOWS',
-    'VIEW_NOTIFICATIONS'
+    'VIEW_NOTIFICATIONS',
+    'VIEW_COLLECTION_POINT',
   ],
   INTERMEDIATE_ADMIN: [
     'VIEW_DASHBOARD',
     'VIEW_TICKETS',
     'VIEW_CUSTOMERS',
+    'VIEW_DISPUTES',
     'VIEW_AGENTS',
     'INITIATE_AGENT_PROFILING',
     'REVIEW_AGENT_ONBOARDING',
@@ -261,6 +283,7 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'REVIEW_WORKFLOWS',
     'VIEW_NOTIFICATIONS',
     'VIEW_DRAW_SCHEDULE',
+    'VIEW_COLLECTION_POINT',
   ],
   SUPER_ADMIN: [
     'VIEW_DASHBOARD',
@@ -288,6 +311,7 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_DRAW_SCHEDULE',
     'VIEW_ESCALATIONS',
     'RESPOND_TO_ESCALATION',
+    'VIEW_COLLECTION_POINT',
   ],
   AUDITOR: [
     'VIEW_DASHBOARD',
@@ -318,6 +342,7 @@ const routePermissions: Array<{ path: string; permission: AdminPermission }> = [
   { path: '/agents/onboarding', permission: 'REVIEW_AGENT_ONBOARDING' },
   { path: '/agents/super', permission: 'VIEW_AGENTS' },
   { path: '/claims', permission: 'VIEW_CLAIMS' },
+  { path: '/collection-point', permission: 'VIEW_COLLECTION_POINT' },
   { path: '/kyc/review', permission: 'REVIEW_KYC' },
   { path: '/payouts', permission: 'VIEW_PAYOUTS' },
   { path: '/remittance', permission: 'VIEW_FINANCE' },
@@ -432,16 +457,54 @@ export function canMutate(role: AdminRole): boolean {
   return !isReadOnlyRole(role);
 }
 
+// Tier-only screen check. Kept for callers that have no session to hand; new
+// code should use canAccessScreen(session, screen), which also applies the
+// department narrowing.
 export function canAccess(role: AdminRole, screen: string): boolean {
   const route = findRoutePermission(screen);
   if (!route) return role === 'SUPER_ADMIN';
   return hasPermission(role, route.permission);
 }
 
+export function canAccessScreen(session: AdminSession, screen: string): boolean {
+  const route = findRoutePermission(screen);
+  if (!route) return session.tier === 'SUPER_ADMIN';
+  if (!hasPermission(session.tier, route.permission)) return false;
+
+  const departments = permissionRequiredFunctions[route.permission];
+  if (departments && !departments.includes(session.role)) return false;
+
+  return true;
+}
+
 export function getAccessDeniedMessage(role: AdminRole, screen: string): string {
   const route = findRoutePermission(screen);
   if (!route) return 'This section is restricted to Super Admin users until a permission is assigned.';
   return `${roleLabel(role)} does not have the ${route.permission.replaceAll('_', ' ').toLowerCase()} permission required for this section.`;
+}
+
+export function getScreenDeniedMessage(session: AdminSession, screen: string): string {
+  const route = findRoutePermission(screen);
+  if (route) {
+    const departments = permissionRequiredFunctions[route.permission];
+    if (
+      hasPermission(session.tier, route.permission) &&
+      departments &&
+      !departments.includes(session.role)
+    ) {
+      const allowed = departments.map(functionLabel).join(' or ');
+      return `This section is for ${allowed} staff. Your account is registered to ${functionLabel(
+        session.role,
+      )}.`;
+    }
+  }
+  return getAccessDeniedMessage(session.tier, screen);
+}
+
+export function getPermissionRequiredFunctions(
+  permission: AdminPermission,
+): AdminFunction[] | null {
+  return permissionRequiredFunctions[permission] ?? null;
 }
 
 function findRoutePermission(screen: string) {

@@ -13,6 +13,7 @@ import {
   KeyRound,
   LayoutDashboard,
   MessageSquare,
+  ScanLine,
   ScrollText,
   Settings,
   Ticket,
@@ -35,6 +36,12 @@ const navGroups: Array<{
     permission: AdminPermission;
     /** Departments whose endpoints back this page. Omit = open to all. */
     roles?: AdminFunction[];
+    /**
+     * Disables the SUPER clearance bypass below. Set on pages whose routes
+     * carry @DepartmentOnly() — clearance does not substitute for being in
+     * the department, so showing the link to a super admin would 403.
+     */
+    departmentOnly?: boolean;
     readOnly?: boolean;
   }>;
 }> = [
@@ -141,6 +148,15 @@ const navGroups: Array<{
         roles: ['COMPLIANCE_OFFICER'],
       },
       {
+        label: 'Collection point',
+        href: '/collection-point',
+        icon: ScanLine,
+        help: 'Verify a winner’s code and ticket, then record the handover',
+        permission: 'VIEW_COLLECTION_POINT',
+        roles: ['SUPPORT_AGENT'],
+        departmentOnly: true,
+      },
+      {
         label: 'Payouts',
         href: '/payouts',
         icon: Banknote,
@@ -222,16 +238,18 @@ export function Sidebar({ session }: { session: AdminSession }) {
   // action may be, department decides which endpoints answer at all. SUPER
   // spans departments — same rule the role guard applies server-side, so the
   // nav never shows a link that would 403.
+  //
+  // The exception is departmentOnly items, which mirror @DepartmentOnly()
+  // routes. There the department is the control and SUPER does not bypass it.
   const visibleGroups = navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter(
-        (item) =>
-          hasPermission(session.tier, item.permission) &&
-          (!item.roles ||
-            session.tier === 'SUPER_ADMIN' ||
-            item.roles.includes(session.role)),
-      ),
+      items: group.items.filter((item) => {
+        if (!hasPermission(session.tier, item.permission)) return false;
+        if (!item.roles) return true;
+        if (item.roles.includes(session.role)) return true;
+        return session.tier === 'SUPER_ADMIN' && !item.departmentOnly;
+      }),
     }))
     .filter((group) => group.items.length > 0);
 

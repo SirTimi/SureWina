@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Copy, KeyRound, UserPlus } from 'lucide-react';
+import type { AdminCollectionPoint } from '@surewina/api-client';
 import { AdminShell } from '@/components/admin-shell';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
@@ -18,7 +19,7 @@ const ROLES = [
   { value: 'OPERATOR', label: 'Operator', hint: 'Draws, agents, tickets, day-to-day operations' },
   { value: 'COMPLIANCE_OFFICER', label: 'Compliance officer', hint: 'KYC review, audit log, statutory reports' },
   { value: 'FINANCE_OFFICER', label: 'Finance officer', hint: 'Remittances, payouts, refunds' },
-  { value: 'SUPPORT_AGENT', label: 'Support agent', hint: 'Lookups only — customer assistance' },
+  { value: 'SUPPORT_AGENT', label: 'Support agent', hint: 'Collection point counter — verify codes, release prizes' },
 ];
 
 const TIERS = [
@@ -38,17 +39,44 @@ function Body({ session }: { session: AdminSession }) {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('OPERATOR');
   const [tier, setTier] = useState('BASIC');
+  const [collectionPointId, setCollectionPointId] = useState('');
+  const [points, setPoints] = useState<AdminCollectionPoint[]>([]);
+  const [pointsLoading, setPointsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ name: string; email: string; password: string } | null>(null);
 
-  const allowed = canPerformAdminAction(session.tier, 'APPROVE_DRAW_SETUP');
+  const allowed = canPerformAdminAction(session.tier, 'CREATE_ADMIN_PROFILE');
+  const isSupport = role === 'SUPPORT_AGENT';
+
+  // Loaded once rather than on each role change, so switching to Support
+  // does not sit on a spinner mid-form.
+  useEffect(() => {
+    api.admin
+      .listCollectionPoints()
+      .then((res) => setPoints(res.points))
+      .catch(() => setPoints([]))
+      .finally(() => setPointsLoading(false));
+  }, []);
+
+  // A stale point on a non-support account would be written to the record
+  // and then silently ignored, which is worse than not setting it.
+  const chooseRole = (next: string) => {
+    setRole(next);
+    if (next !== 'SUPPORT_AGENT') setCollectionPointId('');
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!email.includes('@') || fullName.trim().length < 2) {
       setError('Enter a valid email and full name.');
+      return;
+    }
+    // The API rejects this too, but catching it here saves a round trip and
+    // keeps what the person typed.
+    if (isSupport && !collectionPointId) {
+      setError('Choose the collection point this staff member works at.');
       return;
     }
     setSubmitting(true);
@@ -58,6 +86,7 @@ function Body({ session }: { session: AdminSession }) {
         fullName: fullName.trim(),
         role,
         tier,
+        ...(isSupport ? { collectionPointId } : {}),
       });
       setCreated({ name: res.fullName, email: res.email, password: res.temporaryPassword });
     } catch (err) {
@@ -74,7 +103,7 @@ function Body({ session }: { session: AdminSession }) {
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
             <AlertTriangle className="mx-auto h-8 w-8 text-amber-600" />
             <p className="mt-3 text-sm text-slate-700">
-              {getAdminActionDeniedReason(session.tier, 'APPROVE_DRAW_SETUP')}
+              {getAdminActionDeniedReason(session.tier, 'CREATE_ADMIN_PROFILE')}
             </p>
           </div>
         </div>
@@ -120,6 +149,7 @@ function Body({ session }: { session: AdminSession }) {
                   setCreated(null);
                   setEmail('');
                   setFullName('');
+                  setCollectionPointId('');
                   setSubmitting(false);
                 }}
                 className="rounded-md border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600"
@@ -167,7 +197,43 @@ function Body({ session }: { session: AdminSession }) {
                 </div>
               </div>
 
-              <Picker label="Function" options={ROLES} value={role} onChange={setRole} />
+              <Picker label="Function" options={ROLES} value={role} onChange={chooseRole} />
+
+              {isSupport && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-bold text-[#0B1220]">
+                    Collection point
+                  </label>
+                  {pointsLoading ? (
+                    <div className="h-11 animate-pulse rounded-md bg-slate-100" />
+                  ) : points.length === 0 ? (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                      No active collection points exist yet, so a support agent cannot be created.
+                      Add a collection point first.
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        value={collectionPointId}
+                        onChange={(e) => setCollectionPointId(e.target.value)}
+                        className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-navy-700"
+                      >
+                        <option value="">Select a collection point…</option>
+                        {points.map((p) => (
+                          <option key={p.pointId} value={p.pointId}>
+                            {p.name} — {p.stateCode}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1.5 text-xs text-slate-500">
+                        They can only release prizes booked at this point, and every handover is
+                        recorded against them and this counter.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
               <Picker label="Clearance" options={TIERS} value={tier} onChange={setTier} />
 
               {error && (
@@ -179,7 +245,7 @@ function Body({ session }: { session: AdminSession }) {
               <div className="flex gap-2 pt-1">
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || (isSupport && points.length === 0)}
                   className="inline-flex items-center gap-2 rounded-md bg-[#0B1220] px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300"
                 >
                   <UserPlus className="h-4 w-4" />

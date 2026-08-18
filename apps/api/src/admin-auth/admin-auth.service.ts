@@ -228,6 +228,7 @@ export class AdminAuthService {
         fullName: updatedAdmin.fullName,
         role: updatedAdmin.role,
         tier: updatedAdmin.tier,
+        collectionPointId: updatedAdmin.collectionPointId,
         mfaEnabled: updatedAdmin.mfaEnabled,
         lastLoginAt: updatedAdmin.lastLoginAt,
         mustChangePassword: updatedAdmin.mustChangePassword,
@@ -356,6 +357,7 @@ export class AdminAuthService {
         fullName: updatedAdmin.fullName,
         role: updatedAdmin.role,
         tier: updatedAdmin.tier,
+        collectionPointId: updatedAdmin.collectionPointId,
         mfaEnabled: updatedAdmin.mfaEnabled,
         lastLoginAt: updatedAdmin.lastLoginAt,
         mustChangePassword: updatedAdmin.mustChangePassword
@@ -374,6 +376,7 @@ export class AdminAuthService {
         fullName: true,
         role: true,
         tier: true,
+        collectionPointId: true,
         isActive: true,
         mfaEnabled: true,
         lastLoginAt: true,

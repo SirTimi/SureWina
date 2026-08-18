@@ -20,6 +20,7 @@ export type AdminAuthResponse = {
     fullName: string;
     role: AdminRole;
     tier: AdminTier
+    collectionPointId: string | null;
     mfaEnabled: boolean;
     lastLoginAt: Date | null;
     mustChangePassword: boolean;

@@ -507,6 +507,13 @@ export interface AdminUserRow {
   createdAt: string;
 }
 
+export interface AdminCollectionPoint {
+  pointId: string;
+  name: string;
+  stateCode: string;
+  address: string;
+}
+
 export interface AdminDisputeRow {
   disputeId: string;
   disputeRef: string;
@@ -618,7 +625,17 @@ export class AdminModule {
     return this.client.post('/admin/auth/mfa/activate', { token });
   }
 
-  async getMe(): Promise<AdminMe> {
+  async getMe(): Promise<{
+    adminUserId: string;
+    email: string;
+    fullName: string;
+    role: 'OPERATOR' | 'COMPLIANCE_OFFICER' | 'FINANCE_OFFICER' | 'SUPPORT_AGENT';
+    tier: 'BASIC' | 'INTERMEDIATE' | 'SUPER' | 'AUDITOR';
+    collectionPointId: string | null;
+    mfaEnabled: boolean;
+    lastLoginAt: string | null;
+    mustChangePassword: boolean;
+  }> {
     return this.client.get('/admin/auth/me');
   }
 
@@ -949,5 +966,35 @@ export class AdminModule {
 
   async notifications(): Promise<AdminNotificationList> {
     return this.client.get('/admin/notifications');
+  }
+
+    async verifyRedemption(ticketRef: string, code: string): Promise<{
+    claimId: string;
+    winnerTicketRef: string;
+    winnerPhone: string;
+    claimType: 'PRODUCT' | 'CASH';
+    prizeDescription: string;
+    drawCode: string;
+    grossPrizeValueNgn: number;
+    whtAmountNgn: number;
+    netPrizeValueNgn: number;
+    collectionPoint: string | null;
+    claimDeadlineAt: string;
+    verified: boolean;
+  }> {
+    return this.client.post('/collection-point/verify', { ticketRef, code });
+  }
+
+  async confirmRedemption(ticketRef: string, code: string): Promise<{
+    claimId: string;
+    winnerTicketRef: string;
+    netPrizeValueNgn: number;
+    redeemed: boolean;
+  }> {
+    return this.client.post('/collection-point/confirm', { ticketRef, code });
+  }
+
+  async listCollectionPoints(): Promise<{ points: AdminCollectionPoint[] }> {
+    return this.client.get('/admin/users/collection-points/list');
   }
 }

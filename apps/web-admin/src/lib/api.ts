@@ -45,6 +45,7 @@ export function toAdminSession(admin: {
   mfaEnabled: boolean;
   lastLoginAt: string | null;
   mustChangePassword: boolean;
+  collecetionPointId: string | null;
 }): AdminSession {
   return {
     adminUserId: admin.adminUserId,
@@ -54,6 +55,7 @@ export function toAdminSession(admin: {
     tier: TIER_MAP[admin.tier] ?? 'BASIC_ADMIN',
     mfaEnabled: admin.mfaEnabled,
     lastLoginAt: admin.lastLoginAt ?? new Date().toISOString(),
+    collectionPointId: admin.collecetionPointId ?? null,
     mustChangePassword: admin.mustChangePassword,
   };
 }
