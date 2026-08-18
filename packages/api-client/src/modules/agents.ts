@@ -71,10 +71,24 @@ export class AgentsModule {
   }
 
   async dashboard(): Promise<{
-    agent: { agentCode: string; fullName: string; tier: string; commissionRate: number; status: string };
-    today: { grossSalesNgn: number; ticketsSold: number; saleCount: number; commissionNgn: number };
-    // Net model: owedNgn is sales less commission the agent already kept.
-    remittance: { owedNgn: number; status: string };
+    agent: {
+      agentCode: string; fullName: string; tier: string;
+      commissionRate: number; status: string; lockedForDebt: boolean;
+    };
+    today: {
+      grossSalesNgn: number; ticketsSold: number; saleCount: number;
+      commissionNgn: number; winningsPaidOutNgn: number;
+    };
+    accruing: { salesOpen: boolean; netNgn: number };
+    settlement: {
+      totalOwedNgn: number;
+      walletBalanceNgn: number;
+      openCount: number;
+      oldest: {
+        periodDate: string; amountDueNgn: number; status: string;
+        deadlineAt: string; overdue: boolean;
+      } | null;
+    };
   }> {
     return this.client.get('/agent/dashboard');
   }

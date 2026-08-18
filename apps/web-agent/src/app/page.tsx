@@ -2,13 +2,26 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowRight, Banknote, Clock, QrCode, ReceiptText, Trophy } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Banknote, Clock, Lock, QrCode, ReceiptText, Trophy, Wallet } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { AgentShell } from '@/components/agent-shell';
 import { api } from '@/lib/api';
 
 type Period = 'today' | 'week' | 'month' | 'allTime';
+
+interface Settlement {
+  totalOwedNgn: number;
+  walletBalanceNgn: number;
+  openCount: number;
+  oldest: {
+    periodDate: string;
+    amountDueNgn: number;
+    status: string;
+    deadlineAt: string;
+    overdue: boolean;
+  } | null;
+}
 
 export default function AgentDashboardPage() {
   return (
@@ -20,8 +33,10 @@ export default function AgentDashboardPage() {
 
 function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) {
   const [period, setPeriod] = useState<Period>('today');
-  const [today, setToday] = useState({ grossSalesNgn: 0, ticketsSold: 0, saleCount: 0, commissionNgn: 0 });
-  const [owedNgn, setOwedNgn] = useState(0);
+  const [today, setToday] = useState({ grossSalesNgn: 0, ticketsSold: 0, saleCount: 0, commissionNgn: 0, winningsPaidOutNgn: 0 });
+  const [accruing, setAccruing] = useState({ salesOpen: true, netNgn: 0 });
+  const [settlement, setSettlement] = useState<Settlement>({ totalOwedNgn: 0, walletBalanceNgn: 0, openCount: 0, oldest: null });
+  const [lockedForDebt, setLockedForDebt] = useState(false);
   const [perf, setPerf] = useState<Record<Period, { grossSalesNgn: number; ticketsSold: number; saleCount: number }>>({
     today: { grossSalesNgn: 0, ticketsSold: 0, saleCount: 0 },
     week: { grossSalesNgn: 0, ticketsSold: 0, saleCount: 0 },
@@ -38,7 +53,9 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
       .then(([d, p, s]) => {
         if (!active) return;
         setToday(d.today);
-        setOwedNgn(d.remittance.owedNgn);
+        setAccruing(d.accruing);
+        setSettlement(d.settlement);
+        setLockedForDebt(d.agent.lockedForDebt);
         setPerf(p);
         setSales(s.sales);
       })
@@ -59,10 +76,20 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">Agent dashboard</p>
             <h1 className="mt-2 font-display text-3xl font-black leading-tight tracking-[-0.04em] text-white sm:text-4xl">Welcome, {agent.fullName.split(' ')[0]}.</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/75">Sell tickets, track commission, and settle your daily remittance before cutoff.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/75">
+              {accruing.salesOpen
+                ? 'Sell tickets, track commission, and settle your daily remittance before 11am.'
+                : 'Ticket sales are closed. They reopen at 9:00am.'}
+            </p>
           </div>
           <Link href="/sell">
-            <Button variant="accent" size="lg" fullWidth className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400">
+            <Button
+              variant="accent"
+              size="lg"
+              fullWidth
+              disabled={lockedForDebt || !accruing.salesOpen}
+              className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400 disabled:opacity-50"
+            >
               Sell ticket now
               <QrCode className="h-5 w-5" />
             </Button>
@@ -70,10 +97,39 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
         </div>
       </section>
 
+      {/* Settlement state leads, because it is the only thing on this screen
+          that has a deadline attached to it. */}
+      {lockedForDebt && <LockedBanner settlement={settlement} />}
+      {!lockedForDebt && settlement.oldest && <DueBanner settlement={settlement} />}
+
       <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard icon={<ReceiptText className="h-5 w-5" />} label="Today sales" value={formatNaira(today.grossSalesNgn)} hint={`${today.saleCount} ticket sales`} success />
-        <MetricCard icon={<Banknote className="h-5 w-5" />} label="Commission" value={formatNaira(today.commissionNgn)} hint={`${Math.round(commissionRate * 100)}% — keep from cash`} success />        <MetricCard icon={<Trophy className="h-5 w-5" />} label="Tickets today" value={String(today.ticketsSold)} hint="Cash sales" accent />
-        <MetricCard icon={<Clock className="h-5 w-5" />} label="Owed to Surewina" value={formatNaira(owedNgn)} hint="Sales less your commission" />      </section>
+        <MetricCard icon={<Banknote className="h-5 w-5" />} label="Commission" value={formatNaira(today.commissionNgn)} hint={`${Math.round(commissionRate * 100)}% — keep from cash`} success />
+        <MetricCard icon={<Trophy className="h-5 w-5" />} label="Tickets today" value={String(today.ticketsSold)} hint="Cash sales" accent />
+        <MetricCard
+          icon={accruing.salesOpen ? <Clock className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+          label={accruing.salesOpen ? 'Owed so far today' : "Today's closing balance"}
+          value={formatNaira(accruing.netNgn)}
+          hint={
+            accruing.salesOpen
+              ? 'Sales less commission — still moving'
+              : 'Locked at 7:00pm close'
+          }
+        />
+      </section>
+
+      {settlement.walletBalanceNgn > 0 && (
+        <Link href="/remittance" className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Wallet className="h-5 w-5 shrink-0 text-emerald-700" />
+            <p className="text-sm text-emerald-900">
+              <span className="font-black">{formatNaira(settlement.walletBalanceNgn)}</span> in your
+              wallet from prizes you paid out. Use it to settle any day.
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-emerald-700" />
+        </Link>
+      )}
 
       <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card variant="default" className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm">
@@ -132,6 +188,67 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
       </section>
     </main>
   );
+}
+
+function LockedBanner({ settlement }: { settlement: Settlement }) {
+  return (
+    <Card className="mt-4 rounded-3xl border-red-200 bg-red-50 p-5 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-white text-red-700">
+          <Lock className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="font-display text-xl font-black text-navy-950">Selling is locked.</p>
+          <p className="mt-1 text-sm text-red-900">
+            You have <span className="font-black">{formatNaira(settlement.totalOwedNgn)}</span> unsettled
+            past the 11:00am deadline. Selling resumes automatically as soon as you settle — no one
+            needs to approve it.
+          </p>
+          <Link href="/remittance">
+            <Button variant="accent" size="lg" className="mt-4 rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400">
+              Settle now
+              <ArrowRight className="h-5 w-5" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function DueBanner({ settlement }: { settlement: Settlement }) {
+  const o = settlement.oldest!;
+  return (
+    <Card className={`mt-4 rounded-3xl p-5 shadow-sm ${o.overdue ? 'border border-red-200 bg-red-50' : 'border border-amber-200 bg-amber-50'}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${o.overdue ? 'text-red-700' : 'text-amber-700'}`} />
+          <div>
+            <p className="text-sm font-black text-navy-950">
+              {formatNaira(settlement.totalOwedNgn)} due to Surewina
+            </p>
+            <p className="mt-0.5 text-sm text-navy-950/80">
+              {o.overdue
+                ? 'Past the deadline. Settle now to avoid your account being locked.'
+                : `Settle by ${formatDeadline(o.deadlineAt)} or your account will be locked from selling.`}
+            </p>
+          </div>
+        </div>
+        <Link href="/remittance" className="shrink-0">
+          <Button variant="secondary" className="rounded-sm border-navy-200 bg-white font-black text-navy-700">
+            Settle
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
+      </div>
+    </Card>
+  );
+}
+
+function formatDeadline(iso: string) {
+  return new Date(iso).toLocaleString('en-NG', {
+    weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: true,
+  });
 }
 
 function formatTime(iso: string) {
