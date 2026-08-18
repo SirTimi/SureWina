@@ -2,6 +2,7 @@ import {
     BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -21,6 +22,8 @@ import { ConfigService } from '@nestjs/config';
 import { PaystackTransferService } from './payout/paystack-transfer.service';
 import { WhtDeductionService } from './wht-deduction.service';
 import { SettingsService } from '../config/settings.service';
+import { RedemptionService } from './redemption.service';
+import { NotificationQueueService } from '../queue/notification-queue.service';
 export type ClaimViewDto = {
   claimId: string;
   winnerTicketRef: string;
@@ -52,6 +55,8 @@ const CHOOSABLE: PrizeClaimStatus[] = [
 
 @Injectable()
 export class ClaimsService {
+  private readonly logger = new Logger(ClaimsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -62,6 +67,8 @@ export class ClaimsService {
     private readonly transfers: PaystackTransferService,
     private readonly whtDeductions: WhtDeductionService,
     private readonly settings: SettingsService,
+    private readonly redemption: RedemptionService,
+    private readonly notificationQueue: NotificationQueueService,
   ) {}
 
   async listMine(phoneNumber: string): Promise<{ claims: ClaimViewDto[] }> {
@@ -194,6 +201,22 @@ export class ClaimsService {
         resource: { type: 'PrizeClaim', id: claimId },
         metadata: { whtAmountNgn: updated.whtAmountNgn, netPrizeValueNgn: updated.netPrizeValueNgn },
       });
+
+      // Clearance is the moment the winner becomes entitled, so it is the
+      // moment the collection code exists. Issued for every claim type: a
+      // cash winner may still collect in person from an agent rather than
+      // take a transfer, and they need the code either way.
+      //
+      // Non-blocking. The claim is already cleared and the code is stored —
+      // a failed SMS must not roll that back, and the code can be resent.
+      void this.issueRedemptionCode(updated).catch((e) =>
+        this.logger.error(
+          `Redemption code issue failed for ${claimId}: ${
+            e instanceof Error ? e.message : 'unknown'
+          }`,
+        ),
+      );
+
       return this.toView(updated);
     }
 
@@ -370,6 +393,25 @@ export class ClaimsService {
   }
 
   // ─── helpers ──────────────────────────────────────────────
+
+  // Mints the collection code and sends it to the winner. Split out so the
+  // clear code lives in exactly one scope and is never returned to a caller
+  // or logged — after this it exists only as a hash and in the winner's SMS.
+  private async issueRedemptionCode(claim: {
+    claimId: string;
+    winnerPhone: string;
+    claimDeadlineAt: Date;
+    drawResult: { draw: { prizeDescription: string } };
+  }) {
+    const code = await this.redemption.issue(claim.claimId);
+    await this.notificationQueue.enqueueRedemptionCodeSms({
+      claimId: claim.claimId,
+      winnerPhone: claim.winnerPhone,
+      code,
+      prizeDescription: claim.drawResult.draw.prizeDescription,
+      claimDeadlineAt: claim.claimDeadlineAt.toISOString(),
+    });
+  }
 
   private viewInclude() {
     return {
@@ -576,8 +618,6 @@ export class ClaimsService {
   }
 
   // WHT applies to CASH prizes at/above the threshold. Integer naira,
-  // rounded down in the winner's favour on the tax side.
- // WHT applies to CASH prizes at/above the threshold. Integer naira,
   // rounded down in the winner's favour on the tax side.
   private async computeWht(grossNgn: number, path: ClaimType) {
     const rate = await this.settings.getNumber('WHT_RATE_PERCENT', 5);

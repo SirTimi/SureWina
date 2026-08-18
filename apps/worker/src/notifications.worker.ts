@@ -9,13 +9,20 @@ import { Job, Worker } from 'bullmq';
 import { PrismaService } from './prisma.service';
 import { V2nSmsService } from './v2n-sms.service';
 import {
+  JOB_REDEMPTION_CODE_SMS,
   JOB_TICKET_CONFIRMATION_SMS,
   JOB_WINNER_SMS,
+  RedemptionCodeSmsJob,
   WinnerSmsJob,
   NOTIFICATIONS_QUEUE,
   TicketConfirmationSmsJob,
 } from './queue.contract';
-import { smsPlan, ticketPurchase, winnerNotice } from './sms-templates';
+import {
+  redemptionCode,
+  smsPlan,
+  ticketPurchase,
+  winnerNotice,
+} from './sms-templates';
 
 
 
@@ -38,6 +45,8 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
           await this.handleTicketConfirmation(job.data as TicketConfirmationSmsJob);
         } else if (job.name === JOB_WINNER_SMS) {
           await this.handleWinnerSms(job.data as WinnerSmsJob);
+        } else if (job.name === JOB_REDEMPTION_CODE_SMS) {
+          await this.handleRedemptionCode(job.data as RedemptionCodeSmsJob);
         } else {
           this.logger.warn(`Unknown job ${job.name} — ignoring`);
         }
@@ -124,6 +133,30 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
     // rejected by V2N as a duplicate rather than texting the winner twice.
     await this.sms.sendSms(data.winnerPhone, message, `win-${claimId}`);
     this.logger.log(`Winner SMS processed for draw ${data.drawCode} (claim ${claimId})`);
+  }
+
+  // The collection code. This is the only time it is ever readable — the
+  // claim stores a hash — so a lost SMS cannot be resent from here. The job
+  // payload is dropped on completion so the clear code does not linger in
+  // Redis.
+  private async handleRedemptionCode(data: RedemptionCodeSmsJob) {
+    const message = redemptionCode({
+      code: data.code,
+      prizeDescription: data.prizeDescription,
+      claimDeadline: data.claimDeadlineAt,
+    });
+
+    const plan = smsPlan(message);
+    if (plan.segments > 1) {
+      this.logger.log(
+        `Redemption code SMS for claim ${data.claimId} is ${plan.length} ${plan.encoding} chars = ${plan.segments} segments`,
+      );
+    }
+
+    await this.sms.sendSms(data.winnerPhone, message, `redeem-${data.claimId}`);
+
+    // The code itself is never logged.
+    this.logger.log(`Redemption code sent for claim ${data.claimId}`);
   }
 
   private async handleTicketConfirmation(data: TicketConfirmationSmsJob) {

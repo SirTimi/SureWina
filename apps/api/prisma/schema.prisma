@@ -141,6 +141,7 @@ model AdminUser {
   mfaEnrolledAt  DateTime? @map("mfa_enrolled_at")
   mustChangePassword Boolean   @default(false) @map("must_change_password")
   passwordChangedAt  DateTime? @map("password_changed_at")
+  collectionPointId  String?  @map("collection_point_id")
 
   @@map("admin_users")
 }
@@ -502,6 +503,16 @@ model PrizeClaim {
   claimDeadlineAt     DateTime         @map("claim_deadline_at")
   forfeitedAt         DateTime?        @map("forfeited_at")
   fulfilledAt         DateTime?        @map("fulfilled_at")
+
+    // Redemption code. Issued when the claim clears KYC, sent to the winner by
+  // SMS, and presented at a collection point. Hashed, never stored in clear —
+  // a readable code in the database is a payout waiting to happen.
+  redemptionCodeHash    String?        @map("redemption_code_hash")
+  redemptionCodeIssuedAt DateTime?     @map("redemption_code_issued_at")
+  redemptionAttempts    Int            @default(0) @map("redemption_attempts")
+  redeemedAt            DateTime?      @map("redeemed_at")
+  redeemedByAdminId     String?        @map("redeemed_by_admin_id")
+  redeemedAtPointId     String?        @map("redeemed_at_point_id")
 
   // KYC artefacts (populated in 8.3/8.4)
   kycBvnHash          String?          @map("kyc_bvn_hash")

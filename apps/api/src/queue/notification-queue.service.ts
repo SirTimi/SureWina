@@ -10,6 +10,7 @@ import { Queue } from 'bullmq';
 // Keep in sync with apps/worker/src/queue.contract.ts
 export const NOTIFICATIONS_QUEUE = 'notifications';
 export const JOB_TICKET_CONFIRMATION_SMS = 'ticket-confirmation-sms';
+export const JOB_REDEMPTION_CODE_SMS = 'redemption-code-sms';
 
 export type TicketConfirmationSmsJob = {
   txnId: string;
@@ -19,6 +20,14 @@ export type TicketConfirmationSmsJob = {
   ticketRefs: string[];
   amountNgn: number;
 };
+
+export type RedemptionCodeSmsJob = {
+  claimId: string;
+  winnerPhone: string;
+  code: string;
+  prizeDescription: string;
+  claimDeadlineAt: string;
+}
 
 @Injectable()
 export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
@@ -62,5 +71,21 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
         }`,
       );
     }
+  }
+
+  async enqueueRedemptionCodeSms(job: {
+    claimId: string;
+    winnerPhone: string;
+    code: string;
+    prizeDescription: string;
+    claimDeadlineAt: string;
+  }) {
+    await this.queue.add(JOB_REDEMPTION_CODE_SMS, job, {
+      jobId: `redeem-${job.claimId}`, // one code, one send
+      attempts: 5,
+      backoff: { type: 'exponential', delay: 2000 },
+      removeOnComplete: 1000,
+      removeOnFail: false,
+    });
   }
 }

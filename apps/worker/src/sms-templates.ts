@@ -195,3 +195,24 @@ export function remittanceOverdueLock(args: { amountNgn: number }): string {
     `Customer care: ${SUPPORT_LINE}`,
   ].join('\n');
 }
+
+// The winner carries this until they collect, which may be days — so it is
+// not a short-lived OTP. It expires with the claim deadline, not on a timer.
+// Issued when the claim clears KYC. The winner carries it until they collect,
+// which may be days — not a short-lived OTP. It expires with the claim
+// deadline. The collection point is not named because it is chosen after
+// clearance; the winner picks it in the app.
+export function redemptionCode(args: {
+  code: string;
+  prizeDescription: string;
+  claimDeadline: string | Date;
+}): string {
+  return [
+    'SUREWINA',
+    `Prize approved: ${args.prizeDescription}`,
+    `Collection code: ${args.code}`,
+    `Claim before: ${longDate(args.claimDeadline)}`,
+    'Bring this code and your ticket.',
+    `Customer care: ${SUPPORT_LINE}`,
+  ].join('\n');
+}
