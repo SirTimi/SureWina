@@ -30,3 +30,18 @@ export function salesWindowMessage(instant = new Date()): string {
         SALES_OPEN_MINUTES_WAT,
       )} tomorrow.`;
 }
+
+// Bounds of the business day whose record carries this period date. Must
+// match businessDayOf() in apps/worker/src/wat-day.util.ts — if these drift,
+// a day's listed tickets will not reconcile to its sealed figures.
+export function businessDayBounds(periodDate: string | Date): {
+  startUtc: Date;
+  endUtc: Date;
+} {
+  const d = new Date(periodDate);
+  d.setUTCHours(0, 0, 0, 0);
+  const endUtc = new Date(
+    d.getTime() + SALES_CLOSE_MINUTES_WAT * 60_000 - WAT_OFFSET_MS,
+  );
+  return { startUtc: new Date(endUtc.getTime() - 86_400_000), endUtc };
+}

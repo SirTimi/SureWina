@@ -22,6 +22,7 @@ import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../database/prisma.service';
 import { ListRemittancesQueryDto } from './dto/list-remittances.dto'
+import { AgentDayRecordService } from './agent-day-record.service';
 @Controller('admin/finance/remittances')
 @UseGuards(AdminJwtGuard, AdminRoleGuard)
 @AdminRoles(AdminRole.FINANCE_OFFICER)
@@ -29,6 +30,7 @@ export class AdminFinanceAgentsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly dayRecords: AgentDayRecordService,
   ) {}
 
   @Get()
@@ -171,5 +173,16 @@ export class AdminFinanceAgentsController {
         amountDueNgn: days.reduce((s, d) => s + d.amountDueNgn, 0),
       },
     };
+  }
+
+    // Line-by-line backing for one day of an agent's statement: every ticket
+  // sold and every prize paid, with a check that they still add up to the
+  // figures the day was sealed with.
+  @Get('agent/:agentId/day/:periodDate')
+  dayRecord(
+    @Param('agentId') agentId: string,
+    @Param('periodDate') periodDate: string,
+  ) {
+    return this.dayRecords.dayRecord(agentId, periodDate);
   }
 }

@@ -9,6 +9,7 @@ import { AgentRemittanceService } from './agent-remittance.service';
 import  { ConfirmRemittanceDto } from './dto/confirm-remittance.dto';
 import { LookupPrizeDto } from './dto/lookup-prize.dto';
 import { AgentPrizesService } from './agent-prizes.service';
+import { AgentDayRecordService } from './agent-day-record.service';
 
 @Controller('agent')
 @UseGuards(AgentJwtGuard)
@@ -17,7 +18,8 @@ export class AgentOpsController {
     private readonly agentSales: AgentSalesService,
     private readonly agentRemittance: AgentRemittanceService,
     private readonly agentStats: AgentStatsService,
-    private readonly agentPrizes: AgentPrizesService
+    private readonly agentPrizes: AgentPrizesService,
+    private readonly dayRecords: AgentDayRecordService
   ) {}
 
   @Post('tickets/sell')
@@ -96,5 +98,13 @@ export class AgentOpsController {
     @Param('reference') reference: string,
   ) {
     return this.agentSales.saleForPrint(agent.sub, reference);
+  }
+
+  @Get('records/:periodDate')
+  dayRecord(
+    @CurrentAgent() a: AgentJwtPayload,
+    @Param('periodDate') periodDate: string,
+  ) {
+    return this.dayRecords.dayRecord(a.sub, periodDate);
   }
 }

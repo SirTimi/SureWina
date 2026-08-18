@@ -11,10 +11,11 @@ import { AdminOpsModule } from '../admin-ops/admin-ops.module'
 import { AccountModule } from '../account/account.module'
 import { ClaimsModule } from '../claims/claims.module'
 import { IdentityVerificationService } from './kyc/identity-verification.service'
+import { AgentDayRecordService } from '../agent-ops/agent-day-record.service'
 @Module({
   imports: [JwtModule.register({}), PaymentsModule, AdminOpsModule, AccountModule, ClaimsModule],
   controllers: [AgentOpsController, AdminFinanceAgentsController],
-  providers: [AgentSalesService, AgentStatsService, AgentRemittanceService, AgentPrizesService, IdentityVerificationService],
-  exports: [AgentSalesService],
+  providers: [AgentSalesService, AgentStatsService, AgentRemittanceService, AgentPrizesService, IdentityVerificationService, AgentDayRecordService],
+  exports: [AgentSalesService, AgentDayRecordService],
 })
 export class AgentOpsModule {}
