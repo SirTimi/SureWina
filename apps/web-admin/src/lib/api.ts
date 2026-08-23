@@ -1,4 +1,4 @@
-import { createClient } from '@surewina/api-client';
+import { createClient, type AdminMe } from '@surewina/api-client';
 import type { AdminSession } from './admin-auth';
 
 const TOKEN_KEY = 'surewina_admin_access_token';
@@ -36,17 +36,10 @@ const TIER_MAP: Record<string, AdminSession['tier']> = {
   AUDITOR: 'AUDITOR',
 };
 
-export function toAdminSession(admin: {
-  adminUserId: string;
-  email: string;
-  fullName: string;
-  role: AdminSession['role'];
-  tier: string;
-  mfaEnabled: boolean;
-  lastLoginAt: string | null;
-  mustChangePassword: boolean;
-  collectionPointId: string | null;
-}): AdminSession {
+// Takes AdminMe directly rather than a hand-written copy of its shape. The
+// duplicate drifted once already — a field added to the API response has to
+// be added here too, and the compiler will not tell you if it is not.
+export function toAdminSession(admin: AdminMe): AdminSession {
   return {
     adminUserId: admin.adminUserId,
     email: admin.email,

@@ -14,6 +14,7 @@ export interface AdminMe {
   fullName: string;
   role: AdminFunction;
   tier: AdminTier;
+  collectionPointId: string | null;
   mfaEnabled: boolean;
   lastLoginAt: string | null;
   mustChangePassword: boolean;
