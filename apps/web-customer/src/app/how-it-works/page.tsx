@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link';
 import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
 import { Button, Card, Container } from '@surewina/ui';
