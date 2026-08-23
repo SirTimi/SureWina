@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { ArrowRight, ExternalLink, Search, ShieldCheck } from 'lucide-react';
 import { Badge, Card, Container } from '@surewina/ui';

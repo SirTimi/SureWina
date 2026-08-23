@@ -1,4 +1,5 @@
-import Link from 'next/link';
+
+export const dynamic = 'force-dynamic';import Link from 'next/link';
 import { Container } from '@surewina/ui';
 import { api } from '@/lib/api';
 import { HomeHero } from '@/components/home-hero';

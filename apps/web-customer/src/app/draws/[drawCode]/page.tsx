@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Clock, Gift, Hash, ShieldCheck, Ticket, Trophy } from 'lucide-react';

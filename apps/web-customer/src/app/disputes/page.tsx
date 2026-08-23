@@ -1,5 +1,5 @@
 'use client';
-
+export const dynamic = 'force-dynamic';
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { CustomerDisputeRow } from '@surewina/api-client';
