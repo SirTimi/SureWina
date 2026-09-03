@@ -124,7 +124,7 @@ const navGroups: Array<{
         icon: UserCog,
         help: 'Manage agent records and account status',
         permission: 'VIEW_AGENTS',
-        roles: ['OPERATOR'],
+        roles: ['OPERATOR', 'COMPLIANCE_OFFICER'],
       },
       {
         label: 'Onboarding',
@@ -132,7 +132,7 @@ const navGroups: Array<{
         icon: ClipboardCheck,
         help: 'Register agents in office and activate them',
         permission: 'REVIEW_AGENT_ONBOARDING',
-        roles: ['OPERATOR'],
+        roles: ['OPERATOR', 'COMPLIANCE_OFFICER'],
       },
     ],
   },
