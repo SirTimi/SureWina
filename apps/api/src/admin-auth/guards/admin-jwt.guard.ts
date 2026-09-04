@@ -19,9 +19,9 @@ export class AdminJwtGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest<
-      FastifyRequest & { user?: AdminJwtPayload }
-    >();
+    const request = context
+      .switchToHttp()
+      .getRequest<FastifyRequest & { user?: AdminJwtPayload }>();
 
     const authHeader = request.headers.authorization;
 
@@ -35,23 +35,27 @@ export class AdminJwtGuard implements CanActivate {
       throw new UnauthorizedException('Missing bearer token');
     }
 
+    // Only signature verification belongs in the try. The checks below are
+    // distinct failures, and wrapping them meant every one of them surfaced
+    // as "Invalid or expired token" — which made this impossible to debug.
+    let payload: AdminJwtPayload;
     try {
-      const payload = await this.jwtService.verifyAsync<AdminJwtPayload>(token, {
+      payload = await this.jwtService.verifyAsync<AdminJwtPayload>(token, {
         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
       });
-
-      if (payload.type !== 'admin') {
-        throw new UnauthorizedException('Invalid token type');
-      }
-
-      if (await this.revocation.isRevoked(payload.sub, payload.iat)) {
-        throw new UnauthorizedException('Session revoked - please sign in again')
-      }
-
-      request.user = payload;
-      return true;
     } catch {
       throw new UnauthorizedException('Invalid or expired token');
     }
+
+    if (payload.type !== 'admin') {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
+    if (await this.revocation.isRevoked(payload.sub, payload.iat)) {
+      throw new UnauthorizedException('Session revoked — please sign in again');
+    }
+
+    request.user = payload;
+    return true;
   }
 }
