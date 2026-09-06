@@ -51,12 +51,15 @@ export interface AdminDashboard {
 export interface AdminAgentRow {
   agentId: string;
   agentCode: string;
+  // Zero-padded to six digits, matching what is printed on the ticket.
+  // Null only for agents created before terminals were assigned.
+  terminalNumber: string | null;
   fullName: string;
   phoneNumber: string;
   registeredStateCode: string;
-  status: 'PENDING_KYC' | 'ACTIVE' | 'SUSPENDED' | 'TERMINATED';
-  tier: 'BRONZE' | 'SILVER' | 'GOLD';
-  commissionRate: string | number;
+  status: string;
+  tier: string;
+  commissionRate: number;
   createdAt: string;
 }
 
@@ -648,14 +651,24 @@ export class AdminModule {
     return this.client.post('/admin/auth/change-password', { currentPassword, newPassword });
   }
 
-  async listAgents(params?: { status?: string }): Promise<{
+    async listAgents(params?: {
+    status?: string;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
     agents: AdminAgentRow[];
     total: number;
     page: number;
     pageSize: number;
   }> {
     return this.client.get('/admin/agents', {
-      query: { status: params?.status },
+      query: {
+        status: params?.status,
+        search: params?.search,
+        page: params?.page,
+        pageSize: params?.pageSize,
+      },
     });
   }
 
@@ -953,7 +966,7 @@ export class AdminModule {
     bvn: string;
     idDocType: string;
     onboardingNote?: string;
-  }): Promise<{ agentId: string; agentCode: string; status: string }> {
+  }): Promise<{ agentId: string; agentCode: string; status: string, terminalNumber: string | null }> {
     return this.client.post('/admin/agents/onboard', input);
   }
 

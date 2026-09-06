@@ -20,6 +20,20 @@ class ListAgentsQueryDto {
   @IsOptional()
   @IsEnum(AgentStatus)
   status?: AgentStatus;
+
+  // Terminal number, agent code, name or phone.
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  search?: string;
+
+  @IsOptional()
+  @IsString()
+  page?: string;
+
+  @IsOptional()
+  @IsString()
+  pageSize?: string;
 }
 
 class AgentActionDto {
@@ -50,10 +64,15 @@ import { DepartmentOnly } from '../admin-auth/decorators/department-only.decorat
 export class AgentAdminController {
   constructor(private readonly agentAdmin: AgentAdminService) {}
 
-  @Get()
-  list(@Query() q: ListAgentsQueryDto) {
-    return this.agentAdmin.list(q.status);
-  }
+    @Get()
+    list(@Query() q: ListAgentsQueryDto) {
+      return this.agentAdmin.list(
+        q.status,
+        q.search,
+        Math.max(1, Number(q.page) || 1),
+        Math.min(100, Math.max(1, Number(q.pageSize) || 20)),
+      );
+    }
 
   @Post('onboard')
   onboard(@Body() dto: OnboardAgentDto, @CurrentAdmin() admin: AdminJwtPayload) {

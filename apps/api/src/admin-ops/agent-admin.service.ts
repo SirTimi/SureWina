@@ -63,8 +63,30 @@ export class AgentAdminService {
     private readonly email: ZohoEmailProvider,
   ) {}
 
-  async list(status?: AgentStatus, page = 1, pageSize = 20) {
-    const where: Prisma.AgentWhereInput = status ? { status } : {};
+    // Search matches terminal number, agent code, name or phone. Terminal is
+  // the one staff actually have to hand — it is printed on every ticket, so
+  // a customer query or a dispute usually starts from that number rather
+  // than from anything else we hold.
+  async list(status?: AgentStatus, search?: string, page = 1, pageSize = 20) {
+    const term = search?.trim();
+
+    const where: Prisma.AgentWhereInput = {
+      ...(status ? { status } : {}),
+      ...(term
+        ? {
+            OR: [
+              // Terminal is stored as an integer but printed zero-padded to
+              // six digits, so "000042" and "42" must both find agent 42.
+              ...(/^\d+$/.test(term)
+                ? [{ terminalNumber: Number(term) }]
+                : []),
+              { agentCode: { contains: term, mode: 'insensitive' as const } },
+              { fullName: { contains: term, mode: 'insensitive' as const } },
+              { phoneNumber: { contains: term } },
+            ],
+          }
+        : {}),
+    };
 
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.agent.findMany({
@@ -75,6 +97,7 @@ export class AgentAdminService {
         select: {
           agentId: true,
           agentCode: true,
+          terminalNumber: true,
           fullName: true,
           phoneNumber: true,
           registeredStateCode: true,
@@ -87,7 +110,19 @@ export class AgentAdminService {
       this.prisma.agent.count({ where }),
     ]);
 
-    return { agents: rows, total, page, pageSize };
+    return {
+      agents: rows.map((a) => ({
+        ...a,
+        // Same six-digit form printed on the ticket, so what an admin sees
+        // matches what they are reading off a slip.
+        terminalNumber: a.terminalNumber
+          ? String(a.terminalNumber).padStart(6, '0')
+          : null,
+      })),
+      total,
+      page,
+      pageSize,
+    };
   }
 
   async detail(agentId: string) {
@@ -213,6 +248,15 @@ export class AgentAdminService {
         onboardedByAdminId: adminId,
         onboardingNote: dto.onboardingNote ?? null,
       },
+      select: {
+        agentId: true,
+        agentCode: true,
+        fullName: true,
+        email: true,
+        registeredStateCode: true,
+        status: true,
+        terminalNumber: true,
+      },
     });
 
     await this.audit.write({
@@ -226,6 +270,7 @@ export class AgentAdminService {
         ninLast4: dto.nin.slice(-4),
         bvnLast4: dto.bvn.slice(-4),
         idDocType: dto.idDocType,
+        terminalNumber: agent.terminalNumber,
         // Flags agents onboarded before a real identity provider was wired.
         devModeVerification: ninCheck.devMode || bvnCheck.devMode,
       },
@@ -237,6 +282,7 @@ export class AgentAdminService {
     const mail = agentOnboardingPending({
       fullName: agent.fullName,
       agentCode: agent.agentCode,
+      terminalNumber: agent.terminalNumber ? String(agent.terminalNumber).padStart(6, '0') : null,
     });
 
     void this.email
@@ -247,7 +293,7 @@ export class AgentAdminService {
         ),
       );
 
-    return { agentId: agent.agentId, agentCode, status: agent.status };
+    return { agentId: agent.agentId, agentCode, status: agent.status, terminalNumber: agent.terminalNumber ? String(agent.terminalNumber).padStart(6, '0') : null};
   }
 
   // Sequential per-state code. Count-based, so it can race under concurrent

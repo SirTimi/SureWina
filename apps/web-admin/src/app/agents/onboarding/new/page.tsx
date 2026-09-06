@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { AlertTriangle, IdCard, ShieldCheck, UserPlus } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Copy, IdCard, ShieldCheck, UserPlus } from 'lucide-react';
 import { AdminShell } from '@/components/admin-shell';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
@@ -28,7 +27,6 @@ export default function RegisterAgentPage() {
 }
 
 function Body({ session }: { session: AdminSession }) {
-  const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('+234');
   const [email, setEmail] = useState('');
@@ -40,7 +38,13 @@ function Body({ session }: { session: AdminSession }) {
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<{ code: string; name: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [created, setCreated] = useState<{
+    agentId: string;
+    code: string;
+    name: string;
+    terminalNumber: string | null;
+  } | null>(null);
 
   const allowed = canPerformAdminAction(session.tier, 'INITIATE_AGENT_PROFILING');
 
@@ -50,6 +54,8 @@ function Body({ session }: { session: AdminSession }) {
 
     if (fullName.trim().length < 2) return setError('Enter the agent’s full name.');
     if (!/^\+234\d{10}$/.test(phoneNumber)) return setError('Phone must be +234 followed by 10 digits.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()))
+      return setError('Enter the agent’s email — their registration details are sent there.');
     if (!/^\d{11}$/.test(nin)) return setError('NIN must be exactly 11 digits.');
     if (!/^\d{11}$/.test(bvn)) return setError('BVN must be exactly 11 digits.');
     if (!confirmed) return setError('Confirm you sighted the original identity document.');
@@ -66,10 +72,42 @@ function Body({ session }: { session: AdminSession }) {
         idDocType,
         ...(note.trim() ? { onboardingNote: note.trim() } : {}),
       });
-      setCreated({ code: res.agentCode, name: fullName.trim() });
+      setCreated({
+        agentId: res.agentId,
+        code: res.agentCode,
+        name: fullName.trim(),
+        terminalNumber: res.terminalNumber,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not register agent.');
       setSubmitting(false);
+    }
+  };
+
+  // Clears the form rather than reloading the route. router.refresh() left
+  // every field populated, so registering a second agent started from the
+  // previous one's details.
+  const registerAnother = () => {
+    setFullName('');
+    setPhoneNumber('+234');
+    setEmail('');
+    setNin('');
+    setBvn('');
+    setNote('');
+    setConfirmed(false);
+    setCreated(null);
+    setError(null);
+    setSubmitting(false);
+  };
+
+  const copyTerminal = async () => {
+    if (!created?.terminalNumber) return;
+    try {
+      await navigator.clipboard.writeText(created.terminalNumber);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard blocked */
     }
   };
 
@@ -81,7 +119,7 @@ function Body({ session }: { session: AdminSession }) {
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
             <AlertTriangle className="mx-auto h-8 w-8 text-amber-600" />
             <p className="mt-3 text-sm text-slate-700">
-              {getAdminActionDeniedReason(session.tier, 'CREATE_DRAW_SETUP_REQUEST')}
+              {getAdminActionDeniedReason(session.tier, 'INITIATE_AGENT_PROFILING')}
             </p>
           </div>
         </div>
@@ -95,21 +133,53 @@ function Body({ session }: { session: AdminSession }) {
         <PageHeader eyebrow="Agents" title="Agent registered" breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Agents', href: '/agents' }, { label: 'Registered' }]} />
         <div className="mx-auto max-w-[760px] px-6 py-5">
           <SectionCard title={`${created.name} is registered`}>
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+            {/* Assigned on creation and printed on every ticket this agent
+                sells. Shown here because this is the only moment someone is
+                present to write it down. */}
+            <div className="rounded-lg border-2 border-navy-200 bg-navy-50 p-5 text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
+                Terminal number
+              </p>
+              <p className="mt-2 font-mono text-5xl font-black tracking-[0.12em] text-[#0B1220]">
+                {created.terminalNumber ?? '—'}
+              </p>
+              {created.terminalNumber && (
+                <button
+                  type="button"
+                  onClick={copyTerminal}
+                  className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-md border border-navy-200 bg-white px-3 py-1.5 text-xs font-black text-navy-700"
+                >
+                  {copied ? <BadgeCheck className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              )}
+              <p className="mt-3 text-xs leading-relaxed text-slate-600">
+                Give this to {created.name.split(' ')[0]} now. It appears on every ticket they
+                sell and is how a customer query is traced back to them. It has also been
+                emailed to them.
+              </p>
+            </div>
+
+            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">Agent code</p>
               <p className="mt-1 font-mono text-2xl font-black text-[#0B1220]">{created.code}</p>
               <p className="mt-3 text-sm text-emerald-900">
                 They are <span className="font-black">pending activation</span>. Complete training and
-                the signed agreement, then activate them from the onboarding queue.
+                the signed agreement, then a compliance officer activates them from the
+                onboarding queue.
               </p>
             </div>
-            <div className="mt-4 flex gap-2">
+
+            <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/agents/onboarding" className="rounded-md bg-[#0B1220] px-5 py-2.5 text-sm font-black text-white">
                 Onboarding queue
               </Link>
+              <Link href={`/agents/${created.agentId}`} className="rounded-md border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600">
+                Open agent record
+              </Link>
               <button
                 type="button"
-                onClick={() => router.refresh()}
+                onClick={registerAnother}
                 className="rounded-md border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600"
               >
                 Register another

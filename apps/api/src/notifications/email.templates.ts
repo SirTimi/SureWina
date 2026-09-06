@@ -94,6 +94,8 @@ export function ticketReceipt(args: {
       timeZone: 'Africa/Lagos',
     });
 
+  
+
   const text = [
     `SUREWINA — ${args.drawName} (${args.drawShortCode})`,
     ``,
@@ -147,6 +149,7 @@ export function ticketReceipt(args: {
       Terms &amp; Conditions apply. Customer care: 080 8000 9000
     </p>`,
   );
+  
 
   return {
     subject: `Your Surewina ticket${multiple ? 's' : ''} — ${args.drawName}`,
@@ -183,7 +186,11 @@ export function signInCode(otp: string, expiryMinutes: number) {
   return { subject: `${otp} is your Surewina sign-in code`, text, html };
 }
 
-export function agentOnboardingPending(args: { fullName: string; agentCode: string }) {
+export function agentOnboardingPending(args: {
+  fullName: string;
+  agentCode: string;
+  terminalNumber: string | null;
+}) {
   const firstName = args.fullName.trim().split(/\s+/)[0];
 
   const text = [
@@ -193,6 +200,7 @@ export function agentOnboardingPending(args: { fullName: string; agentCode: stri
     `our compliance team for review.`,
     ``,
     `Agent code: ${args.agentCode}`,
+    ...(args.terminalNumber ? [`Terminal number: ${args.terminalNumber}`] : []),
     `Status: Pending approval`,
     ``,
     `You cannot sell tickets yet. We'll email you again once compliance has`,
@@ -214,8 +222,24 @@ export function agentOnboardingPending(args: { fullName: string; agentCode: stri
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;line-height:1.8">
       <tr><td style="color:#5e5f62">Agent code</td><td align="right"><strong>${args.agentCode}</strong></td></tr>
+      ${
+        args.terminalNumber
+          ? `<tr><td style="color:#5e5f62">Terminal number</td><td align="right"><strong>${args.terminalNumber}</strong></td></tr>`
+          : ''
+      }
       <tr><td style="color:#5e5f62">Status</td><td align="right"><strong>Pending approval</strong></td></tr>
     </table>
+
+    <!-- The terminal number is printed on every ticket this agent sells and is
+         how a customer query is traced back to them, so it needs to be in
+         writing rather than only spoken at the desk. -->
+    ${
+      args.terminalNumber
+        ? `<p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#5e5f62">
+             Your terminal number appears on every ticket you sell. Keep it to hand.
+           </p>`
+        : ''
+    }
 
     <div style="margin-top:20px;padding:14px;background:#fff8e6;border:1px solid #f2d98a;border-radius:8px;font-size:13px;line-height:1.6">
       <strong>You cannot sell tickets yet.</strong> We'll email you again once
