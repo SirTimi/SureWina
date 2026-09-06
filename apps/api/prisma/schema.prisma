@@ -399,8 +399,21 @@ model JackpotAccumulation {
   buyerPhone  String  @unique @map("buyer_phone")
   buyerUserId String? @map("buyer_user_id")
 
+  // Progress toward the current playing week's jackpot. Ten daily tickets
+  // must fall inside one week to earn an entry, so this resets when a
+  // purchase lands in a new cycle rather than accumulating for ever.
   cumulativeCount     Int @default(0) @map("cumulative_count")
   jackpotEntriesTotal Int @default(0) @map("jackpot_entries_total")
+
+  // Which Saturday jackpot the counts above belong to. Null on rows created
+  // before weekly cycles existed — treated as a spent cycle, so the next
+  // purchase starts a clean week.
+  cycleDrawId String? @map("cycle_draw_id")
+
+  // Never resets. The weekly counters are for the promotion; these are for
+  // reporting, which would otherwise collapse to zero every Saturday.
+  lifetimeTicketCount Int @default(0) @map("lifetime_ticket_count")
+  lifetimeEntriesTotal Int @default(0) @map("lifetime_entries_total")
 
   lastTicketAt DateTime @map("last_ticket_at")
 
