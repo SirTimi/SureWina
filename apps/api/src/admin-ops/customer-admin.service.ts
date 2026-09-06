@@ -60,10 +60,26 @@ export class CustomerAdminService {
         transactions: payments._count,
         ticketRows: tickets,
       },
+            // Support staff need both: the weekly figure answers "am I close to a
+      // free entry?", the lifetime one answers "how much have I earned from
+      // this?". The weekly counters reset every Saturday, so showing only
+      // those would make a long-standing customer look brand new.
       accumulation: accumulation
         ? {
-            cumulativeCount: accumulation.cumulativeCount,
-            jackpotEntriesTotal: accumulation.jackpotEntriesTotal,
+            thisWeek: {
+              ticketCount: accumulation.cumulativeCount,
+              entriesEarned: accumulation.jackpotEntriesTotal,
+              ticketsToNextEntry:
+                accumulation.cumulativeCount % 10 === 0 &&
+                accumulation.cumulativeCount > 0
+                  ? 10
+                  : 10 - (accumulation.cumulativeCount % 10),
+            },
+            lifetime: {
+              ticketCount: accumulation.lifetimeTicketCount,
+              entriesEarned: accumulation.lifetimeEntriesTotal,
+            },
+            lastTicketAt: accumulation.lastTicketAt.toISOString(),
           }
         : null,
       claims: claims.map((c) => ({

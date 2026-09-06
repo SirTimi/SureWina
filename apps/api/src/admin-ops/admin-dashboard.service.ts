@@ -165,7 +165,8 @@ export class AdminDashboardService {
     const [accumAgg, nearThreshold] = await Promise.all([
       this.prisma.jackpotAccumulation.aggregate({
         _count: true,
-        _sum: { cumulativeCount: true, jackpotEntriesTotal: true },
+        _sum: { lifetimeTicketCount: true, lifetimeEntriesTotal: true },
+
       }),
       this.prisma.jackpotAccumulation.findMany({
         where: { cumulativeCount: { gte: 7 } },
@@ -180,11 +181,14 @@ export class AdminDashboardService {
       upcomingDraws: perDraw,
       accumulation: {
         participants: accumAgg._count,
-        totalEntriesEarned: accumAgg._sum.jackpotEntriesTotal ?? 0,
-        ticketsCounted: accumAgg._sum.cumulativeCount ?? 0,
+        totalEntriesEarned: accumAgg._sum.lifetimeEntriesTotal ?? 0,
+        ticketsCounted: accumAgg._sum.lifetimeTicketCount ?? 0,
         nearThreshold: nearThreshold.map((n) => ({
           buyerPhone: n.buyerPhone,
-          progress: n.cumulativeCount % 10,
+          // Weekly count, and it never reaches 10 without minting and
+          // resetting the remainder — so the modulo is now misleading rather
+          // than helpful.
+          progress: n.cumulativeCount,
           entriesEarned: n.jackpotEntriesTotal,
           lastTicketAt: n.lastTicketAt.toISOString(),
         })),

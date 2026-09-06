@@ -76,7 +76,18 @@ export interface AdminCustomerDetail {
     transactions: number;
     ticketRows: number;
   };
-  accumulation: { cumulativeCount: number; jackpotEntriesTotal: number } | null;
+  accumulation: {
+    thisWeek: {
+      ticketCount: number;
+      entriesEarned: number;
+      ticketsToNextEntry: number;
+    };
+    lifetime: {
+      ticketCount: number;
+      entriesEarned: number;
+    };
+    lastTicketAt: string;
+  } | null;
   claims: {
     claimId: string;
     winnerTicketRef: string;

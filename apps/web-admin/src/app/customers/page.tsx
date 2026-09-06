@@ -1,5 +1,4 @@
 'use client';
-
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { Ban, PlayCircle, Search, ShieldAlert, Ticket, Trophy, Wallet } from 'lucide-react';
@@ -12,7 +11,6 @@ import { SectionCard } from '@/components/section-card';
 import { StatusPill, statusToTone } from '@/components/status-pill';
 import type { AdminSession } from '@/lib/admin-auth';
 import { api } from '@/lib/api';
-
 export default function CustomersPage() {
   return (
     <AdminShell>
@@ -20,7 +18,6 @@ export default function CustomersPage() {
     </AdminShell>
   );
 }
-
 function Body({ session }: { session: AdminSession }) {
   const [phone, setPhone] = useState('');
   const [data, setData] = useState<AdminCustomerDetail | null>(null);
@@ -29,7 +26,6 @@ function Body({ session }: { session: AdminSession }) {
   const [blockOpen, setBlockOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
-
   const lookup = async (e?: FormEvent) => {
     e?.preventDefault();
     const q = phone.trim();
@@ -46,7 +42,6 @@ function Body({ session }: { session: AdminSession }) {
       setLoading(false);
     }
   };
-
   const block = async () => {
     if (!data || reason.trim().length < 4) return;
     setBusy(true);
@@ -61,7 +56,6 @@ function Body({ session }: { session: AdminSession }) {
       setBusy(false);
     }
   };
-
   const unblock = async () => {
     if (!data) return;
     setBusy(true);
@@ -74,7 +68,6 @@ function Body({ session }: { session: AdminSession }) {
       setBusy(false);
     }
   };
-
   return (
     <>
       <PageHeader
@@ -83,7 +76,6 @@ function Body({ session }: { session: AdminSession }) {
         description="Customers are looked up by phone number — the platform does not expose a browsable customer list."
         breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Customers' }]}
       />
-
       <div className="mx-auto max-w-[1400px] space-y-4 px-6 py-5">
         <form onSubmit={lookup} className="flex flex-col gap-2 sm:flex-row">
           <div className="relative flex-1">
@@ -103,11 +95,9 @@ function Body({ session }: { session: AdminSession }) {
             {loading ? 'Searching…' : 'Look up'}
           </button>
         </form>
-
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
         )}
-
         {data && (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -119,7 +109,6 @@ function Body({ session }: { session: AdminSession }) {
                   {data.kycStatus ? ` · KYC ${data.kycStatus}` : ''}
                 </p>
               </div>
-
               <div className="flex items-center gap-2">
                 {data.blocked ? (
                   <>
@@ -149,13 +138,11 @@ function Body({ session }: { session: AdminSession }) {
                 )}
               </div>
             </div>
-
             {data.blocked && data.blockReason && (
               <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 <span className="font-black">Block reason:</span> {data.blockReason}
               </div>
             )}
-
             {blockOpen && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm font-black text-[#0B1220]">Block this number from purchasing</p>
@@ -191,7 +178,6 @@ function Body({ session }: { session: AdminSession }) {
                 </div>
               </div>
             )}
-
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <Stat icon={Wallet} label="Lifetime spend">{formatNaira(data.lifetime.spendNgn)}</Stat>
               <Stat icon={Ticket} label="Tickets bought">
@@ -201,9 +187,53 @@ function Body({ session }: { session: AdminSession }) {
                 {data.lifetime.transactions.toLocaleString('en-NG')}
               </Stat>
               <Stat icon={Trophy} label="Jackpot entries">
-                {data.accumulation?.jackpotEntriesTotal ?? 0}
+                {data.accumulation?.lifetime.entriesEarned ?? 0}
               </Stat>
             </div>
+
+            {/* The question support actually gets asked. Weekly counters reset
+                every Saturday, so this is progress toward the coming jackpot
+                rather than a running total. */}
+            {data.accumulation && (
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-xl border border-navy-100 bg-navy-50 px-5 py-3">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
+                    This week
+                  </p>
+                  <p className="mt-0.5 text-sm font-bold text-[#0B1220]">
+                    {data.accumulation.thisWeek.ticketCount} ticket
+                    {data.accumulation.thisWeek.ticketCount === 1 ? '' : 's'}
+                    {data.accumulation.thisWeek.entriesEarned > 0 && (
+                      <>
+                        {' · '}
+                        {data.accumulation.thisWeek.entriesEarned} entr
+                        {data.accumulation.thisWeek.entriesEarned === 1 ? 'y' : 'ies'} earned
+                      </>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
+                    To next entry
+                  </p>
+                  <p className="mt-0.5 text-sm font-bold text-[#0B1220]">
+                    {data.accumulation.thisWeek.ticketsToNextEntry} more ticket
+                    {data.accumulation.thisWeek.ticketsToNextEntry === 1 ? '' : 's'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
+                    Last ticket
+                  </p>
+                  <p className="mt-0.5 text-sm font-bold text-[#0B1220]">
+                    {new Date(data.accumulation.lastTicketAt).toLocaleDateString('en-NG', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <SectionCard
               title="Claims"
@@ -264,7 +294,6 @@ function Body({ session }: { session: AdminSession }) {
     </>
   );
 }
-
 function Stat({
   icon: Icon,
   label,
