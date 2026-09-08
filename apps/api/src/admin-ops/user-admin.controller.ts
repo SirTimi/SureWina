@@ -120,19 +120,6 @@ export class UserAdminController {
     return this.toView(u);
   }
 
-  // Populates the collection point picker on the admin create form. Lives
-  // here rather than reusing /claims/collection-points/list, which sits
-  // behind the customer guard and rejects an admin token.
-  @Get('collection-points/list')
-  async collectionPoints() {
-    const points = await this.prisma.collectionPoint.findMany({
-      where: { isActive: true },
-      orderBy: [{ stateCode: 'asc' }, { name: 'asc' }],
-      select: { pointId: true, name: true, stateCode: true, address: true },
-    });
-    return { points };
-  }
-
   @MinTier(AdminTier.SUPER)
   @Post()
   async create(@Body() dto: CreateAdminDto, @CurrentAdmin() actor: AdminJwtPayload) {

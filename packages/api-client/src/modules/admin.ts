@@ -529,18 +529,12 @@ export interface AdminUserRow {
   fullName: string;
   role: 'OPERATOR' | 'COMPLIANCE_OFFICER' | 'FINANCE_OFFICER' | 'SUPPORT_AGENT';
   tier: 'BASIC' | 'INTERMEDIATE' | 'SUPER' | 'AUDITOR';
+  collectionPointId: string | null;
   isActive: boolean;
   mfaEnabled: boolean;
   lastLoginAt: string | null;
   locked: boolean;
   createdAt: string;
-}
-
-export interface AdminCollectionPoint {
-  pointId: string;
-  name: string;
-  stateCode: string;
-  address: string;
 }
 
 export interface AdminDisputeRow {
@@ -937,13 +931,14 @@ export class AdminModule {
     fullName: string;
     role: string;
     tier: string;
+    collectionPointId?: string;
   }): Promise<AdminUserRow & { temporaryPassword: string }> {
     return this.client.post('/admin/users', input);
   }
 
   async updateAdminUser(
     adminUserId: string,
-    input: { role?: string; tier?: string; isActive?: boolean },
+    input: { role?: string; tier?: string; isActive?: boolean; collectionPointId?: string },
   ): Promise<AdminUserRow> {
     return this.client.patch(`/admin/users/${encodeURIComponent(adminUserId)}`, input);
   }

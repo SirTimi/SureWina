@@ -27,6 +27,11 @@ export class ClaimsController {
     return this.claimsService.listMine(user.phoneNumber);
   }
 
+  @Get('collection-points/list')
+  listCollectionPoints(@Query('stateCode') stateCode?: string) {
+    return this.claimsService.listCollectionPoints(stateCode);
+  }
+
   @Get(':claimId')
   getMine(
     @Param('claimId') claimId: string,
@@ -109,11 +114,6 @@ export class ClaimsController {
     }
 
     return this.claimsService.submitDocuments(claimId, user.phoneNumber, files);
-  }
-
-  @Get('collection-points/list')
-  listCollectionPoints(@Query('stateCode') stateCode?: string) {
-    return this.claimsService.listCollectionPoints(stateCode);
   }
 
   @Post(':claimId/book-collection')
