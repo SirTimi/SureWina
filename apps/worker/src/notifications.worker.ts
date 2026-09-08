@@ -9,22 +9,23 @@ import { Job, Worker } from 'bullmq';
 import { PrismaService } from './prisma.service';
 import { V2nSmsService } from './v2n-sms.service';
 import {
+  JOB_JACKPOT_ENTRY_SMS,
   JOB_REDEMPTION_CODE_SMS,
   JOB_TICKET_CONFIRMATION_SMS,
   JOB_WINNER_SMS,
+  JackpotEntrySmsJob,
   RedemptionCodeSmsJob,
   WinnerSmsJob,
   NOTIFICATIONS_QUEUE,
   TicketConfirmationSmsJob,
 } from './queue.contract';
 import {
+  jackpotEntryEarned,
   redemptionCode,
   smsPlan,
   ticketPurchase,
   winnerNotice,
 } from './sms-templates';
-
-
 
 @Injectable()
 export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
@@ -47,6 +48,8 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
           await this.handleWinnerSms(job.data as WinnerSmsJob);
         } else if (job.name === JOB_REDEMPTION_CODE_SMS) {
           await this.handleRedemptionCode(job.data as RedemptionCodeSmsJob);
+        } else if (job.name === JOB_JACKPOT_ENTRY_SMS) {
+          await this.handleJackpotEntry(job.data as JackpotEntrySmsJob);
         } else {
           this.logger.warn(`Unknown job ${job.name} — ignoring`);
         }
@@ -157,6 +160,38 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
 
     // The code itself is never logged.
     this.logger.log(`Redemption code sent for claim ${data.claimId}`);
+  }
+
+  // A free jackpot entry has just been minted. Without this the promotion is
+  // invisible: a customer hits ten tickets, earns an entry, and has no way of
+  // knowing unless they think to ask an agent.
+  private async handleJackpotEntry(data: JackpotEntrySmsJob) {
+    const message = jackpotEntryEarned({
+      entriesMinted: data.entriesMinted,
+      entriesThisWeek: data.entriesThisWeek,
+      jackpotScheduledAt: data.jackpotScheduledAt,
+    });
+
+    const plan = smsPlan(message);
+    if (plan.segments > 1) {
+      this.logger.warn(
+        `Jackpot entry SMS is ${plan.length} ${plan.encoding} chars = ${plan.segments} segments (billed ${plan.segments}x)`,
+      );
+    }
+
+    // Stable id: a retry after a delivered-but-unacknowledged send is
+    // rejected by V2N rather than telling the customer twice.
+    await this.sms.sendSms(
+      data.buyerPhone,
+      message,
+      `jkpt-${data.accumId}-${data.entriesThisWeek}`,
+    );
+
+    this.logger.log(
+      `Jackpot entry SMS sent to ${data.buyerPhone}: ${data.entriesMinted} entr${
+        data.entriesMinted === 1 ? 'y' : 'ies'
+      } into ${data.jackpotDrawCode}`,
+    );
   }
 
   private async handleTicketConfirmation(data: TicketConfirmationSmsJob) {

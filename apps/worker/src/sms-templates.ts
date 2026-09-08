@@ -216,3 +216,27 @@ export function redemptionCode(args: {
     `Customer care: ${SUPPORT_LINE}`,
   ].join('\n');
 }
+
+// Sent the moment a free jackpot entry is earned. Without this the promotion
+// is invisible — a customer hits ten tickets, gets an entry, and has no way
+// of knowing unless they ask an agent.
+export function jackpotEntryEarned(args: {
+  entriesMinted: number;
+  entriesThisWeek: number;
+  jackpotScheduledAt: string | Date;
+}): string {
+  const plural = args.entriesMinted === 1 ? '' : 'S';
+
+  return [
+    'SUREWINA',
+    `You have earned ${args.entriesMinted} FREE JACKPOT ENTR${plural === '' ? 'Y' : 'IES'}!`,
+    `Draw: ${longDate(args.jackpotScheduledAt)}`,
+    args.entriesThisWeek > args.entriesMinted
+      ? `Entries this week: ${args.entriesThisWeek}`
+      : null,
+    'Keep buying — every 10 tickets in a week earns another.',
+    `Customer care: ${SUPPORT_LINE}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}

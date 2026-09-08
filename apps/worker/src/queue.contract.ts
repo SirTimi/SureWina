@@ -32,3 +32,17 @@ export type RedemptionCodeSmsJob = {
   prizeDescription: string;
   claimDeadlineAt: string;
 }
+
+export const JOB_JACKPOT_ENTRY_SMS = 'jackpot-entry-sms';
+
+export type JackpotEntrySmsJob = {
+  // One job per mint, keyed on the accumulation row and the count so far —
+  // a customer who earns a second entry in the same week gets a second
+  // message, but a retry of the same mint does not.
+  accumId: string;
+  buyerPhone: string;
+  entriesMinted: number;
+  entriesThisWeek: number;
+  jackpotDrawCode: string;
+  jackpotScheduledAt: string;
+};

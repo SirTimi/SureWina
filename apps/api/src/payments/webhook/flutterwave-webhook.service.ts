@@ -49,6 +49,15 @@ export class FlutterwaveWebhookService {
           ticketRefs: confirmed.ticketRefs,
           amountNgn: confirmed.amountNgn,
         });
+
+        // A separate message from the ticket confirmation: earning a free
+        // jackpot entry is its own news, and folding it into a per-ticket
+        // receipt would lose it among the others.
+        if (confirmed.jackpotMinted) {
+          await this.notificationQueue.enqueueJackpotEntrySms(
+            confirmed.jackpotMinted,
+          );
+        }
       }
     } catch (error) {
       this.logger.error(

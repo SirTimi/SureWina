@@ -11,7 +11,10 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { generateTicketRef } from './ticket-ref.util';
-import { JackpotAccumulationService } from './jackpot-accumulation.service';
+import {
+  JackpotAccumulationService,
+  type MintedJackpotEntries,
+} from './jackpot-accumulation.service';
 import { ZohoEmailProvider } from '../notifications/zoho-email.provider'
 import { ReceiptService } from '../tickets/receipt.service'
 import { ticketReceipt } from '../notifications/email.templates'
@@ -26,6 +29,11 @@ export type ConfirmedPurchase = {
   drawScheduledAt: string;
   ticketRefs: string[];
   amountNgn: number;
+  // Non-null when this purchase crossed a 10-ticket threshold and earned
+  // free jackpot entries. Carried out rather than notified from inside the
+  // transaction: a queued job cannot be rolled back with a failed commit,
+  // so the customer would be told about entries that never existed.
+  jackpotMinted: MintedJackpotEntries;
 };
 
 export type ConfirmPurchaseParams = {
@@ -138,8 +146,11 @@ export class PurchaseConfirmationService {
       await tx.ticket.createMany({ data: ticketsData });
 
       // 10-for-1 accumulation — DAILY tickets only, per product rule.
+      // Captured here and returned below; the caller notifies once the
+      // transaction has actually committed.
+      let jackpotMinted: MintedJackpotEntries = null;
       if (draw.drawType === DrawType.DAILY_STANDARD) {
-        await this.jackpotAccumulation.recordDailyPurchase(tx, {
+        jackpotMinted = await this.jackpotAccumulation.recordDailyPurchase(tx, {
           buyerPhone: txn.buyerPhone,
           buyerUserId: txn.buyerUserId,
           ticketCount: txn.ticketCount,
@@ -155,6 +166,7 @@ export class PurchaseConfirmationService {
           reference,
           ticketsCreated: txn.ticketCount,
           drawCode: draw.drawCode,
+          jackpotEntriesEarned: jackpotMinted ? jackpotMinted.entriesMinted : 0,
         },
       });
 
@@ -191,6 +203,7 @@ export class PurchaseConfirmationService {
         drawScheduledAt: draw.scheduledAt.toISOString(),
         ticketRefs: ticketsData.map((t) => t.ticketRef),
         amountNgn: txn.amountNgn,
+        jackpotMinted,
       };
     });
   }

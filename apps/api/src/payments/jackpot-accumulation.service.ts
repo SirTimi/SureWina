@@ -8,6 +8,19 @@ import {
 
 const TICKETS_PER_ENTRY = 10;
 
+// What the caller needs in order to notify, once its transaction commits.
+// Returned rather than enqueued from inside: a job queued mid-transaction
+// cannot be rolled back with it, so a purchase that later failed would still
+// have told the customer they had earned an entry.
+export type MintedJackpotEntries = {
+  accumId: string;
+  buyerPhone: string;
+  entriesMinted: number;
+  entriesThisWeek: number;
+  jackpotDrawCode: string;
+  jackpotScheduledAt: string;
+} | null;
+
 // The 10-for-1 rule: ten DAILY tickets bought by one phone number within a
 // single playing week earn one free entry into that week's Saturday jackpot.
 //
@@ -30,7 +43,7 @@ export class JackpotAccumulationService {
       buyerUserId: string | null;
       ticketCount: number;
     },
-  ): Promise<void> {
+  ): Promise<MintedJackpotEntries> {
     const { buyerPhone, buyerUserId, ticketCount } = params;
 
     // The jackpot this purchase counts toward. Looked up first because it
@@ -43,7 +56,7 @@ export class JackpotAccumulationService {
         cutoffAt: { gt: new Date() },
       },
       orderBy: { scheduledAt: 'asc' },
-      select: { drawId: true, drawCode: true },
+      select: { drawId: true, drawCode: true, scheduledAt: true },
     });
 
     const existing = await tx.jackpotAccumulation.findUnique({
@@ -82,7 +95,7 @@ export class JackpotAccumulationService {
       this.logger.log(
         `${buyerPhone}: ${ticketCount} ticket(s) recorded, no open jackpot to accrue toward`,
       );
-      return;
+      return null;
     }
 
     // A purchase in a different cycle starts the week again. Rows created
@@ -134,7 +147,7 @@ export class JackpotAccumulationService {
       this.logger.log(
         `${buyerPhone}: ${accum.cumulativeCount} this week, ${toNext} more for a jackpot entry`,
       );
-      return;
+      return null;
     }
 
     await tx.jackpotEntry.createMany({
@@ -158,5 +171,16 @@ export class JackpotAccumulationService {
     this.logger.log(
       `${buyerPhone}: minted ${owed} free jackpot entr${owed === 1 ? 'y' : 'ies'} into ${jackpotDraw.drawCode}`,
     );
+
+    return {
+      accumId: accum.accumId,
+      buyerPhone,
+      entriesMinted: owed,
+      // accum was read before the increment above, so the running total for
+      // the week is the pre-mint figure plus what we just minted.
+      entriesThisWeek: accum.jackpotEntriesTotal + owed,
+      jackpotDrawCode: jackpotDraw.drawCode,
+      jackpotScheduledAt: jackpotDraw.scheduledAt.toISOString(),
+    };
   }
 }
