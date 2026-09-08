@@ -585,13 +585,23 @@ model CollectionPoint {
   name      String
   stateCode String   @map("state_code")
   address   String
+
+  // A winner sent here needs to know when it opens and who to call. Free
+  // text rather than structured hours: these are physical shops with
+  // irregular schedules, and a rigid model would be filled in wrongly.
+  contactPhone   String? @map("contact_phone")
+  openingHours   String? @map("opening_hours")
+
+  // Never deleted. A point that has released a prize is referenced by
+  // PrizeClaim.redeemedAtPointId, and the audit trail has to survive it
+  // closing.
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
-
+  updatedAt DateTime @updatedAt @default(now()) @map("updated_at")
   claims PrizeClaim[]
 
-  @@map("collection_points")
   @@index([stateCode, isActive])
+  @@map("collection_points")
 }
 
 // ─── AGENT REMITTANCE (agent → Surewina, daily) ─────────────

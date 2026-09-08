@@ -16,6 +16,7 @@ import { SettingsAdminController } from './settings-admin.controller'
 import { AuditModule } from '../audit/audit.module'
 import { AdminNotificationsService } from './admin-notifications.service'
 import { UserAdminController } from './user-admin.controller';
+import {CollectionPointAdminController} from './collection-point-admin.controller'
 @Module({
   imports: [JwtModule.register({}), AuditModule],
   controllers: [
@@ -27,7 +28,8 @@ import { UserAdminController } from './user-admin.controller';
     DrawTemplateController, 
     TicketAdminController, 
     SettingsAdminController,
-    UserAdminController
+    UserAdminController,
+    CollectionPointAdminController
   ],
   providers: [AdminDashboardService, CustomerAdminService, AgentAdminService, FinanceAdminService, ComplianceAdminService, AdminNotificationsService],
   exports: [CustomerAdminService]

@@ -97,6 +97,20 @@ export interface AdminCustomerDetail {
   }[];
 }
 
+export interface AdminCollectionPoint {
+  pointId: string;
+  name: string;
+  stateCode: string;
+  address: string;
+  contactPhone: string | null;
+  openingHours: string | null;
+  isActive: boolean;
+  // Active admin users assigned here. A point with none cannot release a
+  // prize, so it is worth surfacing next to the point itself.
+  staffCount: number;
+  createdAt: string;
+}
+
 export interface AdminClaimRow {
   claimId: string;
   winnerTicketRef: string;
@@ -1019,7 +1033,42 @@ export class AdminModule {
     return this.client.post('/collection-point/confirm', { ticketRef, code });
   }
 
-  async listCollectionPoints(): Promise<{ points: AdminCollectionPoint[] }> {
-    return this.client.get('/admin/users/collection-points/list');
+  async listCollectionPoints(includeInactive = false): Promise<{
+    points: AdminCollectionPoint[];
+  }> {
+    return this.client.get('/admin/collection-points', {
+      query: { includeInactive: includeInactive ? 'true' : undefined },
+    });
+  }
+
+  async createCollectionPoint(input: {
+    name: string;
+    stateCode: string;
+    address: string;
+    contactPhone?: string;
+    openingHours?: string;
+  }): Promise<AdminCollectionPoint> {
+    return this.client.post('/admin/collection-points', input);
+  }
+
+  async updateCollectionPoint(
+    pointId: string,
+    input: {
+      name?: string;
+      stateCode?: string;
+      address?: string;
+      contactPhone?: string;
+      openingHours?: string;
+      isActive?: boolean;
+    },
+  ): Promise<AdminCollectionPoint> {
+    return this.client.patch(
+      `/admin/collection-points/${encodeURIComponent(pointId)}`,
+      input,
+    );
+  }
+
+  async closeCollectionPoint(pointId: string): Promise<AdminCollectionPoint> {
+    return this.updateCollectionPoint(pointId, { isActive: false });
   }
 }
