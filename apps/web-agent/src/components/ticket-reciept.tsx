@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import JsBarcode from 'jsbarcode';
+import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import type { AgentSalePrint } from '@surewina/api-client';
 import {
   RECEIPT_EMPHASIS_PX,
   RECEIPT_FONT_PX,
   RECEIPT_LOGO_MM,
+  RECEIPT_LOOKUP_BASE,
   RECEIPT_PAD_MM,
   RECEIPT_PAGE_H_MM,
+  RECEIPT_QR_MM,
   RECEIPT_WIDTH_MM,
 } from '@/lib/receipt-config';
 
@@ -20,7 +22,7 @@ import {
 // second page is impossible by construction rather than by careful counting.
 // The trade is that overflow is silently clipped — which is why the footer
 // sits last and is pushed to the bottom: if anything is ever lost it is the
-// closing boilerplate, never the barcode or the ticket number.
+// closing boilerplate, never the QR code or the ticket number.
 
 function watStamp(iso: string, withSeconds = false) {
   const d = new Date(new Date(iso).getTime() + 60 * 60 * 1000);
@@ -95,7 +97,8 @@ export function TicketReceipt({
 
       <div className="rule" />
 
-      <Barcode value={ticketRef} />
+      <TicketQr ticketRef={ticketRef} />
+      <div className="qr-caption">SCAN TO CHECK</div>
       <div className="barcode-text">{ticketRef}</div>
       <div className="serial-foot">{sale.saleReference}</div>
 
@@ -211,6 +214,14 @@ export function TicketReceipt({
           font-weight: 700;
           font-size: ${RECEIPT_FONT_PX + 2}px;
         }
+        /* Tells the customer the square is for them, not just for staff.
+           Without it most people ignore a bare QR on a printed slip. */
+        .qr-caption {
+          text-align: center;
+          font-size: ${RECEIPT_FONT_PX - 3}px;
+          letter-spacing: 0.14em;
+          margin-top: 0.6mm;
+        }
         .barcode-text {
           text-align: center;
           font-size: ${RECEIPT_FONT_PX - 1}px;
@@ -249,38 +260,57 @@ export function TicketReceipt({
   );
 }
 
-// Code 128 over the ticket ref, drawn as SVG so it scales cleanly to the
-// print resolution — a raster barcode at 203dpi blurs at the bar edges and
+// QR over a lookup URL, drawn as SVG so it scales cleanly to print
+// resolution — a raster code at 203dpi blurs at the module edges and
 // scanners reject it.
-function Barcode({ value }: { value: string }) {
-  const ref = useRef<SVGSVGElement>(null);
+//
+// A URL rather than the bare ticket ref: a phone camera opens the result
+// directly, where a bare ref would just show the customer a string they
+// still have to type in somewhere. Code 128 could not carry the URL — 43
+// characters would be about 90mm wide on 82mm of paper.
+//
+// Error correction is deliberately low. Thermal slips are read within
+// minutes of printing, not recovered from damage months later, and a lower
+// level keeps the code smaller with larger modules — which matters more on
+// a 203dpi head than redundancy does.
+function TicketQr({ ticketRef }: { ticketRef: string }) {
+  const [svg, setSvg] = useState('');
 
   useEffect(() => {
-    if (!ref.current) return;
-    try {
-      JsBarcode(ref.current, value, {
-        format: 'CODE128',
-        width: 1.6,
-        height: 38,
-        displayValue: false,
-        margin: 0,
-        background: '#ffffff',
-        lineColor: '#000000',
+    let active = true;
+    QRCode.toString(`${RECEIPT_LOOKUP_BASE}?ref=${encodeURIComponent(ticketRef)}`, {
+      type: 'svg',
+      errorCorrectionLevel: 'L',
+      margin: 0,
+      color: { dark: '#000000', light: '#ffffff' },
+    })
+      .then((out) => {
+        if (active) setSvg(out);
+      })
+      .catch(() => {
+        // Encoding failed: leave it blank. The ref is printed in large type
+        // above and again below, so the ticket is still usable by hand.
       });
-    } catch {
-      // Encoding failed: leave the SVG empty. The ref is printed in large
-      // type above and again below, so the ticket is still usable.
-    }
-  }, [value]);
+    return () => {
+      active = false;
+    };
+  }, [ticketRef]);
+
+  if (!svg) return null;
 
   return (
-    <div className="barcode-wrap">
-      <svg ref={ref} />
+    <div className="qr-wrap">
+      <div className="qr" dangerouslySetInnerHTML={{ __html: svg }} />
       <style jsx>{`
-        .barcode-wrap {
+        .qr-wrap {
           display: flex;
           justify-content: center;
           margin-top: 0.8mm;
+        }
+        .qr :global(svg) {
+          width: ${RECEIPT_QR_MM}mm;
+          height: ${RECEIPT_QR_MM}mm;
+          display: block;
         }
       `}</style>
     </div>

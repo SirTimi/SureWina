@@ -2,12 +2,11 @@
 
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, ArrowRight, Search } from 'lucide-react';
+import { AlertCircle, ArrowRight, QrCode, Search } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { AgentShell } from '@/components/agent-shell';
 import { SectionHeading } from '@/components/section-heading';
-
-const SAMPLE_REFS = ['SW-04AB-9LK2', 'SW-COIN-2000', 'SW-7K39-X2QP', 'SW-04AB-9LK3'];
+import { QrScanner } from '@/components/qr-scanner';
 
 export default function PayPrizeLookupPage() {
   return (
@@ -21,6 +20,7 @@ function LookupBody() {
   const router = useRouter();
   const [ref, setRef] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -37,11 +37,28 @@ function LookupBody() {
       <SectionHeading
         eyebrow="Pay prize"
         title="Look up a winning ticket"
-        description="Enter the ticket reference the customer is holding. We will verify if it is a winner before payment."
+        description="Scan the QR code on the ticket, or enter the reference by hand. We will verify if it is a winner before payment."
         backHref="/"
       />
 
       <Card className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
+        {/* Scanning is the fast path — typing a 12-character reference at a
+            counter with a customer waiting is where mistakes happen. The
+            field below stays for damaged tickets and phones without a
+            working camera. */}
+        <button
+          type="button"
+          onClick={() => setScanning(true)}
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-navy-800 text-base font-black text-white"
+        >
+          <QrCode className="h-5 w-5" />
+          Scan ticket
+        </button>
+
+        <p className="my-4 text-center text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+          or enter the reference
+        </p>
+
         <form onSubmit={submit}>
           <label htmlFor="ref" className="mb-2 block text-sm font-bold text-navy-950">
             Ticket reference
@@ -80,23 +97,15 @@ function LookupBody() {
         </form>
       </Card>
 
-      <Card className="mt-4 rounded-3xl border-slate-200 bg-[#F8FAF4] p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-          Demo references
-        </p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {SAMPLE_REFS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRef(r)}
-              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left font-mono text-xs font-black text-navy-950 hover:border-navy-200"
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      </Card>
+      {scanning && (
+        <QrScanner
+          onResult={(ticketRef) => {
+            setScanning(false);
+            router.push(`/pay-prize/${ticketRef}`);
+          }}
+          onClose={() => setScanning(false)}
+        />
+      )}
     </main>
   );
 }

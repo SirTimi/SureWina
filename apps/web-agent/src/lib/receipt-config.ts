@@ -18,5 +18,18 @@ export const RECEIPT_FONT_PX = 12.8;
 export const RECEIPT_EMPHASIS_PX = 14.5;
 
 // Logo square. The largest single consumer of the height budget after the
-// barcode — the first thing to trim if the slip runs to a second sheet.
+// QR code — the first thing to trim if the slip runs to a second sheet.
 export const RECEIPT_LOGO_MM = 17.5;
+
+// QR square. Encodes a lookup URL rather than the bare ticket ref, so a
+// phone camera opens the result directly. A Code 128 barcode carrying the
+// same URL would be about 90mm wide on 82mm of paper — QR fits it in a
+// square instead.
+export const RECEIPT_QR_MM = 20;
+
+// Where a scanned ticket lands. Points at the customer site deliberately:
+// the QR is printed on the customer's own ticket and they will scan it, so
+// it must not lead to a staff login wall. Agents scan through the app,
+// which reads the ref out of this URL rather than following it.
+export const RECEIPT_LOOKUP_BASE =
+  process.env.NEXT_PUBLIC_LOOKUP_BASE_URL ?? 'https://surewina.com/lookup';
