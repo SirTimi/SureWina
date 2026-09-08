@@ -45,7 +45,8 @@ export type AdminPermission =
   | 'VIEW_ESCALATIONS'
   | 'RAISE_ESCALATION'
   | 'RESPOND_TO_ESCALATION'
-  | 'VIEW_COLLECTION_POINT';
+  | 'VIEW_COLLECTION_POINT'
+  | 'MANAGE_COLLECTION_POINTS';
 
 export type AdminAction =
   | 'CREATE_ADMIN_PROFILE'
@@ -58,6 +59,8 @@ export type AdminAction =
   | 'REACTIVATE_AGENT'
   | 'REVIEW_CLAIM_KYC'
   | 'REDEEM_PRIZE'
+  | 'CREATE_COLLECTION_POINT'
+  | 'CLOSE_COLLECTION_POINT'
   | 'CREATE_DRAW_SETUP_REQUEST'
   | 'APPROVE_DRAW_SETUP'
   | 'CHANGE_TICKET_PRICE'
@@ -85,6 +88,8 @@ const roleActionMap: Record<AdminRole, AdminAction[]> = {
     'REACTIVATE_AGENT',
     'REVIEW_CLAIM_KYC',
     'REDEEM_PRIZE',
+    'CREATE_COLLECTION_POINT',
+    'CLOSE_COLLECTION_POINT',
   ],
 
   SUPER_ADMIN: [
@@ -106,6 +111,8 @@ const roleActionMap: Record<AdminRole, AdminAction[]> = {
     'REACTIVATE_AGENT',
     'REVIEW_CLAIM_KYC',
     'REDEEM_PRIZE',
+    'CREATE_COLLECTION_POINT',
+    'CLOSE_COLLECTION_POINT',
   ],
 
   AUDITOR: [
@@ -143,6 +150,8 @@ const mutationActions = new Set<AdminAction>([
   'REACTIVATE_AGENT',
   'REVIEW_CLAIM_KYC',
   'REDEEM_PRIZE',
+  'CREATE_COLLECTION_POINT',
+  'CLOSE_COLLECTION_POINT',
 ]);
 
 // ─── DEPARTMENT GATING ─────────────────────────────────────
@@ -164,6 +173,10 @@ const actionRequiredFunctions: Partial<Record<AdminAction, AdminFunction[]>> = {
   // is the person accountable for that counter — clearance does not
   // substitute for standing behind it.
   REDEEM_PRIZE: ['SUPPORT_AGENT'],
+  // Opening and closing counters. Operations run the estate; compliance own
+  // the claim lifecycle that ends at one of them.
+  CREATE_COLLECTION_POINT: ['OPERATOR', 'COMPLIANCE_OFFICER'],
+  CLOSE_COLLECTION_POINT: ['OPERATOR', 'COMPLIANCE_OFFICER'],
 };
 
 // Screens whose visibility follows the department rather than the tier. The
@@ -171,6 +184,7 @@ const actionRequiredFunctions: Partial<Record<AdminAction, AdminFunction[]>> = {
 // is not shown a counter they cannot use.
 const permissionRequiredFunctions: Partial<Record<AdminPermission, AdminFunction[]>> = {
   VIEW_COLLECTION_POINT: ['SUPPORT_AGENT'],
+  MANAGE_COLLECTION_POINTS: ['OPERATOR', 'COMPLIANCE_OFFICER'],
 };
 
 // Tier-only check. Correct for actions with no department requirement; for the
@@ -284,6 +298,7 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_NOTIFICATIONS',
     'VIEW_DRAW_SCHEDULE',
     'VIEW_COLLECTION_POINT',
+    'MANAGE_COLLECTION_POINTS',
   ],
   SUPER_ADMIN: [
     'VIEW_DASHBOARD',
@@ -312,6 +327,7 @@ const rolePermissions: Record<AdminRole, AdminPermission[]> = {
     'VIEW_ESCALATIONS',
     'RESPOND_TO_ESCALATION',
     'VIEW_COLLECTION_POINT',
+    'MANAGE_COLLECTION_POINTS',
   ],
   AUDITOR: [
     'VIEW_DASHBOARD',
@@ -342,6 +358,11 @@ const routePermissions: Array<{ path: string; permission: AdminPermission }> = [
   { path: '/agents/onboarding', permission: 'REVIEW_AGENT_ONBOARDING' },
   { path: '/agents/super', permission: 'VIEW_AGENTS' },
   { path: '/claims', permission: 'VIEW_CLAIMS' },
+  // Two paths one character apart, meaning different things: the plural is
+  // where operations manage the estate, the singular is the staff counter.
+  // findRoutePermission sorts by length so the plural matches first, but keep
+  // them adjacent so the distinction is visible when either changes.
+  { path: '/collection-points', permission: 'MANAGE_COLLECTION_POINTS' },
   { path: '/collection-point', permission: 'VIEW_COLLECTION_POINT' },
   { path: '/kyc/review', permission: 'REVIEW_KYC' },
   { path: '/payouts', permission: 'VIEW_PAYOUTS' },

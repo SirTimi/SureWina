@@ -1,74 +1,85 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
-import { AlertTriangle, BadgeCheck, HandCoins, RotateCcw, ScanLine } from 'lucide-react';
+import { FormEvent, useEffect, useState } from 'react';
+import { AlertTriangle, MapPin, Phone, Plus, PowerOff, Users } from 'lucide-react';
+import type { AdminCollectionPoint } from '@surewina/api-client';
 import { AdminShell } from '@/components/admin-shell';
+import { GuardedActionButton } from '@/components/guarded-action-button';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
-import type { AdminSession } from '@/lib/admin-auth';
+import { StatusPill } from '@/components/status-pill';
+import { canPerformAction, type AdminSession } from '@/lib/admin-auth';
 import { api } from '@/lib/api';
 
-interface Verified {
-  claimId: string;
-  winnerTicketRef: string;
-  winnerPhone: string;
-  claimType: 'PRODUCT' | 'CASH';
-  prizeDescription: string;
-  drawCode: string;
-  grossPrizeValueNgn: number;
-  whtAmountNgn: number;
-  netPrizeValueNgn: number;
-  collectionPoint: string | null;
-  claimDeadlineAt: string;
-}
+const STATES = ['ANA', 'LAG', 'FCT', 'RIV', 'KAN', 'OYO', 'ENU', 'DEL', 'EDO', 'ABI'];
 
-const naira = (n: number) => `₦${n.toLocaleString('en-NG')}`;
-
-export default function CollectionPointPage() {
+export default function CollectionPointsPage() {
   return <AdminShell>{(session) => <Body session={session} />}</AdminShell>;
 }
 
 function Body({ session }: { session: AdminSession }) {
-  const [ticketRef, setTicketRef] = useState('');
-  const [code, setCode] = useState('');
-  const [verified, setVerified] = useState<Verified | null>(null);
-  const [handedOver, setHandedOver] = useState<{ ref: string; amount: number } | null>(null);
+  const [points, setPoints] = useState<AdminCollectionPoint[]>([]);
+  const [showClosed, setShowClosed] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const reset = () => {
-    setTicketRef('');
-    setCode('');
-    setVerified(null);
-    setHandedOver(null);
+  const [name, setName] = useState('');
+  const [stateCode, setStateCode] = useState('LAG');
+  const [address, setAddress] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [openingHours, setOpeningHours] = useState('');
+
+  const load = () => {
+    setLoading(true);
+    api.admin
+      .listCollectionPoints(showClosed)
+      .then((res) => setPoints(res.points))
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load collection points.'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [showClosed]);
+
+  const resetForm = () => {
+    setName('');
+    setAddress('');
+    setContactPhone('');
+    setOpeningHours('');
+    setFormOpen(false);
     setError(null);
   };
 
-  const verify = async () => {
-    if (ticketRef.trim().length < 6 || code.trim().length !== 6) {
-      setError('Enter the full ticket number and the 6-digit code.');
-      return;
-    }
-    setBusy(true);
+  const create = async (e: FormEvent) => {
+    e.preventDefault();
     setError(null);
+
+    if (name.trim().length < 2) return setError('Give the point a name staff will recognise.');
+    if (address.trim().length < 5) return setError('Enter the full street address.');
+
+    setBusy(true);
     try {
-      const res = await api.admin.verifyRedemption(ticketRef.trim().toUpperCase(), code.trim());
-      setVerified(res);
-    } catch (e) {
-      setVerified(null);
-      setError(e instanceof Error ? e.message : 'Could not verify this code.');
+      await api.admin.createCollectionPoint({
+        name: name.trim(),
+        stateCode,
+        address: address.trim(),
+        ...(contactPhone.trim() ? { contactPhone: contactPhone.trim() } : {}),
+        ...(openingHours.trim() ? { openingHours: openingHours.trim() } : {}),
+      });
+      resetForm();
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create this collection point.');
     } finally {
       setBusy(false);
     }
   };
 
-  const confirm = async () => {
-    if (!verified) return;
-    // Deliberate second step. The counter is handing over money or goods, so
-    // this must be a decision, not a continuation of the verify tap.
+  const close = async (point: AdminCollectionPoint) => {
     if (
       !window.confirm(
-        `Hand over ${verified.claimType === 'CASH' ? naira(verified.netPrizeValueNgn) : verified.prizeDescription} to the holder of ${verified.winnerTicketRef}?\n\nThis cannot be undone.`,
+        `Close ${point.name}?\n\nWinners will no longer be able to book collection here. Existing records are kept.`,
       )
     ) {
       return;
@@ -76,175 +87,249 @@ function Body({ session }: { session: AdminSession }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.admin.confirmRedemption(
-        verified.winnerTicketRef,
-        code.trim(),
-      );
-      setHandedOver({ ref: res.winnerTicketRef, amount: res.netPrizeValueNgn });
-      setVerified(null);
-      setTicketRef('');
-      setCode('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not complete the handover.');
+      await api.admin.closeCollectionPoint(point.pointId);
+      load();
+    } catch (err) {
+      // The API refuses to close a point that still has staff assigned, and
+      // says how many — surfacing that verbatim is more useful than a
+      // generic failure.
+      setError(err instanceof Error ? err.message : 'Could not close this point.');
     } finally {
       setBusy(false);
     }
   };
 
+  const canCreate = canPerformAction(session, 'CREATE_COLLECTION_POINT');
+  const active = points.filter((p) => p.isActive);
+
   return (
     <>
       <PageHeader
-        eyebrow="Collection point"
-        title="Verify and hand over"
-        description="Check the customer's code and ticket before releasing any prize."
-        breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Collection point' }]}
+        eyebrow="Operations"
+        title="Collection points"
+        description="Where winners collect product prizes. Staff are assigned to a point when their account is created."
+        breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Collection points' }]}
+        rightSlot={
+          <GuardedActionButton
+            session={session}
+            action="CREATE_COLLECTION_POINT"
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() => setFormOpen(true)}
+            disabled={formOpen}
+            className="rounded-md bg-navy-800 text-white"
+          >
+            New point
+          </GuardedActionButton>
+        }
       />
 
-      <div className="mx-auto max-w-[720px] space-y-4 px-6 py-5">
-        {handedOver && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-            <div className="flex items-start gap-3">
-              <BadgeCheck className="mt-0.5 h-6 w-6 shrink-0 text-emerald-700" />
-              <div>
-                <p className="font-display text-xl font-black text-navy-950">Handed over.</p>
-                <p className="mt-1 text-sm text-emerald-900">
-                  {handedOver.ref} · {naira(handedOver.amount)} released and recorded against
-                  your counter.
-                </p>
-              </div>
+      <div className="mx-auto max-w-[1100px] space-y-4 px-6 py-5">
+        {/* Without at least one point, no support staff can be created and no
+            prize can be released anywhere except through an agent. Worth
+            saying plainly rather than showing an empty table. */}
+        {!loading && active.length === 0 && (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+            <div>
+              <p className="text-sm font-black text-[#0B1220]">No open collection points.</p>
+              <p className="mt-1 text-sm text-amber-900">
+                Counter staff cannot be created until at least one exists, and winners have
+                nowhere to collect a product prize.
+                {canCreate ? ' Add one to get started.' : ''}
+              </p>
             </div>
           </div>
         )}
 
-        <SectionCard
-          title="Customer details"
-          description="Ask for the ticket and the code sent to their phone."
-        >
-          <div className="space-y-3">
-            <Field label="Ticket number">
-              <input
-                value={ticketRef}
-                onChange={(e) => setTicketRef(e.target.value.toUpperCase())}
-                placeholder="SW-XXXX-XXXX"
-                autoCapitalize="characters"
-                autoCorrect="off"
-                spellCheck={false}
-                disabled={!!verified}
-                className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 font-mono text-lg font-black tracking-[0.1em] text-navy-950 outline-none focus:border-navy-700 disabled:bg-slate-50"
-              />
-            </Field>
-
-            <Field label="Collection code">
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
-                inputMode="numeric"
-                autoComplete="off"
-                disabled={!!verified}
-                className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 font-mono text-2xl font-black tracking-[0.35em] text-navy-950 outline-none focus:border-navy-700 disabled:bg-slate-50"
-              />
-            </Field>
-
-            {!verified && (
-              <button
-                type="button"
-                onClick={verify}
-                disabled={busy}
-                className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-navy-800 text-base font-black text-white disabled:opacity-50"
-              >
-                <ScanLine className="h-5 w-5" />
-                {busy ? 'Checking…' : 'Verify'}
-              </button>
-            )}
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {error}
           </div>
+        )}
 
-          {error && (
-            <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-        </SectionCard>
+        {formOpen && (
+          <SectionCard title="New collection point">
+            <form onSubmit={create} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="sm:col-span-2">
+                  <Field label="Name">
+                    <input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ikeja City Mall counter"
+                      className={inputCls}
+                    />
+                  </Field>
+                </div>
+                <Field label="State">
+                  <select
+                    value={stateCode}
+                    onChange={(e) => setStateCode(e.target.value)}
+                    className={inputCls}
+                  >
+                    {STATES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
 
-        {verified && (
-          <SectionCard
-            title="Confirm before handing over"
-            description="Check the phone number against what the customer tells you."
-          >
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-800">
-                Code verified
+              <Field label="Address">
+                <input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Shop 24, Obafemi Awolowo Way, Ikeja"
+                  className={inputCls}
+                />
+              </Field>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Contact number (optional)">
+                  <input
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="+2348012345678"
+                    className={`${inputCls} font-mono`}
+                  />
+                </Field>
+                <Field label="Opening hours (optional)">
+                  <input
+                    value={openingHours}
+                    onChange={(e) => setOpeningHours(e.target.value)}
+                    placeholder="Mon–Sat, 9am–6pm"
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+
+              <p className="text-xs leading-relaxed text-slate-500">
+                The contact number and hours are shown to winners deciding where to collect,
+                so they are worth filling in even though they are optional.
               </p>
-              <p className="mt-2 font-display text-3xl font-black text-navy-950">
-                {verified.claimType === 'CASH'
-                  ? naira(verified.netPrizeValueNgn)
-                  : verified.prizeDescription}
-              </p>
-              {verified.claimType === 'CASH' && verified.whtAmountNgn > 0 && (
-                <p className="mt-1 text-sm text-emerald-900">
-                  {naira(verified.grossPrizeValueNgn)} prize less {naira(verified.whtAmountNgn)}{' '}
-                  withholding tax. Hand over the amount above.
-                </p>
-              )}
-            </div>
 
-            <dl className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <Detail label="Ticket" value={verified.winnerTicketRef} mono />
-              <Detail label="Winner phone" value={verified.winnerPhone} mono />
-              <Detail label="Draw" value={verified.drawCode} mono />
-              <Detail label="Prize type" value={verified.claimType === 'CASH' ? 'Cash' : 'Product'} />
-            </dl>
-
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={confirm}
-                disabled={busy}
-                className="inline-flex h-14 flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 text-base font-black text-navy-950 disabled:opacity-50"
-              >
-                <HandCoins className="h-5 w-5" />
-                {busy ? 'Recording…' : 'Confirm handover'}
-              </button>
-              <button
-                type="button"
-                onClick={reset}
-                disabled={busy}
-                className="inline-flex h-14 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-black text-navy-700 disabled:opacity-50"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Cancel
-              </button>
-            </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="rounded-md bg-[#0B1220] px-5 py-2.5 text-sm font-black text-white disabled:bg-slate-300"
+                >
+                  {busy ? 'Creating…' : 'Create point'}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-md border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </SectionCard>
         )}
 
-        <p className="text-center text-xs text-slate-500">
-          Signed in as {session.fullName}. Every handover is recorded against your account.
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-500">
+            {loading
+              ? 'Loading…'
+              : `${active.length} open${
+                  showClosed ? `, ${points.length - active.length} closed` : ''
+                }`}
+          </p>
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-600">
+            <input
+              type="checkbox"
+              checked={showClosed}
+              onChange={(e) => setShowClosed(e.target.checked)}
+              className="h-4 w-4"
+            />
+            Show closed points
+          </label>
+        </div>
+
+        {loading ? (
+          <div className="h-48 animate-pulse rounded-xl bg-white" />
+        ) : points.length === 0 ? null : (
+          <div className="space-y-3">
+            {points.map((p) => (
+              <div
+                key={p.pointId}
+                className={
+                  p.isActive
+                    ? 'rounded-xl border border-slate-200 bg-white p-5 shadow-sm'
+                    : 'rounded-xl border border-slate-200 bg-slate-50 p-5 opacity-70'
+                }
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-display text-lg font-black text-[#0B1220]">{p.name}</p>
+                      <StatusPill tone={p.isActive ? 'success' : 'neutral'}>
+                        {p.isActive ? 'Open' : 'Closed'}
+                      </StatusPill>
+                      <StatusPill tone="info">{p.stateCode}</StatusPill>
+                    </div>
+
+                    <p className="mt-2 flex items-start gap-1.5 text-sm text-slate-600">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                      {p.address}
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600">
+                      {p.contactPhone && (
+                        <span className="flex items-center gap-1.5">
+                          <Phone className="h-4 w-4 text-slate-400" />
+                          <span className="font-mono">{p.contactPhone}</span>
+                        </span>
+                      )}
+                      {p.openingHours && <span>{p.openingHours}</span>}
+                      {/* A point nobody works cannot release a prize, so this
+                          belongs next to the point rather than buried in the
+                          user admin screen. */}
+                      <span
+                        className={
+                          p.isActive && p.staffCount === 0
+                            ? 'flex items-center gap-1.5 font-bold text-amber-700'
+                            : 'flex items-center gap-1.5'
+                        }
+                      >
+                        <Users className="h-4 w-4 text-slate-400" />
+                        {p.staffCount === 0
+                          ? 'No staff assigned'
+                          : `${p.staffCount} staff`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {p.isActive && (
+                    <GuardedActionButton
+                      session={session}
+                      action="CLOSE_COLLECTION_POINT"
+                      icon={<PowerOff className="h-4 w-4" />}
+                      onClick={() => close(p)}
+                      disabled={busy}
+                      className="rounded-md border-red-200 bg-red-50 text-red-700"
+                    >
+                      Close
+                    </GuardedActionButton>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block">
-      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-        {label}
-      </span>
-      <div className="mt-1">{children}</div>
-    </label>
-  );
-}
+const inputCls =
+  'h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-navy-700';
 
-function Detail({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-[#F8FAF4] px-4 py-3">
-      <dt className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">{label}</dt>
-      <dd className={mono ? 'mt-1 font-mono text-sm font-black text-navy-950' : 'mt-1 text-sm font-bold text-navy-950'}>
-        {value}
-      </dd>
+    <div>
+      <label className="mb-1.5 block text-sm font-bold text-[#0B1220]">{label}</label>
+      {children}
     </div>
   );
 }

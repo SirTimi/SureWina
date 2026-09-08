@@ -12,6 +12,7 @@ import {
   Gauge,
   KeyRound,
   LayoutDashboard,
+  MapPin,
   MessageSquare,
   ScanLine,
   ScrollText,
@@ -147,13 +148,13 @@ const navGroups: Array<{
         permission: 'VIEW_CLAIMS',
         roles: ['COMPLIANCE_OFFICER'],
       },
-      {
-        label: 'Collection point',
-        href: '/collection-point',
-        icon: ScanLine,
-        help: 'Verify a winner’s code and ticket, then record the handover',
-        permission: 'VIEW_COLLECTION_POINT',
-        roles: ['SUPPORT_AGENT'],
+            {
+        label: 'Collection points',
+        href: '/collection-points',
+        icon: MapPin,
+        help: 'Physical locations where winners collect prizes',
+        permission: 'MANAGE_COLLECTION_POINTS',
+        roles: ['OPERATOR', 'COMPLIANCE_OFFICER'],
         departmentOnly: true,
       },
       {
