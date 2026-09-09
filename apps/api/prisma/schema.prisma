@@ -527,6 +527,12 @@ model PrizeClaim {
   redeemedByAdminId     String?        @map("redeemed_by_admin_id")
   redeemedAtPointId     String?        @map("redeemed_at_point_id")
 
+  // How many times a fresh code has been minted for this claim. One is
+  // normal. Four is either a customer with a broken phone or someone testing
+  // the process, and neither is visible without counting.
+  redemptionReissues     Int       @default(0) @map("redemption_reissues")
+  lastReissuedByAdminId  String?   @map("last_reissued_by_admin_id")
+
   // KYC artefacts (populated in 8.3/8.4)
   kycBvnHash          String?          @map("kyc_bvn_hash")
   kycBvnVerifiedAt    DateTime?        @map("kyc_bvn_verified_at")

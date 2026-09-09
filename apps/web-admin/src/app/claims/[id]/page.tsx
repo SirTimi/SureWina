@@ -2,32 +2,60 @@
 
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
-import { Banknote, CheckCircle2, FileImage, MapPin, ShieldCheck, XCircle } from 'lucide-react';
+import { Banknote, CheckCircle2, FileImage, KeyRound, MapPin, ShieldCheck, XCircle } from 'lucide-react';
 import { formatNaira } from '@surewina/utils';
 import type { AdminClaimDetail } from '@surewina/api-client';
 import { AdminShell } from '@/components/admin-shell';
+import { GuardedActionButton } from '@/components/guarded-action-button';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
 import { StatusPill, statusToTone } from '@/components/status-pill';
+import type { AdminSession } from '@/lib/admin-auth';
 import { api } from '@/lib/api';
 
 export default function ClaimDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  return <AdminShell>{() => <Body id={id} />}</AdminShell>;
+  return <AdminShell>{(session) => <Body id={id} session={session} />}</AdminShell>;
 }
 
-function Body({ id }: { id: string }) {
+function Body({ id, session }: { id: string; session: AdminSession }) {
   const [claim, setClaim] = useState<AdminClaimDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reissuing, setReissuing] = useState(false);
+  const [reissued, setReissued] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
     api.admin
       .claimDetail(id)
       .then(setClaim)
       .catch((e) => setError(e instanceof Error ? e.message : 'Could not load claim.'))
       .finally(() => setLoading(false));
-  }, [id]);
+  };
+
+  useEffect(load, [id]);
+
+  const reissue = async () => {
+    if (!claim) return;
+    if (
+      !window.confirm(
+        `Send a new collection code to ${claim.winnerPhone}?\n\nThe code they currently hold will stop working immediately.`,
+      )
+    ) {
+      return;
+    }
+    setReissuing(true);
+    setError(null);
+    try {
+      const res = await api.admin.reissueRedemptionCode(claim.claimId);
+      setReissued(res.sentTo);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reissue the code.');
+    } finally {
+      setReissuing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -50,6 +78,17 @@ function Body({ id }: { id: string }) {
     );
   }
 
+  // A code can only be replaced while one exists, the prize is still
+  // collectable, and the deadline has not passed. Anything else and the
+  // button would offer something the API will refuse.
+  const canReissue =
+    claim.redemption.codeIssued &&
+    !claim.redemption.redeemedAt &&
+    claim.status === 'KYC_CLEARED' &&
+    new Date(claim.claimDeadlineAt).getTime() > Date.now();
+
+  const attemptsLocked = claim.redemption.attempts >= 5;
+
   return (
     <>
       <PageHeader
@@ -65,6 +104,23 @@ function Body({ id }: { id: string }) {
       />
 
       <div className="mx-auto max-w-[1100px] space-y-4 px-6 py-5">
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {reissued && (
+          <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+            <p className="text-sm text-emerald-900">
+              A new collection code has been sent to{' '}
+              <span className="font-mono font-black">{reissued}</span>. The previous code no
+              longer works.
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-3">
           <Kpi label="Gross prize" value={formatNaira(claim.grossPrizeValueNgn)} />
           <Kpi label="WHT" value={claim.whtAmountNgn > 0 ? formatNaira(claim.whtAmountNgn) : '—'} />
@@ -140,6 +196,74 @@ function Body({ id }: { id: string }) {
             </div>
           </SectionCard>
         </div>
+
+        {/* The code is never readable here — only its hash is stored. This
+            panel exists so a compliance officer taking a call can see
+            whether one was sent, whether the counter has locked the winner
+            out, and how many replacements have already gone. */}
+        {claim.redemption.codeIssued && (
+          <SectionCard
+            title="Collection code"
+            description="Sent to the winner by SMS. The code itself is stored only as a hash and cannot be read back."
+          >
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-2">
+                <Row label="Issued">
+                  {claim.redemption.codeIssuedAt
+                    ? new Date(claim.redemption.codeIssuedAt).toLocaleString('en-NG', {
+                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                      })
+                    : '—'}
+                </Row>
+                <Row label="Failed attempts">
+                  <span className={attemptsLocked ? 'text-red-600' : undefined}>
+                    {claim.redemption.attempts} of 5
+                    {attemptsLocked ? ' · locked at the counter' : ''}
+                  </span>
+                </Row>
+                <Row label="Times replaced">
+                  <span className={claim.redemption.reissues >= 3 ? 'text-amber-700' : undefined}>
+                    {claim.redemption.reissues}
+                  </span>
+                </Row>
+                {claim.redemption.redeemedAt && (
+                  <Row label="Collected">
+                    {new Date(claim.redemption.redeemedAt).toLocaleString('en-NG', {
+                      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                    })}
+                  </Row>
+                )}
+              </div>
+
+              {canReissue && (
+                <div className="max-w-[320px]">
+                  <GuardedActionButton
+                    session={session}
+                    action="REVIEW_CLAIM_KYC"
+                    icon={<KeyRound className="h-4 w-4" />}
+                    onClick={reissue}
+                    disabled={reissuing}
+                    isLoading={reissuing}
+                    className="rounded-md border-navy-200 bg-navy-50 text-navy-800"
+                  >
+                    {reissuing ? 'Sending…' : 'Send a new code'}
+                  </GuardedActionButton>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                    Use when the winner has lost their SMS or is locked out. The old code stops
+                    working immediately and the attempt count resets.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {claim.redemption.reissues >= 3 && (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                This code has been replaced {claim.redemption.reissues} times. Worth confirming
+                the winner's identity by another means before sending another.
+              </p>
+            )}
+          </SectionCard>
+        )}
 
         {(claim.kyc.hasIdDoc || claim.kyc.hasSelfie) && (
           <SectionCard

@@ -156,7 +156,11 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    await this.sms.sendSms(data.winnerPhone, message, `redeem-${data.claimId}`);
+    await this.sms.sendSms(
+      data.winnerPhone,
+      message,
+      `redeem-${data.claimId}-${data.attempt ?? 0}`,
+    );
 
     // The code itself is never logged.
     this.logger.log(`Redemption code sent for claim ${data.claimId}`);

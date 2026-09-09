@@ -141,7 +141,7 @@ export class ComplianceAdminService {
             accountLast4: claim.payoutAccountNumber?.slice(-4) ?? null,
           }
         : null,
-      collection: claim.collectionPoint
+        collection: claim.collectionPoint
         ? {
             pointName: claim.collectionPoint.name,
             stateCode: claim.collectionPoint.stateCode,
@@ -149,6 +149,20 @@ export class ComplianceAdminService {
             scheduledAt: claim.collectionScheduledAt?.toISOString() ?? null,
           }
         : null,
+      // Never the code itself — only its hash is stored, and an admin who
+      // could read it could collect the prize. These are the facts a
+      // compliance officer needs to decide whether to reissue: does one
+      // exist, is the claim locked out, and how many replacements have
+      // already been sent.
+      redemption: {
+        codeIssued: !!claim.redemptionCodeHash,
+        codeIssuedAt: claim.redemptionCodeIssuedAt?.toISOString() ?? null,
+        // Locks at 5 failed entries at the counter. A locked claim is the
+        // usual reason a winner rings in.
+        attempts: claim.redemptionAttempts,
+        reissues: claim.redemptionReissues,
+        redeemedAt: claim.redeemedAt?.toISOString() ?? null,
+      },
       whtDeduction: claim.whtDeduction
         ? {
             deductionRef: claim.whtDeduction.deductionRef,

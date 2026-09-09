@@ -71,6 +71,96 @@ export class RedemptionService {
     return code;
   }
 
+    // Replaces the code on a claim whose winner has lost theirs. The original
+  // is invalidated by overwriting the hash — leaving both live would mean two
+  // codes for one prize, with only the already-collected guard between us and
+  // paying it twice.
+  //
+  // Returns the clear code for immediate delivery. Like issue(), this is the
+  // only moment it is readable.
+  async reissue(claimId: string, adminUserId: string): Promise<{
+    code: string;
+    winnerPhone: string;
+    prizeDescription: string;
+    claimDeadlineAt: Date;
+    reissueCount: number;
+  }> {
+    const claim = await this.prisma.prizeClaim.findUnique({
+      where: { claimId },
+      include: {
+        drawResult: {
+          select: { draw: { select: { prizeDescription: true } } },
+        },
+      },
+    });
+    if (!claim) throw new NotFoundException('Claim not found');
+
+    if (claim.redeemedAt) {
+      throw new ConflictException(
+        `Already collected on ${claim.redeemedAt.toISOString().slice(0, 10)} — there is nothing left to reissue.`,
+      );
+    }
+    if (claim.status === PrizeClaimStatus.FORFEITED) {
+      throw new ConflictException('This claim has been forfeited');
+    }
+    if (claim.status !== PrizeClaimStatus.KYC_CLEARED) {
+      throw new ConflictException(
+        `Claim is ${claim.status} — a code only exists once identity has been cleared.`,
+      );
+    }
+    if (claim.claimDeadlineAt.getTime() <= Date.now()) {
+      throw new ConflictException('The collection deadline has passed');
+    }
+    if (!claim.redemptionCodeHash) {
+      throw new ConflictException(
+        'No code has been issued for this claim yet, so there is nothing to replace.',
+      );
+    }
+
+    const code = this.generate();
+
+    const updated = await this.prisma.prizeClaim.update({
+      where: { claimId },
+      data: {
+        redemptionCodeHash: this.hash(code),
+        redemptionCodeIssuedAt: new Date(),
+        // Cleared deliberately. A locked claim is precisely the case where a
+        // winner rings in, so reissuing without this leaves them still shut
+        // out at the counter.
+        redemptionAttempts: 0,
+        redemptionReissues: { increment: 1 },
+        lastReissuedByAdminId: adminUserId,
+      },
+      select: { redemptionReissues: true },
+    });
+
+    await this.audit.write({
+      // WARNING rather than INFO: minting a second code for a live prize is
+      // worth noticing in the log, even when it is entirely legitimate.
+      severity: AuditSeverity.WARNING,
+      actor: { type: AuditActorType.ADMIN, id: adminUserId },
+      action: 'REDEMPTION_CODE_REISSUED',
+      resource: { type: 'PrizeClaim', id: claimId },
+      metadata: {
+        winnerTicketRef: claim.winnerTicketRef,
+        reissueCount: updated.redemptionReissues,
+        previousAttempts: claim.redemptionAttempts,
+      },
+    });
+
+    this.logger.warn(
+      `Redemption code reissued for ${claim.winnerTicketRef} (reissue #${updated.redemptionReissues})`,
+    );
+
+    return {
+      code,
+      winnerPhone: claim.winnerPhone,
+      prizeDescription: claim.drawResult.draw.prizeDescription,
+      claimDeadlineAt: claim.claimDeadlineAt,
+      reissueCount: updated.redemptionReissues,
+    };
+  }  
+
   // What staff see before they hand anything over. Read-only: nothing is
   // marked collected until they confirm separately, so a mistyped code or a
   // customer who walks away leaves no trace on the claim.

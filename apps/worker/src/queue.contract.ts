@@ -31,6 +31,7 @@ export type RedemptionCodeSmsJob = {
   code: string;
   prizeDescription: string;
   claimDeadlineAt: string;
+  attempt?: number
 }
 
 export const JOB_JACKPOT_ENTRY_SMS = 'jackpot-entry-sms';

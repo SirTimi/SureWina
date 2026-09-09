@@ -28,6 +28,10 @@ export type RedemptionCodeSmsJob = {
   code: string;
   prizeDescription: string;
   claimDeadlineAt: string;
+  // Which issue this is. Zero on the original, incrementing per reissue —
+  // without it both BullMQ and V2N treat the replacement as a duplicate of
+  // the first and silently drop it.
+  attempt?: number;
 }
 
 export type JackpotEntrySmsJob = {
@@ -109,10 +113,14 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-    async enqueueRedemptionCodeSms(job: RedemptionCodeSmsJob): Promise<void> {
+  async enqueueRedemptionCodeSms(
+    job: RedemptionCodeSmsJob): Promise<void> {
     try {
       await this.queue.add(JOB_REDEMPTION_CODE_SMS, job, {
-        jobId: `redeem-${job.claimId}`, // one code, one send
+        // Reissues share a claim id, so the attempt number keeps them
+        // distinct — without it BullMQ drops the second as a duplicate and
+        // the winner never receives their replacement code.
+        jobId: `redeem-${job.claimId}-${job.attempt ?? 0}`,
         attempts: 5,
         backoff: { type: 'exponential', delay: 2000 },
         removeOnComplete: 1000,

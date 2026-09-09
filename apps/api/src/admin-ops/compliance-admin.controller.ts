@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Logger, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { AdminRole, AdminTier, AuditActorType, AuditSeverity } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
@@ -18,6 +18,11 @@ import { ComplianceAdminService } from './compliance-admin.service';
 import { FastifyReply } from 'fastify';
 import { AuditCheckpointService } from '../audit/audit-checkpoint.service';
 import { MinTier } from '../admin-auth/decorators/min-tier.decorator';
+import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
+import { DepartmentOnly } from '../admin-auth/decorators/department-only.decorator';
+import { CurrentAdmin } from '../admin-auth/guards/current-admin.decorator';
+import { RedemptionService } from '../claims/redemption.service';
+import { NotificationQueueService } from '../queue/notification-queue.service';
 
 class AuditSearchDto {
   @IsOptional() @IsString() action?: string;
@@ -46,9 +51,13 @@ class RangeQueryDto {
 @UseGuards(AdminJwtGuard, AdminRoleGuard)
 @AdminRoles(AdminRole.COMPLIANCE_OFFICER)
 export class ComplianceAdminController {
+  private readonly logger = new Logger(ComplianceAdminController.name);
+
   constructor(
     private readonly compliance: ComplianceAdminService,
-    private readonly checkpoints: AuditCheckpointService
+    private readonly checkpoints: AuditCheckpointService,
+    private readonly redemption: RedemptionService,
+    private readonly notificationQueue: NotificationQueueService
   ) {}
 
   @Get('audit')
@@ -98,6 +107,49 @@ export class ComplianceAdminController {
     @Res() reply: FastifyReply,
   ) {
     return this.compliance.streamEvidence(claimId, kind, reply);
+  }
+
+  // Replaces a lost redemption code. Compliance rather than support: this is
+  // the same judgement as clearing the claim in the first place — deciding
+  // this person is the winner — and it must not be available at the counter,
+  // where the person minting the code would also be the one accepting it.
+  @Post('claims/:claimId/redemption/reissue')
+  @AdminRoles(AdminRole.COMPLIANCE_OFFICER)
+  @DepartmentOnly()
+  async reissueRedemptionCode(
+    @Param('claimId') claimId: string,
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    const result = await this.redemption.reissue(claimId, admin.sub);
+
+    // Non-blocking. The code is already stored — a failed SMS costs a
+    // delivery, not the prize, and the winner can be told over the phone.
+    void this.notificationQueue
+      .enqueueRedemptionCodeSms({
+        claimId,
+        winnerPhone: result.winnerPhone,
+        code: result.code,
+        prizeDescription: result.prizeDescription,
+        claimDeadlineAt: result.claimDeadlineAt.toISOString(),
+        // Without this the replacement shares a job id and idempotency key
+        // with the original, and is dropped as a duplicate by both BullMQ
+        // and V2N — the winner would never receive it.
+        attempt: result.reissueCount,
+      })
+      .catch((e) =>
+        this.logger.error(
+          `Reissued code SMS failed for ${claimId}: ${e instanceof Error ? e.message : 'unknown'}`,
+        ),
+      );
+
+    // The code itself never leaves the SMS. An admin who could read it could
+    // collect the prize.
+    return {
+      claimId,
+      reissued: true,
+      reissueCount: result.reissueCount,
+      sentTo: result.winnerPhone,
+    };
   }
 
   @Get('audit/integrity')

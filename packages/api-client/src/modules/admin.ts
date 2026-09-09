@@ -513,6 +513,14 @@ export interface AdminClaimDetail {
   } | null;
   whtDeduction: { deductionRef: string; whtAmountNgn: number; deductedAt: string } | null;
   fulfilledAt: string | null;
+  redemption: {
+    codeIssued: boolean;
+    codeIssuedAt: string | null;
+    // Locks at 5. A locked claim is the usual reason someone rings in.
+    attempts: number;
+    reissues: number;
+    redeemedAt: string | null;
+  };
 }
 
 export interface AdminSetting {
@@ -900,6 +908,20 @@ export class AdminModule {
 
   async claimDetail(claimId: string): Promise<AdminClaimDetail> {
     return this.client.get(`/admin/compliance/claims/${encodeURIComponent(claimId)}`);
+  }
+
+    // Mints a replacement code and sends it to the winner. The code itself is
+  // never returned — an admin who could read it could collect the prize.
+  async reissueRedemptionCode(claimId: string): Promise<{
+    claimId: string;
+    reissued: boolean;
+    reissueCount: number;
+    sentTo: string;
+  }> {
+    return this.client.post(
+      `/admin/compliance/claims/${encodeURIComponent(claimId)}/redemption/reissue`,
+      {},
+    );
   }
 
   // Authed binary fetch: <img src> can't carry the JWT, so we fetch the bytes
