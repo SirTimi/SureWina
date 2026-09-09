@@ -15,6 +15,6 @@ import { RedemptionController } from './redemption.controller'
   imports: [JwtModule.register({})], // CustomerJwtGuard injects JwtService
   controllers: [ClaimsController, AdminClaimsController, RedemptionController],
   providers: [ClaimsService, BvnVerificationService, BankResolveService, PaystackTransferService, WhtDeductionService, RedemptionService],
-  exports: [ClaimsService, BankResolveService, WhtDeductionService],
+  exports: [ClaimsService, BankResolveService, WhtDeductionService, RedemptionService],
 })
 export class ClaimsModule {}

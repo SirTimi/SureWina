@@ -17,8 +17,11 @@ import { AuditModule } from '../audit/audit.module'
 import { AdminNotificationsService } from './admin-notifications.service'
 import { UserAdminController } from './user-admin.controller';
 import {CollectionPointAdminController} from './collection-point-admin.controller'
+
+import { ClaimsModule } from '../claims/claims.module'
+
 @Module({
-  imports: [JwtModule.register({}), AuditModule],
+  imports: [JwtModule.register({}), AuditModule, ClaimsModule],
   controllers: [
     AdminOpsController, 
     AgentAdminController, 
