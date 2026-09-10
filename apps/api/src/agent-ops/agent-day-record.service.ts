@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PaymentGateway, PaymentStatus, TicketType } from '@prisma/client';
+import { PaymentGateway, PaymentStatus, TicketType, DrawType } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { businessDayBounds } from '../common/sales-window.util';
 
@@ -14,8 +14,11 @@ import { businessDayBounds } from '../common/sales-window.util';
 export class AgentDayRecordService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async dayRecord(agentId: string, periodDate: string) {
-    const { startUtc, endUtc } = businessDayBounds(periodDate);
+    async dayRecord(agentId: string, periodDate: string) {
+    const { startUtc, endUtc } = businessDayBounds(
+      periodDate,
+      await this.closeMinutesWat(),
+    );
 
     const [agent, sealed, tickets, prizes] = await Promise.all([
       this.prisma.agent.findUnique({
@@ -133,5 +136,18 @@ export class AgentDayRecordService {
           sealed.winningsPaidOutNgn === lineTotals.winningsPaidOutNgn
         : null,
     };
+  }
+
+    // The daily draw's own sales cutoff, which is also when the day's record
+  // seals. Read from the active template so the drill-down uses the same
+  // boundary the sweep sealed on — if these drift, a day's listed tickets
+  // will not add up to its sealed figures.
+  private async closeMinutesWat(): Promise<number> {
+    const template = await this.prisma.drawTemplate.findFirst({
+      where: { templateType: DrawType.DAILY_STANDARD, status: 'ACTIVE' },
+      orderBy: { version: 'desc' },
+      select: { cutoffMinutesWat: true },
+    });
+    return template?.cutoffMinutesWat ?? 19 * 60;
   }
 }
