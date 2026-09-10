@@ -5,7 +5,8 @@ import {
   PaymentGateway,
   PaymentStatus,
   TicketType,
-  RemittanceStatus
+  RemittanceStatus,
+  DrawType
 } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 import { lastClosedBusinessDay } from './wat-day.util';
@@ -48,6 +49,30 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
     if (this.timer) clearInterval(this.timer);
   }
 
+    // The daily draw's own sales cutoff, which is also when the day's record
+  // seals. Read from the active template rather than a constant so an admin
+  // changing the draw time moves the accounting day with it.
+  //
+  // Falls back to 19:00 only when no template is active — a state the
+  // scheduler already warns about, and one in which there are no sales to
+  // sweep anyway.
+  private async closeMinutesWat(): Promise<number> {
+    const template = await this.prisma.drawTemplate.findFirst({
+      where: { templateType: DrawType.DAILY_STANDARD, status: 'ACTIVE' },
+      orderBy: { version: 'desc' },
+      select: { cutoffMinutesWat: true },
+    });
+
+    if (!template) {
+      this.logger.warn(
+        'No ACTIVE daily draw template — falling back to 19:00 WAT for the business day boundary',
+      );
+      return 19 * 60;
+    }
+
+    return template.cutoffMinutesWat;
+  }
+
   private async tick(): Promise<void> {
     if (this.running) return;
     this.running = true;
@@ -55,7 +80,12 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
       // Most recent business day whose 19:00 close has passed. (Older gaps
       // heal on later ticks once those sales exist; for dev this single-day
       // sweep is sufficient.)
-      const { periodDate, startUtc, endUtc } = lastClosedBusinessDay(new Date());
+            // Most recent business day whose close has passed.
+      const closeMinutes = await this.closeMinutesWat();
+      const { periodDate, startUtc, endUtc } = lastClosedBusinessDay(
+        new Date(),
+        closeMinutes,
+      );
 
       // Grouped over tickets rather than transactions so the ordinary /
       // jackpot split comes from the same pass. Safe substitution for the

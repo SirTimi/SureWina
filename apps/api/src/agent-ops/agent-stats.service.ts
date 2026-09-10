@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import {
+  DrawStatus,
+  DrawType,
   PaymentGateway,
   PaymentStatus,
   Prisma,
   RemittanceStatus
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
-import { isWithinSalesWindow } from '../common/sales-window.util'
 const WAT_OFFSET_MS = 60 * 60 * 1000; // UTC+1, no DST
 
 // Start of the current WAT calendar day, as a UTC Date.
@@ -26,7 +27,7 @@ function settlementDeadline(periodDate: Date): Date {
 export class AgentStatsService {
   constructor(private readonly prisma: PrismaService) {}
 
-    async dashboard(agentId: string) {
+  async dashboard(agentId: string) {
     const agent = await this.prisma.agent.findUniqueOrThrow({
       where: { agentId },
       select: {
@@ -43,7 +44,7 @@ export class AgentStatsService {
     const now = new Date();
     const todayStart = startOfWatDay(now);
 
-    const [today, prizesPaid, open] = await Promise.all([
+    const [today, prizesPaid, open, openDraw] = await Promise.all([
       this.salesBetween(agentId, todayStart, now),
       // Prizes the agent has paid from their own till today reduce what they
       // will owe at close, so the live figure has to carry them.
@@ -63,6 +64,20 @@ export class AgentStatsService {
         },
         orderBy: { periodDate: 'asc' },
         select: { periodDate: true, amountDueNgn: true, status: true },
+      }),
+      // Whether an agent can sell right now is a property of the draw, not
+      // the clock. This previously came from a hardcoded 09:00–19:00 window
+      // that ignored the draw template entirely, so changing the draw time
+      // in the admin panel moved the draw but not the agent's ability to
+      // sell into it.
+      this.prisma.draw.findFirst({
+        where: {
+          drawType: DrawType.DAILY_STANDARD,
+          status: DrawStatus.ACTIVE,
+          cutoffAt: { gt: now },
+        },
+        orderBy: { scheduledAt: 'asc' },
+        select: { drawCode: true, cutoffAt: true },
       }),
     ]);
 
@@ -85,10 +100,13 @@ export class AgentStatsService {
         lockedForDebt: agent.suspensionReason === DEBT_SUSPENSION_REASON,
       },
       today: { ...today, commissionNgn, winningsPaidOutNgn },
-      // The day in progress. Provisional until sales close at 19:00, at
-      // which point the sweep seals it and it moves into `settlement`.
+      // The day in progress. Provisional until the draw's cutoff, at which
+      // point the sweep seals it and it moves into `settlement`.
       accruing: {
-        salesOpen: isWithinSalesWindow(now),
+        salesOpen: !!openDraw,
+        // Named so the agent app can say when selling stops rather than
+        // guessing at a fixed hour.
+        salesCloseAt: openDraw?.cutoffAt.toISOString() ?? null,
         // Same basis the sweep uses at close, so the live figure and the
         // sealed remittance agree to the naira.
         netNgn: today.grossSalesNgn - commissionNgn - winningsPaidOutNgn,

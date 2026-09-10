@@ -10,6 +10,14 @@ import { api } from '@/lib/api';
 
 type Period = 'today' | 'week' | 'month' | 'allTime';
 
+interface Accruing {
+  salesOpen: boolean;
+  // The current draw's cutoff. Null when nothing is open — the app cannot
+  // know when the next draw starts, only when this one stops.
+  salesCloseAt: string | null;
+  netNgn: number;
+}
+
 interface Settlement {
   totalOwedNgn: number;
   walletBalanceNgn: number;
@@ -34,7 +42,7 @@ export default function AgentDashboardPage() {
 function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) {
   const [period, setPeriod] = useState<Period>('today');
   const [today, setToday] = useState({ grossSalesNgn: 0, ticketsSold: 0, saleCount: 0, commissionNgn: 0, winningsPaidOutNgn: 0 });
-  const [accruing, setAccruing] = useState({ salesOpen: true, netNgn: 0 });
+  const [accruing, setAccruing] = useState<Accruing>({ salesOpen: true, salesCloseAt: null, netNgn: 0 });
   const [settlement, setSettlement] = useState<Settlement>({ totalOwedNgn: 0, walletBalanceNgn: 0, openCount: 0, oldest: null });
   const [lockedForDebt, setLockedForDebt] = useState(false);
   const [perf, setPerf] = useState<Record<Period, { grossSalesNgn: number; ticketsSold: number; saleCount: number }>>({
@@ -76,10 +84,15 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-400">Agent dashboard</p>
             <h1 className="mt-2 font-display text-3xl font-black leading-tight tracking-[-0.04em] text-white sm:text-4xl">Welcome, {agent.fullName.split(' ')[0]}.</h1>
+            {/* Times come from the open draw rather than being written into
+                the copy — the draw schedule is configurable, and hardcoded
+                hours here would quietly contradict it. */}
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/75">
               {accruing.salesOpen
-                ? 'Sell tickets, track commission, and settle your daily remittance before 11am.'
-                : 'Ticket sales are closed. They reopen at 9:00am.'}
+                ? accruing.salesCloseAt
+                  ? `Selling closes at ${formatTime(accruing.salesCloseAt)}. Sell tickets, track commission, and check your daily record.`
+                  : 'Sell tickets, track commission, and check your daily record.'
+                : 'Ticket sales are closed. They reopen when the next draw opens.'}
             </p>
           </div>
           <Link href="/sell">
@@ -113,7 +126,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
           hint={
             accruing.salesOpen
               ? 'Sales less commission — still moving'
-              : 'Locked at 7:00pm close'
+              : 'Locked at close of sales'
           }
         />
       </section>
@@ -201,7 +214,7 @@ function LockedBanner({ settlement }: { settlement: Settlement }) {
           <p className="font-display text-xl font-black text-navy-950">Selling is locked.</p>
           <p className="mt-1 text-sm text-red-900">
             You have <span className="font-black">{formatNaira(settlement.totalOwedNgn)}</span> unsettled
-            past the 11:00am deadline. Selling resumes automatically as soon as you settle — no one
+            past the deadline. Selling resumes automatically as soon as you settle — no one
             needs to approve it.
           </p>
           <Link href="/remittance">
