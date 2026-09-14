@@ -544,12 +544,27 @@ model PrizeClaim {
   kycReviewedBy       String?          @map("kyc_reviewed_by")
   kycReviewedAt       DateTime?        @map("kyc_reviewed_at")
 
-  // Fulfilment (8.6)
-  collectionPointId     String?        @map("collection_point_id")
-  collectionScheduledAt DateTime?      @map("collection_scheduled_at")
-  payoutReference       String?        @map("payout_reference")
-  payoutInitiatedAt     DateTime?      @map("payout_initiated_at")
-  payoutAccountNumber   String?        @map("payout_account_number")
+  // Fulfilment
+  collectionPointId     String?   @map("collection_point_id")
+  collectionScheduledAt DateTime? @map("collection_scheduled_at")
+
+  // Bank payout lifecycle.
+  //
+  // payoutReference is the external provider reference once one exists.
+  // payoutStatus is intentionally separate from PrizeClaimStatus:
+  // KYC_CLEARED describes the claim entitlement, while PrizePayoutStatus
+  // describes movement of the money.
+  //
+  // A bank payout must never become CASH_PAID merely because the provider
+  // accepted an initiation request.
+  payoutStatus        PrizePayoutStatus? @map("payout_status")
+  payoutReference     String?            @map("payout_reference")
+  payoutInitiatedAt   DateTime?          @map("payout_initiated_at")
+  payoutCompletedAt   DateTime?          @map("payout_completed_at")
+  payoutLastCheckedAt DateTime?          @map("payout_last_checked_at")
+  payoutFailureReason String?            @map("payout_failure_reason")
+
+  payoutAccountNumber String? @map("payout_account_number")
   // Set when an agent settles the prize in cash from their own till. Without
   // this the paying agent is only recoverable by parsing payoutReference or
   // reading the audit log — neither is something a cash obligation should
@@ -566,6 +581,7 @@ model PrizeClaim {
 
   @@map("prize_claims")
   @@index([winnerPhone])
+  @@index([payoutStatus, payoutInitiatedAt])
   @@index([status, selectionDeadlineAt])
   @@index([paidByAgentId, paidByAgentAt])
 }
@@ -584,6 +600,16 @@ enum PrizeClaimStatus {
   DELIVERED
   CASH_PAID
   FORFEITED
+}
+
+enum PrizePayoutStatus {
+  REQUESTED
+  SUBMITTED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  UNKNOWN
+  REVERSED
 }
 
 model CollectionPoint {

@@ -184,6 +184,7 @@ export class FinanceAdminService {
         claimType: true,
         grossPrizeValueNgn: true,
         whtAmountNgn: true,
+        payoutStatus: true,
         netPrizeValueNgn: true,
         payoutReference: true,
         payoutInitiatedAt: true,
@@ -202,6 +203,7 @@ export class FinanceAdminService {
         grossPrizeValueNgn: r.grossPrizeValueNgn,
         whtAmountNgn: r.whtAmountNgn,
         netPrizeValueNgn: r.netPrizeValueNgn,
+        payoutStatus: r.payoutStatus,
         payoutReference: r.payoutReference,
         channel: r.payoutReference?.startsWith('AGT-CASH-') ? 'AGENT_CASH' : 'BANK_TRANSFER',
         payoutInitiatedAt: r.payoutInitiatedAt?.toISOString() ?? null,
@@ -211,7 +213,9 @@ export class FinanceAdminService {
       totals: {
         count: rows.length,
         grossNgn: rows.reduce((s, r) => s + r.grossPrizeValueNgn, 0),
-        netPaidNgn: rows.reduce((s, r) => s + r.netPrizeValueNgn, 0),
+        netPaidNgn: rows
+          .filter((r) => r.status === PrizeClaimStatus.CASH_PAID)
+          .reduce((sum, r) => sum + r.netPrizeValueNgn, 0),
       },
     };
   }
