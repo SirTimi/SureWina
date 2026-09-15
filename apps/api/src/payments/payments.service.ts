@@ -82,16 +82,44 @@ export class PaymentsService {
     // 4. Create the PENDING transaction BEFORE calling any gateway, so a
     //    webhook can never arrive for a txn we don't have on record.
     //    Recorded as PAYSTACK initially; flipped if we fall back.
-    const txn = await this.prisma.paymentTransaction.create({
-      data: {
-        gatewayReference: reference,
-        gateway: this.paystack.gateway,
-        amountNgn,
-        buyerEmail: dto.buyerEmail?.trim().toLowerCase() ?? null,
-        buyerPhone: dto.phoneE164,
-        channel: PurchaseChannel.DIRECT,
-        ticketCount: dto.quantity,
-        status: PaymentStatus.PENDING,
+    const txn =
+      await this.prisma.paymentTransaction.create({
+        data: {
+          gatewayReference:
+            reference,
+
+          gateway:
+            this.paystack.gateway,
+
+          amountNgn,
+
+          buyerEmail:
+            dto.buyerEmail
+              ?.trim()
+              .toLowerCase() ??
+            null,
+
+          buyerPhone:
+            dto.phoneE164,
+
+          channel:
+            PurchaseChannel.DIRECT,
+
+          ticketCount:
+            dto.quantity,
+
+          status:
+            PaymentStatus.PENDING,
+
+          /*
+          * Bind the purchase to the draw BEFORE touching
+          * any external payment provider.
+          *
+          * PSP metadata may echo the drawCode, but it is
+          * no longer authoritative.
+          */
+          purchaseDrawId:
+            draw.drawId,
       },
     });
 

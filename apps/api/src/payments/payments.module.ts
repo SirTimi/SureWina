@@ -15,6 +15,7 @@ import { AdminOpsModule } from '../admin-ops/admin-ops.module'
 import { PurchaseStatusService } from './purchase-status.service'
 import { AccountModule } from '../account/account.module'
 import { TicketsModule } from '../tickets/tickets.module'
+import { PaymentVerificationService } from './payment-verification.service';
 
 @Module({
   controllers: [
@@ -33,6 +34,7 @@ import { TicketsModule } from '../tickets/tickets.module'
     FlutterwaveWebhookService,
     PurchaseStatusService,
     FlutterwaveHashGuard,
+    PaymentVerificationService
   ],
   exports: [PaymentsService, JackpotAccumulationService],
   imports: [AdminOpsModule, AccountModule, TicketsModule],
