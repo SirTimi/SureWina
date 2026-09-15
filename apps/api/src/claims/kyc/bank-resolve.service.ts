@@ -1,11 +1,12 @@
 import {
   BadRequestException,
   Injectable,
-  InternalServerErrorException,
   Logger,
-  ServiceUnavailableException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+
+import {
+  MonnifyClientService,
+} from '../../integrations/monnify/monnify-client.service';
 
 export type ResolvedBankAccount = {
   accountNumber: string;
@@ -13,53 +14,73 @@ export type ResolvedBankAccount = {
   bankCode: string;
 };
 
-// NUBAN resolution via Paystack /bank/resolve — a live lookup that works
-// with test keys. The resolved name is shown back to the winner so typos
-// are caught before any payout is attempted.
+type MonnifyAccountValidationBody = {
+  accountNumber?: string;
+  accountName?: string;
+  bankCode?: string;
+};
+
 @Injectable()
 export class BankResolveService {
-  private readonly logger = new Logger(BankResolveService.name);
+  private readonly logger =
+    new Logger(BankResolveService.name);
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly monnify:
+      MonnifyClientService,
+  ) {}
 
-  async resolve(accountNumber: string, bankCode: string): Promise<ResolvedBankAccount> {
-    const secretKey = this.config.get<string>('PAYSTACK_SECRET_KEY');
-    if (!secretKey) {
-      throw new InternalServerErrorException('Paystack is not configured');
-    }
-    const baseUrl = this.config.getOrThrow<string>('PAYSTACK_BASE_URL');
+  async resolve(
+    accountNumber: string,
+    bankCode: string,
+  ): Promise<ResolvedBankAccount> {
+    const path =
+      '/api/v2/disbursements/account/validate' +
+      `?accountNumber=${encodeURIComponent(
+        accountNumber,
+      )}` +
+      `&bankCode=${encodeURIComponent(
+        bankCode,
+      )}`;
 
-    let response: Response;
-    try {
-      response = await fetch(
-        `${baseUrl}/bank/resolve?account_number=${encodeURIComponent(
-          accountNumber,
-        )}&bank_code=${encodeURIComponent(bankCode)}`,
-        { headers: { Authorization: `Bearer ${secretKey}` } },
+    const result =
+      await this.monnify.request<MonnifyAccountValidationBody>(
+        path,
+        {
+          method: 'GET',
+        },
       );
-    } catch {
-      throw new ServiceUnavailableException('Bank resolution service unreachable');
-    }
 
-    const payload = (await response.json().catch(() => null)) as {
-      status?: boolean;
-      message?: string;
-      data?: { account_name?: string; account_number?: string };
-    } | null;
+    const payload = result.payload;
+    const body = payload?.responseBody;
 
-    if (!response.ok || !payload?.status || !payload.data?.account_name) {
+    if (
+      !payload?.requestSuccessful ||
+      !body?.accountName
+    ) {
       this.logger.warn(
-        `Bank resolve failed (${response.status}): ${payload?.message ?? 'no body'}`,
+        `Monnify bank resolve failed (${result.httpStatus}): ${
+          payload?.responseMessage ??
+          'no response body'
+        }`,
       );
+
       throw new BadRequestException(
         'Could not resolve this account. Check the account number and bank code.',
       );
     }
 
     return {
-      accountNumber,
-      accountName: payload.data.account_name,
-      bankCode,
+      accountNumber:
+        body.accountNumber ??
+        accountNumber,
+
+      accountName:
+        body.accountName,
+
+      bankCode:
+        body.bankCode ??
+        bankCode,
     };
   }
 }

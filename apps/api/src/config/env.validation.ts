@@ -44,9 +44,9 @@ export const envValidationSchema = Joi.object({
   KYC_STORAGE_DIR: Joi.string().default('./storage'),
   WHT_RATE_PERCENT: Joi.number().min(0).max(100).default(5),
   WHT_THRESHOLD_NGN: Joi.number().integer().min(0).default(0),
-  PAYOUTS_MODE: Joi.string().valid('dev', 'paystack').default('dev'),
+  PAYOUTS_MODE: Joi.string().valid('dev', 'monnify').default('dev'),
   AGENT_PAYOUT_MAX_NGN: Joi.number().integer().min(0).default(50000),
-  REFUNDS_MODE: Joi.string().valid('dev', 'paystack').default('dev'),
+  REFUNDS_MODE: Joi.string().valid('dev', 'monnify').default('dev'),
   V2N_USERNAME: Joi.string().allow('').optional(),
   V2N_PASSWORD: Joi.string().allow('').optional(),
   V2N_SENDER_ID: Joi.string().allow('').default('SureWina'),
@@ -56,4 +56,25 @@ export const envValidationSchema = Joi.object({
   ZOHO_SMTP_USER: Joi.string().allow('').optional(),
   ZOHO_SMTP_PASSWORD: Joi.string().allow('').optional(),
   ZOHO_FROM_ADDRESS: Joi.string().allow('').optional(),
+  MONNIFY_API_KEY:
+    Joi.string()
+      .allow('')
+      .default(''),
+
+  MONNIFY_SECRET_KEY:
+    Joi.string()
+      .allow('')
+      .default(''),
+
+  MONNIFY_BASE_URL:
+    Joi.string()
+      .uri()
+      .default(
+        'https://sandbox.monnify.com',
+      ),
+
+  MONNIFY_SOURCE_ACCOUNT_NUMBER:
+    Joi.string()
+      .allow('')
+      .default(''),
 });

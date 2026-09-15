@@ -155,67 +155,160 @@ export class FinanceAdminService {
     return updated;
   }
 
-  // Prize payouts: cash claims paid via app transfer or agent cash. Read-only
-  // record view — the rail underneath (dev stub today, Monnify later) doesn't
-  // change this surface.
-  async listPayouts(f: { status?: PrizeClaimStatus; fromDate?: string; toDate?: string }) {
+  // Prize payouts: cash claims paid via app transfer or agent cash.
+// Read-only record view. The payout provider is stored per claim so
+// Finance can distinguish DEV, MONNIFY, FLUTTERWAVE, etc.
+  async listPayouts(f: {
+    status?: PrizeClaimStatus;
+    fromDate?: string;
+    toDate?: string;
+  }) {
     const where: Prisma.PrizeClaimWhereInput = {
-      payoutReference: { not: null },
-      ...(f.status ? { status: f.status } : {}),
-      ...(f.fromDate || f.toDate
-        ? {
-            payoutInitiatedAt: {
-              ...(f.fromDate ? { gte: new Date(f.fromDate) } : {}),
-              ...(f.toDate ? { lte: new Date(`${f.toDate}T23:59:59.999Z`) } : {}),
-            },
-          }
-        : {}),
-    };
-
-    const rows = await this.prisma.prizeClaim.findMany({
-      where,
-      orderBy: { payoutInitiatedAt: 'desc' },
-      take: 200,
-      select: {
-        claimId: true,
-        winnerTicketRef: true,
-        winnerPhone: true,
-        status: true,
-        claimType: true,
-        grossPrizeValueNgn: true,
-        whtAmountNgn: true,
-        payoutStatus: true,
-        netPrizeValueNgn: true,
-        payoutReference: true,
-        payoutInitiatedAt: true,
-        payoutAccountNumber: true,
-        fulfilledAt: true,
+  OR: [
+    {
+      payoutStatus: {
+        not: null,
       },
-    });
+    },
+    {
+      payoutReference: {
+        not: null,
+      },
+    },
+  ],
 
-    return {
-      payouts: rows.map((r) => ({
-        claimId: r.claimId,
-        winnerTicketRef: r.winnerTicketRef,
-        winnerPhone: r.winnerPhone,
-        status: r.status,
-        claimType: r.claimType,
-        grossPrizeValueNgn: r.grossPrizeValueNgn,
-        whtAmountNgn: r.whtAmountNgn,
-        netPrizeValueNgn: r.netPrizeValueNgn,
-        payoutStatus: r.payoutStatus,
-        payoutReference: r.payoutReference,
-        channel: r.payoutReference?.startsWith('AGT-CASH-') ? 'AGENT_CASH' : 'BANK_TRANSFER',
-        payoutInitiatedAt: r.payoutInitiatedAt?.toISOString() ?? null,
-        accountLast4: r.payoutAccountNumber?.slice(-4) ?? null,
-        fulfilledAt: r.fulfilledAt?.toISOString() ?? null,
-      })),
-      totals: {
-        count: rows.length,
-        grossNgn: rows.reduce((s, r) => s + r.grossPrizeValueNgn, 0),
+  ...(f.status ? { status: f.status } : {}),
+
+  ...(f.fromDate || f.toDate
+    ? {
+        payoutInitiatedAt: {
+          ...(f.fromDate
+            ? { gte: new Date(f.fromDate) }
+            : {}),
+          ...(f.toDate
+            ? {
+                lte: new Date(
+                  `${f.toDate}T23:59:59.999Z`,
+                ),
+              }
+            : {}),
+        },
+      }
+    : {}),
+};
+
+      const rows =
+        await this.prisma.prizeClaim.findMany({
+          where,
+
+          orderBy: {
+            payoutInitiatedAt: 'desc',
+          },
+
+          take: 200,
+
+          select: {
+            claimId: true,
+            winnerTicketRef: true,
+            winnerPhone: true,
+
+            status: true,
+            claimType: true,
+
+            grossPrizeValueNgn: true,
+            whtAmountNgn: true,
+            netPrizeValueNgn: true,
+
+            payoutStatus: true,
+            payoutProvider: true,
+            payoutReference: true,
+
+            // Selected for operational/reconciliation use.
+            // We intentionally do not return it to the normal admin UI below.
+            payoutIdempotencyKey: true,
+
+            payoutInitiatedAt: true,
+            payoutAccountNumber: true,
+
+            fulfilledAt: true,
+          },
+        });
+
+        return {
+        payouts: rows.map((r) => ({
+          claimId: r.claimId,
+
+          winnerTicketRef: r.winnerTicketRef,
+          winnerPhone: r.winnerPhone,
+
+          status: r.status,
+          claimType: r.claimType,
+
+          grossPrizeValueNgn:
+            r.grossPrizeValueNgn,
+
+          whtAmountNgn:
+            r.whtAmountNgn,
+
+          netPrizeValueNgn:
+            r.netPrizeValueNgn,
+
+          payoutStatus:
+            r.payoutStatus,
+
+          payoutProvider:
+            r.payoutProvider,
+
+          payoutReference:
+            r.payoutReference,
+
+          channel:
+            r.payoutReference?.startsWith(
+              'AGT-CASH-',
+            )
+              ? 'AGENT_CASH'
+              : 'BANK_TRANSFER',
+
+          payoutInitiatedAt:
+            r.payoutInitiatedAt?.toISOString() ??
+            null,
+
+          accountLast4:
+            r.payoutAccountNumber?.slice(-4) ??
+            null,
+
+          fulfilledAt:
+            r.fulfilledAt?.toISOString() ??
+            null,
+        })),
+
+        totals: {
+          count: rows.length,
+
+          grossNgn: rows.reduce(
+            (sum, r) =>
+              sum + r.grossPrizeValueNgn,
+            0,
+          ),
+
+        /*
+        * Only claims that actually reached CASH_PAID
+        * count as paid.
+        *
+        * REQUESTED / SUBMITTED / PROCESSING /
+        * UNKNOWN must never inflate paid totals.
+        */
         netPaidNgn: rows
-          .filter((r) => r.status === PrizeClaimStatus.CASH_PAID)
-          .reduce((sum, r) => sum + r.netPrizeValueNgn, 0),
+          .filter(
+            (r) =>
+              r.status ===
+              PrizeClaimStatus.CASH_PAID,
+          )
+          .reduce(
+            (sum, r) =>
+              sum + r.netPrizeValueNgn,
+            0,
+          ),
       },
     };
   }

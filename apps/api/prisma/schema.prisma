@@ -557,12 +557,16 @@ model PrizeClaim {
   //
   // A bank payout must never become CASH_PAID merely because the provider
   // accepted an initiation request.
-  payoutStatus        PrizePayoutStatus? @map("payout_status")
-  payoutReference     String?            @map("payout_reference")
-  payoutInitiatedAt   DateTime?          @map("payout_initiated_at")
-  payoutCompletedAt   DateTime?          @map("payout_completed_at")
-  payoutLastCheckedAt DateTime?          @map("payout_last_checked_at")
-  payoutFailureReason String?            @map("payout_failure_reason")
+  // Bank payout lifecycle.
+  payoutStatus         PrizePayoutStatus? @map("payout_status")
+  payoutProvider       String?            @map("payout_provider")
+  payoutReference      String?            @map("payout_reference")
+  payoutIdempotencyKey String?            @unique @map("payout_idempotency_key")
+
+  payoutInitiatedAt   DateTime? @map("payout_initiated_at")
+  payoutCompletedAt   DateTime? @map("payout_completed_at")
+  payoutLastCheckedAt DateTime? @map("payout_last_checked_at")
+  payoutFailureReason String?   @map("payout_failure_reason")
 
   payoutAccountNumber String? @map("payout_account_number")
   // Set when an agent settles the prize in cash from their own till. Without
@@ -584,6 +588,7 @@ model PrizeClaim {
   @@index([payoutStatus, payoutInitiatedAt])
   @@index([status, selectionDeadlineAt])
   @@index([paidByAgentId, paidByAgentAt])
+  @@index([payoutProvider, payoutStatus])
 }
 
 enum ClaimType {

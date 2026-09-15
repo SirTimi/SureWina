@@ -1,6 +1,7 @@
 import {
-    BadRequestException,
+  BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -20,11 +21,12 @@ import { BvnVerificationService } from './kyc/bvn-verification.service';
 import { BankResolveService } from './kyc/bank-resolve.service';
 import { StorageService } from '../storage/storage.service';
 import { ConfigService } from '@nestjs/config';
-import { PaystackTransferService } from './payout/paystack-transfer.service';
 import { WhtDeductionService } from './wht-deduction.service';
 import { SettingsService } from '../config/settings.service';
 import { RedemptionService } from './redemption.service';
 import { NotificationQueueService } from '../queue/notification-queue.service';
+import { PRIZE_PAYOUT_PROVIDER, type PrizePayoutProvider } from './payout/prize-payout.provider';
+
 export type ClaimViewDto = {
   claimId: string;
   winnerTicketRef: string;
@@ -66,7 +68,8 @@ export class ClaimsService {
     private readonly bankResolve: BankResolveService,
     private readonly storage: StorageService,
     private readonly config: ConfigService,
-    private readonly transfers: PaystackTransferService,
+    @Inject(PRIZE_PAYOUT_PROVIDER)
+    private readonly payoutProvider: PrizePayoutProvider,
     private readonly whtDeductions: WhtDeductionService,
     private readonly settings: SettingsService,
     private readonly redemption: RedemptionService,
@@ -309,10 +312,37 @@ export class ClaimsService {
     if (bankCode !== claim.kycBankCode || accountNumber.slice(-4) !== claim.kycBankAccountLast4) {
       throw new ConflictException('Account does not match the KYC-verified details');
     }
-    const resolved = await this.bankResolve.resolve(accountNumber, bankCode);
-    if (resolved.accountName !== claim.kycBankAccountName) {
-      throw new ConflictException('Account name mismatch with KYC-verified details');
-    }
+    const resolved = await this.bankResolve.resolve(
+  accountNumber,
+  bankCode,
+);
+
+if (!claim.kycBankAccountName) {
+  throw new ConflictException(
+    'KYC-verified account name is missing',
+  );
+}
+
+const normalizeAccountName = (
+  value: string,
+) =>
+  value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toUpperCase();
+
+if (
+  normalizeAccountName(
+    resolved.accountName,
+  ) !==
+  normalizeAccountName(
+    claim.kycBankAccountName,
+  )
+) {
+  throw new ConflictException(
+    'Account name mismatch with KYC-verified details',
+  );
+}
 
     const updated = await this.prisma.prizeClaim.update({
       where: { claimId: claim.claimId },
@@ -330,166 +360,153 @@ export class ClaimsService {
   }
 
   async initiatePayout(
-    claimId: string,
-    adminId: string,
-  ): Promise<ClaimViewDto> {
-    const claim = await this.prisma.prizeClaim.findUnique({
-      where: { claimId },
-      include: this.viewInclude(),
-    });
+  claimId: string,
+  adminId: string,
+): Promise<ClaimViewDto> {
+  const claim = await this.prisma.prizeClaim.findUnique({
+    where: { claimId },
+    include: this.viewInclude(),
+  });
 
-    if (!claim) {
-      throw new NotFoundException('Claim not found');
-    }
+  if (!claim) {
+    throw new NotFoundException('Claim not found');
+  }
 
-    if (
-      claim.claimType !== ClaimType.CASH ||
-      claim.status !== PrizeClaimStatus.KYC_CLEARED
-    ) {
-      throw new ConflictException('Claim is not a cleared cash claim');
-    }
+  if (
+    claim.claimType !== ClaimType.CASH ||
+    claim.status !== PrizeClaimStatus.KYC_CLEARED
+  ) {
+    throw new ConflictException(
+      'Claim is not a cleared cash claim',
+    );
+  }
 
-    if (
-      !claim.payoutAccountNumber ||
-      !claim.kycBankCode ||
-      !claim.kycBankAccountName
-    ) {
-      throw new ConflictException(
-        'Winner has not confirmed a payout account',
-      );
-    }
+  if (
+    !claim.payoutAccountNumber ||
+    !claim.kycBankCode ||
+    !claim.kycBankAccountName
+  ) {
+    throw new ConflictException(
+      'Winner has not confirmed a payout account',
+    );
+  }
 
-    if (claim.payoutStatus) {
-      throw new ConflictException(
-        `Payout already exists with status ${claim.payoutStatus}`,
-      );
-    }
+  if (claim.payoutStatus) {
+    throw new ConflictException(
+      `Payout already exists with status ${claim.payoutStatus}`,
+    );
+  }
 
-    /*
-    *   Reserve the payout BEFORE talking to Paystack.
-    *
-    * This is important.
-    *
-    * Two admins/processes must not both reach the external provider before
-    * either one stores a reference.
-    *
-    * updateMany gives us an atomic compare-and-set:
-    * only a claim with no payout lifecycle may become REQUESTED.
-    */
-    const payoutStartedAt = new Date();
+  /*
+   * Stable across retries and crashes.
+   *
+   * A provider adapter should use this as its merchant/client
+   * transaction reference whenever the provider supports one.
+   */
+  const idempotencyKey = `SW-PRIZE-${claim.claimId}`;
 
-    const reserved = await this.prisma.prizeClaim.updateMany({
+  const startedAt = new Date();
+
+  /*
+   * Reserve before touching an external provider.
+   *
+   * This is the concurrency barrier that prevents two admins,
+   * workers, or HTTP requests from initiating the same payout.
+   */
+  const reserved =
+    await this.prisma.prizeClaim.updateMany({
       where: {
         claimId,
         status: PrizeClaimStatus.KYC_CLEARED,
         payoutStatus: null,
         payoutReference: null,
+        payoutIdempotencyKey: null,
       },
       data: {
         payoutStatus: PrizePayoutStatus.REQUESTED,
-        payoutInitiatedAt: payoutStartedAt,
+        payoutProvider: this.payoutProvider.providerCode,
+        payoutIdempotencyKey: idempotencyKey,
+        payoutInitiatedAt: startedAt,
         payoutFailureReason: null,
       },
     });
 
-    if (reserved.count !== 1) {
-      throw new ConflictException(
-        'Payout has already been started for this claim',
-      );  
-    } 
+  if (reserved.count !== 1) {
+    throw new ConflictException(
+      'Payout has already been started for this claim',
+    );
+  }
 
-    await this.audit.write({
-      severity: AuditSeverity.INFO,
-      actor: {
-        type: AuditActorType.ADMIN,
-        id: adminId,
-      },
-      action: 'CLAIM_PAYOUT_REQUESTED',
-      resource: {
-        type: 'PrizeClaim',
-        id: claimId,
-      },
-      metadata: {
-        netPrizeValueNgn: claim.netPrizeValueNgn,
-        accountLast4: claim.payoutAccountNumber.slice(-4),
-      },  
-    });
+  await this.audit.write({
+    severity: AuditSeverity.INFO,
+    actor: {
+      type: AuditActorType.ADMIN,
+      id: adminId,
+    },
+    action: 'CLAIM_PAYOUT_REQUESTED',
+    resource: {
+      type: 'PrizeClaim',
+      id: claimId,
+    },
+    metadata: {
+      provider: this.payoutProvider.providerCode,
+      idempotencyKey,
+      netPrizeValueNgn: claim.netPrizeValueNgn,
+      accountLast4:
+        claim.payoutAccountNumber.slice(-4),
+    },
+  });
 
-    try {
-      const result = await this.transfers.payout({
+  try {
+    const result =
+      await this.payoutProvider.initiate({
+        idempotencyKey,
+
         accountNumber: claim.payoutAccountNumber,
         bankCode: claim.kycBankCode,
         accountName: claim.kycBankAccountName,
+
         amountNgn: claim.netPrizeValueNgn,
         reason: `Surewina prize ${claim.winnerTicketRef}`,
       });
 
-      /*
-      * Dev payouts are deliberately simulated as successful.
-      *
-      * Real provider payouts are only SUBMITTED here.
-      * Submission is NOT proof that the bank account received the money.
-      */
-      if (result.devMode) {
-        const completedAt = new Date();
+    const checkedAt = new Date();
 
-        const updated = await this.prisma.prizeClaim.update({
+    /*
+     * Immediate confirmed success.
+     *
+     * This will normally only happen in dev or when a provider can
+     * conclusively return final settlement synchronously.
+     */
+    if (
+      result.status ===
+      PrizePayoutStatus.SUCCEEDED
+    ) {
+      const updated =
+        await this.prisma.prizeClaim.update({
           where: { claimId },
           data: {
+            payoutProvider: result.provider,
             payoutReference: result.reference,
-            payoutStatus: PrizePayoutStatus.SUCCEEDED,
-            payoutLastCheckedAt: completedAt,
-            payoutCompletedAt: completedAt,
 
-            status: PrizeClaimStatus.CASH_PAID,
-            fulfilledAt: completedAt,
+            payoutStatus:
+              PrizePayoutStatus.SUCCEEDED,
 
+            payoutLastCheckedAt: checkedAt,
+            payoutCompletedAt: checkedAt,
             payoutFailureReason: null,
-          },  
+
+            status:
+              PrizeClaimStatus.CASH_PAID,
+
+            fulfilledAt: checkedAt,
+          },
           include: this.viewInclude(),
         });
 
-        await this.whtDeductions.recordForClaim(claimId);
-
-        await this.audit.write({
-        severity: AuditSeverity.INFO,
-          actor: {
-            type: AuditActorType.ADMIN,
-            id: adminId,
-          },
-          action: 'CLAIM_PAYOUT_SUCCEEDED',
-          resource: {
-            type: 'PrizeClaim',
-            id: claimId,
-          },
-          metadata: {
-            reference: result.reference,
-            devMode: true,
-            netPrizeValueNgn: claim.netPrizeValueNgn,
-          },
-        });
-
-        return this.toView(updated);
-      } 
-
-      /*
-      * Production provider has accepted the payout request.
-      *
-      * DO NOT mark CASH_PAID here.
-      *
-      * Provider confirmation will move SUBMITTED/PROCESSING -> SUCCEEDED
-      * in the next payout-status integration step.
-      */
-      const updated = await this.prisma.prizeClaim.update({
-        where: { claimId },
-        data: {
-          payoutReference: result.reference,
-          payoutStatus: PrizePayoutStatus.SUBMITTED,
-          payoutLastCheckedAt: new Date(),
-          payoutFailureReason: null,
-        },
-        include: this.viewInclude(),
-      });
+      await this.whtDeductions.recordForClaim(
+        claimId,
+      );
 
       await this.audit.write({
         severity: AuditSeverity.INFO,
@@ -497,43 +514,105 @@ export class ClaimsService {
           type: AuditActorType.ADMIN,
           id: adminId,
         },
-        action: 'CLAIM_PAYOUT_SUBMITTED',
+        action: 'CLAIM_PAYOUT_SUCCEEDED',
         resource: {
           type: 'PrizeClaim',
           id: claimId,
         },
         metadata: {
+          provider: result.provider,
           reference: result.reference,
-          devMode: false,
-          netPrizeValueNgn: claim.netPrizeValueNgn,
+          rawStatus:
+            result.rawStatus ?? null,
+          netPrizeValueNgn:
+            claim.netPrizeValueNgn,
         },
       });
 
       return this.toView(updated);
-    } catch (error) {
-      /*
-      * Conservative handling is intentional.
-      *
-       * A timeout/error after sending a transfer request does NOT prove the
-     *  provider failed to create the transfer.
-      *
-      * Therefore we use UNKNOWN, not FAILED.
-      *
-      * UNKNOWN must never be automatically retried.
-      */
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Unknown payout submission error';
+    }
 
-      await this.prisma.prizeClaim.update({
-        where: { claimId },
-        data: {
-          payoutStatus: PrizePayoutStatus.UNKNOWN,
-          payoutLastCheckedAt: new Date(),
-          payoutFailureReason: message,
-        },  
+    /*
+     * Conclusive provider failure.
+     *
+     * FAILED is deliberately different from UNKNOWN.
+     *
+     * Only a conclusive failure may later become eligible for
+     * a controlled retry.
+     */
+    if (
+      result.status === PrizePayoutStatus.FAILED
+    ) {
+      const updated =
+        await this.prisma.prizeClaim.update({
+          where: { claimId },
+          data: {
+            payoutProvider: result.provider,
+            payoutReference: result.reference,
+
+            payoutStatus:
+              PrizePayoutStatus.FAILED,
+
+            payoutLastCheckedAt: checkedAt,
+
+            payoutFailureReason:
+              result.failureReason ??
+              result.rawStatus ??
+              'Provider reported payout failure',
+          },
+          include: this.viewInclude(),
+        });
+
+      await this.audit.write({
+        severity: AuditSeverity.WARNING,
+        actor: {
+          type: AuditActorType.ADMIN,
+          id: adminId,
+        },
+        action: 'CLAIM_PAYOUT_FAILED',
+        resource: {
+          type: 'PrizeClaim',
+          id: claimId,
+        },
+        metadata: {
+          provider: result.provider,
+          reference: result.reference,
+          rawStatus:
+            result.rawStatus ?? null,
+          reason:
+            result.failureReason ?? null,
+        },
       });
+
+      return this.toView(updated);
+    }
+
+    /*
+     * Reversal means money may previously have appeared successful
+     * before being returned/rejected.
+     */
+    if (
+      result.status ===
+      PrizePayoutStatus.REVERSED
+    ) {
+      const updated =
+        await this.prisma.prizeClaim.update({
+          where: { claimId },
+          data: {
+            payoutProvider: result.provider,
+            payoutReference: result.reference,
+
+            payoutStatus:
+              PrizePayoutStatus.REVERSED,
+
+            payoutLastCheckedAt: checkedAt,
+
+            payoutFailureReason:
+              result.failureReason ??
+              'Provider reported payout reversal',
+          },
+          include: this.viewInclude(),
+        });
 
       await this.audit.write({
         severity: AuditSeverity.CRITICAL,
@@ -541,20 +620,154 @@ export class ClaimsService {
           type: AuditActorType.ADMIN,
           id: adminId,
         },
-        action: 'CLAIM_PAYOUT_STATUS_UNKNOWN',
+        action: 'CLAIM_PAYOUT_REVERSED',
         resource: {
           type: 'PrizeClaim',
           id: claimId,
         },
         metadata: {
-          error: message,
-          netPrizeValueNgn: claim.netPrizeValueNgn,
+          provider: result.provider,
+          reference: result.reference,
+          rawStatus:
+            result.rawStatus ?? null,
         },
       });
 
-      throw error;
+      return this.toView(updated);
     }
+
+    /*
+     * Normal production initiation result.
+     *
+     * SUBMITTED / PROCESSING / UNKNOWN
+     *
+     * None of these mean the customer has been paid.
+     */
+    const pendingStatus =
+      result.status ===
+        PrizePayoutStatus.SUBMITTED ||
+      result.status ===
+        PrizePayoutStatus.PROCESSING ||
+      result.status ===
+        PrizePayoutStatus.UNKNOWN
+        ? result.status
+        : PrizePayoutStatus.UNKNOWN;
+
+    const updated =
+      await this.prisma.prizeClaim.update({
+        where: { claimId },
+        data: {
+          payoutProvider: result.provider,
+          payoutReference: result.reference,
+
+          payoutStatus: pendingStatus,
+
+          payoutLastCheckedAt: checkedAt,
+
+          payoutFailureReason:
+            pendingStatus ===
+            PrizePayoutStatus.UNKNOWN
+              ? result.failureReason ??
+                'Provider payout state is unknown'
+              : null,
+        },
+        include: this.viewInclude(),
+      });
+
+    await this.audit.write({
+      severity:
+        pendingStatus ===
+        PrizePayoutStatus.UNKNOWN
+          ? AuditSeverity.WARNING
+          : AuditSeverity.INFO,
+
+      actor: {
+        type: AuditActorType.ADMIN,
+        id: adminId,
+      },
+
+      action:
+        pendingStatus ===
+        PrizePayoutStatus.UNKNOWN
+          ? 'CLAIM_PAYOUT_STATUS_UNKNOWN'
+          : 'CLAIM_PAYOUT_SUBMITTED',
+
+      resource: {
+        type: 'PrizeClaim',
+        id: claimId,
+      },
+
+      metadata: {
+        provider: result.provider,
+        reference: result.reference,
+        status: pendingStatus,
+        rawStatus: result.rawStatus ?? null,
+      },
+    });
+
+    return this.toView(updated);
+  } catch (error) {
+    /*
+     * An exception does not prove the provider rejected the payout.
+     *
+     * Examples:
+     *
+     * request timeout
+     * network disconnect
+     * SureWina connection died after provider accepted request
+     * provider returned malformed response
+     *
+     * Therefore: UNKNOWN.
+     */
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Unknown payout provider error';
+
+    await this.prisma.prizeClaim.update({
+      where: { claimId },
+      data: {
+        payoutProvider:
+          this.payoutProvider.providerCode,
+
+        payoutStatus:
+          PrizePayoutStatus.UNKNOWN,
+
+        payoutLastCheckedAt: new Date(),
+
+        payoutFailureReason: message,
+      },
+    });
+
+    await this.audit.write({
+      severity: AuditSeverity.CRITICAL,
+
+      actor: {
+        type: AuditActorType.ADMIN,
+        id: adminId,
+      },
+
+      action: 'CLAIM_PAYOUT_STATUS_UNKNOWN',
+
+      resource: {
+        type: 'PrizeClaim',
+        id: claimId,
+      },
+
+      metadata: {
+        provider:
+          this.payoutProvider.providerCode,
+
+        idempotencyKey,
+        error: message,
+        netPrizeValueNgn:
+          claim.netPrizeValueNgn,
+      },
+    });
+
+    throw error;
   }
+}
 
   async markDelivered(claimId: string, adminId: string): Promise<ClaimViewDto> {
     const claim = await this.prisma.prizeClaim.findUnique({
