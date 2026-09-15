@@ -77,4 +77,8 @@ export const envValidationSchema = Joi.object({
     Joi.string()
       .allow('')
       .default(''),
+
+  MONNIFY_ALLOW_UNSIGNED_SANDBOX_WEBHOOKS:
+    Joi.boolean()
+      .default(false),
 });

@@ -57,6 +57,22 @@ import {
   MonnifyPrizePayoutProvider,
 } from './payout/monnify-prize-payout.provider';
 
+import {
+  PrizePayoutFinalizationService,
+} from './payout/prize-payout-finalization.service';
+
+import {
+  MonnifyPayoutSyncService,
+} from './payout/monnify-payout-sync.service';
+
+import {
+  MonnifyWebhookSignatureGuard,
+} from './payout/monnify-webhook-signature.guard';
+
+import {
+  MonnifyPayoutWebhookController,
+} from './payout/monnify-payout-webhook.controller';
+
 @Module({
   imports: [
     ConfigModule,
@@ -70,6 +86,7 @@ import {
     ClaimsController,
     AdminClaimsController,
     RedemptionController,
+    MonnifyPayoutWebhookController,
   ],
 
   providers: [
@@ -83,6 +100,9 @@ import {
 
     DevPrizePayoutProvider,
     MonnifyPrizePayoutProvider,
+    PrizePayoutFinalizationService,
+    MonnifyPayoutSyncService,
+    MonnifyWebhookSignatureGuard,
 
     {
       provide: PRIZE_PAYOUT_PROVIDER,
