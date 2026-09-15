@@ -26,6 +26,9 @@ import { SettingsService } from '../config/settings.service';
 import { RedemptionService } from './redemption.service';
 import { NotificationQueueService } from '../queue/notification-queue.service';
 import { PRIZE_PAYOUT_PROVIDER, type PrizePayoutProvider } from './payout/prize-payout.provider';
+import {
+  PrizePayoutFinalizationService,
+} from './payout/prize-payout-finalization.service';
 
 export type ClaimViewDto = {
   claimId: string;
@@ -74,6 +77,7 @@ export class ClaimsService {
     private readonly settings: SettingsService,
     private readonly redemption: RedemptionService,
     private readonly notificationQueue: NotificationQueueService,
+    private readonly payoutFinalizer: PrizePayoutFinalizationService,
   ) {}
 
   async listMine(phoneNumber: string): Promise<{ claims: ClaimViewDto[] }> {
@@ -360,106 +364,106 @@ if (
   }
 
   async initiatePayout(
-  claimId: string,
-  adminId: string,
-): Promise<ClaimViewDto> {
-  const claim = await this.prisma.prizeClaim.findUnique({
-    where: { claimId },
-    include: this.viewInclude(),
-  });
+    claimId: string,
+    adminId: string,
+  ): Promise<ClaimViewDto> {
+    const claim = await this.prisma.prizeClaim.findUnique({
+      where: { claimId },
+      include: this.viewInclude(),
+    });
 
-  if (!claim) {
-    throw new NotFoundException('Claim not found');
-  }
+    if (!claim) {
+      throw new NotFoundException('Claim not found');
+    } 
 
-  if (
-    claim.claimType !== ClaimType.CASH ||
-    claim.status !== PrizeClaimStatus.KYC_CLEARED
-  ) {
-    throw new ConflictException(
-      'Claim is not a cleared cash claim',
-    );
-  }
+    if (
+      claim.claimType !== ClaimType.CASH ||
+      claim.status !== PrizeClaimStatus.KYC_CLEARED
+    ) {
+      throw new ConflictException(
+        'Claim is not a cleared cash claim',
+      );
+    }
 
-  if (
-    !claim.payoutAccountNumber ||
-    !claim.kycBankCode ||
-    !claim.kycBankAccountName
-  ) {
-    throw new ConflictException(
-      'Winner has not confirmed a payout account',
-    );
-  }
+    if (
+      !claim.payoutAccountNumber ||
+      !claim.kycBankCode ||
+      !claim.kycBankAccountName
+    ) {
+      throw new ConflictException(
+        'Winner has not confirmed a payout account',
+      );
+    }
 
-  if (claim.payoutStatus) {
-    throw new ConflictException(
-      `Payout already exists with status ${claim.payoutStatus}`,
-    );
-  }
+    if (claim.payoutStatus) {
+      throw new ConflictException(
+        `Payout already exists with status ${claim.payoutStatus}`,
+      );
+    }
 
-  /*
-   * Stable across retries and crashes.
-   *
-   * A provider adapter should use this as its merchant/client
-   * transaction reference whenever the provider supports one.
-   */
-  const idempotencyKey = `SW-PRIZE-${claim.claimId}`;
+    /*
+    * Stable across retries and crashes.
+    *
+     * A provider adapter should use this as its merchant/client
+    * transaction reference whenever the provider supports one.
+     */
+    const idempotencyKey = `SW-PRIZE-${claim.claimId}`;
 
-  const startedAt = new Date();
+    const startedAt = new Date();
 
-  /*
-   * Reserve before touching an external provider.
-   *
-   * This is the concurrency barrier that prevents two admins,
-   * workers, or HTTP requests from initiating the same payout.
-   */
-  const reserved =
-    await this.prisma.prizeClaim.updateMany({
-      where: {
-        claimId,
-        status: PrizeClaimStatus.KYC_CLEARED,
-        payoutStatus: null,
-        payoutReference: null,
-        payoutIdempotencyKey: null,
+    /*
+    * Reserve before touching an external provider.
+    *
+     * This is the concurrency barrier that prevents two admins,
+    * workers, or HTTP requests from initiating the same payout.
+    */
+    const reserved =
+      await this.prisma.prizeClaim.updateMany({
+        where: {
+          claimId,
+          status: PrizeClaimStatus.KYC_CLEARED,
+          payoutStatus: null,
+          payoutReference: null,
+          payoutIdempotencyKey: null,
+        },
+        data: {
+          payoutStatus: PrizePayoutStatus.REQUESTED,
+          payoutProvider: this.payoutProvider.providerCode,
+          payoutIdempotencyKey: idempotencyKey,
+          payoutInitiatedAt: startedAt,
+          payoutFailureReason: null,
+        },
+      });
+
+    if (reserved.count !== 1) {
+      throw new ConflictException(
+        'Payout has already been started for this claim',
+      );
+    }
+
+    await this.audit.write({
+      severity: AuditSeverity.INFO,
+      actor: {
+        type: AuditActorType.ADMIN,
+        id: adminId,
       },
-      data: {
-        payoutStatus: PrizePayoutStatus.REQUESTED,
-        payoutProvider: this.payoutProvider.providerCode,
-        payoutIdempotencyKey: idempotencyKey,
-        payoutInitiatedAt: startedAt,
-        payoutFailureReason: null,
+      action: 'CLAIM_PAYOUT_REQUESTED',
+      resource: {
+        type: 'PrizeClaim',
+        id: claimId,
+      },  
+      metadata: {
+        provider: this.payoutProvider.providerCode,
+        idempotencyKey,
+        netPrizeValueNgn: claim.netPrizeValueNgn,
+        accountLast4:
+          claim.payoutAccountNumber.slice(-4),
       },
     });
 
-  if (reserved.count !== 1) {
-    throw new ConflictException(
-      'Payout has already been started for this claim',
-    );
-  }
-
-  await this.audit.write({
-    severity: AuditSeverity.INFO,
-    actor: {
-      type: AuditActorType.ADMIN,
-      id: adminId,
-    },
-    action: 'CLAIM_PAYOUT_REQUESTED',
-    resource: {
-      type: 'PrizeClaim',
-      id: claimId,
-    },
-    metadata: {
-      provider: this.payoutProvider.providerCode,
-      idempotencyKey,
-      netPrizeValueNgn: claim.netPrizeValueNgn,
-      accountLast4:
-        claim.payoutAccountNumber.slice(-4),
-    },
-  });
-
-  try {
-    const result =
-      await this.payoutProvider.initiate({
+    try {
+      const result =
+        await this.payoutProvider.initiate({
         idempotencyKey,
 
         accountNumber: claim.payoutAccountNumber,
@@ -767,6 +771,157 @@ if (
 
     throw error;
   }
+}
+
+  async refreshPayoutStatus(
+  claimId: string,
+  adminId: string,
+): Promise<ClaimViewDto> {
+  const claim =
+    await this.prisma.prizeClaim.findUnique({
+      where: {
+        claimId,
+      },
+
+      include:
+        this.viewInclude(),
+    });
+
+  if (!claim) {
+    throw new NotFoundException(
+      'Claim not found',
+    );
+  }
+
+  if (!claim.payoutStatus) {
+    throw new ConflictException(
+      'No payout has been started for this claim',
+    );
+  }
+
+  /*
+   * Successful, failed and reversed payouts are terminal.
+   *
+   * They must not be repeatedly queried or silently changed
+   * through this endpoint.
+   */
+  if (
+    claim.payoutStatus ===
+      PrizePayoutStatus.SUCCEEDED ||
+    claim.payoutStatus ===
+      PrizePayoutStatus.FAILED ||
+    claim.payoutStatus ===
+      PrizePayoutStatus.REVERSED
+  ) {
+    return this.toView(claim);
+  }
+
+  /*
+   * Never query a payout through a different provider.
+   *
+   * For example, a MONNIFY payout must not suddenly be queried
+   * through DEV or a future Flutterwave adapter because someone
+   * changed PAYOUTS_MODE.
+   */
+  if (
+    !claim.payoutProvider ||
+    claim.payoutProvider !==
+      this.payoutProvider.providerCode
+  ) {
+    throw new ConflictException(
+      `Payout belongs to provider ${
+        claim.payoutProvider ?? 'UNKNOWN'
+      }, but active provider is ${
+        this.payoutProvider.providerCode
+      }`,
+    );
+  }
+
+  /*
+   * Prefer the provider's returned reference.
+   *
+   * If the server crashed after sending the transfer but before
+   * storing the provider response, the stable idempotency key lets
+   * us query Monnify safely.
+   */
+  const reference =
+    claim.payoutReference ??
+    claim.payoutIdempotencyKey;
+
+  if (!reference) {
+    throw new ConflictException(
+      'Payout has no provider reference or idempotency key',
+    );
+  }
+
+  try {
+    const result =
+      await this.payoutProvider.getStatus(
+        reference,
+      );
+
+    await this.payoutFinalizer.applyForClaim(
+      claimId,
+      result,
+      {
+        type: AuditActorType.ADMIN,
+        id: adminId,
+      },
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Unknown payout status refresh error';
+
+    await this.audit.write({
+      severity:
+        AuditSeverity.WARNING,
+
+      actor: {
+        type:
+          AuditActorType.ADMIN,
+        id: adminId,
+      },
+
+      action:
+        'CLAIM_PAYOUT_REFRESH_FAILED',
+
+      resource: {
+        type: 'PrizeClaim',
+        id: claimId,
+      },
+
+      metadata: {
+        provider:
+          claim.payoutProvider,
+
+        reference,
+
+        error: message,
+      },
+    });
+
+    throw error;
+  }
+
+  const updated =
+    await this.prisma.prizeClaim.findUnique({
+      where: {
+        claimId,
+      },
+
+      include:
+        this.viewInclude(),
+    });
+
+  if (!updated) {
+    throw new NotFoundException(
+      'Claim not found after payout refresh',
+    );
+  }
+
+  return this.toView(updated);
 }
 
   async markDelivered(claimId: string, adminId: string): Promise<ClaimViewDto> {

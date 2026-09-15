@@ -15,7 +15,7 @@ import { AdminRoles } from '../admin-auth/decorators/admin-roles.decorator';
 import { CurrentAdmin } from '../admin-auth/guards/current-admin.decorator';
 import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 import { FinanceAdminService } from './finance-admin.service';
-
+import { ClaimsService } from '../claims/claims.service'
 class ReconQueryDto {
   @IsISO8601()
   fromDate!: string;
@@ -41,7 +41,10 @@ class ListPayoutsQueryDto {
 @UseGuards(AdminJwtGuard, AdminRoleGuard)
 @AdminRoles(AdminRole.FINANCE_OFFICER)
 export class FinanceAdminController {
-  constructor(private readonly financeAdmin: FinanceAdminService) {}
+  constructor(
+    private readonly financeAdmin: FinanceAdminService,
+    private readonly claimService: ClaimsService
+  ) {}
 
   @Get('reconciliation')
   reconciliation(@Query() q: ReconQueryDto) {
@@ -68,5 +71,27 @@ export class FinanceAdminController {
   @Get('payouts')
   listPayouts(@Query() q: ListPayoutsQueryDto) {
     return this.financeAdmin.listPayouts(q);
+  }
+
+  @Post('payouts/:claimId/initiate')
+  initiatePayout(
+    @Param('claimId') claimId: string,
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    return this.claimService.initiatePayout(claimId, admin.sub);
+  }
+
+  @Post('payouts/:claimId/refresh')
+  refreshPayout(
+    @Param('claimId')
+    claimId: string,
+
+    @CurrentAdmin()
+    admin: AdminJwtPayload,
+  ) {
+    return this.claimService.refreshPayoutStatus(
+      claimId,
+      admin.sub,
+    );
   }
 }
