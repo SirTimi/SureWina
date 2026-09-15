@@ -324,6 +324,7 @@ model PaymentTransaction {
   @@index([gateway, status])
   @@index([buyerPhone, createdAt])
   @@index([agentId, createdAt])
+  @@index([purchaseDrawId])
   @@map("payment_transactions")
 }
 
