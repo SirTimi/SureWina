@@ -1,0 +1,993 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
+import {
+  AuditActorType,
+  AuditSeverity,
+  LedgerAccountPurpose,
+  LedgerAccountStatus,
+  LedgerAccountType,
+  LedgerEntrySide,
+  LedgerOwnerType,
+  LedgerTransactionKind,
+  Prisma,
+  WalletHoldStatus,
+  WalletStatus,
+} from '@prisma/client';
+
+import { PrismaService } from '../database/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { LedgerService } from '../ledger/ledger.service';
+
+const WALLET_INCLUDE = {
+  availableAccount: true,
+  heldAccount: true,
+} satisfies Prisma.WalletInclude;
+
+type WalletRecord = Prisma.WalletGetPayload<{
+  include: typeof WALLET_INCLUDE;
+}>;
+
+type WalletMovementContext = {
+  idempotencyKey: string;
+  referenceType: string;
+  referenceId: string;
+  kind: LedgerTransactionKind;
+  description?: string;
+  metadata?: Prisma.InputJsonValue;
+  occurredAt?: Date;
+};
+
+type WalletCreditInput = WalletMovementContext & {
+  walletId: string;
+  amountNgn: number;
+  counterAccountId: string;
+};
+
+type WalletDebitInput = WalletMovementContext & {
+  walletId: string;
+  amountNgn: number;
+  counterAccountId: string;
+};
+
+type CreateHoldInput = {
+  walletId: string;
+  amountNgn: number;
+  idempotencyKey: string;
+  referenceType: string;
+  referenceId: string;
+  description?: string;
+  metadata?: Prisma.InputJsonValue;
+};
+
+type ResolveHoldInput = {
+  holdId: string;
+  idempotencyKey: string;
+  description?: string;
+  metadata?: Prisma.InputJsonValue;
+};
+
+type CaptureHoldInput = ResolveHoldInput & {
+  counterAccountId: string;
+};
+
+@Injectable()
+export class WalletService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ledger: LedgerService,
+    private readonly audit: AuditService,
+  ) {}
+
+  ensureCustomerWallet(userId: string) {
+    return this.ensureWallet(LedgerOwnerType.CUSTOMER, userId);
+  }
+
+  ensureAgentWallet(agentId: string) {
+    return this.ensureWallet(LedgerOwnerType.AGENT, agentId);
+  }
+
+  async getWallet(walletId: string) {
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { walletId },
+      include: WALLET_INCLUDE,
+    });
+
+    if (!wallet) {
+      throw new NotFoundException('Wallet not found');
+    }
+
+    return this.toWalletView(wallet);
+  }
+
+  async getCustomerWallet(userId: string) {
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+      include: WALLET_INCLUDE,
+    });
+
+    if (!wallet) {
+      return this.ensureCustomerWallet(userId);
+    }
+
+    return this.toWalletView(wallet);
+  }
+
+  async history(walletId: string, page = 1, pageSize = 20) {
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { walletId },
+      select: {
+        walletId: true,
+        availableAccountId: true,
+        heldAccountId: true,
+      },
+    });
+
+    if (!wallet) {
+      throw new NotFoundException('Wallet not found');
+    }
+
+    const accountIds = [
+      wallet.availableAccountId,
+      wallet.heldAccountId,
+    ];
+
+    const safePage = Math.max(1, page);
+    const safePageSize = Math.min(100, Math.max(1, pageSize));
+
+    const [transactions, total] = await this.prisma.$transaction([
+      this.prisma.ledgerTransaction.findMany({
+        where: {
+          entries: {
+            some: {
+              accountId: { in: accountIds },
+            },
+          },
+        },
+        include: {
+          entries: {
+            orderBy: { lineNo: 'asc' },
+            include: {
+              account: {
+                select: {
+                  accountId: true,
+                  code: true,
+                  name: true,
+                  purpose: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: [
+          { occurredAt: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        skip: (safePage - 1) * safePageSize,
+        take: safePageSize,
+      }),
+
+      this.prisma.ledgerTransaction.count({
+        where: {
+          entries: {
+            some: {
+              accountId: { in: accountIds },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      page: safePage,
+      pageSize: safePageSize,
+      total,
+      transactions: transactions.map((txn) => ({
+        ledgerTxnId: txn.ledgerTxnId,
+        kind: txn.kind,
+        referenceType: txn.referenceType,
+        referenceId: txn.referenceId,
+        description: txn.description,
+        totalAmountNgn: txn.totalAmountNgn,
+        occurredAt: txn.occurredAt.toISOString(),
+        createdAt: txn.createdAt.toISOString(),
+        entries: txn.entries.map((entry) => ({
+          entryId: entry.entryId,
+          side: entry.side,
+          amountNgn: entry.amountNgn,
+          memo: entry.memo,
+          account: entry.account,
+          belongsToWallet: accountIds.includes(entry.accountId),
+        })),
+      })),
+    };
+  }
+
+  async credit(input: WalletCreditInput) {
+    this.validateAmount(input.amountNgn);
+
+    const journal = await this.prisma.$transaction(
+      async (tx) => {
+        const wallet = await this.lockWallet(tx, input.walletId);
+
+        this.assertCanReceive(wallet.status);
+        this.assertExternalCounterAccount(wallet, input.counterAccountId);
+
+        return this.ledger.postInTransaction(tx, {
+          idempotencyKey: input.idempotencyKey,
+          kind: input.kind,
+          referenceType: input.referenceType,
+          referenceId: input.referenceId,
+          description: input.description,
+          metadata: input.metadata,
+          occurredAt: input.occurredAt,
+          lines: [
+            {
+              accountId: input.counterAccountId,
+              side: LedgerEntrySide.DEBIT,
+              amountNgn: input.amountNgn,
+              memo: input.description,
+            },
+            {
+              accountId: wallet.availableAccountId,
+              side: LedgerEntrySide.CREDIT,
+              amountNgn: input.amountNgn,
+              memo: input.description,
+            },
+          ],
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    return {
+      journal,
+      wallet: await this.getWallet(input.walletId),
+    };
+  }
+
+  async debit(input: WalletDebitInput) {
+    this.validateAmount(input.amountNgn);
+
+    const journal = await this.prisma.$transaction(
+      async (tx) => {
+        const wallet = await this.lockWallet(tx, input.walletId);
+
+        this.assertCanSpend(wallet.status);
+        this.assertExternalCounterAccount(wallet, input.counterAccountId);
+
+        const journalInput = {
+          idempotencyKey: input.idempotencyKey,
+          kind: input.kind,
+          referenceType: input.referenceType,
+          referenceId: input.referenceId,
+          description: input.description,
+          metadata: input.metadata,
+          occurredAt: input.occurredAt,
+          lines: [
+            {
+              accountId: wallet.availableAccountId,
+              side: LedgerEntrySide.DEBIT,
+              amountNgn: input.amountNgn,
+              memo: input.description,
+            },
+            {
+              accountId: input.counterAccountId,
+              side: LedgerEntrySide.CREDIT,
+              amountNgn: input.amountNgn,
+              memo: input.description,
+            },
+          ],
+        };
+
+        const existing = await tx.ledgerTransaction.findUnique({
+          where: { idempotencyKey: input.idempotencyKey.trim() },
+        });
+
+        if (!existing) {
+          const balances = await this.getBalancesInTx(tx, wallet);
+
+          if (balances.availableNgn < input.amountNgn) {
+            throw new ConflictException('Insufficient wallet balance');
+          }
+        }
+
+        return this.ledger.postInTransaction(tx, journalInput);
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    return {
+      journal,
+      wallet: await this.getWallet(input.walletId),
+    };
+  }
+
+  async createHold(input: CreateHoldInput) {
+    this.validateAmount(input.amountNgn);
+
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const wallet = await this.lockWallet(tx, input.walletId);
+
+        this.assertCanSpend(wallet.status);
+
+        const existing = await tx.walletHold.findUnique({
+          where: { idempotencyKey: input.idempotencyKey.trim() },
+        });
+
+        if (existing) {
+          if (
+            existing.walletId !== input.walletId ||
+            existing.amountNgn !== input.amountNgn ||
+            existing.referenceType !== input.referenceType ||
+            existing.referenceId !== input.referenceId
+          ) {
+            throw new ConflictException(
+              'Wallet hold idempotency key already exists with different data',
+            );
+          }
+
+          return { holdId: existing.holdId };
+        }
+
+        const balances = await this.getBalancesInTx(tx, wallet);
+
+        if (balances.availableNgn < input.amountNgn) {
+          throw new ConflictException('Insufficient wallet balance');
+        }
+
+        const journal = await this.ledger.postInTransaction(tx, {
+          idempotencyKey: input.idempotencyKey,
+          kind: LedgerTransactionKind.WALLET_HOLD,
+          referenceType: input.referenceType,
+          referenceId: input.referenceId,
+          description: input.description ?? 'Wallet hold',
+          metadata: input.metadata,
+          lines: [
+            {
+              accountId: wallet.availableAccountId,
+              side: LedgerEntrySide.DEBIT,
+              amountNgn: input.amountNgn,
+              memo: input.description ?? 'Move funds to held balance',
+            },
+            {
+              accountId: wallet.heldAccountId,
+              side: LedgerEntrySide.CREDIT,
+              amountNgn: input.amountNgn,
+              memo: input.description ?? 'Move funds to held balance',
+            },
+          ],
+        });
+
+        const hold = await tx.walletHold.create({
+          data: {
+            walletId: wallet.walletId,
+            idempotencyKey: input.idempotencyKey.trim(),
+            referenceType: input.referenceType,
+            referenceId: input.referenceId,
+            amountNgn: input.amountNgn,
+            holdLedgerTxnId: journal.ledgerTxnId,
+          },
+        });
+
+        return { holdId: hold.holdId };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    return this.getHold(result.holdId);
+  }
+
+  async releaseHold(input: ResolveHoldInput) {
+    const locator = await this.prisma.walletHold.findUnique({
+      where: { holdId: input.holdId },
+      select: { walletId: true },
+    });
+
+    if (!locator) {
+      throw new NotFoundException('Wallet hold not found');
+    }
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        const wallet = await this.lockWallet(tx, locator.walletId);
+
+        this.assertNotClosed(wallet.status);
+
+        await tx.$queryRaw`
+          SELECT hold_id
+          FROM wallet_holds
+          WHERE hold_id = ${input.holdId}
+          FOR UPDATE
+        `;
+
+        const hold = await tx.walletHold.findUniqueOrThrow({
+          where: { holdId: input.holdId },
+        });
+
+        if (hold.status === WalletHoldStatus.RELEASED) {
+          if (hold.releaseIdempotencyKey === input.idempotencyKey.trim()) {
+            return;
+          }
+
+          throw new ConflictException('Wallet hold has already been released');
+        }
+
+        if (hold.status === WalletHoldStatus.CAPTURED) {
+          throw new ConflictException('Captured wallet hold cannot be released');
+        }
+
+        const journal = await this.ledger.postInTransaction(tx, {
+          idempotencyKey: input.idempotencyKey,
+          kind: LedgerTransactionKind.WALLET_RELEASE,
+          referenceType: hold.referenceType,
+          referenceId: hold.referenceId,
+          description: input.description ?? 'Release wallet hold',
+          metadata: input.metadata,
+          lines: [
+            {
+              accountId: wallet.heldAccountId,
+              side: LedgerEntrySide.DEBIT,
+              amountNgn: hold.amountNgn,
+              memo: input.description ?? 'Release held funds',
+            },
+            {
+              accountId: wallet.availableAccountId,
+              side: LedgerEntrySide.CREDIT,
+              amountNgn: hold.amountNgn,
+              memo: input.description ?? 'Return funds to available balance',
+            },
+          ],
+        });
+
+        await tx.walletHold.update({
+          where: { holdId: hold.holdId },
+          data: {
+            status: WalletHoldStatus.RELEASED,
+            releaseLedgerTxnId: journal.ledgerTxnId,
+            releaseIdempotencyKey: input.idempotencyKey.trim(),
+            resolvedAt: new Date(),
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    return this.getHold(input.holdId);
+  }
+
+  async captureHold(input: CaptureHoldInput) {
+    const locator = await this.prisma.walletHold.findUnique({
+      where: { holdId: input.holdId },
+      select: { walletId: true },
+    });
+
+    if (!locator) {
+      throw new NotFoundException('Wallet hold not found');
+    }
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        const wallet = await this.lockWallet(tx, locator.walletId);
+
+        this.assertCanSpend(wallet.status);
+        this.assertExternalCounterAccount(wallet, input.counterAccountId);
+
+        await tx.$queryRaw`
+          SELECT hold_id
+          FROM wallet_holds
+          WHERE hold_id = ${input.holdId}
+          FOR UPDATE
+        `;
+
+        const hold = await tx.walletHold.findUniqueOrThrow({
+          where: { holdId: input.holdId },
+        });
+
+        if (hold.status === WalletHoldStatus.CAPTURED) {
+          if (hold.captureIdempotencyKey === input.idempotencyKey.trim()) {
+            return;
+          }
+
+          throw new ConflictException('Wallet hold has already been captured');
+        }
+
+        if (hold.status === WalletHoldStatus.RELEASED) {
+          throw new ConflictException('Released wallet hold cannot be captured');
+        }
+
+        const journal = await this.ledger.postInTransaction(tx, {
+          idempotencyKey: input.idempotencyKey,
+          kind: LedgerTransactionKind.WALLET_CAPTURE,
+          referenceType: hold.referenceType,
+          referenceId: hold.referenceId,
+          description: input.description ?? 'Capture wallet hold',
+          metadata: input.metadata,
+          lines: [
+            {
+              accountId: wallet.heldAccountId,
+              side: LedgerEntrySide.DEBIT,
+              amountNgn: hold.amountNgn,
+              memo: input.description ?? 'Capture held funds',
+            },
+            {
+              accountId: input.counterAccountId,
+              side: LedgerEntrySide.CREDIT,
+              amountNgn: hold.amountNgn,
+              memo: input.description ?? 'Capture held funds',
+            },
+          ],
+        });
+
+        await tx.walletHold.update({
+          where: { holdId: hold.holdId },
+          data: {
+            status: WalletHoldStatus.CAPTURED,
+            captureLedgerTxnId: journal.ledgerTxnId,
+            captureIdempotencyKey: input.idempotencyKey.trim(),
+            resolvedAt: new Date(),
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    return this.getHold(input.holdId);
+  }
+
+  async freezeWallet(walletId: string, adminId: string, reason: string) {
+    const cleanReason = reason.trim();
+
+    if (!cleanReason) {
+      throw new BadRequestException('Freeze reason is required');
+    }
+
+    const updated = await this.prisma.wallet.updateMany({
+      where: {
+        walletId,
+        status: WalletStatus.ACTIVE,
+      },
+      data: {
+        status: WalletStatus.FROZEN,
+      },
+    });
+
+    if (updated.count !== 1) {
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { walletId },
+      });
+
+      if (!wallet) {
+        throw new NotFoundException('Wallet not found');
+      }
+
+      throw new ConflictException(`Wallet is ${wallet.status}`);
+    }
+
+    await this.audit.write({
+      severity: AuditSeverity.WARNING,
+      actor: { type: AuditActorType.ADMIN, id: adminId },
+      action: 'WALLET_FROZEN',
+      resource: { type: 'Wallet', id: walletId },
+      metadata: { reason: cleanReason },
+    });
+
+    return this.getWallet(walletId);
+  }
+
+  async unfreezeWallet(walletId: string, adminId: string, reason: string) {
+    const cleanReason = reason.trim();
+
+    if (!cleanReason) {
+      throw new BadRequestException('Unfreeze reason is required');
+    }
+
+    const updated = await this.prisma.wallet.updateMany({
+      where: {
+        walletId,
+        status: WalletStatus.FROZEN,
+      },
+      data: {
+        status: WalletStatus.ACTIVE,
+      },
+    });
+
+    if (updated.count !== 1) {
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { walletId },
+      });
+
+      if (!wallet) {
+        throw new NotFoundException('Wallet not found');
+      }
+
+      throw new ConflictException(`Wallet is ${wallet.status}`);
+    }
+
+    await this.audit.write({
+      severity: AuditSeverity.WARNING,
+      actor: { type: AuditActorType.ADMIN, id: adminId },
+      action: 'WALLET_UNFROZEN',
+      resource: { type: 'Wallet', id: walletId },
+      metadata: { reason: cleanReason },
+    });
+
+    return this.getWallet(walletId);
+  }
+
+  async closeWallet(walletId: string, adminId: string, reason: string) {
+    const cleanReason = reason.trim();
+
+    if (!cleanReason) {
+      throw new BadRequestException('Close reason is required');
+    }
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        const wallet = await this.lockWallet(tx, walletId);
+
+        if (wallet.status === WalletStatus.CLOSED) {
+          throw new ConflictException('Wallet is already closed');
+        }
+
+        const balances = await this.getBalancesInTx(tx, wallet);
+
+        if (balances.availableNgn !== 0 || balances.heldNgn !== 0) {
+          throw new ConflictException(
+            'Wallet must have zero available and held balances before closing',
+          );
+        }
+
+        const openHolds = await tx.walletHold.count({
+          where: {
+            walletId,
+            status: WalletHoldStatus.HELD,
+          },
+        });
+
+        if (openHolds > 0) {
+          throw new ConflictException('Wallet still has active holds');
+        }
+
+        await tx.wallet.update({
+          where: { walletId },
+          data: { status: WalletStatus.CLOSED },
+        });
+
+        await tx.ledgerAccount.updateMany({
+          where: {
+            accountId: {
+              in: [
+                wallet.availableAccountId,
+                wallet.heldAccountId,
+              ],
+            },
+          },
+          data: {
+            status: LedgerAccountStatus.CLOSED,
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    await this.audit.write({
+      severity: AuditSeverity.WARNING,
+      actor: { type: AuditActorType.ADMIN, id: adminId },
+      action: 'WALLET_CLOSED',
+      resource: { type: 'Wallet', id: walletId },
+      metadata: { reason: cleanReason },
+    });
+
+    return this.getWallet(walletId);
+  }
+
+  private async ensureWallet(ownerType: LedgerOwnerType, ownerId: string) {
+    if (
+      ownerType !== LedgerOwnerType.CUSTOMER &&
+      ownerType !== LedgerOwnerType.AGENT
+    ) {
+      throw new BadRequestException('Wallet owner must be CUSTOMER or AGENT');
+    }
+
+    const current = ownerType === LedgerOwnerType.CUSTOMER
+      ? await this.prisma.wallet.findUnique({
+          where: { userId: ownerId },
+          include: WALLET_INCLUDE,
+        })
+      : await this.prisma.wallet.findUnique({
+          where: { agentId: ownerId },
+          include: WALLET_INCLUDE,
+        });
+
+    if (current) {
+      return this.toWalletView(current);
+    }
+
+    try {
+      const walletId = await this.prisma.$transaction(
+        async (tx) => {
+          if (ownerType === LedgerOwnerType.CUSTOMER) {
+            const rows = await tx.$queryRaw<Array<{ user_id: string }>>`
+              SELECT user_id
+              FROM users
+              WHERE user_id = ${ownerId}
+              FOR UPDATE
+            `;
+
+            if (rows.length === 0) {
+              throw new NotFoundException('Customer not found');
+            }
+
+            const existing = await tx.wallet.findUnique({
+              where: { userId: ownerId },
+            });
+
+            if (existing) {
+              return existing.walletId;
+            }
+          } else {
+            const rows = await tx.$queryRaw<Array<{ agent_id: string }>>`
+              SELECT agent_id
+              FROM agents
+              WHERE agent_id = ${ownerId}
+              FOR UPDATE
+            `;
+
+            if (rows.length === 0) {
+              throw new NotFoundException('Agent not found');
+            }
+
+            const existing = await tx.wallet.findUnique({
+              where: { agentId: ownerId },
+            });
+
+            if (existing) {
+              return existing.walletId;
+            }
+          }
+
+          const ownerCode = ownerId.toUpperCase();
+
+          const availablePurpose =
+            ownerType === LedgerOwnerType.CUSTOMER
+              ? LedgerAccountPurpose.CUSTOMER_AVAILABLE
+              : LedgerAccountPurpose.AGENT_AVAILABLE;
+
+          const heldPurpose =
+            ownerType === LedgerOwnerType.CUSTOMER
+              ? LedgerAccountPurpose.CUSTOMER_HELD
+              : LedgerAccountPurpose.AGENT_HELD;
+
+          const available = await tx.ledgerAccount.create({
+            data: {
+              code: `WALLET:${ownerType}:${ownerCode}:AVAILABLE`,
+              name: `${ownerType === LedgerOwnerType.CUSTOMER ? 'Customer' : 'Agent'} Available Balance`,
+              accountType: LedgerAccountType.LIABILITY,
+              purpose: availablePurpose,
+              ownerType,
+              ownerId,
+              currency: 'NGN',
+            },
+          });
+
+          const held = await tx.ledgerAccount.create({
+            data: {
+              code: `WALLET:${ownerType}:${ownerCode}:HELD`,
+              name: `${ownerType === LedgerOwnerType.CUSTOMER ? 'Customer' : 'Agent'} Held Balance`,
+              accountType: LedgerAccountType.LIABILITY,
+              purpose: heldPurpose,
+              ownerType,
+              ownerId,
+              currency: 'NGN',
+            },
+          });
+
+          const wallet = await tx.wallet.create({
+            data: {
+              ownerType,
+              userId: ownerType === LedgerOwnerType.CUSTOMER ? ownerId : null,
+              agentId: ownerType === LedgerOwnerType.AGENT ? ownerId : null,
+              currency: 'NGN',
+              availableAccountId: available.accountId,
+              heldAccountId: held.accountId,
+            },
+          });
+
+          return wallet.walletId;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+
+      return this.getWallet(walletId);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const raced = ownerType === LedgerOwnerType.CUSTOMER
+          ? await this.prisma.wallet.findUnique({ where: { userId: ownerId } })
+          : await this.prisma.wallet.findUnique({ where: { agentId: ownerId } });
+
+        if (raced) {
+          return this.getWallet(raced.walletId);
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  private async getHold(holdId: string) {
+    const hold = await this.prisma.walletHold.findUnique({
+      where: { holdId },
+    });
+
+    if (!hold) {
+      throw new NotFoundException('Wallet hold not found');
+    }
+
+    return {
+      holdId: hold.holdId,
+      walletId: hold.walletId,
+      referenceType: hold.referenceType,
+      referenceId: hold.referenceId,
+      amountNgn: hold.amountNgn,
+      status: hold.status,
+      holdLedgerTxnId: hold.holdLedgerTxnId,
+      releaseLedgerTxnId: hold.releaseLedgerTxnId,
+      captureLedgerTxnId: hold.captureLedgerTxnId,
+      createdAt: hold.createdAt.toISOString(),
+      resolvedAt: hold.resolvedAt?.toISOString() ?? null,
+    };
+  }
+
+  private async lockWallet(
+    tx: Prisma.TransactionClient,
+    walletId: string,
+  ): Promise<WalletRecord> {
+    const rows = await tx.$queryRaw<Array<{ wallet_id: string }>>`
+      SELECT wallet_id
+      FROM wallets
+      WHERE wallet_id = ${walletId}
+      FOR UPDATE
+    `;
+
+    if (rows.length === 0) {
+      throw new NotFoundException('Wallet not found');
+    }
+
+    return tx.wallet.findUniqueOrThrow({
+      where: { walletId },
+      include: WALLET_INCLUDE,
+    });
+  }
+
+  private async getBalancesInTx(
+    tx: Prisma.TransactionClient,
+    wallet: Pick<WalletRecord, 'availableAccountId' | 'heldAccountId'>,
+  ) {
+    return this.getBalances(tx, wallet.availableAccountId, wallet.heldAccountId);
+  }
+
+  private async getBalances(
+    db: Pick<Prisma.TransactionClient, 'ledgerEntry'>,
+    availableAccountId: string,
+    heldAccountId: string,
+  ) {
+    const rows = await db.ledgerEntry.groupBy({
+      by: ['accountId', 'side'],
+      where: {
+        accountId: {
+          in: [availableAccountId, heldAccountId],
+        },
+      },
+      _sum: {
+        amountNgn: true,
+      },
+    });
+
+    let availableDebit = 0;
+    let availableCredit = 0;
+    let heldDebit = 0;
+    let heldCredit = 0;
+
+    for (const row of rows) {
+      const amount = row._sum.amountNgn ?? 0;
+
+      if (row.accountId === availableAccountId) {
+        if (row.side === LedgerEntrySide.DEBIT) {
+          availableDebit += amount;
+        } else {
+          availableCredit += amount;
+        }
+      }
+
+      if (row.accountId === heldAccountId) {
+        if (row.side === LedgerEntrySide.DEBIT) {
+          heldDebit += amount;
+        } else {
+          heldCredit += amount;
+        }
+      }
+    }
+
+    return {
+      availableNgn: availableCredit - availableDebit,
+      heldNgn: heldCredit - heldDebit,
+      totalNgn:
+        availableCredit -
+        availableDebit +
+        heldCredit -
+        heldDebit,
+    };
+  }
+
+  private async toWalletView(wallet: WalletRecord) {
+    const balances = await this.getBalances(
+      this.prisma,
+      wallet.availableAccountId,
+      wallet.heldAccountId,
+    );
+
+    return {
+      walletId: wallet.walletId,
+      ownerType: wallet.ownerType,
+      ownerId: wallet.userId ?? wallet.agentId,
+      currency: wallet.currency,
+      status: wallet.status,
+      availableNgn: balances.availableNgn,
+      heldNgn: balances.heldNgn,
+      totalNgn: balances.totalNgn,
+      availableAccountId: wallet.availableAccountId,
+      heldAccountId: wallet.heldAccountId,
+      createdAt: wallet.createdAt.toISOString(),
+      updatedAt: wallet.updatedAt.toISOString(),
+    };
+  }
+
+  private validateAmount(amountNgn: number) {
+    if (!Number.isSafeInteger(amountNgn) || amountNgn <= 0) {
+      throw new BadRequestException(
+        'Wallet amount must be a positive whole naira value',
+      );
+    }
+  }
+
+  private assertCanReceive(status: WalletStatus) {
+    if (status === WalletStatus.CLOSED) {
+      throw new ConflictException('Wallet is closed');
+    }
+  }
+
+  private assertCanSpend(status: WalletStatus) {
+    if (status !== WalletStatus.ACTIVE) {
+      throw new ConflictException(`Wallet is ${status}`);
+    }
+  }
+
+  private assertNotClosed(status: WalletStatus) {
+    if (status === WalletStatus.CLOSED) {
+      throw new ConflictException('Wallet is closed');
+    }
+  }
+
+  private assertExternalCounterAccount(
+    wallet: Pick<WalletRecord, 'availableAccountId' | 'heldAccountId'>,
+    counterAccountId: string,
+  ) {
+    if (
+      counterAccountId === wallet.availableAccountId ||
+      counterAccountId === wallet.heldAccountId
+    ) {
+      throw new BadRequestException(
+        'Counter account cannot be one of the wallet accounts',
+      );
+    }
+  }
+}

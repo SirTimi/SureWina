@@ -34,6 +34,7 @@ model User {
   tickets              Ticket[]
   paymentTransactions  PaymentTransaction[]
   jackpotAccumulations JackpotAccumulation[]
+  wallet               Wallet?               @relation("CustomerWallet")
 
   @@index([phoneNumber])
   @@index([selfExclusionUntil])
@@ -78,6 +79,8 @@ model Agent {
   bankCode            String? @map("bank_code")
   bankAccountLast4    String? @map("bank_account_last4")
   bankAccountNameHash String? @map("bank_account_name_hash")
+
+  wallet Wallet? @relation("AgentWallet")
 
   ninHash            String?   @map("nin_hash")
   idDocPath          String?   @map("id_doc_path")
@@ -413,6 +416,9 @@ model LedgerAccount {
 
   status LedgerAccountStatus @default(ACTIVE)
 
+  availableForWallet Wallet? @relation("WalletAvailableAccount")
+  heldForWallet      Wallet? @relation("WalletHeldAccount")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -448,6 +454,10 @@ model LedgerTransaction {
 
   reverses   LedgerTransaction? @relation("LedgerReversal", fields: [reversesLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
   reversedBy LedgerTransaction? @relation("LedgerReversal")
+
+  createdWalletHold  WalletHold? @relation("WalletHoldCreated")
+  releasedWalletHold WalletHold? @relation("WalletHoldReleased")
+  capturedWalletHold WalletHold? @relation("WalletHoldCaptured")
 
   entries LedgerEntry[]
 
@@ -555,6 +565,10 @@ enum LedgerTransactionKind {
   ADJUSTMENT
 
   REVERSAL
+
+  WALLET_HOLD
+  WALLET_RELEASE
+  WALLET_CAPTURE
 }
 
 // ─── TICKETS ────────────────────────────────────────────────
@@ -611,6 +625,85 @@ enum TicketStatus {
   EXPIRED
   WINNING
   ROLLED_OVER
+}
+
+// ─── WALLETS ────────────────────────────────────────────────
+
+model Wallet {
+  walletId String @id @default(uuid()) @map("wallet_id")
+
+  ownerType LedgerOwnerType @map("owner_type")
+
+  userId  String? @unique @map("user_id")
+  agentId String? @unique @map("agent_id")
+
+  currency String       @default("NGN") @db.VarChar(3)
+  status   WalletStatus @default(ACTIVE)
+
+  availableAccountId String @unique @map("available_account_id")
+  heldAccountId      String @unique @map("held_account_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User?  @relation("CustomerWallet", fields: [userId], references: [userId], onDelete: Restrict)
+  agent Agent? @relation("AgentWallet", fields: [agentId], references: [agentId], onDelete: Restrict)
+
+  availableAccount LedgerAccount @relation("WalletAvailableAccount", fields: [availableAccountId], references: [accountId], onDelete: Restrict)
+  heldAccount      LedgerAccount @relation("WalletHeldAccount", fields: [heldAccountId], references: [accountId], onDelete: Restrict)
+
+  holds WalletHold[]
+
+  @@index([ownerType, status])
+  @@index([createdAt])
+  @@map("wallets")
+}
+
+model WalletHold {
+  holdId String @id @default(uuid()) @map("hold_id")
+
+  walletId String @map("wallet_id")
+
+  idempotencyKey String @unique @map("idempotency_key") @db.VarChar(200)
+
+  referenceType String @map("reference_type") @db.VarChar(100)
+  referenceId   String @map("reference_id") @db.VarChar(180)
+
+  amountNgn Int @map("amount_ngn")
+
+  status WalletHoldStatus @default(HELD)
+
+  holdLedgerTxnId    String  @unique @map("hold_ledger_txn_id")
+  releaseLedgerTxnId String? @unique @map("release_ledger_txn_id")
+  captureLedgerTxnId String? @unique @map("capture_ledger_txn_id")
+
+  releaseIdempotencyKey String? @unique @map("release_idempotency_key") @db.VarChar(200)
+  captureIdempotencyKey String? @unique @map("capture_idempotency_key") @db.VarChar(200)
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+
+  holdLedgerTxn    LedgerTransaction  @relation("WalletHoldCreated", fields: [holdLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  releaseLedgerTxn LedgerTransaction? @relation("WalletHoldReleased", fields: [releaseLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  captureLedgerTxn LedgerTransaction? @relation("WalletHoldCaptured", fields: [captureLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+
+  @@index([walletId, status])
+  @@index([referenceType, referenceId])
+  @@map("wallet_holds")
+}
+
+enum WalletStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum WalletHoldStatus {
+  HELD
+  RELEASED
+  CAPTURED
 }
 
 // ─── JACKPOT ACCUMULATION ───────────────────────────────────
