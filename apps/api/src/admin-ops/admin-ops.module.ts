@@ -19,7 +19,7 @@ import { UserAdminController } from './user-admin.controller';
 import {CollectionPointAdminController} from './collection-point-admin.controller'
 
 import { ClaimsModule } from '../claims/claims.module'
-
+import { PaymentRefundService } from './payment-refund.service';
 @Module({
   imports: [JwtModule.register({}), AuditModule, ClaimsModule],
   controllers: [
@@ -34,7 +34,7 @@ import { ClaimsModule } from '../claims/claims.module'
     UserAdminController,
     CollectionPointAdminController
   ],
-  providers: [AdminDashboardService, CustomerAdminService, AgentAdminService, FinanceAdminService, ComplianceAdminService, AdminNotificationsService],
+  providers: [AdminDashboardService, CustomerAdminService, AgentAdminService, FinanceAdminService, ComplianceAdminService, AdminNotificationsService, PaymentRefundService],
   exports: [CustomerAdminService]
 })
 export class AdminOpsModule {}

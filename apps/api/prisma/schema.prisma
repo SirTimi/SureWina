@@ -322,10 +322,25 @@ model PaymentTransaction {
   purchaseDraw   Draw?     @relation("PaymentPurchaseDraw", fields: [purchaseDrawId], references: [drawId])
   providerPaidAt DateTime? @map("provider_paid_at")
 
+  providerTransactionId String? @map("provider_transaction_id")
+
+  refundStatus             PaymentRefundStatus? @map("refund_status")
+  refundProvider           PaymentGateway?      @map("refund_provider")
+  refundReference          String?              @map("refund_reference")
+  refundIdempotencyKey     String?              @unique @map("refund_idempotency_key")
+  refundReason             String?              @map("refund_reason")
+  refundRequestedByAdminId String?              @map("refund_requested_by_admin_id")
+  refundRequestedAt        DateTime?            @map("refund_requested_at")
+  refundCompletedAt        DateTime?            @map("refund_completed_at")
+  refundLastCheckedAt      DateTime?            @map("refund_last_checked_at")
+  refundFailureReason      String?              @map("refund_failure_reason")
+
   @@index([gateway, status])
   @@index([buyerPhone, createdAt])
   @@index([agentId, createdAt])
   @@index([purchaseDrawId])
+  @@index([gateway, providerTransactionId])
+  @@index([refundStatus, refundRequestedAt])
   @@map("payment_transactions")
 }
 
@@ -339,6 +354,7 @@ enum PaymentStatus {
   PENDING
   CONFIRMED
   REVIEW_REQUIRED
+  REFUND_PENDING
   FAILED
   DUPLICATE
   REFUNDED
@@ -347,6 +363,198 @@ enum PaymentStatus {
 enum PurchaseChannel {
   DIRECT
   AGENT
+}
+
+enum PaymentRefundStatus {
+  REQUESTED
+  SUBMITTED
+  PROCESSING
+  NEEDS_ATTENTION
+  SUCCEEDED
+  FAILED
+  UNKNOWN
+}
+
+// ─── DOUBLE-ENTRY LEDGER ───────────────────────────────────
+//
+// The ledger is append-only.
+//
+// Posted transactions and entries are never edited or deleted.
+// Corrections are represented by new REVERSAL transactions.
+//
+// Wallets introduced later sit on top of these accounts.
+// The ledger itself is the accounting source of truth.
+
+model LedgerAccount {
+  accountId String @id @default(uuid()) @map("account_id")
+
+  // Deterministic human-readable identifier.
+  //
+  // Examples:
+  // SYS:PSP:PAYSTACK
+  // SYS:BANK:CASH
+  // CUSTOMER:<userId>:AVAILABLE
+  code String @unique @db.VarChar(180)
+
+  name String @db.VarChar(180)
+
+  accountType LedgerAccountType    @map("account_type")
+  purpose     LedgerAccountPurpose
+
+  ownerType LedgerOwnerType @default(SYSTEM) @map("owner_type")
+
+  // Null for platform/system accounts.
+  //
+  // Customer and agent accounts introduced in Phase 3
+  // will carry their userId/agentId here.
+  ownerId String? @map("owner_id")
+
+  currency String @default("NGN") @db.VarChar(3)
+
+  status LedgerAccountStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  entries LedgerEntry[]
+
+  @@index([ownerType, ownerId])
+  @@index([purpose, currency])
+  @@index([status])
+  @@map("ledger_accounts")
+}
+
+model LedgerTransaction {
+  ledgerTxnId String @id @default(uuid()) @map("ledger_txn_id")
+
+  idempotencyKey String                @unique @map("idempotency_key") @db.VarChar(200)
+  kind           LedgerTransactionKind
+
+  referenceType String @map("reference_type") @db.VarChar(100)
+  referenceId   String @map("reference_id") @db.VarChar(180)
+
+  description String? @db.Text
+  currency    String  @default("NGN") @db.VarChar(3)
+
+  totalAmountNgn Int    @map("total_amount_ngn")
+  entryCount     Int    @map("entry_count")
+  fingerprint    String @db.Char(64)
+
+  metadata   Json?
+  occurredAt DateTime @map("occurred_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  reversesLedgerTxnId String? @unique @map("reverses_ledger_txn_id")
+
+  reverses   LedgerTransaction? @relation("LedgerReversal", fields: [reversesLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  reversedBy LedgerTransaction? @relation("LedgerReversal")
+
+  entries LedgerEntry[]
+
+  @@index([referenceType, referenceId])
+  @@index([kind, occurredAt])
+  @@index([createdAt])
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  entryId String @id @default(uuid()) @map("entry_id")
+
+  ledgerTxnId String @map("ledger_txn_id")
+  accountId   String @map("account_id")
+
+  lineNo Int @map("line_no")
+
+  side LedgerEntrySide
+
+  /**
+   * Always positive.
+   * Direction is represented by side = DEBIT/CREDIT.
+   */
+  amountNgn Int @map("amount_ngn")
+
+  memo String? @db.VarChar(300)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  transaction LedgerTransaction @relation(fields: [ledgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+
+  account LedgerAccount @relation(fields: [accountId], references: [accountId], onDelete: Restrict)
+
+  @@unique([ledgerTxnId, lineNo])
+  @@index([accountId, createdAt])
+  @@index([ledgerTxnId])
+  @@map("ledger_entries")
+}
+
+enum LedgerAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum LedgerOwnerType {
+  SYSTEM
+  CUSTOMER
+  AGENT
+}
+
+enum LedgerAccountStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum LedgerAccountPurpose {
+  PSP_CLEARING
+  BANK_CASH
+
+  CUSTOMER_AVAILABLE
+  CUSTOMER_HELD
+
+  AGENT_AVAILABLE
+  AGENT_HELD
+
+  TICKET_SALES_REVENUE
+
+  PRIZE_EXPENSE
+  PRIZE_PAYABLE
+
+  TAX_WHT_PAYABLE
+
+  REFUND_PAYABLE
+
+  AGENT_COMMISSION_EXPENSE
+
+  SUSPENSE
+}
+
+enum LedgerEntrySide {
+  DEBIT
+  CREDIT
+}
+
+enum LedgerTransactionKind {
+  OPENING_BALANCE
+
+  FUNDING
+  PURCHASE
+
+  PRIZE_ACCRUAL
+  PRIZE_PAYOUT
+
+  REFUND
+
+  AGENT_SALE
+  AGENT_REMITTANCE
+  COMMISSION
+
+  TRANSFER
+  ADJUSTMENT
+
+  REVERSAL
 }
 
 // ─── TICKETS ────────────────────────────────────────────────
@@ -399,6 +607,7 @@ enum TicketType {
 
 enum TicketStatus {
   ACTIVE
+  REFUND_PENDING
   EXPIRED
   WINNING
   ROLLED_OVER

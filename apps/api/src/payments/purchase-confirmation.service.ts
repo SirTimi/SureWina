@@ -977,6 +977,9 @@ export class PurchaseConfirmationService {
             providerPaidAt:
               verifiedPayment.paidAt,
 
+            providerTransactionId:
+              verifiedPayment.providerTransactionId,
+
             failureReason:
               null,
 

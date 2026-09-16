@@ -28,6 +28,8 @@ import {IdentityModule } from './agent-ops/kyc/identity.module'
 import { NotificationsModule} from './notifications/notifications.module'
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { LedgerModule } from './ledger/ledger.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -62,6 +64,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     DisputesModule, 
     IdentityModule,
     NotificationsModule,
+    LedgerModule,
     ThrottlerModule.forRoot([
       {
         name: 'default',

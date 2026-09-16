@@ -6,7 +6,13 @@ import { NotificationQueueService } from '../queue/notification-queue.service';
 import { PaymentVerificationService } from './payment-verification.service';
 
 export type PurchaseStatusResponse = {
-  status: 'PENDING' | 'CONFIRMED' | 'FAILED';
+  status:
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'REVIEW_REQUIRED'
+  | 'REFUND_PENDING'
+  | 'REFUNDED'
+  | 'FAILED';
   reference: string;
   ticketRefs: string[];
   drawCode: string | null;
@@ -123,9 +129,11 @@ export class PurchaseStatusService {
     };
 
     if (txn.status !== PaymentStatus.CONFIRMED) {
+
+      const status = txn.status === PaymentStatus.FAILED ? 'FAILED' : txn.status === PaymentStatus.REVIEW_REQUIRED ? 'REFUND_PENDING' : txn.status === PaymentStatus.REFUNDED ? 'REFUNDED' : 'PENDING';
       return {
         ...base,
-        status: txn.status === PaymentStatus.FAILED ? 'FAILED' : 'PENDING',
+        status: status,
         ticketRefs: [],
         drawCode: null,
         drawScheduledAt: null,
