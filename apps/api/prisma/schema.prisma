@@ -319,7 +319,8 @@ model PaymentTransaction {
   // Provider/webhook metadata must never decide which draw receives tickets.
   purchaseDrawId String? @map("purchase_draw_id")
 
-  purchaseDraw Draw? @relation("PaymentPurchaseDraw", fields: [purchaseDrawId], references: [drawId])
+  purchaseDraw   Draw?     @relation("PaymentPurchaseDraw", fields: [purchaseDrawId], references: [drawId])
+  providerPaidAt DateTime? @map("provider_paid_at")
 
   @@index([gateway, status])
   @@index([buyerPhone, createdAt])
@@ -337,6 +338,7 @@ enum PaymentGateway {
 enum PaymentStatus {
   PENDING
   CONFIRMED
+  REVIEW_REQUIRED
   FAILED
   DUPLICATE
   REFUNDED

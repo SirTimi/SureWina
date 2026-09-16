@@ -5,13 +5,9 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 
-import {
-  ConfigService,
-} from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 
-import {
-  PaymentGateway,
-} from '@prisma/client';
+import { PaymentGateway } from '@prisma/client';
 
 export type PaymentVerificationStatus =
   | 'SUCCESS'
@@ -23,40 +19,63 @@ export type VerifiedProviderPayment = {
 
   reference: string;
 
-  providerTransactionId:
-    string | null;
+  providerTransactionId: string | null;
 
-  status:
-    PaymentVerificationStatus;
+  status: PaymentVerificationStatus;
 
   /*
    * Normalised into naira.
-   *
-   * SureWina currently prices tickets in whole NGN.
    */
-  amountNgn:
-    number | null;
+  amountNgn: number | null;
 
-  currency:
-    string | null;
+  currency: string | null;
 
-  metadata:
-    Record<string, unknown> | null;
+  /*
+   * Exact provider-confirmed successful payment time,
+   * when the provider exposes a timestamp that we can
+   * safely treat as the actual payment completion time.
+   *
+   * Paystack provides paid_at.
+   *
+   * Flutterwave v3 verification currently does not give
+   * us a documented equivalent that we are comfortable
+   * using for draw-cutoff eligibility.
+   */
+  paidAt: Date | null;
 
-  raw:
-    unknown;
+  /*
+   * The time SureWina successfully observed the provider's
+   * independently verified transaction state.
+   *
+   * This becomes important when the provider does not expose
+   * a reliable exact payment completion timestamp.
+   */
+  verifiedAt: Date;
+
+  metadata: Record<string, unknown> | null;
+
+  raw: unknown;
 };
 
 type PaystackVerifyResponse = {
   status?: boolean;
+
   message?: string;
 
   data?: {
     id?: number | string;
+
     status?: string;
+
     reference?: string;
 
-    // Paystack returns subunits.
+    /*
+     * Paystack returns amount in the currency's
+     * minor unit.
+     *
+     * For NGN:
+     * 100 kobo = 1 naira.
+     */
     amount?: number;
 
     currency?: string;
@@ -65,11 +84,17 @@ type PaystackVerifyResponse = {
       | Record<string, unknown>
       | string
       | null;
+
+    /*
+     * Paystack's confirmed payment timestamp.
+     */
+    paid_at?: string | null;
   };
 };
 
 type FlutterwaveVerifyResponse = {
   status?: string;
+
   message?: string;
 
   data?: {
@@ -80,8 +105,10 @@ type FlutterwaveVerifyResponse = {
     status?: string;
 
     /*
-     * Flutterwave returns the amount in the
+     * Flutterwave returns amount in the
      * major currency unit.
+     *
+     * For NGN this is already naira.
      */
     amount?: number;
 
@@ -89,22 +116,18 @@ type FlutterwaveVerifyResponse = {
 
     currency?: string;
 
-    meta?:
-      | Record<string, unknown>
-      | null;
+    meta?: Record<string, unknown> | null;
   };
 };
 
 @Injectable()
 export class PaymentVerificationService {
-  private readonly logger =
-    new Logger(
-      PaymentVerificationService.name,
-    );
+  private readonly logger = new Logger(
+    PaymentVerificationService.name,
+  );
 
   constructor(
-    private readonly config:
-      ConfigService,
+    private readonly config: ConfigService,
   ) {}
 
   async verifyPaystack(
@@ -178,10 +201,17 @@ export class PaymentVerificationService {
       return null;
     }
 
-    const verifiedReference = payload.data.reference;
-
     const data =
       payload.data;
+
+    /*
+     * Capture this after validation so TypeScript knows
+     * it is definitely a string.
+     */
+    const verifiedReference =
+      data.reference;
+
+    if (!verifiedReference) {this.logger.warn(`Paystack verification failed for ${reference}: missing reference in response`); return null; }
 
     const metadata =
       data.metadata &&
@@ -190,11 +220,26 @@ export class PaymentVerificationService {
         ? data.metadata
         : null;
 
+    /*
+     * Paystack amount is returned in kobo.
+     */
     const amountNgn =
       typeof data.amount === 'number' &&
       Number.isFinite(data.amount)
         ? data.amount / 100
         : null;
+
+    /*
+     * Paystack exposes the exact successful payment
+     * timestamp as paid_at.
+     */
+    const paidAt =
+      this.parseDate(
+        data.paid_at,
+      );
+
+    const verifiedAt =
+      new Date();
 
     return {
       gateway:
@@ -216,14 +261,20 @@ export class PaymentVerificationService {
       amountNgn,
 
       currency:
-        typeof data.currency ===
-        'string'
-          ? data.currency.toUpperCase()
+        typeof data.currency === 'string'
+          ? data.currency
+              .trim()
+              .toUpperCase()
           : null,
+
+      paidAt,
+
+      verifiedAt,
 
       metadata,
 
-      raw: payload,
+      raw:
+        payload,
     };
   }
 
@@ -301,10 +352,17 @@ export class PaymentVerificationService {
       return null;
     }
 
-    const verifiedReference = payload.data.tx_ref;
-
     const data =
       payload.data;
+
+    /*
+     * Capture after validation for strict TypeScript
+     * narrowing.
+     */
+    const verifiedReference =
+      data.tx_ref;
+
+    if (!verifiedReference) {this.logger.warn(`Flutterwave verification failed for transaction ${transactionId}: missing tx_ref in response`); return null; }
 
     const metadata =
       data.meta &&
@@ -312,6 +370,36 @@ export class PaymentVerificationService {
       !Array.isArray(data.meta)
         ? data.meta
         : null;
+
+    /*
+     * Flutterwave amount is already in the major
+     * currency unit.
+     *
+     * For NGN this means naira.
+     */
+    const amountNgn =
+      typeof data.amount === 'number' &&
+      Number.isFinite(data.amount)
+        ? data.amount
+        : null;
+
+    /*
+     * Flutterwave v3 does not currently provide us
+     * with a documented equivalent of Paystack's
+     * exact paid_at field that we are willing to use
+     * for draw-cutoff eligibility.
+     *
+     * Therefore this intentionally remains null.
+     */
+    const paidAt: Date | null =
+      null;
+
+    /*
+     * This is when SureWina independently verified
+     * Flutterwave's transaction state.
+     */
+    const verifiedAt =
+      new Date();
 
     return {
       gateway:
@@ -330,21 +418,23 @@ export class PaymentVerificationService {
           data.status,
         ),
 
-      amountNgn:
-        typeof data.amount === 'number' &&
-        Number.isFinite(data.amount)
-          ? data.amount
-          : null,
+      amountNgn,
 
       currency:
-        typeof data.currency ===
-        'string'
-          ? data.currency.toUpperCase()
+        typeof data.currency === 'string'
+          ? data.currency
+              .trim()
+              .toUpperCase()
           : null,
+
+      paidAt,
+
+      verifiedAt,
 
       metadata,
 
-      raw: payload,
+      raw:
+        payload,
     };
   }
 
@@ -352,7 +442,9 @@ export class PaymentVerificationService {
     status?: string,
   ): PaymentVerificationStatus {
     switch (
-      status?.trim().toLowerCase()
+      status
+        ?.trim()
+        .toLowerCase()
     ) {
       case 'success':
         return 'SUCCESS';
@@ -371,7 +463,9 @@ export class PaymentVerificationService {
     status?: string,
   ): PaymentVerificationStatus {
     switch (
-      status?.trim().toLowerCase()
+      status
+        ?.trim()
+        .toLowerCase()
     ) {
       case 'successful':
         return 'SUCCESS';
@@ -383,5 +477,26 @@ export class PaymentVerificationService {
       default:
         return 'PENDING';
     }
+  }
+
+  private parseDate(
+    value?: string | null,
+  ): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const parsed =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        parsed.getTime(),
+      )
+    ) {
+      return null;
+    }
+
+    return parsed;
   }
 }
