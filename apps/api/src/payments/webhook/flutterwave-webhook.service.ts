@@ -15,6 +15,8 @@ import {
   NotificationQueueService,
 } from '../../queue/notification-queue.service';
 
+import { WalletFundingService } from '../wallet-funding.service';
+
 type FlwEvent = {
   event: string;
 
@@ -49,6 +51,9 @@ export class FlutterwaveWebhookService {
 
     private readonly notificationQueue:
       NotificationQueueService,
+
+    private readonly walletFunding:
+      WalletFundingService,
   ) {}
 
   async handle(
@@ -114,6 +119,19 @@ export class FlutterwaveWebhookService {
         this.logger.warn(
           `Flutterwave webhook tx_ref mismatch: webhook=${event.data.tx_ref}, verified=${verified.reference}`,
         );
+      }
+
+      const funding = await this.walletFunding.confirmIfFunding({
+        reference: verified.reference,
+        verifiedPayment: verified,
+        rawEvent: event,
+      });
+
+      if (funding) {
+        this.logger.log(
+          `Wallet funding processed for ${verified.reference}`,
+        );
+        return;
       }
 
       const confirmed =

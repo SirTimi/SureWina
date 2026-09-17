@@ -452,6 +452,8 @@ model LedgerTransaction {
 
   reversesLedgerTxnId String? @unique @map("reverses_ledger_txn_id")
 
+  walletFunding WalletFunding? @relation("WalletFundingLedger")
+
   reverses   LedgerTransaction? @relation("LedgerReversal", fields: [reversesLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
   reversedBy LedgerTransaction? @relation("LedgerReversal")
 
@@ -465,6 +467,51 @@ model LedgerTransaction {
   @@index([kind, occurredAt])
   @@index([createdAt])
   @@map("ledger_transactions")
+}
+
+model WalletFunding {
+  fundingId String @id @default(uuid()) @map("funding_id")
+  walletId  String @map("wallet_id")
+
+  gatewayReference String         @unique @map("gateway_reference")
+  gateway          PaymentGateway
+
+  amountNgn Int    @map("amount_ngn")
+  currency  String @default("NGN") @db.VarChar(3)
+
+  status WalletFundingStatus @default(PENDING)
+
+  providerTransactionId String? @map("provider_transaction_id")
+
+  ledgerTxnId String? @unique @map("ledger_txn_id")
+
+  failureReason       String? @map("failure_reason")
+  verificationPayload Json?   @map("verification_payload")
+
+  initiatedAt    DateTime  @default(now()) @map("initiated_at")
+  lastVerifiedAt DateTime? @map("last_verified_at")
+  creditedAt     DateTime? @map("credited_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+
+  ledgerTransaction LedgerTransaction? @relation("WalletFundingLedger", fields: [ledgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+
+  @@unique([gateway, providerTransactionId])
+  @@index([walletId, createdAt])
+  @@index([gateway, status])
+  @@index([status, createdAt])
+  @@map("wallet_fundings")
+}
+
+enum WalletFundingStatus {
+  PENDING
+  PROCESSING
+  CREDITED
+  REVIEW_REQUIRED
+  FAILED
 }
 
 model LedgerEntry {
@@ -642,6 +689,8 @@ model Wallet {
 
   availableAccountId String @unique @map("available_account_id")
   heldAccountId      String @unique @map("held_account_id")
+
+  fundings WalletFunding[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

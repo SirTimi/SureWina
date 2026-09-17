@@ -81,4 +81,7 @@ export const envValidationSchema = Joi.object({
   MONNIFY_ALLOW_UNSIGNED_SANDBOX_WEBHOOKS:
     Joi.boolean()
       .default(false),
+
+  WALLET_FUNDING_MIN_NGN: Joi.number().integer().min(1).default(100),
+  WALLET_FUNDING_MAX_NGN: Joi.number().integer().min(100).default(500000),
 });

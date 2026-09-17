@@ -11,6 +11,8 @@ import {
   PaymentVerificationService,
 } from '../payment-verification.service';
 
+import { WalletFundingService } from '../wallet-funding.service';
+
 import {
   NotificationQueueService,
 } from '../../queue/notification-queue.service';
@@ -42,6 +44,9 @@ export class PaystackWebhookService {
 
     private readonly notificationQueue:
       NotificationQueueService,
+
+    private readonly walletFunding:
+      WalletFundingService,
   ) {}
 
   async handle(
@@ -85,6 +90,17 @@ export class PaystackWebhookService {
           `Could not independently verify Paystack payment ${reference}`,
         );
 
+        return;
+      }
+
+      const funding = await this.walletFunding.confirmIfFunding({
+        reference,
+        verifiedPayment: verified,
+        rawEvent: event,
+      });
+
+      if (funding) {
+        this.logger.log(`Wallet funding processed for ${reference}`);
         return;
       }
 

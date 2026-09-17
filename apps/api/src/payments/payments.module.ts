@@ -16,12 +16,20 @@ import { PurchaseStatusService } from './purchase-status.service'
 import { AccountModule } from '../account/account.module'
 import { TicketsModule } from '../tickets/tickets.module'
 import { PaymentVerificationService } from './payment-verification.service';
+import { JwtModule } from '@nestjs/jwt';
+import { WalletModule } from '../wallet/wallet.module';
+import { CustomerJwtGuard } from '../auth/guards/customer-jwt.guard';
 
+import { WalletFundingService } from './wallet-funding.service';
+import { WalletFundingController } from './wallet-funding.controller';
+import { WalletFundingAdminController } from './wallet-funding-admin.controller';
 @Module({
   controllers: [
     PaymentsController,
     PaystackWebhookController,
     FlutterwaveWebhookController,
+    WalletFundingController,
+    WalletFundingAdminController,
   ],
   providers: [
     PaymentsService,
@@ -34,9 +42,17 @@ import { PaymentVerificationService } from './payment-verification.service';
     FlutterwaveWebhookService,
     PurchaseStatusService,
     FlutterwaveHashGuard,
-    PaymentVerificationService
+    PaymentVerificationService,
+    WalletFundingService,
+    CustomerJwtGuard,
   ],
   exports: [PaymentsService, JackpotAccumulationService],
-  imports: [AdminOpsModule, AccountModule, TicketsModule],
+  imports: [
+    JwtModule.register({}),
+    AdminOpsModule,
+    AccountModule,
+    TicketsModule,
+    WalletModule,
+  ],  
 })
 export class PaymentsModule {}

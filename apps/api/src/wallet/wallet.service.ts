@@ -42,7 +42,7 @@ type WalletMovementContext = {
   occurredAt?: Date;
 };
 
-type WalletCreditInput = WalletMovementContext & {
+export type WalletCreditInput = WalletMovementContext & {
   walletId: string;
   amountNgn: number;
   counterAccountId: string;
@@ -208,47 +208,52 @@ export class WalletService {
   }
 
   async credit(input: WalletCreditInput) {
-    this.validateAmount(input.amountNgn);
-
     const journal = await this.prisma.$transaction(
-      async (tx) => {
+        (tx) => this.creditInTransaction(tx, input),
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    return {
+        journal,
+        wallet: await this.getWallet(input.walletId),
+    };
+    }
+
+    async creditInTransaction(
+        tx: Prisma.TransactionClient,
+        input: WalletCreditInput,
+    ) {
+        this.validateAmount(input.amountNgn);
+
         const wallet = await this.lockWallet(tx, input.walletId);
 
         this.assertCanReceive(wallet.status);
         this.assertExternalCounterAccount(wallet, input.counterAccountId);
 
         return this.ledger.postInTransaction(tx, {
-          idempotencyKey: input.idempotencyKey,
-          kind: input.kind,
-          referenceType: input.referenceType,
-          referenceId: input.referenceId,
-          description: input.description,
-          metadata: input.metadata,
-          occurredAt: input.occurredAt,
-          lines: [
-            {
-              accountId: input.counterAccountId,
-              side: LedgerEntrySide.DEBIT,
-              amountNgn: input.amountNgn,
-              memo: input.description,
-            },
-            {
-              accountId: wallet.availableAccountId,
-              side: LedgerEntrySide.CREDIT,
-              amountNgn: input.amountNgn,
-              memo: input.description,
-            },
-          ],
+            idempotencyKey: input.idempotencyKey,
+            kind: input.kind,
+            referenceType: input.referenceType,
+            referenceId: input.referenceId,
+            description: input.description,
+            metadata: input.metadata,
+            occurredAt: input.occurredAt,
+            lines: [
+                {
+                    accountId: input.counterAccountId,
+                    side: LedgerEntrySide.DEBIT,
+                    amountNgn: input.amountNgn,
+                    memo: input.description,
+                },
+                {
+                    accountId: wallet.availableAccountId,
+                    side: LedgerEntrySide.CREDIT,
+                    amountNgn: input.amountNgn,
+                    memo: input.description,
+                },
+            ],
         });
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
-
-    return {
-      journal,
-      wallet: await this.getWallet(input.walletId),
-    };
-  }
+    }
 
   async debit(input: WalletDebitInput) {
     this.validateAmount(input.amountNgn);
