@@ -14,7 +14,7 @@ import {
 export class DevPrizePayoutProvider
   implements PrizePayoutProvider
 {
-  readonly providerCode = 'DEV';
+  readonly providerCode = 'DEV' as const;
 
   async initiate(
     input: InitiatePrizePayoutInput,

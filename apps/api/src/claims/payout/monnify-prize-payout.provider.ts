@@ -4,14 +4,9 @@ import {
 } from '@nestjs/common';
 
 import { ConfigService } from '@nestjs/config';
+import { PrizePayoutStatus } from '@prisma/client';
 
-import {
-  PrizePayoutStatus,
-} from '@prisma/client';
-
-import {
-  MonnifyClientService,
-} from '../../integrations/monnify/monnify-client.service';
+import { MonnifyClientService } from '../../integrations/monnify/monnify-client.service';
 
 import {
   InitiatePrizePayoutInput,
@@ -21,14 +16,11 @@ import {
 
 type MonnifyTransferBody = {
   amount?: number;
-
   reference?: string;
-
   status?: string;
-
   transactionReference?: string;
-
   transactionDescription?: string;
+  currency?: string;
 
   destinationAccountNumber?: string;
   destinationAccountName?: string;
@@ -40,14 +32,11 @@ type MonnifyTransferBody = {
 export class MonnifyPrizePayoutProvider
   implements PrizePayoutProvider
 {
-  readonly providerCode = 'MONNIFY';
+  readonly providerCode = 'MONNIFY' as const;
 
   constructor(
-    private readonly monnify:
-      MonnifyClientService,
-
-    private readonly config:
-      ConfigService,
+    private readonly monnify: MonnifyClientService,
+    private readonly config: ConfigService,
   ) {}
 
   async initiate(
@@ -78,9 +67,11 @@ export class MonnifyPrizePayoutProvider
             amount: input.amountNgn,
 
             /*
-             * This is the stable SureWina idempotency key.
+             * Stable SureWina payout-attempt reference.
              *
-             * Monnify requires unique references.
+             * Reusing this exact key after an uncertain response
+             * allows us to query the original transfer instead of
+             * accidentally creating another payout.
              */
             reference: input.idempotencyKey,
 
@@ -100,61 +91,47 @@ export class MonnifyPrizePayoutProvider
             sourceAccountNumber,
 
             /*
-             * We intentionally request asynchronous processing.
-             *
-             * SureWina's payout state machine is designed to wait
-             * for provider confirmation rather than blocking an
-             * HTTP request until the bank responds.
+             * SureWina never treats transfer initiation as proof
+             * that the winner has received money.
              */
             async: true,
           }),
         },
       );
 
-    const payload = result.payload;
-    const body = payload?.responseBody;
+    const payload =
+      result.payload;
+
+    const body =
+      payload?.responseBody;
 
     /*
-     * Normal successful API response.
+     * Successful API response.
      *
-     * "Successful API response" here does not necessarily mean
-     * beneficiary paid. The Monnify status determines that.
+     * This does NOT necessarily mean the beneficiary has been paid.
+     * The returned Monnify transfer status determines our internal
+     * PrizePayoutStatus.
      */
     if (
       payload?.requestSuccessful &&
       body?.reference
     ) {
-      return {
-        provider: this.providerCode,
-
-        reference: body.reference,
-
-        status: this.mapStatus(
-          body.status,
-        ),
-
-        rawStatus:
-          body.status ?? 'UNKNOWN',
-
-        failureReason:
-          this.isFailureStatus(body.status)
-            ? body.transactionDescription ??
-              payload.responseMessage
-            : undefined,
-      };
+      return this.fromTransferBody(
+        body,
+        payload.responseMessage,
+      );
     }
 
     const responseCode =
       payload?.responseCode;
 
     /*
-     * D05 means the supplied reference has already been used.
+     * D05: reference already exists.
      *
-     * Because our reference is intentionally stable, this may mean
-     * Monnify already accepted an earlier request before SureWina
-     * lost the response.
+     * Since the reference is intentionally stable, an earlier
+     * request may already have been accepted by Monnify.
      *
-     * Never initiate another payout. Query the existing reference.
+     * Never initiate another transfer. Query the original.
      */
     if (responseCode === 'D05') {
       return this.getStatus(
@@ -163,8 +140,9 @@ export class MonnifyPrizePayoutProvider
     }
 
     /*
-     * Monnify recommends re-querying after error code 99 because
-     * the actual outcome may be uncertain.
+     * Monnify code 99 represents an uncertain outcome.
+     *
+     * First try to recover by querying the same reference.
      */
     if (responseCode === '99') {
       try {
@@ -173,26 +151,43 @@ export class MonnifyPrizePayoutProvider
         );
       } catch {
         return {
-          provider: this.providerCode,
+          provider:
+            this.providerCode,
 
           reference:
             input.idempotencyKey,
 
+          providerTransactionId:
+            null,
+
           status:
             PrizePayoutStatus.UNKNOWN,
 
-          rawStatus: responseCode,
+          rawStatus:
+            responseCode,
 
           failureReason:
             payload?.responseMessage ??
             'Monnify returned an uncertain payout status',
+
+          amountNgn:
+            null,
+
+          currency:
+            null,
+
+          destinationBankCode:
+            null,
+
+          destinationAccountLast4:
+            null,
         };
       }
     }
 
     /*
-     * These codes represent requests Monnify has conclusively
-     * rejected rather than transfers whose outcome is unknown.
+     * These response codes are treated as conclusive rejection
+     * before a successful transfer exists.
      */
     if (
       responseCode &&
@@ -206,33 +201,54 @@ export class MonnifyPrizePayoutProvider
       ].includes(responseCode)
     ) {
       return {
-        provider: this.providerCode,
+        provider:
+          this.providerCode,
 
         reference:
           input.idempotencyKey,
 
+        providerTransactionId:
+          null,
+
         status:
           PrizePayoutStatus.FAILED,
 
-        rawStatus: responseCode,
+        rawStatus:
+          responseCode,
 
         failureReason:
           payload?.responseMessage ??
           'Monnify rejected the payout',
+
+        amountNgn:
+          null,
+
+        currency:
+          null,
+
+        destinationBankCode:
+          null,
+
+        destinationAccountLast4:
+          null,
       };
     }
 
     /*
-     * Unknown HTTP/API response.
+     * An unexpected HTTP/API response does not prove the transfer
+     * failed.
      *
-     * Do NOT call this FAILED because we cannot prove that
-     * Monnify did not create the transfer.
+     * The safe state is UNKNOWN.
      */
     return {
-      provider: this.providerCode,
+      provider:
+        this.providerCode,
 
       reference:
         input.idempotencyKey,
+
+      providerTransactionId:
+        null,
 
       status:
         PrizePayoutStatus.UNKNOWN,
@@ -244,78 +260,112 @@ export class MonnifyPrizePayoutProvider
       failureReason:
         payload?.responseMessage ??
         'Unable to determine Monnify payout state',
+
+      amountNgn:
+        null,
+
+      currency:
+        null,
+
+      destinationBankCode:
+        null,
+
+      destinationAccountLast4:
+        null,
     };
   }
 
   async getStatus(
     reference: string,
   ): Promise<PrizePayoutProviderResult> {
+    const cleanReference =
+      reference.trim();
+
+    if (!cleanReference) {
+      throw new InternalServerErrorException(
+        'Monnify payout reference is required',
+      );
+    }
+
     const result =
       await this.monnify.request<MonnifyTransferBody>(
         `/api/v2/disbursements/single/summary?reference=${encodeURIComponent(
-          reference,
+          cleanReference,
         )}`,
         {
           method: 'GET',
         },
       );
 
-    const payload = result.payload;
-    const body = payload?.responseBody;
+    const payload =
+      result.payload;
+
+    const body =
+      payload?.responseBody;
 
     if (
       payload?.requestSuccessful &&
       body?.reference
     ) {
-      return {
-        provider: this.providerCode,
-
-        reference:
-          body.reference,
-
-        status:
-          this.mapStatus(body.status),
-
-        rawStatus:
-          body.status ?? 'UNKNOWN',
-
-        failureReason:
-          this.isFailureStatus(body.status)
-            ? body.transactionDescription ??
-              payload.responseMessage
-            : undefined,
-      };
+      return this.fromTransferBody(
+        body,
+        payload.responseMessage,
+      );
     }
 
     /*
-     * D02 means Monnify has no transaction for this reference.
+     * Monnify reports D02 when no transfer exists for the
+     * supplied reference.
      *
-     * Their documentation treats that as a failed/non-existent
-     * transfer.
+     * This is treated as a conclusive non-existent/failed transfer.
      */
     if (
-      payload?.responseCode === 'D02'
+      payload?.responseCode ===
+      'D02'
     ) {
       return {
-        provider: this.providerCode,
+        provider:
+          this.providerCode,
 
-        reference,
+        reference:
+          cleanReference,
+
+        providerTransactionId:
+          null,
 
         status:
           PrizePayoutStatus.FAILED,
 
-        rawStatus: 'D02',
+        rawStatus:
+          'D02',
 
         failureReason:
           payload.responseMessage ??
           'Transfer does not exist',
+
+        amountNgn:
+          null,
+
+        currency:
+          null,
+
+        destinationBankCode:
+          null,
+
+        destinationAccountLast4:
+          null,
       };
     }
 
     return {
-      provider: this.providerCode,
+      provider:
+        this.providerCode,
 
-      reference,
+      reference:
+        cleanReference,
+
+      providerTransactionId:
+        null,
 
       status:
         PrizePayoutStatus.UNKNOWN,
@@ -327,6 +377,92 @@ export class MonnifyPrizePayoutProvider
       failureReason:
         payload?.responseMessage ??
         'Could not determine transfer status',
+
+      amountNgn:
+        null,
+
+      currency:
+        null,
+
+      destinationBankCode:
+        null,
+
+      destinationAccountLast4:
+        null,
+    };
+  }
+
+  private fromTransferBody(
+    body: MonnifyTransferBody,
+    providerMessage?: string,
+  ): PrizePayoutProviderResult {
+    const reference =
+      body.reference?.trim();
+
+    if (!reference) {
+      throw new InternalServerErrorException(
+        'Monnify transfer response is missing reference',
+      );
+    }
+
+    const status =
+      this.mapStatus(
+        body.status,
+      );
+
+    return {
+      provider:
+        this.providerCode,
+
+      reference,
+
+      providerTransactionId:
+        body.transactionReference ??
+        null,
+
+      status,
+
+      rawStatus:
+        body.status ??
+        'UNKNOWN',
+
+      failureReason:
+        this.isFailureStatus(
+          body.status,
+        )
+          ? body.transactionDescription ??
+            providerMessage ??
+            'Monnify reported payout failure'
+          : undefined,
+
+      amountNgn:
+        typeof body.amount ===
+          'number' &&
+        Number.isFinite(
+          body.amount,
+        )
+          ? body.amount
+          : null,
+
+      currency:
+        typeof body.currency ===
+        'string'
+          ? body.currency
+              .trim()
+              .toUpperCase()
+          : null,
+
+      destinationBankCode:
+        body.destinationBankCode
+          ?.trim() ??
+        null,
+
+      destinationAccountLast4:
+        body.destinationAccountNumber
+          ? body.destinationAccountNumber.slice(
+              -4,
+            )
+          : null,
     };
   }
 
@@ -334,39 +470,26 @@ export class MonnifyPrizePayoutProvider
     rawStatus?: string,
   ): PrizePayoutStatus {
     switch (
-      rawStatus?.trim().toUpperCase()
+      rawStatus
+        ?.trim()
+        .toUpperCase()
     ) {
-      /*
-       * Accepted but not yet moving through the banking rail.
-       */
       case 'PENDING':
       case 'PENDING_AUTHORIZATION':
       case 'OTP_EMAIL_DISPATCH_FAILED':
         return PrizePayoutStatus.SUBMITTED;
 
-      /*
-       * Actively queued/processing.
-       */
       case 'AWAITING_PROCESSING':
       case 'IN_PROGRESS':
         return PrizePayoutStatus.PROCESSING;
 
-      /*
-       * Definitive success.
-       */
       case 'SUCCESS':
       case 'COMPLETED':
         return PrizePayoutStatus.SUCCEEDED;
 
-      /*
-       * Definitive reversal.
-       */
       case 'REVERSED':
         return PrizePayoutStatus.REVERSED;
 
-      /*
-       * Definitive failure.
-       */
       case 'FAILED':
       case 'EXPIRED':
         return PrizePayoutStatus.FAILED;
@@ -380,7 +503,9 @@ export class MonnifyPrizePayoutProvider
     rawStatus?: string,
   ): boolean {
     const status =
-      rawStatus?.trim().toUpperCase();
+      rawStatus
+        ?.trim()
+        .toUpperCase();
 
     return (
       status === 'FAILED' ||

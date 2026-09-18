@@ -1,49 +1,22 @@
 import { Module } from '@nestjs/common';
-
 import {
   ConfigModule,
   ConfigService,
 } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 
-import {
-  JwtModule,
-} from '@nestjs/jwt';
+import { ClaimsService } from './claims.service';
+import { ClaimsController } from './claims.controller';
+import { AdminClaimsController } from './admin-claims.controller';
 
-import {
-  ClaimsService,
-} from './claims.service';
+import { BvnVerificationService } from './kyc/bvn-verification.service';
+import { BankResolveService } from './kyc/bank-resolve.service';
 
-import {
-  ClaimsController,
-} from './claims.controller';
+import { WhtDeductionService } from './wht-deduction.service';
+import { RedemptionService } from './redemption.service';
+import { RedemptionController } from './redemption.controller';
 
-import {
-  AdminClaimsController,
-} from './admin-claims.controller';
-
-import {
-  BvnVerificationService,
-} from './kyc/bvn-verification.service';
-
-import {
-  BankResolveService,
-} from './kyc/bank-resolve.service';
-
-import {
-  WhtDeductionService,
-} from './wht-deduction.service';
-
-import {
-  RedemptionService,
-} from './redemption.service';
-
-import {
-  RedemptionController,
-} from './redemption.controller';
-
-import {
-  MonnifyModule,
-} from '../integrations/monnify/monnify.module';
+import { MonnifyModule } from '../integrations/monnify/monnify.module';
 
 import {
   PRIZE_PAYOUT_PROVIDER,
@@ -56,6 +29,14 @@ import {
 import {
   MonnifyPrizePayoutProvider,
 } from './payout/monnify-prize-payout.provider';
+
+import {
+  FlutterwavePrizePayoutProvider,
+} from './payout/flutterwave-prize-payout.provider';
+
+import {
+  PrizePayoutProviderRegistry,
+} from './payout/prize-payout-provider.registry';
 
 import {
   PrizePayoutFinalizationService,
@@ -76,9 +57,7 @@ import {
 @Module({
   imports: [
     ConfigModule,
-
     JwtModule.register({}),
-
     MonnifyModule,
   ],
 
@@ -100,10 +79,21 @@ import {
 
     DevPrizePayoutProvider,
     MonnifyPrizePayoutProvider,
+    FlutterwavePrizePayoutProvider,
+    PrizePayoutProviderRegistry,
+
     PrizePayoutFinalizationService,
     MonnifyPayoutSyncService,
     MonnifyWebhookSignatureGuard,
 
+    /*
+     * Legacy Phase 1 provider selector.
+     *
+     * Keep this temporarily because ClaimsService still depends on it.
+     * Do NOT add Flutterwave here yet.
+     *
+     * Phase 6's PrizePayoutEngineService will replace this mechanism.
+     */
     {
       provide: PRIZE_PAYOUT_PROVIDER,
 
@@ -136,9 +126,12 @@ import {
 
   exports: [
     ClaimsService,
+
     BankResolveService,
     WhtDeductionService,
     RedemptionService,
+
+    PrizePayoutProviderRegistry,
   ],
 })
 export class ClaimsModule {}
