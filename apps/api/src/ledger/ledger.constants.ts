@@ -34,6 +34,9 @@ export const SYSTEM_LEDGER_ACCOUNT_CODES = {
 
   SUSPENSE:
     'SYS:SUSPENSE',
+
+  MONNIFY_PAYOUT_CLEARING: 'SYS:PAYOUT:MONNIFY',
+  PAYSTACK_PAYOUT_CLEARING: 'SYS:PAYOUT:PAYSTACK',
 } as const;
 
 export const SYSTEM_LEDGER_ACCOUNTS =
@@ -206,5 +209,21 @@ export const SYSTEM_LEDGER_ACCOUNTS =
 
       ownerType:
         LedgerOwnerType.SYSTEM,
+    },
+
+    {
+      code: SYSTEM_LEDGER_ACCOUNT_CODES.MONNIFY_PAYOUT_CLEARING,
+      name: 'Monnify Payout Clearing',
+      accountType: LedgerAccountType.ASSET,
+      purpose: LedgerAccountPurpose.PAYOUT_CLEARING,
+      ownerType: LedgerOwnerType.SYSTEM,
+    },
+
+    {
+      code: SYSTEM_LEDGER_ACCOUNT_CODES.PAYSTACK_PAYOUT_CLEARING,
+      name: 'Paystack Payout Clearing',
+      accountType: LedgerAccountType.ASSET,
+      purpose: LedgerAccountPurpose.PAYOUT_CLEARING,
+      ownerType: LedgerOwnerType.SYSTEM,
     },
   ] as const;

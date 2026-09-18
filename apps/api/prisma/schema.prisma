@@ -462,6 +462,11 @@ model LedgerTransaction {
   createdWalletHold  WalletHold? @relation("WalletHoldCreated")
   releasedWalletHold WalletHold? @relation("WalletHoldReleased")
   capturedWalletHold WalletHold? @relation("WalletHoldCaptured")
+  prizeAccrualClaim  PrizeClaim? @relation("PrizeClaimAccrualLedger")
+
+  prizePayoutAttempt PrizePayoutAttempt? @relation("PrizePayoutLedger")
+
+  prizePayoutReversalAttempt PrizePayoutAttempt? @relation("PrizePayoutReversalLedger")
 
   entries LedgerEntry[]
 
@@ -588,6 +593,7 @@ enum LedgerAccountPurpose {
   AGENT_COMMISSION_EXPENSE
 
   SUSPENSE
+  PAYOUT_CLEARING
 }
 
 enum LedgerEntrySide {
@@ -963,6 +969,12 @@ model PrizeClaim {
   kycReviewedBy       String?   @map("kyc_reviewed_by")
   kycReviewedAt       DateTime? @map("kyc_reviewed_at")
 
+  prizeAccrualLedgerTxnId String? @unique @map("prize_accrual_ledger_txn_id")
+
+  prizeAccrualLedgerTxn LedgerTransaction? @relation("PrizeClaimAccrualLedger", fields: [prizeAccrualLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+
+  payoutAttempts PrizePayoutAttempt[]
+
   // Fulfilment
   collectionPointId     String?   @map("collection_point_id")
   collectionScheduledAt DateTime? @map("collection_scheduled_at")
@@ -1008,6 +1020,56 @@ model PrizeClaim {
   @@index([paidByAgentId, paidByAgentAt])
   @@index([payoutProvider, payoutStatus])
   @@map("prize_claims")
+}
+
+model PrizePayoutAttempt {
+  attemptId String @id @default(uuid()) @map("attempt_id")
+
+  claimId       String @map("claim_id")
+  attemptNumber Int    @map("attempt_number")
+
+  provider       String @db.VarChar(32)
+  idempotencyKey String @unique @map("idempotency_key") @db.VarChar(50)
+
+  amountNgn Int    @map("amount_ngn")
+  currency  String @default("NGN") @db.VarChar(3)
+
+  status PrizePayoutStatus @default(REQUESTED)
+
+  providerReference     String? @map("provider_reference") @db.VarChar(120)
+  providerTransactionId String? @map("provider_transaction_id") @db.VarChar(120)
+
+  rawStatus     String? @map("raw_status") @db.VarChar(120)
+  failureReason String? @map("failure_reason") @db.Text
+
+  destinationBankCode        String @map("destination_bank_code") @db.VarChar(32)
+  destinationAccountLast4    String @map("destination_account_last4") @db.VarChar(4)
+  destinationAccountNameHash String @map("destination_account_name_hash") @db.VarChar(64)
+
+  initiatedByAdminId String @map("initiated_by_admin_id")
+
+  initiatedAt   DateTime  @default(now()) @map("initiated_at")
+  lastCheckedAt DateTime? @map("last_checked_at")
+  completedAt   DateTime? @map("completed_at")
+
+  payoutLedgerTxnId   String? @unique @map("payout_ledger_txn_id")
+  reversalLedgerTxnId String? @unique @map("reversal_ledger_txn_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  claim PrizeClaim @relation(fields: [claimId], references: [claimId], onDelete: Restrict)
+
+  payoutLedgerTxn LedgerTransaction? @relation("PrizePayoutLedger", fields: [payoutLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+
+  reversalLedgerTxn LedgerTransaction? @relation("PrizePayoutReversalLedger", fields: [reversalLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+
+  @@unique([claimId, attemptNumber])
+  @@unique([provider, providerReference])
+  @@index([claimId, createdAt])
+  @@index([provider, status])
+  @@index([status, initiatedAt])
+  @@map("prize_payout_attempts")
 }
 
 enum ClaimType {
