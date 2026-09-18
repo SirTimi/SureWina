@@ -54,11 +54,22 @@ import {
   MonnifyPayoutWebhookController,
 } from './payout/monnify-payout-webhook.controller';
 
+import { LedgerModule } from '../ledger/ledger.module';
+
+import {
+  PrizePayoutEngineService,
+} from './payout/prize-payout-engine.service';
+
+import {
+  PrizePayoutAttemptFinalizationService,
+} from './payout/prize-payout-attempt-finalization.service';
+
 @Module({
   imports: [
     ConfigModule,
     JwtModule.register({}),
     MonnifyModule,
+    LedgerModule,
   ],
 
   controllers: [
@@ -85,6 +96,8 @@ import {
     PrizePayoutFinalizationService,
     MonnifyPayoutSyncService,
     MonnifyWebhookSignatureGuard,
+    PrizePayoutEngineService,
+    PrizePayoutAttemptFinalizationService,
 
     /*
      * Legacy Phase 1 provider selector.
@@ -132,6 +145,7 @@ import {
     RedemptionService,
 
     PrizePayoutProviderRegistry,
+    PrizePayoutEngineService
   ],
 })
 export class ClaimsModule {}

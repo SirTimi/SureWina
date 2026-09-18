@@ -304,111 +304,112 @@ export class LedgerService {
    * The original journal remains untouched forever.
    */
   async reverse(
-    input:
-      ReverseLedgerTransactionInput,
+    input: ReverseLedgerTransactionInput,
   ): Promise<LedgerTransactionView> {
     return this.prisma.$transaction(
-      async (tx) => {
-        const original =
-          await tx.ledgerTransaction.findUnique({
-            where: {
-              ledgerTxnId:
-                input.originalLedgerTxnId,
-            },
-
-            include:
-              LEDGER_TRANSACTION_INCLUDE,
-          });
-
-        if (!original) {
-          throw new NotFoundException(
-            'Original ledger transaction not found',
-          );
-        }
-
-        const alreadyReversed =
-          await tx.ledgerTransaction.findUnique({
-            where: {
-              reversesLedgerTxnId:
-                original.ledgerTxnId,
-            },
-
-            include:
-              LEDGER_TRANSACTION_INCLUDE,
-          });
-
-        if (
-          alreadyReversed
-        ) {
-          if (
-            alreadyReversed.idempotencyKey ===
-            input.idempotencyKey.trim()
-          ) {
-            return alreadyReversed;
-          }
-
-          throw new ConflictException(
-            'Ledger transaction has already been reversed',
-          );
-        }
-
-        const lines:
-          LedgerLineInput[] =
-            original.entries.map(
-              (entry) => ({
-                accountId:
-                  entry.accountId,
-
-                side:
-                  entry.side ===
-                  LedgerEntrySide.DEBIT
-                    ? LedgerEntrySide.CREDIT
-                    : LedgerEntrySide.DEBIT,
-
-                amountNgn:
-                  entry.amountNgn,
-
-                memo:
-                  `Reversal of ${original.ledgerTxnId}`,
-              }),
-            );
-
-        return this.postInternal(
+      async (tx) =>
+        this.reverseInTransaction(
           tx,
-          {
-            idempotencyKey:
-              input.idempotencyKey,
-
-            kind:
-              LedgerTransactionKind.REVERSAL,
-
-            referenceType:
-              input.referenceType,
-
-            referenceId:
-              input.referenceId,
-
-            description:
-              input.description ??
-              `Reversal of ${original.ledgerTxnId}`,
-
-            metadata:
-              input.metadata,
-
-            lines,
-          },
-
-          {
-            reversesLedgerTxnId:
-              original.ledgerTxnId,
-          },
-        );
-      },
-
+          input,
+        ),
       {
         isolationLevel:
           Prisma.TransactionIsolationLevel.Serializable,
       },
+    );
+  }
+
+  async reverseInTransaction(
+    tx: Prisma.TransactionClient,
+    input: ReverseLedgerTransactionInput,
+  ): Promise<LedgerTransactionView> {
+    const original =
+      await tx.ledgerTransaction.findUnique({
+        where: {
+          ledgerTxnId:
+            input.originalLedgerTxnId,
+        },
+        include:
+          LEDGER_TRANSACTION_INCLUDE,
+      });
+
+    if (!original) {
+        throw new NotFoundException(
+        'Original ledger transaction not found',
+      );
+    }
+
+    const alreadyReversed =
+      await tx.ledgerTransaction.findUnique({
+        where: {
+          reversesLedgerTxnId:
+            original.ledgerTxnId,
+        },  
+        include:
+          LEDGER_TRANSACTION_INCLUDE,
+      });
+
+    if (alreadyReversed) {
+      if (
+        alreadyReversed.idempotencyKey ===
+        input.idempotencyKey.trim()
+      ) {
+        return alreadyReversed;
+      }
+
+      throw new ConflictException(
+        'Ledger transaction has already been reversed',
+      );  
+    } 
+
+    const lines: LedgerLineInput[] =
+      original.entries.map(
+        (entry) => ({
+          accountId:
+            entry.accountId,
+
+          side:
+            entry.side ===
+            LedgerEntrySide.DEBIT
+              ? LedgerEntrySide.CREDIT
+              : LedgerEntrySide.DEBIT,
+
+          amountNgn:
+            entry.amountNgn,
+
+          memo:
+            `Reversal of ${original.ledgerTxnId}`,
+        }),
+      );
+
+    return this.postInternal(
+      tx,
+      {
+        idempotencyKey:
+          input.idempotencyKey,
+
+        kind:
+          LedgerTransactionKind.REVERSAL,
+
+        referenceType:
+          input.referenceType,
+
+        referenceId:
+          input.referenceId,
+
+        description:
+          input.description ??
+          `Reversal of ${original.ledgerTxnId}`,
+
+        metadata:
+          input.metadata,
+
+        lines,
+      },
+      {
+        reversesLedgerTxnId:
+          original.ledgerTxnId,
+      },  
     );
   }
 
