@@ -2,7 +2,13 @@ import {
   BadRequestException, ConflictException, Injectable, NotFoundException,
 } from '@nestjs/common';
 import {
-  AuditActorType, AuditSeverity, SpendPeriod, User,
+  AuditActorType,
+  AuditSeverity,
+  PaymentStatus,
+  Prisma,
+  SpendPeriod,
+  User,
+  WalletPurchaseStatus,
 } from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
@@ -213,6 +219,88 @@ export class AccountService {
       }
     }
   }
+
+  async assertWalletPurchaseAllowedInTransaction(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  amountNgn: number,
+): Promise<void> {
+  await tx.$queryRaw`
+    SELECT user_id
+    FROM users
+    WHERE user_id = ${userId}
+    FOR UPDATE
+  `;
+
+  const user = await tx.user.findUnique({
+    where: { userId },
+    select: {
+      userId: true,
+      phoneNumber: true,
+      selfExclusionUntil: true,
+      spendLimitPeriod: true,
+      spendLimitCapNgn: true,
+    },
+  });
+
+  if (!user) {
+    throw new NotFoundException('Account not found');
+  }
+
+  if (
+    user.selfExclusionUntil &&
+    user.selfExclusionUntil.getTime() > Date.now()
+  ) {
+    throw new ConflictException(
+      'Purchases are paused on this account until ' +
+        user.selfExclusionUntil.toISOString().slice(0, 10),
+    );
+  }
+
+  if (
+    user.spendLimitPeriod &&
+    user.spendLimitCapNgn !== null
+  ) {
+    const since = periodStartWat(user.spendLimitPeriod);
+
+    const [providerSpend, walletSpend] = await Promise.all([
+      tx.paymentTransaction.aggregate({
+        where: {
+          buyerPhone: user.phoneNumber,
+          status: PaymentStatus.CONFIRMED,
+          confirmedAt: { gte: since },
+        },
+        _sum: { amountNgn: true },
+      }),
+
+      tx.walletPurchase.aggregate({
+        where: {
+          buyerUserId: userId,
+          status: WalletPurchaseStatus.COMPLETED,
+          completedAt: { gte: since },
+        },
+        _sum: { amountNgn: true },
+      }),
+    ]);
+
+    const already =
+      (providerSpend._sum.amountNgn ?? 0) +
+      (walletSpend._sum.amountNgn ?? 0);
+
+    if (already + amountNgn > user.spendLimitCapNgn) {
+      const remaining = Math.max(
+        0,
+        user.spendLimitCapNgn - already,
+      );
+
+      throw new ConflictException(
+        `This purchase would exceed your ${user.spendLimitPeriod.toLowerCase()} spend limit — ` +
+          `₦${remaining.toLocaleString('en-NG')} remaining of ` +
+          `₦${user.spendLimitCapNgn.toLocaleString('en-NG')}`,
+      );
+    }
+  }
+}
 
   
 }

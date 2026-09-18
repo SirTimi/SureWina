@@ -35,6 +35,7 @@ model User {
   paymentTransactions  PaymentTransaction[]
   jackpotAccumulations JackpotAccumulation[]
   wallet               Wallet?               @relation("CustomerWallet")
+  walletPurchases      WalletPurchase[]
 
   @@index([phoneNumber])
   @@index([selfExclusionUntil])
@@ -236,11 +237,12 @@ model Draw {
   cutoffAt    DateTime  @map("cutoff_at")
   executedAt  DateTime? @map("executed_at")
 
-  rescheduledFrom String? @map("rescheduled_from")
-  configVersion   Int     @default(1) @map("config_version")
+  rescheduledFrom String?          @map("rescheduled_from")
+  configVersion   Int              @default(1) @map("config_version")
   // Short human reference for the printed ticket and support calls.
   // RD-DRAW-20260728-DAILY is precise but unusable over the phone.
-  drawNumber      Int     @unique @default(autoincrement()) @map("draw_number")
+  drawNumber      Int              @unique @default(autoincrement()) @map("draw_number")
+  walletPurchases WalletPurchase[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -635,7 +637,8 @@ model Ticket {
   purchaseChannel PurchaseChannel @map("purchase_channel")
   stateOfPlayCode String          @map("state_of_play_code")
 
-  paymentTxnId String @map("payment_txn_id")
+  paymentTxnId     String? @map("payment_txn_id")
+  walletPurchaseId String? @map("wallet_purchase_id")
 
   status   TicketStatus @default(ACTIVE)
   isWinner Boolean      @default(false) @map("is_winner")
@@ -648,16 +651,18 @@ model Ticket {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  draw    Draw               @relation(fields: [drawId], references: [drawId])
-  buyer   User?              @relation(fields: [buyerUserId], references: [userId])
-  agent   Agent?             @relation(fields: [agentId], references: [agentId])
-  payment PaymentTransaction @relation(fields: [paymentTxnId], references: [txnId])
+  draw           Draw                @relation(fields: [drawId], references: [drawId])
+  buyer          User?               @relation(fields: [buyerUserId], references: [userId])
+  agent          Agent?              @relation(fields: [agentId], references: [agentId])
+  payment        PaymentTransaction? @relation(fields: [paymentTxnId], references: [txnId])
+  walletPurchase WalletPurchase?     @relation(fields: [walletPurchaseId], references: [purchaseId])
 
   @@index([buyerPhone, drawId])
   @@index([drawId, status])
   @@index([agentId, createdAt])
   @@index([ticketRef])
   @@index([paymentTxnId])
+  @@index([walletPurchaseId])
   @@map("tickets")
 }
 
@@ -701,7 +706,8 @@ model Wallet {
   availableAccount LedgerAccount @relation("WalletAvailableAccount", fields: [availableAccountId], references: [accountId], onDelete: Restrict)
   heldAccount      LedgerAccount @relation("WalletHeldAccount", fields: [heldAccountId], references: [accountId], onDelete: Restrict)
 
-  holds WalletHold[]
+  holds           WalletHold[]
+  walletPurchases WalletPurchase[]
 
   @@index([ownerType, status])
   @@index([createdAt])
@@ -732,15 +738,65 @@ model WalletHold {
   createdAt  DateTime  @default(now()) @map("created_at")
   resolvedAt DateTime? @map("resolved_at")
 
-  wallet Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+  wallet         Wallet          @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+  walletPurchase WalletPurchase? @relation("WalletPurchaseHold")
 
   holdLedgerTxn    LedgerTransaction  @relation("WalletHoldCreated", fields: [holdLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
   releaseLedgerTxn LedgerTransaction? @relation("WalletHoldReleased", fields: [releaseLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
   captureLedgerTxn LedgerTransaction? @relation("WalletHoldCaptured", fields: [captureLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  purchases        WalletPurchase[]
 
   @@index([walletId, status])
   @@index([referenceType, referenceId])
   @@map("wallet_holds")
+}
+
+model WalletPurchase {
+  purchaseId String @id @default(uuid()) @map("purchase_id")
+
+  idempotencyKey String @unique @map("idempotency_key") @db.VarChar(200)
+
+  walletId    String @map("wallet_id")
+  buyerUserId String @map("buyer_user_id")
+  buyerPhone  String @map("buyer_phone")
+
+  drawId String @map("draw_id")
+
+  stateOfPlayCode String @map("state_of_play_code") @db.VarChar(32)
+
+  ticketCount Int @map("ticket_count")
+  amountNgn   Int @map("amount_ngn")
+
+  status WalletPurchaseStatus @default(PENDING)
+
+  holdId String? @unique @map("hold_id")
+
+  completedAt DateTime? @map("completed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+  buyer  User   @relation(fields: [buyerUserId], references: [userId], onDelete: Restrict)
+  draw   Draw   @relation(fields: [drawId], references: [drawId], onDelete: Restrict)
+
+  hold WalletHold? @relation("WalletPurchaseHold", fields: [holdId], references: [holdId], onDelete: Restrict)
+
+  tickets          Ticket[]
+  walletHold       WalletHold? @relation(fields: [walletHoldHoldId], references: [holdId])
+  walletHoldHoldId String?
+
+  @@index([buyerUserId, createdAt])
+  @@index([walletId, createdAt])
+  @@index([drawId, status])
+  @@index([status, createdAt])
+  @@map("wallet_purchases")
+}
+
+enum WalletPurchaseStatus {
+  PENDING
+  COMPLETED
+  REVERSED
 }
 
 enum WalletStatus {

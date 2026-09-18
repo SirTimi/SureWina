@@ -23,6 +23,10 @@ import { CustomerJwtGuard } from '../auth/guards/customer-jwt.guard';
 import { WalletFundingService } from './wallet-funding.service';
 import { WalletFundingController } from './wallet-funding.controller';
 import { WalletFundingAdminController } from './wallet-funding-admin.controller';
+
+import { WalletTicketPurchaseController } from './wallet-ticket-purchase.controller';
+import { WalletTicketPurchaseService } from './wallet-ticket-purchase.service';
+
 @Module({
   controllers: [
     PaymentsController,
@@ -30,6 +34,7 @@ import { WalletFundingAdminController } from './wallet-funding-admin.controller'
     FlutterwaveWebhookController,
     WalletFundingController,
     WalletFundingAdminController,
+    WalletTicketPurchaseController
   ],
   providers: [
     PaymentsService,
@@ -45,6 +50,7 @@ import { WalletFundingAdminController } from './wallet-funding-admin.controller'
     PaymentVerificationService,
     WalletFundingService,
     CustomerJwtGuard,
+    WalletTicketPurchaseService
   ],
   exports: [PaymentsService, JackpotAccumulationService],
   imports: [
