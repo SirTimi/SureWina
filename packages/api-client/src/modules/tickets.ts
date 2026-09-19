@@ -67,6 +67,7 @@ export class TicketsModule {
     _drawCode: string,
     _quantity: number,
     _phoneE164: string,
+    providerTransactionId?: string,
   ): Promise<ConfirmPurchaseResponse> {
     // Poll the backend status endpoint. Monnify can self-heal by merchant
     // reference; Flutterwave also confirms through its signed webhook flow.
@@ -89,7 +90,11 @@ export class TicketsModule {
         } | null;
       }>('/tickets/purchase/status', {
         skipAuth: true,
-        query: { reference: sessionId },
+        query: {
+          reference: sessionId,
+          transactionId:
+            providerTransactionId,
+        },
       });
 
       if (s.status === 'CONFIRMED') {
