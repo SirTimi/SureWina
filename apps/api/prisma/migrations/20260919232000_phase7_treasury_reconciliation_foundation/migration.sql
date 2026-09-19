@@ -1,5 +1,8 @@
 -- Phase 7: Treasury & reconciliation foundation
 
+-- Add Monnify as an active customer collection rail.
+ALTER TYPE "PaymentGateway" ADD VALUE 'MONNIFY';
+
 -- Extend ledger enums.
 ALTER TYPE "LedgerAccountPurpose" ADD VALUE 'AGENT_RECEIVABLE';
 ALTER TYPE "LedgerAccountPurpose" ADD VALUE 'PAYMENT_PROCESSING_FEES';
