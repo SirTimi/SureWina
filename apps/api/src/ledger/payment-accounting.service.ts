@@ -433,6 +433,10 @@ export class PaymentAccountingService {
     gateway: PaymentGateway,
   ) {
     switch (gateway) {
+      case PaymentGateway.MONNIFY:
+        return SYSTEM_LEDGER_ACCOUNT_CODES
+          .MONNIFY_COLLECTION_CLEARING;
+
       case PaymentGateway.FLUTTERWAVE:
         return SYSTEM_LEDGER_ACCOUNT_CODES
           .FLUTTERWAVE_CLEARING;
