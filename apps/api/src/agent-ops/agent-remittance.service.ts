@@ -10,38 +10,47 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { WalletService } from '../wallet/wallet.service';
+import { AgentAccountingService } from './agent-accounting.service';
 
 @Injectable()
 export class AgentRemittanceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly wallets: WalletService,
+    private readonly agentAccounting: AgentAccountingService,
   ) {}
 
   async current(agentId: string) {
-    const [agent, open] = await Promise.all([
-      this.prisma.agent.findUnique({
-        where: { agentId },
-        select: { walletBalanceNgn: true },
-      }),
+    const [wallet, open] = await Promise.all([
+      this.wallets.ensureAgentWallet(agentId),
       this.prisma.remittance.findMany({
         where: {
           agentId,
-          status: { in: [RemittanceStatus.PENDING, RemittanceStatus.AGENT_CONFIRMED, RemittanceStatus.LATE] },
+          status: {
+            in: [
+              RemittanceStatus.PENDING,
+              RemittanceStatus.AGENT_CONFIRMED,
+              RemittanceStatus.LATE,
+            ],
+          },
         },
         orderBy: { periodDate: 'asc' },
       }),
     ]);
 
-    // Credit days never appear here — they are closed at creation with
-    // CREDITED_TO_WALLET — so every open row is money genuinely owed.
     const totalOwedNgn = open
-      .filter((r) => r.status !== RemittanceStatus.AGENT_CONFIRMED)
-      .reduce((s, r) => s + r.amountDueNgn, 0);
+      .filter(
+        (r) =>
+          r.status !== RemittanceStatus.AGENT_CONFIRMED &&
+          r.amountDueNgn > 0,
+      )
+      .reduce((sum, r) => sum + r.amountDueNgn, 0);
 
     return {
       totalOwedNgn,
-      walletBalanceNgn: agent?.walletBalanceNgn ?? 0,
+      walletBalanceNgn: wallet.availableNgn,
       remittances: open.map(this.toView),
     };
   }
@@ -100,51 +109,21 @@ export class AgentRemittanceService {
   // transfer. Explicit rather than automatic: an agent should decide when to
   // spend their credit, not discover after the fact that it was consumed.
   async settleFromWallet(agentId: string, remittanceId: string) {
-    const settled = await this.prisma.$transaction(async (tx) => {
-      const rem = await tx.remittance.findFirst({
-        where: { remittanceId, agentId },
-      });
-      if (!rem) throw new NotFoundException('Remittance not found');
-      if (rem.amountDueNgn <= 0) {
-        throw new ConflictException('Nothing to settle for this day.');
-      }
-      if (
-        rem.status !== RemittanceStatus.PENDING &&
-        rem.status !== RemittanceStatus.LATE
-      ) {
-        throw new ConflictException(`Remittance is ${rem.status}`);
-      }
-
-      // Guarded decrement: the balance condition is what stops two
-      // concurrent settlements spending the same credit twice.
-      const spend = await tx.agent.updateMany({
-        where: { agentId, walletBalanceNgn: { gte: rem.amountDueNgn } },
-        data: { walletBalanceNgn: { decrement: rem.amountDueNgn } },
-      });
-      if (spend.count === 0) {
-        throw new ConflictException(
-          'Wallet balance is not enough to cover this day.',
-        );
-      }
-
-      // No bank confirmation to wait for — the money never left Surewina.
-      return tx.remittance.update({
-        where: { remittanceId },
-        data: {
-          status: RemittanceStatus.RECEIVED,
-          bankTransferRef: `WALLET-${remittanceId.slice(0, 8).toUpperCase()}`,
-          agentConfirmedAt: new Date(),
-          receivedAt: new Date(),
-        },
-      });
-    });
+    const settled =
+      await this.agentAccounting.settleRemittanceFromWallet(
+        agentId,
+        remittanceId,
+      );
 
     await this.audit.write({
       severity: AuditSeverity.INFO,
       actor: { type: AuditActorType.AGENT, id: agentId },
       action: 'REMITTANCE_SETTLED_FROM_WALLET',
       resource: { type: 'Remittance', id: remittanceId },
-      metadata: { amountDueNgn: settled.amountDueNgn },
+      metadata: {
+        amountDueNgn: settled.amountDueNgn,
+        settlementLedgerTxnId: settled.settlementLedgerTxnId,
+      },
     });
 
     return this.toView(settled);
