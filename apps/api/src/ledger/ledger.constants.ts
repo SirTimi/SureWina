@@ -38,6 +38,9 @@ export const SYSTEM_LEDGER_ACCOUNT_CODES = {
   AGENT_COMMISSION_EXPENSE:
     'SYS:AGENT:COMMISSION',
 
+  PAYMENT_PROCESSING_FEES:
+    'SYS:EXPENSE:PAYMENT-FEES',
+
   SUSPENSE:
     'SYS:SUSPENSE',
 } as const;
@@ -182,6 +185,19 @@ export const SYSTEM_LEDGER_ACCOUNTS = [
       LedgerAccountType.EXPENSE,
     purpose:
       LedgerAccountPurpose.AGENT_COMMISSION_EXPENSE,
+    ownerType:
+      LedgerOwnerType.SYSTEM,
+  },
+
+  {
+    code:
+      SYSTEM_LEDGER_ACCOUNT_CODES.PAYMENT_PROCESSING_FEES,
+    name:
+      'Payment Processing Fees',
+    accountType:
+      LedgerAccountType.EXPENSE,
+    purpose:
+      LedgerAccountPurpose.PAYMENT_PROCESSING_FEES,
     ownerType:
       LedgerOwnerType.SYSTEM,
   },
