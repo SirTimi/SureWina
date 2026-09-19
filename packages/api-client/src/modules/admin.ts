@@ -143,6 +143,98 @@ export interface AdminReconciliation {
   }[];
 }
 
+
+export type AdminTreasuryProvider = 'MONNIFY' | 'FLUTTERWAVE' | 'BANK';
+
+export interface AdminTreasuryAccount {
+  treasuryAccountId: string;
+  code: string;
+  name: string;
+  provider: AdminTreasuryProvider;
+  kind: 'COLLECTION_CLEARING' | 'PAYOUT_WALLET' | 'BANK_ACCOUNT';
+  currency: string;
+  status: 'ACTIVE' | 'DISABLED';
+  externalAccountReference: string | null;
+  bankCode: string | null;
+  accountLast4: string | null;
+  internalBalanceMinor: string;
+  latestExternalBalanceMinor: string | null;
+  latestVarianceMinor: string | null;
+  latestObservedAt: string | null;
+}
+
+export interface AdminTreasuryOverview {
+  generatedAt: string;
+  accounts: AdminTreasuryAccount[];
+  openIssues: {
+    severity: 'INFO' | 'WARNING' | 'CRITICAL';
+    count: number;
+  }[];
+  settlements: {
+    provider: AdminTreasuryProvider;
+    status: string;
+    count: number;
+  }[];
+}
+
+export interface AdminTreasurySettlement {
+  settlementId: string;
+  provider: 'MONNIFY' | 'FLUTTERWAVE';
+  providerSettlementId: string;
+  accountCode: string;
+  currency: string;
+  grossAmountMinor: string;
+  feeAmountMinor: string;
+  refundAmountMinor: string;
+  chargebackAmountMinor: string;
+  netAmountMinor: string;
+  status: string;
+  destination: string | null;
+  destinationReference: string | null;
+  settlementDate: string | null;
+  processedAt: string | null;
+  ledgerTxnId: string | null;
+  lines: number;
+}
+
+export interface AdminReconciliationRun {
+  runId: string;
+  runType: 'TRANSACTION' | 'SETTLEMENT' | 'BALANCE' | 'FULL';
+  provider: AdminTreasuryProvider | null;
+  treasuryAccountId: string | null;
+  status: 'RUNNING' | 'COMPLETED' | 'COMPLETED_WITH_EXCEPTIONS' | 'FAILED';
+  periodFrom: string;
+  periodTo: string;
+  recordsScanned: number;
+  recordsMatched: number;
+  issueCount: number;
+  varianceMinor: string;
+  errorMessage: string | null;
+  startedAt: string;
+  completedAt: string | null;
+}
+
+export interface AdminReconciliationIssue {
+  issueId: string;
+  runId: string;
+  runType: AdminReconciliationRun['runType'];
+  provider: AdminTreasuryProvider | null;
+  accountCode: string | null;
+  type: string;
+  status: 'OPEN' | 'RESOLVED' | 'IGNORED';
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+  internalReference: string | null;
+  externalReference: string | null;
+  expectedAmountMinor: string | null;
+  actualAmountMinor: string | null;
+  varianceMinor: string | null;
+  details: unknown;
+  resolvedByAdminId: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  createdAt: string;
+}
+
 export interface AdminRemittanceRow {
   remittanceId: string;
   agentCode: string;
@@ -846,6 +938,93 @@ export class AdminModule {
     return this.client.get('/admin/finance/reconciliation', {
       query: { fromDate, toDate },
     });
+  }
+
+
+  async treasuryOverview(): Promise<AdminTreasuryOverview> {
+    return this.client.get('/admin/finance/treasury/overview');
+  }
+
+  async treasurySettlements(
+    provider?: 'MONNIFY' | 'FLUTTERWAVE',
+  ): Promise<{ settlements: AdminTreasurySettlement[] }> {
+    return this.client.get('/admin/finance/treasury/settlements', {
+      query: { provider },
+    });
+  }
+
+  async syncFlutterwaveSettlements(
+    fromDate: string,
+    toDate: string,
+  ): Promise<{
+    provider: 'FLUTTERWAVE';
+    settlements: number;
+    settlementIds: string[];
+  }> {
+    return this.client.post(
+      '/admin/finance/treasury/settlements/flutterwave/sync',
+      { fromDate, toDate },
+    );
+  }
+
+  async runTreasuryReconciliation(
+    provider: 'MONNIFY' | 'FLUTTERWAVE',
+    fromDate: string,
+    toDate: string,
+  ): Promise<AdminReconciliationRun> {
+    return this.client.post(
+      '/admin/finance/treasury/reconciliation/run',
+      { provider, fromDate, toDate },
+    );
+  }
+
+  async treasuryReconciliationRuns(): Promise<{
+    runs: AdminReconciliationRun[];
+  }> {
+    return this.client.get(
+      '/admin/finance/treasury/reconciliation/runs',
+    );
+  }
+
+  async treasuryReconciliationIssues(
+    status: 'OPEN' | 'RESOLVED' | 'IGNORED' = 'OPEN',
+  ): Promise<{ issues: AdminReconciliationIssue[] }> {
+    return this.client.get(
+      '/admin/finance/treasury/reconciliation/issues',
+      { query: { status } },
+    );
+  }
+
+  async resolveTreasuryIssue(
+    issueId: string,
+    status: 'RESOLVED' | 'IGNORED',
+    note?: string,
+  ): Promise<AdminReconciliationIssue> {
+    return this.client.post(
+      `/admin/finance/treasury/reconciliation/issues/${encodeURIComponent(
+        issueId,
+      )}/resolve`,
+      { status, note },
+    );
+  }
+
+  async snapshotTreasuryProviderBalance(
+    provider: 'MONNIFY' | 'FLUTTERWAVE',
+  ): Promise<Record<string, unknown>> {
+    return this.client.post(
+      `/admin/finance/treasury/balances/${provider}/snapshot`,
+      {},
+    );
+  }
+
+  async recordTreasuryBankBalance(
+    balanceNgn: number,
+    externalReference?: string,
+  ): Promise<Record<string, unknown>> {
+    return this.client.post(
+      '/admin/finance/treasury/balances/bank',
+      { balanceNgn, externalReference },
+    );
   }
 
   async refundPayment(txnId: string, reason: string): Promise<Record<string, unknown>> {
