@@ -20,7 +20,7 @@ import { AuditService } from '../audit/audit.service';
 import { CustomerAdminService } from '../admin-ops/customer-admin.service';
 import { PaymentGatewayDriver } from './gateway/payment-gateway.interface';
 import { InitiatePurchaseDto } from './dto/initiate-purchase.dto';
-import { PaystackDriver } from './gateway/paystack.driver';
+import { MonnifyDriver } from './gateway/monnify.driver';
 import { FlutterwaveDriver } from './gateway/flutterwave.driver';
 import { AccountService } from '../account/account.service';
 export type InitiatePurchaseResult = {
@@ -38,7 +38,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
-    private readonly paystack: PaystackDriver,
+    private readonly monnify: MonnifyDriver,
     private readonly flutterwave: FlutterwaveDriver,
     private readonly customerAdmin: CustomerAdminService,
     private readonly account: AccountService
@@ -79,9 +79,13 @@ export class PaymentsService {
     // 3. Our own reference — the gateway echoes this back on the webhook.
     const reference = `SW-PAY-${randomUUID()}`;
 
-    // 4. Create the PENDING transaction BEFORE calling any gateway, so a
-    //    webhook can never arrive for a txn we don't have on record.
-    //    Recorded as PAYSTACK initially; flipped if we fall back.
+    // 4. Create the PENDING transaction BEFORE calling the chosen gateway.
+    //    The customer's provider choice is immutable for this payment attempt.
+    const selectedGateway =
+      dto.gateway === 'MONNIFY'
+        ? PaymentGatewayEnum.MONNIFY
+        : PaymentGatewayEnum.FLUTTERWAVE;
+
     const txn =
       await this.prisma.paymentTransaction.create({
         data: {
@@ -89,7 +93,7 @@ export class PaymentsService {
             reference,
 
           gateway:
-            this.paystack.gateway,
+            selectedGateway,
 
           amountNgn,
 
@@ -135,9 +139,10 @@ export class PaymentsService {
         .catch(() => undefined);
     }
 
-    // 5. Try Paystack, fall back to Flutterwave. If both fail, mark FAILED.
+    // 5. Initialize only the provider the customer selected.
+    //    Never silently fail over to another collection rail.
     try {
-      const init = await this.initializeWithFallback(txn.txnId, {
+      const init = await this.initializeChosenGateway(selectedGateway, {
         amountKobo,
         reference,
         email: dto.buyerEmail?.trim().toLowerCase() ?? this.syntheticEmail(dto.phoneE164),
@@ -190,35 +195,43 @@ export class PaymentsService {
     }
   }
 
-  // Primary: Paystack. On any initialization failure, fall back to
-  // Flutterwave and re-tag the transaction so the right webhook reconciles.
-  private async initializeWithFallback(
-    txnId: string,
+  private async initializeChosenGateway(
+    gateway: PaymentGatewayEnum,
     input: Parameters<PaymentGatewayDriver['initialize']>[0],
   ): Promise<{
     authorizationUrl: string;
     gatewayReference: string;
     gateway: PaymentGatewayEnum;
   }> {
-    try {
-      const result = await this.paystack.initialize(input);
-      return { ...result, gateway: this.paystack.gateway };
-    } catch (primaryError) {
-      this.logger.warn(
-        `Paystack init failed, falling back to Flutterwave: ${
-          primaryError instanceof Error ? primaryError.message : 'unknown'
-        }`,
+    const driver =
+      gateway === PaymentGatewayEnum.MONNIFY
+        ? this.monnify
+        : gateway === PaymentGatewayEnum.FLUTTERWAVE
+          ? this.flutterwave
+          : null;
+
+    if (!driver) {
+      throw new BadRequestException(
+        'Collection gateway must be MONNIFY or FLUTTERWAVE',
       );
-
-      const result = await this.flutterwave.initialize(input);
-
-      await this.prisma.paymentTransaction.update({
-        where: { txnId },
-        data: { gateway: this.flutterwave.gateway },
-      });
-
-      return { ...result, gateway: this.flutterwave.gateway };
     }
+
+    const result =
+      await driver.initialize(input);
+
+    if (
+      result.gatewayReference !==
+      input.reference
+    ) {
+      throw new ConflictException(
+        `${gateway} returned an unexpected payment reference`,
+      );
+    }
+
+    return {
+      ...result,
+      gateway,
+    };
   }
 
   // Gateways require an email. Buyers auth by phone, so synthesise a stable,
