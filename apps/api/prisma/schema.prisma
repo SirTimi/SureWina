@@ -345,26 +345,11 @@ model PaymentTransaction {
   refundAccrualLedgerTxnId    String? @unique @map("refund_accrual_ledger_txn_id")
   refundSettlementLedgerTxnId String? @unique @map("refund_settlement_ledger_txn_id")
 
-  collectionLedgerTxn LedgerTransaction? @relation(
-    "PaymentCollectionLedger",
-    fields: [collectionLedgerTxnId],
-    references: [ledgerTxnId],
-    onDelete: Restrict
-  )
+  collectionLedgerTxn LedgerTransaction? @relation("PaymentCollectionLedger", fields: [collectionLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
-  refundAccrualLedgerTxn LedgerTransaction? @relation(
-    "PaymentRefundAccrualLedger",
-    fields: [refundAccrualLedgerTxnId],
-    references: [ledgerTxnId],
-    onDelete: Restrict
-  )
+  refundAccrualLedgerTxn LedgerTransaction? @relation("PaymentRefundAccrualLedger", fields: [refundAccrualLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
-  refundSettlementLedgerTxn LedgerTransaction? @relation(
-    "PaymentRefundSettlementLedger",
-    fields: [refundSettlementLedgerTxnId],
-    references: [ledgerTxnId],
-    onDelete: Restrict
-  )
+  refundSettlementLedgerTxn LedgerTransaction? @relation("PaymentRefundSettlementLedger", fields: [refundSettlementLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
   treasurySettlementLines TreasurySettlementLine[]
 
@@ -764,12 +749,7 @@ model TreasuryAccount {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  ledgerAccount LedgerAccount @relation(
-    "TreasuryAccountLedger",
-    fields: [ledgerAccountId],
-    references: [accountId],
-    onDelete: Restrict
-  )
+  ledgerAccount LedgerAccount @relation("TreasuryAccountLedger", fields: [ledgerAccountId], references: [accountId], onDelete: Restrict)
 
   balanceSnapshots     TreasuryBalanceSnapshot[]
   settlements          TreasurySettlement[]
@@ -797,11 +777,7 @@ model TreasuryBalanceSnapshot {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  treasuryAccount TreasuryAccount @relation(
-    fields: [treasuryAccountId],
-    references: [treasuryAccountId],
-    onDelete: Restrict
-  )
+  treasuryAccount TreasuryAccount @relation(fields: [treasuryAccountId], references: [treasuryAccountId], onDelete: Restrict)
 
   @@index([treasuryAccountId, observedAt])
   @@index([observedAt])
@@ -838,18 +814,9 @@ model TreasurySettlement {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  treasuryAccount TreasuryAccount @relation(
-    fields: [treasuryAccountId],
-    references: [treasuryAccountId],
-    onDelete: Restrict
-  )
+  treasuryAccount TreasuryAccount @relation(fields: [treasuryAccountId], references: [treasuryAccountId], onDelete: Restrict)
 
-  ledgerTransaction LedgerTransaction? @relation(
-    "TreasurySettlementLedger",
-    fields: [ledgerTxnId],
-    references: [ledgerTxnId],
-    onDelete: Restrict
-  )
+  ledgerTransaction LedgerTransaction? @relation("TreasurySettlementLedger", fields: [ledgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
   lines TreasurySettlementLine[]
 
@@ -881,23 +848,11 @@ model TreasurySettlementLine {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  settlement TreasurySettlement @relation(
-    fields: [settlementId],
-    references: [settlementId],
-    onDelete: Restrict
-  )
+  settlement TreasurySettlement @relation(fields: [settlementId], references: [settlementId], onDelete: Restrict)
 
-  payment PaymentTransaction? @relation(
-    fields: [paymentTxnId],
-    references: [txnId],
-    onDelete: Restrict
-  )
+  payment PaymentTransaction? @relation(fields: [paymentTxnId], references: [txnId], onDelete: Restrict)
 
-  walletFunding WalletFunding? @relation(
-    fields: [walletFundingId],
-    references: [fundingId],
-    onDelete: Restrict
-  )
+  walletFunding WalletFunding? @relation(fields: [walletFundingId], references: [fundingId], onDelete: Restrict)
 
   @@index([settlementId])
   @@index([providerReference])
@@ -934,11 +889,7 @@ model ReconciliationRun {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  treasuryAccount TreasuryAccount? @relation(
-    fields: [treasuryAccountId],
-    references: [treasuryAccountId],
-    onDelete: Restrict
-  )
+  treasuryAccount TreasuryAccount? @relation(fields: [treasuryAccountId], references: [treasuryAccountId], onDelete: Restrict)
 
   issues ReconciliationIssue[]
 
@@ -978,17 +929,9 @@ model ReconciliationIssue {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  run ReconciliationRun @relation(
-    fields: [runId],
-    references: [runId],
-    onDelete: Restrict
-  )
+  run ReconciliationRun @relation(fields: [runId], references: [runId], onDelete: Restrict)
 
-  treasuryAccount TreasuryAccount? @relation(
-    fields: [treasuryAccountId],
-    references: [treasuryAccountId],
-    onDelete: Restrict
-  )
+  treasuryAccount TreasuryAccount? @relation(fields: [treasuryAccountId], references: [treasuryAccountId], onDelete: Restrict)
 
   @@index([runId, status])
   @@index([type, status])
