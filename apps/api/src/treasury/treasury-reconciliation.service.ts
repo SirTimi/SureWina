@@ -116,17 +116,12 @@ export class TreasuryReconciliationService {
         accountLast4:
           account.accountLast4,
         internalBalanceMinor:
-          BigInt(
-            internal.balanceNgn,
-          )
-            .mul
-            ? '0'
-            : (
-                BigInt(
-                  internal.balanceNgn,
-                ) *
-                100n
-              ).toString(),
+          (
+            BigInt(
+              internal.balanceNgn,
+            ) *
+            100n
+          ).toString(),
         latestExternalBalanceMinor:
           latest
             ?.externalBalanceMinor
