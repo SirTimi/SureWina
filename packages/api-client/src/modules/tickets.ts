@@ -49,6 +49,7 @@ export class TicketsModule {
         quantity: req.quantity,
         phoneE164: req.phoneE164,
         stateOfPlayCode: req.stateOfPlayCode,
+        ...(req.buyerEmail ? { buyerEmail: req.buyerEmail } : {}),
       },
       { skipAuth: true },
     );
