@@ -8,6 +8,7 @@ import {
   RemittanceStatus
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { WalletService } from '../wallet/wallet.service';
 const WAT_OFFSET_MS = 60 * 60 * 1000; // UTC+1, no DST
 
 // Start of the current WAT calendar day, as a UTC Date.
@@ -25,7 +26,10 @@ function settlementDeadline(periodDate: Date): Date {
 
 @Injectable()
 export class AgentStatsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly wallets: WalletService,
+  ) {}
 
   async dashboard(agentId: string) {
     const agent = await this.prisma.agent.findUniqueOrThrow({
@@ -37,14 +41,13 @@ export class AgentStatsService {
         commissionRate: true,
         status: true,
         suspensionReason: true,
-        walletBalanceNgn: true,
       },
     });
 
     const now = new Date();
     const todayStart = startOfWatDay(now);
 
-    const [today, prizesPaid, open, openDraw] = await Promise.all([
+    const [today, prizesPaid, open, openDraw, wallet] = await Promise.all([
       this.salesBetween(agentId, todayStart, now),
       // Prizes the agent has paid from their own till today reduce what they
       // will owe at close, so the live figure has to carry them.
@@ -79,6 +82,7 @@ export class AgentStatsService {
         orderBy: { scheduledAt: 'asc' },
         select: { drawCode: true, cutoffAt: true },
       }),
+      this.wallets.ensureAgentWallet(agentId),
     ]);
 
     const commissionRate = Number(agent.commissionRate);
@@ -114,7 +118,7 @@ export class AgentStatsService {
       // Closed days still to be paid, plus any credit held.
       settlement: {
         totalOwedNgn,
-        walletBalanceNgn: agent.walletBalanceNgn,
+        walletBalanceNgn: wallet.availableNgn,
         openCount: open.length,
         oldest: oldest
           ? {
