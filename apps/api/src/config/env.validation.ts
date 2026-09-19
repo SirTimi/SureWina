@@ -86,6 +86,10 @@ export const envValidationSchema = Joi.object({
     Joi.boolean()
       .default(false),
 
+  TREASURY_BANK_REFERENCE: Joi.string().allow('').default(''),
+  TREASURY_BANK_CODE: Joi.string().allow('').default(''),
+  TREASURY_BANK_ACCOUNT_LAST4: Joi.string().allow('').pattern(/^\d{4}$/).default(''),
+
   WALLET_FUNDING_MIN_NGN: Joi.number().integer().min(1).default(100),
   WALLET_FUNDING_MAX_NGN: Joi.number().integer().min(100).default(500000),
 });
