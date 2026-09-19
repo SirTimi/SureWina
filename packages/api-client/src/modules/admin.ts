@@ -245,7 +245,13 @@ export interface AdminRemittanceRow {
   commissionNgn: number;
   amountDueNgn: number;
   ticketCount: number;
-  status: 'PENDING' | 'AGENT_CONFIRMED' | 'RECEIVED' | 'LATE' | 'WRITTEN_OFF';
+  status:
+    | 'PENDING'
+    | 'AGENT_CONFIRMED'
+    | 'RECEIVED'
+    | 'LATE'
+    | 'WRITTEN_OFF'
+    | 'CREDITED_TO_WALLET';
   bankTransferRef: string | null;
   agentConfirmedAt: string | null;
   receivedAt: string | null;
