@@ -509,8 +509,8 @@ export class TreasuryReconciliationService {
     issueId: string,
     adminId: string,
     status:
-      | ReconciliationIssueStatus.RESOLVED
-      | ReconciliationIssueStatus.IGNORED,
+      | 'RESOLVED'
+      | 'IGNORED',
     note: string,
   ) {
     const issue =
@@ -650,12 +650,14 @@ export class TreasuryReconciliationService {
                 payment.collectionLedgerTxnId,
               ),
             successful:
-              [
-                PaymentStatus.CONFIRMED,
-                PaymentStatus.REVIEW_REQUIRED,
-                PaymentStatus.REFUND_PENDING,
-                PaymentStatus.REFUNDED,
-              ].includes(
+              (
+                [
+                  PaymentStatus.CONFIRMED,
+                  PaymentStatus.REVIEW_REQUIRED,
+                  PaymentStatus.REFUND_PENDING,
+                  PaymentStatus.REFUNDED,
+                ] as PaymentStatus[]
+              ).includes(
                 payment.status,
               ),
             status:
@@ -677,10 +679,12 @@ export class TreasuryReconciliationService {
                 funding!.ledgerTxnId,
               ),
             successful:
-              [
-                WalletFundingStatus.CREDITED,
-                WalletFundingStatus.REVIEW_REQUIRED,
-              ].includes(
+              (
+                [
+                  WalletFundingStatus.CREDITED,
+                  WalletFundingStatus.REVIEW_REQUIRED,
+                ] as WalletFundingStatus[]
+              ).includes(
                 funding!.status,
               ),
             status:
