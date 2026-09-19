@@ -30,6 +30,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LedgerModule } from './ledger/ledger.module';
 import { WalletModule } from './wallet/wallet.module';
+import { TreasuryModule } from './treasury/treasury.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { WalletModule } from './wallet/wallet.module';
     NotificationsModule,
     LedgerModule,
     WalletModule,
+    TreasuryModule,
     ThrottlerModule.forRoot([
       {
         name: 'default',
