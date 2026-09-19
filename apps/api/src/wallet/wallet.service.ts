@@ -294,78 +294,11 @@ export class WalletService {
     this.validateAmount(input.amountNgn);
 
     const journal = await this.prisma.$transaction(
-      async (tx) => {
-        const wallet = await this.lockWallet(
+      (tx) =>
+        this.debitInTransaction(
           tx,
-          input.walletId,
-        );
-
-        this.assertCanSpend(wallet.status);
-
-        this.assertExternalCounterAccount(
-          wallet,
-          input.counterAccountId,
-        );
-
-        const journalInput = {
-          idempotencyKey: input.idempotencyKey,
-          kind: input.kind,
-          referenceType: input.referenceType,
-          referenceId: input.referenceId,
-          description: input.description,
-          metadata: input.metadata,
-          occurredAt: input.occurredAt,
-          lines: [
-            {
-              accountId: wallet.availableAccountId,
-              side: LedgerEntrySide.DEBIT,
-              amountNgn: input.amountNgn,
-              memo: input.description,
-            },
-            {
-              accountId: input.counterAccountId,
-              side: LedgerEntrySide.CREDIT,
-              amountNgn: input.amountNgn,
-              memo: input.description,
-            },
-          ],
-        };
-
-        /*
-         * If this journal already exists, allow the ledger
-         * idempotency layer to return it without rejecting
-         * because the current wallet balance has since changed.
-         */
-        const existing =
-          await tx.ledgerTransaction.findUnique({
-            where: {
-              idempotencyKey:
-                input.idempotencyKey.trim(),
-            },
-          });
-
-        if (!existing) {
-          const balances =
-            await this.getBalancesInTx(
-              tx,
-              wallet,
-            );
-
-          if (
-            balances.availableNgn <
-            input.amountNgn
-          ) {
-            throw new ConflictException(
-              'Insufficient wallet balance',
-            );
-          }
-        }
-
-        return this.ledger.postInTransaction(
-          tx,
-          journalInput,
-        );
-      },
+          input,
+        ),
       {
         isolationLevel:
           Prisma.TransactionIsolationLevel.Serializable,
@@ -376,6 +309,105 @@ export class WalletService {
       journal,
       wallet: await this.getWallet(input.walletId),
     };
+  }
+
+  async debitInTransaction(
+    tx: Prisma.TransactionClient,
+    input: WalletDebitInput,
+  ) {
+    this.validateAmount(input.amountNgn);
+
+    const wallet = await this.lockWallet(
+      tx,
+      input.walletId,
+    );
+
+    this.assertCanSpend(wallet.status);
+
+    this.assertExternalCounterAccount(
+      wallet,
+      input.counterAccountId,
+    );
+
+    const existing =
+      await tx.ledgerTransaction.findUnique({
+        where: {
+          idempotencyKey:
+            input.idempotencyKey.trim(),
+        },
+      });
+
+    if (!existing) {
+      const balances =
+        await this.getBalancesInTx(
+          tx,
+          wallet,
+        );
+
+      if (
+        balances.availableNgn <
+        input.amountNgn
+      ) {
+        throw new ConflictException(
+          'Insufficient wallet balance',
+        );
+      }
+    }
+
+    return this.ledger.postInTransaction(
+      tx,
+      {
+        idempotencyKey:
+          input.idempotencyKey,
+
+        kind:
+          input.kind,
+
+        referenceType:
+          input.referenceType,
+
+        referenceId:
+          input.referenceId,
+
+        description:
+          input.description,
+
+        metadata:
+          input.metadata,
+
+        occurredAt:
+          input.occurredAt,
+
+        lines: [
+          {
+            accountId:
+              wallet.availableAccountId,
+
+            side:
+              LedgerEntrySide.DEBIT,
+
+            amountNgn:
+              input.amountNgn,
+
+            memo:
+              input.description,
+          },
+          {
+            accountId:
+              input.counterAccountId,
+
+            side:
+              LedgerEntrySide.CREDIT,
+
+            amountNgn:
+              input.amountNgn,
+
+            memo:
+              input.description,
+          },
+        ],
+      },
+    );
   }
 
   // ─────────────────────────────────────────────────────────
