@@ -13,6 +13,7 @@ import {
 
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { PaymentAccountingService } from '../ledger/payment-accounting.service';
 import { generateTicketRef } from './ticket-ref.util';
 
 import {
@@ -106,6 +107,9 @@ export class PurchaseConfirmationService {
 
     private readonly audit:
       AuditService,
+
+    private readonly paymentAccounting:
+      PaymentAccountingService,
 
     private readonly jackpotAccumulation:
       JackpotAccumulationService,
@@ -519,6 +523,33 @@ export class PurchaseConfirmationService {
         if (
           lockedDraw.length === 0
         ) {
+          await this.paymentAccounting.recordProviderCollectionInTransaction(
+            tx,
+            {
+              paymentTxnId:
+                txnId,
+
+              gateway:
+                txn.gateway,
+
+              amountNgn:
+                txn.amountNgn,
+
+              disposition:
+                'SUSPENSE',
+
+              providerReference:
+                verifiedPayment.reference,
+
+              providerTransactionId:
+                verifiedPayment.providerTransactionId,
+
+              occurredAt:
+                verifiedPayment.paidAt ??
+                verifiedPayment.verifiedAt,
+            },
+          );
+
           await tx.paymentTransaction.update({
             where: {
               txnId,
@@ -716,6 +747,33 @@ export class PurchaseConfirmationService {
         if (
           reviewReasons.length > 0
         ) {
+          await this.paymentAccounting.recordProviderCollectionInTransaction(
+            tx,
+            {
+              paymentTxnId:
+                txnId,
+
+              gateway:
+                txn.gateway,
+
+              amountNgn:
+                txn.amountNgn,
+
+              disposition:
+                'SUSPENSE',
+
+              providerReference:
+                verifiedPayment.reference,
+
+              providerTransactionId:
+                verifiedPayment.providerTransactionId,
+
+              occurredAt:
+                verifiedPayment.paidAt ??
+                verifiedPayment.verifiedAt,
+            },
+          );
+
           await tx.paymentTransaction.update({
             where: {
               txnId,
@@ -820,6 +878,33 @@ export class PurchaseConfirmationService {
             txn.ticketCount !==
             0
         ) {
+          await this.paymentAccounting.recordProviderCollectionInTransaction(
+            tx,
+            {
+              paymentTxnId:
+                txnId,
+
+              gateway:
+                txn.gateway,
+
+              amountNgn:
+                txn.amountNgn,
+
+              disposition:
+                'SUSPENSE',
+
+              providerReference:
+                verifiedPayment.reference,
+
+              providerTransactionId:
+                verifiedPayment.providerTransactionId,
+
+              occurredAt:
+                verifiedPayment.paidAt ??
+                verifiedPayment.verifiedAt,
+            },
+          );
+
           await tx.paymentTransaction.update({
             where: {
               txnId,
@@ -958,6 +1043,33 @@ export class PurchaseConfirmationService {
          * Payment confirmation and ticket creation remain
          * inside the same database transaction.
          */
+        await this.paymentAccounting.recordProviderCollectionInTransaction(
+          tx,
+          {
+            paymentTxnId:
+              txnId,
+
+            gateway:
+              txn.gateway,
+
+            amountNgn:
+              txn.amountNgn,
+
+            disposition:
+              'REVENUE',
+
+            providerReference:
+              verifiedPayment.reference,
+
+            providerTransactionId:
+              verifiedPayment.providerTransactionId,
+
+            occurredAt:
+              verifiedPayment.paidAt ??
+              verifiedPayment.verifiedAt,
+          },
+        );
+
         await tx.paymentTransaction.update({
           where: {
             txnId,
