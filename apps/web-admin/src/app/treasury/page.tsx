@@ -14,6 +14,7 @@ import {
   Scale,
   Wallet,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import type {
   AdminReconciliationIssue,
@@ -910,10 +911,7 @@ function Metric({
   value,
   danger = false,
 }: {
-  icon:
-    | typeof Wallet
-    | typeof Banknote
-    | typeof Scale;
+  icon: LucideIcon;
   label: string;
   value: string;
   danger?: boolean;
