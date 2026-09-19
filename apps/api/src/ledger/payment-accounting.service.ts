@@ -433,17 +433,13 @@ export class PaymentAccountingService {
     gateway: PaymentGateway,
   ) {
     switch (gateway) {
-      case PaymentGateway.PAYSTACK:
-        return SYSTEM_LEDGER_ACCOUNT_CODES
-          .PAYSTACK_CLEARING;
-
       case PaymentGateway.FLUTTERWAVE:
         return SYSTEM_LEDGER_ACCOUNT_CODES
           .FLUTTERWAVE_CLEARING;
 
       default:
         throw new ConflictException(
-          `Gateway ${gateway} is not an online collection provider`,
+          `Gateway ${gateway} is not an active online collection provider`,
         );
     }
   }
