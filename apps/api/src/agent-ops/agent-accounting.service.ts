@@ -287,9 +287,27 @@ export class AgentAccountingService {
         remittanceId,
       );
 
-      return tx.remittance.findUniqueOrThrow({
+      const current = await tx.remittance.findUniqueOrThrow({
         where: { remittanceId },
       });
+
+      if (
+        current.amountDueNgn === 0 &&
+        (
+          current.status === RemittanceStatus.PENDING ||
+          current.status === RemittanceStatus.LATE
+        )
+      ) {
+        return tx.remittance.update({
+          where: { remittanceId },
+          data: {
+            status: RemittanceStatus.RECEIVED,
+            receivedAt: new Date(),
+          },
+        });
+      }
+
+      return current;
     });
   }
 
