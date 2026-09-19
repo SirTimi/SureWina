@@ -12,10 +12,31 @@ import { AccountModule } from '../account/account.module'
 import { ClaimsModule } from '../claims/claims.module'
 import { IdentityVerificationService } from './kyc/identity-verification.service'
 import { AgentDayRecordService } from '../agent-ops/agent-day-record.service'
+import { LedgerModule } from '../ledger/ledger.module';
+import { WalletModule } from '../wallet/wallet.module';
+import { AgentAccountingService } from './agent-accounting.service';
+import { AgentRemittanceAccountingRecoveryService } from './agent-remittance-accounting-recovery.service';
 @Module({
-  imports: [JwtModule.register({}), PaymentsModule, AdminOpsModule, AccountModule, ClaimsModule],
+  imports: [
+    JwtModule.register({}),
+    PaymentsModule,
+    AdminOpsModule,
+    AccountModule,
+    ClaimsModule,
+    LedgerModule,
+    WalletModule,
+  ],
   controllers: [AgentOpsController, AdminFinanceAgentsController],
-  providers: [AgentSalesService, AgentStatsService, AgentRemittanceService, AgentPrizesService, IdentityVerificationService, AgentDayRecordService],
-  exports: [AgentSalesService, AgentDayRecordService],
+  providers: [
+    AgentSalesService,
+    AgentStatsService,
+    AgentRemittanceService,
+    AgentPrizesService,
+    IdentityVerificationService,
+    AgentDayRecordService,
+    AgentAccountingService,
+    AgentRemittanceAccountingRecoveryService,
+  ],
+  exports: [AgentSalesService, AgentDayRecordService, AgentAccountingService],
 })
 export class AgentOpsModule {}
