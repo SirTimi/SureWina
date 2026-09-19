@@ -378,7 +378,9 @@ model PaymentTransaction {
 }
 
 enum PaymentGateway {
+  // Legacy only. New customer collections use MONNIFY or FLUTTERWAVE.
   PAYSTACK
+  MONNIFY
   FLUTTERWAVE
   AGENT_CASH
 }
