@@ -804,7 +804,10 @@ export class TreasurySettlementService {
             roundedAdjustmentNgn:
               adjustmentNgn,
           },
-          lines,
+          lines:
+            this.combineLines(
+              lines,
+            ),
         },
       );
 
@@ -818,6 +821,109 @@ export class TreasurySettlementService {
           journal.ledgerTxnId,
       },
     });
+  }
+
+  private combineLines(
+    lines: Array<{
+      accountId: string;
+      side: LedgerEntrySide;
+      amountNgn: number;
+      memo: string;
+    }>,
+  ) {
+    const totals =
+      new Map<
+        string,
+        {
+          debit: number;
+          credit: number;
+          memos: string[];
+        }
+      >();
+
+    for (const line of lines) {
+      const current =
+        totals.get(
+          line.accountId,
+        ) ?? {
+          debit: 0,
+          credit: 0,
+          memos: [],
+        };
+
+      if (
+        line.side ===
+        LedgerEntrySide.DEBIT
+      ) {
+        current.debit +=
+          line.amountNgn;
+      } else {
+        current.credit +=
+          line.amountNgn;
+      }
+
+      current.memos.push(
+        line.memo,
+      );
+
+      totals.set(
+        line.accountId,
+        current,
+      );
+    }
+
+    return [
+      ...totals.entries(),
+    ]
+      .map(
+        (
+          [
+            accountId,
+            total,
+          ],
+        ) => {
+          const net =
+            total.debit -
+            total.credit;
+
+          if (net === 0) {
+            return null;
+          }
+
+          return {
+            accountId,
+            side:
+              net >
+              0
+                ? LedgerEntrySide.DEBIT
+                : LedgerEntrySide.CREDIT,
+            amountNgn:
+              Math.abs(
+                net,
+              ),
+            memo:
+              [
+                ...new Set(
+                  total.memos,
+                ),
+              ].join(
+                '; ',
+              ),
+          };
+        },
+      )
+      .filter(
+        (
+          line,
+        ): line is {
+          accountId: string;
+          side: LedgerEntrySide;
+          amountNgn: number;
+          memo: string;
+        } =>
+          line !==
+          null,
+      );
   }
 
   private destinationLedgerCode(
