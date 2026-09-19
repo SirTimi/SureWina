@@ -20,8 +20,9 @@ import {CollectionPointAdminController} from './collection-point-admin.controlle
 
 import { ClaimsModule } from '../claims/claims.module'
 import { PaymentRefundService } from './payment-refund.service';
+import { LedgerModule } from '../ledger/ledger.module';
 @Module({
-  imports: [JwtModule.register({}), AuditModule, ClaimsModule],
+  imports: [JwtModule.register({}), AuditModule, ClaimsModule, LedgerModule],
   controllers: [
     AdminOpsController, 
     AgentAdminController, 
