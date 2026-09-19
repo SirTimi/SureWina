@@ -385,25 +385,126 @@ export interface AdminAuditSearch {
   pageSize: number;
 }
 
+export interface AdminPayoutAttempt {
+  attemptId: string;
+  claimId: string;
+  attemptNumber: number;
+
+  provider:
+    | 'DEV'
+    | 'MONNIFY'
+    | 'FLUTTERWAVE';
+
+  amountNgn: number;
+  currency: string;
+
+  status:
+    | 'REQUESTED'
+    | 'SUBMITTED'
+    | 'PROCESSING'
+    | 'SUCCEEDED'
+    | 'FAILED'
+    | 'UNKNOWN'
+    | 'REVERSED';
+
+  providerReference:
+    string | null;
+
+  providerTransactionId:
+    string | null;
+
+  rawStatus:
+    string | null;
+
+  failureReason:
+    string | null;
+
+  destination: {
+    bankCode: string;
+    accountLast4: string;
+  };
+
+  initiatedAt:
+    string;
+
+  lastCheckedAt:
+    string | null;
+
+  completedAt:
+    string | null;
+
+  payoutLedgerTxnId:
+    string | null;
+
+  reversalLedgerTxnId:
+    string | null;
+
+  createdAt:
+    string;
+}
+
 export interface AdminPayoutRow {
   claimId: string;
+
   winnerTicketRef: string;
   winnerPhone: string;
+
   status: string;
   claimType: string | null;
+
   grossPrizeValueNgn: number;
   whtAmountNgn: number;
   netPrizeValueNgn: number;
+
+  payoutStatus: string | null;
+  payoutProvider: string | null;
   payoutReference: string | null;
-  channel: 'AGENT_CASH' | 'BANK_TRANSFER';
-  payoutInitiatedAt: string | null;
-  accountLast4: string | null;
-  fulfilledAt: string | null;
+  payoutFailureReason: string | null;
+
+  channel:
+    | 'AGENT_CASH'
+    | 'BANK_TRANSFER';
+
+  payoutInitiatedAt:
+    string | null;
+
+  payoutLastCheckedAt:
+    string | null;
+
+  accountLast4:
+    string | null;
+
+  fulfilledAt:
+    string | null;
+
+  attemptCount:
+    number;
+
+  canInitiate:
+    boolean;
+
+  retryAllowed:
+    boolean;
+
+  refreshAllowed:
+    boolean;
+
+  needsReview:
+    boolean;
+
+  currentAttempt:
+    AdminPayoutAttempt | null;
 }
 
 export interface AdminPayoutList {
-  payouts: AdminPayoutRow[];
-  totals: { count: number; grossNgn: number; netPaidNgn: number };
+  payouts:
+    AdminPayoutRow[];
+
+  totals: {
+    count: number;
+    grossNgn: number;
+    netPaidNgn: number;
+  };
 }
 
 export interface AdminSeedRow {
@@ -886,6 +987,63 @@ export class AdminModule {
     return this.client.get('/admin/finance/payouts', { query: { ...params } });
   }
 
+  async initiatePrizePayout(
+    claimId: string,
+    provider:
+      | 'MONNIFY'
+      | 'FLUTTERWAVE',
+  ): Promise<AdminPayoutAttempt> {
+    return this.client.post(
+      `/admin/finance/payouts/${encodeURIComponent(
+        claimId,
+      )}/initiate`,
+      {
+        provider,
+      },
+    );
+  }
+
+  async refreshPrizePayout(
+    claimId: string,
+  ): Promise<AdminPayoutAttempt> {
+    return this.client.post(
+      `/admin/finance/payouts/${encodeURIComponent(
+        claimId,
+      )}/refresh`,
+      {},
+    );
+  }
+
+  async retryPrizePayout(
+    claimId: string,
+    provider:
+      | 'MONNIFY'
+      | 'FLUTTERWAVE',
+  ): Promise<AdminPayoutAttempt> {
+    return this.client.post(
+      `/admin/finance/payouts/${encodeURIComponent(
+        claimId,
+      )}/retry`,
+      {
+        provider,
+      },
+    );
+  }
+
+  async prizePayoutAttempts(
+    claimId: string,
+  ): Promise<{
+    claimId: string;
+    winnerTicketRef: string;
+    attempts: AdminPayoutAttempt[];
+  }> {
+    return this.client.get(
+      `/admin/finance/payouts/${encodeURIComponent(
+        claimId,
+      )}/attempts`,
+    );
+  }
+  
   async seedRegistry(status?: string): Promise<{ seeds: AdminSeedRow[] }> {
     return this.client.get('/admin/draws/seeds/list', { query: { status } });
   }

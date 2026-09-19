@@ -10,6 +10,8 @@ import {
   DisbStatus,
   DrawStatus,
   Prisma,
+  ClaimType,
+  PrizePayoutStatus,
   PrizeClaimStatus,
 } from '@prisma/client';
 import { randomUUID } from 'crypto';
@@ -87,146 +89,488 @@ export class FinanceAdminService {
 // Read-only record view. The payout provider is stored per claim so
 // Finance can distinguish DEV, MONNIFY, FLUTTERWAVE, etc.
   async listPayouts(f: {
-    status?: PrizeClaimStatus;
-    fromDate?: string;
-    toDate?: string;
-  }) {
-    const where: Prisma.PrizeClaimWhereInput = {
-  OR: [
-    {
-      payoutStatus: {
-        not: null,
-      },
-    },
-    {
-      payoutReference: {
-        not: null,
-      },
-    },
-  ],
+  status?: PrizeClaimStatus;
+  fromDate?: string;
+  toDate?: string;
+}) {
+  const hasDateRange =
+    Boolean(
+      f.fromDate ||
+      f.toDate,
+    );
 
-  ...(f.status ? { status: f.status } : {}),
+  const dateRange = {
+    ...(f.fromDate
+      ? {
+          gte:
+            new Date(
+              `${f.fromDate}T00:00:00.000Z`,
+            ),
+        }
+      : {}),
 
-  ...(f.fromDate || f.toDate
-    ? {
-        payoutInitiatedAt: {
-          ...(f.fromDate
-            ? { gte: new Date(f.fromDate) }
-            : {}),
-          ...(f.toDate
-            ? {
-                lte: new Date(
-                  `${f.toDate}T23:59:59.999Z`,
-                ),
-              }
-            : {}),
-        },
-      }
-    : {}),
-};
+    ...(f.toDate
+      ? {
+          lte:
+            new Date(
+              `${f.toDate}T23:59:59.999Z`,
+            ),
+        }
+      : {}),
+  };
 
-      const rows =
-        await this.prisma.prizeClaim.findMany({
-          where,
-
-          orderBy: {
-            payoutInitiatedAt: 'desc',
+  const and:
+    Prisma.PrizeClaimWhereInput[] = [
+      {
+        OR: [
+          {
+            payoutAttempts: {
+              some: {},
+            },
           },
 
-          take: 200,
+          {
+            payoutStatus: {
+              not: null,
+            },
+          },
+
+          {
+            payoutReference: {
+              not: null,
+            },
+          },
+
+          {
+            paidByAgentId: {
+              not: null,
+            },
+          },
+
+          /*
+           * Cleared bank payouts that Finance still
+           * needs to initiate.
+           */
+          {
+            status:
+              PrizeClaimStatus.KYC_CLEARED,
+
+            payoutAccountNumber: {
+              not: null,
+            },
+          },
+        ],
+      },
+    ];
+
+  if (hasDateRange) {
+    and.push({
+      OR: [
+        {
+          payoutInitiatedAt:
+            dateRange,
+        },
+        {
+          payoutInitiatedAt:
+            null,
+
+          createdAt:
+            dateRange,
+        },
+      ],
+    });
+  }
+
+  const where:
+    Prisma.PrizeClaimWhereInput = {
+      claimType:
+        ClaimType.CASH,
+
+      ...(f.status
+        ? {
+            status:
+              f.status,
+          }
+        : {}),
+
+      AND:
+        and,
+    };
+
+  const rows =
+    await this.prisma.prizeClaim.findMany({
+      where,
+
+      orderBy: {
+        createdAt:
+          'desc',
+      },
+
+      take:
+        200,
+
+      select: {
+        claimId:
+          true,
+
+        winnerTicketRef:
+          true,
+
+        winnerPhone:
+          true,
+
+        status:
+          true,
+
+        claimType:
+          true,
+
+        grossPrizeValueNgn:
+          true,
+
+        whtAmountNgn:
+          true,
+
+        netPrizeValueNgn:
+          true,
+
+        payoutStatus:
+          true,
+
+        payoutProvider:
+          true,
+
+        payoutReference:
+          true,
+
+        payoutInitiatedAt:
+          true,
+
+        payoutLastCheckedAt:
+          true,
+
+        payoutFailureReason:
+          true,
+
+        payoutAccountNumber:
+          true,
+
+        paidByAgentId:
+          true,
+
+        fulfilledAt:
+          true,
+
+        createdAt:
+          true,
+
+        payoutAttempts: {
+          orderBy: {
+            attemptNumber:
+              'desc',
+          },
+
+          take:
+            1,
 
           select: {
-            claimId: true,
-            winnerTicketRef: true,
-            winnerPhone: true,
+            attemptId:
+              true,
 
-            status: true,
-            claimType: true,
+            claimId:
+              true,
 
-            grossPrizeValueNgn: true,
-            whtAmountNgn: true,
-            netPrizeValueNgn: true,
+            attemptNumber:
+              true,
 
-            payoutStatus: true,
-            payoutProvider: true,
-            payoutReference: true,
+            provider:
+              true,
 
-            // Selected for operational/reconciliation use.
-            // We intentionally do not return it to the normal admin UI below.
-            payoutIdempotencyKey: true,
+            amountNgn:
+              true,
 
-            payoutInitiatedAt: true,
-            payoutAccountNumber: true,
+            currency:
+              true,
 
-            fulfilledAt: true,
+            status:
+              true,
+
+            providerReference:
+              true,
+
+            providerTransactionId:
+              true,
+
+            rawStatus:
+              true,
+
+            failureReason:
+              true,
+
+            destinationBankCode:
+              true,
+
+            destinationAccountLast4:
+              true,
+
+            initiatedAt:
+              true,
+
+            lastCheckedAt:
+              true,
+
+            completedAt:
+              true,
+
+            payoutLedgerTxnId:
+              true,
+
+            reversalLedgerTxnId:
+              true,
+
+            createdAt:
+              true,
           },
-        });
+        },
 
-        return {
-        payouts: rows.map((r) => ({
-          claimId: r.claimId,
+        _count: {
+          select: {
+            payoutAttempts:
+              true,
+          },
+        },
+      },
+    });
 
-          winnerTicketRef: r.winnerTicketRef,
-          winnerPhone: r.winnerPhone,
+  const nonTerminal:
+    PrizePayoutStatus[] = [
+      PrizePayoutStatus.REQUESTED,
+      PrizePayoutStatus.SUBMITTED,
+      PrizePayoutStatus.PROCESSING,
+      PrizePayoutStatus.UNKNOWN,
+    ];
 
-          status: r.status,
-          claimType: r.claimType,
+  return {
+    payouts:
+      rows.map(
+        (r) => {
+          const latest =
+            r.payoutAttempts[0] ??
+            null;
 
-          grossPrizeValueNgn:
-            r.grossPrizeValueNgn,
+          const payoutStatus =
+            latest?.status ??
+            r.payoutStatus;
 
-          whtAmountNgn:
-            r.whtAmountNgn,
+          const payoutProvider =
+            latest?.provider ??
+            r.payoutProvider;
 
-          netPrizeValueNgn:
-            r.netPrizeValueNgn,
+          const payoutReference =
+            latest?.providerReference ??
+            r.payoutReference;
 
-          payoutStatus:
-            r.payoutStatus,
-
-          payoutProvider:
-            r.payoutProvider,
-
-          payoutReference:
-            r.payoutReference,
-
-          channel:
+          const channel =
+            r.paidByAgentId ||
             r.payoutReference?.startsWith(
               'AGT-CASH-',
             )
               ? 'AGENT_CASH'
-              : 'BANK_TRANSFER',
+              : 'BANK_TRANSFER';
 
-          payoutInitiatedAt:
-            r.payoutInitiatedAt?.toISOString() ??
-            null,
+          const canInitiate =
+            channel ===
+              'BANK_TRANSFER' &&
+            !latest &&
+            r.status ===
+              PrizeClaimStatus.KYC_CLEARED &&
+            Boolean(
+              r.payoutAccountNumber,
+            );
 
-          accountLast4:
-            r.payoutAccountNumber?.slice(-4) ??
-            null,
+          const retryAllowed =
+            Boolean(
+              latest &&
+                (
+                  latest.status ===
+                    PrizePayoutStatus.FAILED ||
+                  latest.status ===
+                    PrizePayoutStatus.REVERSED
+                ) &&
+                r.status ===
+                  PrizeClaimStatus.KYC_CLEARED,
+            );
 
-          fulfilledAt:
-            r.fulfilledAt?.toISOString() ??
-            null,
-        })),
+          const refreshAllowed =
+            Boolean(
+              latest &&
+              nonTerminal.includes(
+                latest.status,
+              ),
+            );
 
-        totals: {
-          count: rows.length,
+          const needsReview =
+            latest?.status ===
+              PrizePayoutStatus.UNKNOWN ||
+            latest?.status ===
+              PrizePayoutStatus.REVERSED;
 
-          grossNgn: rows.reduce(
-            (sum, r) =>
-              sum + r.grossPrizeValueNgn,
-            0,
-          ),
+          return {
+            claimId:
+              r.claimId,
 
-        /*
-        * Only claims that actually reached CASH_PAID
-        * count as paid.
-        *
-        * REQUESTED / SUBMITTED / PROCESSING /
-        * UNKNOWN must never inflate paid totals.
-        */
-        netPaidNgn: rows
+            winnerTicketRef:
+              r.winnerTicketRef,
+
+            winnerPhone:
+              r.winnerPhone,
+
+            status:
+              r.status,
+
+            claimType:
+              r.claimType,
+
+            grossPrizeValueNgn:
+              r.grossPrizeValueNgn,
+
+            whtAmountNgn:
+              r.whtAmountNgn,
+
+            netPrizeValueNgn:
+              r.netPrizeValueNgn,
+
+            payoutStatus,
+
+            payoutProvider,
+
+            payoutReference,
+
+            payoutFailureReason:
+              latest?.failureReason ??
+              r.payoutFailureReason,
+
+            channel,
+
+            payoutInitiatedAt:
+              (
+                latest?.initiatedAt ??
+                r.payoutInitiatedAt
+              )?.toISOString() ??
+              null,
+
+            payoutLastCheckedAt:
+              (
+                latest?.lastCheckedAt ??
+                r.payoutLastCheckedAt
+              )?.toISOString() ??
+              null,
+
+            accountLast4:
+              latest
+                ?.destinationAccountLast4 ??
+              r.payoutAccountNumber
+                ?.slice(-4) ??
+              null,
+
+            fulfilledAt:
+              r.fulfilledAt
+                ?.toISOString() ??
+              null,
+
+            attemptCount:
+              r._count.payoutAttempts,
+
+            canInitiate,
+            retryAllowed,
+            refreshAllowed,
+            needsReview,
+
+            currentAttempt:
+              latest
+                ? {
+                    attemptId:
+                      latest.attemptId,
+
+                    claimId:
+                      latest.claimId,
+
+                    attemptNumber:
+                      latest.attemptNumber,
+
+                    provider:
+                      latest.provider,
+
+                    amountNgn:
+                      latest.amountNgn,
+
+                    currency:
+                      latest.currency,
+
+                    status:
+                      latest.status,
+
+                    providerReference:
+                      latest.providerReference,
+
+                    providerTransactionId:
+                      latest.providerTransactionId,
+
+                    rawStatus:
+                      latest.rawStatus,
+
+                    failureReason:
+                      latest.failureReason,
+
+                    destination: {
+                      bankCode:
+                        latest.destinationBankCode,
+
+                      accountLast4:
+                        latest.destinationAccountLast4,
+                    },
+
+                    initiatedAt:
+                      latest.initiatedAt.toISOString(),
+
+                    lastCheckedAt:
+                      latest.lastCheckedAt
+                        ?.toISOString() ??
+                      null,
+
+                    completedAt:
+                      latest.completedAt
+                        ?.toISOString() ??
+                      null,
+
+                    payoutLedgerTxnId:
+                      latest.payoutLedgerTxnId,
+
+                    reversalLedgerTxnId:
+                      latest.reversalLedgerTxnId,
+
+                    createdAt:
+                      latest.createdAt.toISOString(),
+                  }
+                : null,
+          };
+        },
+      ),
+
+    totals: {
+      count:
+        rows.length,
+
+      grossNgn:
+        rows.reduce(
+          (sum, r) =>
+            sum +
+            r.grossPrizeValueNgn,
+          0,
+        ),
+
+      netPaidNgn:
+        rows
           .filter(
             (r) =>
               r.status ===
@@ -234,10 +578,11 @@ export class FinanceAdminService {
           )
           .reduce(
             (sum, r) =>
-              sum + r.netPrizeValueNgn,
+              sum +
+              r.netPrizeValueNgn,
             0,
           ),
-      },
-    };
-  }
+    },
+  };
+}
 }

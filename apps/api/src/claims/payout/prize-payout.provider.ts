@@ -1,7 +1,5 @@
 import { PrizePayoutStatus } from '@prisma/client';
 
-export const PRIZE_PAYOUT_PROVIDER = Symbol('PRIZE_PAYOUT_PROVIDER');
-
 export type PrizePayoutProviderCode =
   | 'DEV'
   | 'MONNIFY'
