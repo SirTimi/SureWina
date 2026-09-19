@@ -64,6 +64,8 @@ import {
   PrizePayoutAttemptFinalizationService,
 } from './payout/prize-payout-attempt-finalization.service';
 
+import { PrizePayoutSyncService } from './payout/prize-payout-sync.service';
+
 @Module({
   imports: [
     ConfigModule,
@@ -98,6 +100,7 @@ import {
     MonnifyWebhookSignatureGuard,
     PrizePayoutEngineService,
     PrizePayoutAttemptFinalizationService,
+    PrizePayoutSyncService,
 
     /*
      * Legacy Phase 1 provider selector.

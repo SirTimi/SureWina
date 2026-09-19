@@ -1,76 +1,110 @@
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
-import {
-  PurchaseConfirmationService,
-} from '../purchase-confirmation.service';
-
-import {
-  PaymentVerificationService,
-} from '../payment-verification.service';
-
-import {
-  NotificationQueueService,
-} from '../../queue/notification-queue.service';
-
+import { PurchaseConfirmationService } from '../purchase-confirmation.service';
+import { PaymentVerificationService } from '../payment-verification.service';
+import { NotificationQueueService } from '../../queue/notification-queue.service';
 import { WalletFundingService } from '../wallet-funding.service';
+import { PrizePayoutSyncService } from '../../claims/payout/prize-payout-sync.service';
 
 type FlwEvent = {
-  event: string;
+  event?: string;
+  type?: string;
 
   data?: {
-    id?:
-      number | string;
+    id?: number | string;
 
-    tx_ref?:
-      string;
+    tx_ref?: string;
+    reference?: string;
 
-    status?:
-      string;
+    status?: string;
 
-    meta?:
-      Record<string, unknown>;
+    meta?: Record<string, unknown>;
   };
 };
 
 @Injectable()
 export class FlutterwaveWebhookService {
-  private readonly logger =
-    new Logger(
-      FlutterwaveWebhookService.name,
-    );
+  private readonly logger = new Logger(
+    FlutterwaveWebhookService.name,
+  );
 
   constructor(
-    private readonly purchaseConfirmation:
-      PurchaseConfirmationService,
-
-    private readonly verification:
-      PaymentVerificationService,
-
-    private readonly notificationQueue:
-      NotificationQueueService,
-
-    private readonly walletFunding:
-      WalletFundingService,
+    private readonly purchaseConfirmation: PurchaseConfirmationService,
+    private readonly verification: PaymentVerificationService,
+    private readonly notificationQueue: NotificationQueueService,
+    private readonly walletFunding: WalletFundingService,
+    private readonly prizePayoutSync: PrizePayoutSyncService,
   ) {}
 
-  async handle(
-    event: FlwEvent,
-  ): Promise<void> {
+  async handle(event: FlwEvent): Promise<void> {
+    const eventName =
+      event.event
+        ?.trim()
+        .toLowerCase() ?? '';
+
+    const eventType =
+      event.type
+        ?.trim()
+        .toLowerCase() ?? '';
+
     /*
-     * Do not trust webhook status.
+     * Prize payout event.
      *
-     * We only use the event as a signal that this
-     * transaction should now be verified.
+     * Flutterwave v3 uses transfer.completed.
+     *
+     * We also recognise transfer.disburse so the handler remains
+     * compatible with Flutterwave's newer transfer-event shape.
+     *
+     * IMPORTANT:
+     * We do not trust event.data.status.
      */
     if (
-      event.event !==
-      'charge.completed'
+      eventName === 'transfer.completed' ||
+      eventType === 'transfer.disburse'
     ) {
+      const reference =
+        event.data?.reference?.trim();
+
+      if (!reference) {
+        this.logger.warn(
+          'Flutterwave payout webhook missing transfer reference',
+        );
+
+        return;
+      }
+
+      try {
+        const result =
+          await this.prizePayoutSync.syncReference(
+            'FLUTTERWAVE',
+            reference,
+            'flutterwave-transfer-webhook',
+          );
+
+        if (!result.found) {
+          this.logger.warn(
+            `Flutterwave transfer webhook did not match a payout attempt: ${reference}`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Flutterwave payout sync failed for ${reference}: ${
+            error instanceof Error
+              ? error.message
+              : 'unknown'
+          }`,
+        );
+      }
+
+      return;
+    }
+
+    /*
+     * Everything below here is Flutterwave customer-payment handling.
+     */
+    if (eventName !== 'charge.completed') {
       this.logger.debug(
-        `Ignoring Flutterwave event: ${event.event}`,
+        `Ignoring Flutterwave event: ${eventName || eventType || 'unknown'}`,
       );
 
       return;
@@ -80,8 +114,7 @@ export class FlutterwaveWebhookService {
       event.data?.id;
 
     if (
-      transactionId ===
-        undefined ||
+      transactionId === undefined ||
       transactionId === null
     ) {
       this.logger.warn(
@@ -92,6 +125,11 @@ export class FlutterwaveWebhookService {
     }
 
     try {
+      /*
+       * Webhook status is only a trigger.
+       *
+       * Independently verify the actual transaction with Flutterwave.
+       */
       const verified =
         await this.verification.verifyFlutterwave(
           transactionId,
@@ -105,12 +143,6 @@ export class FlutterwaveWebhookService {
         return;
       }
 
-      /*
-       * Optional diagnostic check.
-       *
-       * Fulfilment still uses the authenticated verification
-       * response as the authoritative reference.
-       */
       if (
         event.data?.tx_ref &&
         event.data.tx_ref !==
@@ -121,16 +153,27 @@ export class FlutterwaveWebhookService {
         );
       }
 
-      const funding = await this.walletFunding.confirmIfFunding({
-        reference: verified.reference,
-        verifiedPayment: verified,
-        rawEvent: event,
-      });
+      /*
+       * First determine whether this payment belongs to wallet
+       * funding rather than a direct ticket purchase.
+       */
+      const funding =
+        await this.walletFunding.confirmIfFunding({
+          reference:
+            verified.reference,
+
+          verifiedPayment:
+            verified,
+
+          rawEvent:
+            event,
+        });
 
       if (funding) {
         this.logger.log(
           `Wallet funding processed for ${verified.reference}`,
         );
+
         return;
       }
 
@@ -170,9 +213,7 @@ export class FlutterwaveWebhookService {
           confirmed.amountNgn,
       });
 
-      if (
-        confirmed.jackpotMinted
-      ) {
+      if (confirmed.jackpotMinted) {
         await this.notificationQueue.enqueueJackpotEntrySms(
           confirmed.jackpotMinted,
         );

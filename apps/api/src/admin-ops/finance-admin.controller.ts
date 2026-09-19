@@ -17,6 +17,7 @@ import {
   IsDateString,
   IsEnum,
   IsISO8601,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -30,8 +31,11 @@ import { CurrentAdmin } from '../admin-auth/guards/current-admin.decorator';
 import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 
 import { FinanceAdminService } from './finance-admin.service';
-import { ClaimsService } from '../claims/claims.service';
 import { PaymentRefundService } from './payment-refund.service';
+
+import {
+  PrizePayoutEngineService,
+} from '../claims/payout/prize-payout-engine.service';
 
 class ReconQueryDto {
   @IsISO8601()
@@ -62,6 +66,16 @@ class ListPayoutsQueryDto {
   toDate?: string;
 }
 
+class PrizePayoutProviderDto {
+  @IsIn([
+    'MONNIFY',
+    'FLUTTERWAVE',
+  ])
+  provider!:
+    | 'MONNIFY'
+    | 'FLUTTERWAVE';
+}
+
 @Controller('admin/finance')
 @UseGuards(
   AdminJwtGuard,
@@ -75,11 +89,11 @@ export class FinanceAdminController {
     private readonly financeAdmin:
       FinanceAdminService,
 
-    private readonly claimService:
-      ClaimsService,
-
     private readonly refunds:
       PaymentRefundService,
+
+    private readonly prizePayouts:
+      PrizePayoutEngineService,
   ) {}
 
   @Get('reconciliation')
@@ -93,13 +107,6 @@ export class FinanceAdminController {
     );
   }
 
-  /*
-   * Initiate a full refund.
-   *
-   * Works for ordinary CONFIRMED payments and
-   * REVIEW_REQUIRED payments where money was received
-   * but tickets could not safely be issued.
-   */
   @Post(
     'payments/:txnId/refund',
   )
@@ -120,11 +127,6 @@ export class FinanceAdminController {
     );
   }
 
-  /*
-   * Authenticated provider status refresh.
-   *
-   * This does NOT resend the refund.
-   */
   @Post(
     'payments/:txnId/refund/refresh',
   )
@@ -146,14 +148,6 @@ export class FinanceAdminController {
     return this.refunds.listRefunds();
   }
 
-  /*
-   * Finance queue for:
-   *
-   * - late payments
-   * - financial verification mismatches
-   * - failed refunds
-   * - otherwise unfulfilled successful payments
-   */
   @Get('payments/review')
   listReviewRequired() {
     return this.refunds.listReviewRequired();
@@ -185,6 +179,11 @@ export class FinanceAdminController {
     );
   }
 
+  /*
+   * First payout attempt.
+   *
+   * Finance explicitly selects the payout rail.
+   */
   @Post(
     'payouts/:claimId/initiate',
   )
@@ -192,15 +191,24 @@ export class FinanceAdminController {
     @Param('claimId')
     claimId: string,
 
+    @Body()
+    dto: PrizePayoutProviderDto,
+
     @CurrentAdmin()
     admin: AdminJwtPayload,
   ) {
-    return this.claimService.initiatePayout(
+    return this.prizePayouts.initiate(
       claimId,
       admin.sub,
+      dto.provider,
     );
   }
 
+  /*
+   * Query the existing attempt.
+   *
+   * This never resends money.
+   */
   @Post(
     'payouts/:claimId/refresh',
   )
@@ -211,9 +219,52 @@ export class FinanceAdminController {
     @CurrentAdmin()
     admin: AdminJwtPayload,
   ) {
-    return this.claimService.refreshPayoutStatus(
+    return this.prizePayouts.refreshCurrent(
       claimId,
       admin.sub,
+    );
+  }
+
+  /*
+   * Create another payout attempt.
+   *
+   * The engine allows this only when the latest attempt is
+   * conclusively FAILED or REVERSED.
+   *
+   * UNKNOWN/SUBMITTED/PROCESSING cannot enter this path.
+   */
+  @Post(
+    'payouts/:claimId/retry',
+  )
+  retryPayout(
+    @Param('claimId')
+    claimId: string,
+
+    @Body()
+    dto: PrizePayoutProviderDto,
+
+    @CurrentAdmin()
+    admin: AdminJwtPayload,
+  ) {
+    return this.prizePayouts.retry(
+      claimId,
+      admin.sub,
+      dto.provider,
+    );
+  }
+
+  /*
+   * Immutable attempt history for Finance.
+   */
+  @Get(
+    'payouts/:claimId/attempts',
+  )
+  payoutAttempts(
+    @Param('claimId')
+    claimId: string,
+  ) {
+    return this.prizePayouts.listAttempts(
+      claimId,
     );
   }
 }
