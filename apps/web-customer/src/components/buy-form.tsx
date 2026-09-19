@@ -38,6 +38,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
   } = useForm<PurchaseFormValues, unknown, PurchaseFormParsed>({
     resolver: zodResolver(purchaseSchema),
     defaultValues: {
+      gateway: 'MONNIFY',
       quantity: initialQuantity,
       phone: '',
       email: '',
@@ -62,6 +63,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
 
     try {
       const result = await api.tickets.initiatePurchase({
+        gateway: data.gateway,
         drawCode: draw.drawCode,
         quantity: data.quantity,
         phoneE164: data.phone,
@@ -270,14 +272,42 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           Payment
         </p>
 
-        {/* No method picker here: Paystack's checkout offers card, transfer,
-            USSD and mobile money, so choosing twice was redundant. */}
-        <div className="rounded-sm border border-slate-200 bg-[#F8FAF4] p-4">
-          <p className="text-sm font-black text-navy-950">Pay with Paystack</p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            Card, bank transfer, USSD or mobile money — choose your method on the next
-            screen.
-          </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="cursor-pointer rounded-sm border border-slate-200 bg-[#F8FAF4] p-4 transition has-[:checked]:border-navy-700 has-[:checked]:ring-2 has-[:checked]:ring-amber-400/35">
+            <div className="flex items-start gap-3">
+              <input
+                type="radio"
+                value="MONNIFY"
+                {...register('gateway')}
+                className="mt-1 h-4 w-4 accent-navy-700"
+              />
+              <div>
+                <p className="text-sm font-black text-navy-950">Monnify</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                  Continue to Monnify checkout and choose from the payment methods available
+                  on your account.
+                </p>
+              </div>
+            </div>
+          </label>
+
+          <label className="cursor-pointer rounded-sm border border-slate-200 bg-[#F8FAF4] p-4 transition has-[:checked]:border-navy-700 has-[:checked]:ring-2 has-[:checked]:ring-amber-400/35">
+            <div className="flex items-start gap-3">
+              <input
+                type="radio"
+                value="FLUTTERWAVE"
+                {...register('gateway')}
+                className="mt-1 h-4 w-4 accent-navy-700"
+              />
+              <div>
+                <p className="text-sm font-black text-navy-950">Flutterwave</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                  Continue to Flutterwave checkout and complete payment using an available
+                  payment method.
+                </p>
+              </div>
+            </div>
+          </label>
         </div>
       </Card>
 
@@ -329,7 +359,7 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
 
         <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-slate-500">
           <Lock className="h-3 w-3 text-navy-700" />
-          Payment is processed securely by Paystack. We never store card details.
+          Payment is processed securely by your selected provider. We never store card details.
         </p>
       </Card>
     </form>
