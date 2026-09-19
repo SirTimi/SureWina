@@ -32,9 +32,22 @@ export default async function PaymentCallbackPage({
     redirect('/');
   }
 
+  const query =
+    new URLSearchParams({
+      session:
+        reference,
+    });
+
+  if (
+    params.transaction_id
+  ) {
+    query.set(
+      'transactionId',
+      params.transaction_id,
+    );
+  }
+
   redirect(
-    `/purchase/processing?session=${encodeURIComponent(
-      reference,
-    )}`,
+    `/purchase/processing?${query.toString()}`,
   );
 }
