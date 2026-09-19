@@ -5,13 +5,19 @@ import { Button, Card, Container } from '@surewina/ui';
 import { ProcessingPanel } from '@/components/processing-panel';
 
 interface GenericProcessingPageProps {
-  searchParams: Promise<{ session?: string }>;
+  searchParams: Promise<{
+    session?: string;
+    transactionId?: string;
+  }>;
 }
 
 export default async function GenericProcessingPage({
   searchParams,
 }: GenericProcessingPageProps) {
-  const { session } = await searchParams;
+  const {
+    session,
+    transactionId,
+  } = await searchParams;
 
   if (!session) {
     return (
@@ -51,7 +57,10 @@ export default async function GenericProcessingPage({
             <div className="h-80 animate-pulse rounded-3xl border border-slate-200 bg-white/95 shadow-[0_28px_80px_rgba(15,23,42,0.10)]" />
           }
         >
-          <ProcessingPanel sessionId={session} />
+          <ProcessingPanel
+            sessionId={session}
+            providerTransactionId={transactionId}
+          />
         </Suspense>
       </Container>
     </main>
