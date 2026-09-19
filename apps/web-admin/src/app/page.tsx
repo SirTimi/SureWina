@@ -579,8 +579,8 @@ function FinanceDashboard({ session }: { session: AdminSession }) {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <QuickLink href="/remittance" icon={Banknote} label="Remittances" />
-          <QuickLink href="/reports/sales" icon={Receipt} label="Sales review" />
-          <QuickLink href="/reports/financial" icon={Gauge} label="Operating P&L" />
+          <QuickLink href="/treasury" icon={Gauge} label="Treasury & reconciliation" />
+          <QuickLink href="/reports/financial" icon={Receipt} label="Operating P&L" />
           <QuickLink href="/reports/agents" icon={UserCog} label="Agent performance" />
         </div>
       </div>
