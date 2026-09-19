@@ -34,8 +34,8 @@ export class TicketsModule {
   async initiatePurchase(
     req: InitiatePurchaseRequest,
   ): Promise<InitiatePurchaseResponse> {
-    // Explicit field mapping: backend whitelist rejects unknown fields, and
-    // paymentMethod is chosen on Paystack's checkout page, not ours.
+    // Explicit field mapping: backend whitelist rejects unknown fields.
+    // The customer chooses the collection rail in SureWina before redirect.
     const res = await this.client.post<{
       authorizationUrl: string;
       reference: string;
@@ -44,6 +44,7 @@ export class TicketsModule {
     }>(
       '/tickets/purchase/initiate',
       {
+        gateway: req.gateway,
         drawCode: req.drawCode,
         quantity: req.quantity,
         phoneE164: req.phoneE164,
@@ -55,7 +56,7 @@ export class TicketsModule {
     return {
       purchaseSessionId: res.reference,
       totalNgn: res.amountNgn,
-      redirectUrl: res.authorizationUrl, // real Paystack checkout URL
+      redirectUrl: res.authorizationUrl,
       expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     };
   }
@@ -66,8 +67,8 @@ export class TicketsModule {
     _quantity: number,
     _phoneE164: string,
   ): Promise<ConfirmPurchaseResponse> {
-    // Poll the backend status endpoint. Verify-on-return server-side means
-    // a completed Paystack payment confirms within a poll or two.
+    // Poll the backend status endpoint. Monnify can self-heal by merchant
+    // reference; Flutterwave also confirms through its signed webhook flow.
     const POLL_MS = 2500;
     const MAX_POLLS = 24; // ~60s
 
