@@ -5,7 +5,13 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TreasuryProvider } from '@prisma/client';
+import {
+  ReconciliationRunStatus,
+  ReconciliationRunType,
+  TreasuryProvider,
+} from '@prisma/client';
+
+import { PrismaService } from '../database/prisma.service';
 
 import { TreasurySettlementService } from './treasury-settlement.service';
 import { TreasuryReconciliationService } from './treasury-reconciliation.service';
@@ -23,6 +29,7 @@ export class TreasuryRecoveryService
   private running = false;
 
   constructor(
+    private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly settlements: TreasurySettlementService,
     private readonly reconciliation: TreasuryReconciliationService,
@@ -82,13 +89,20 @@ export class TreasuryRecoveryService
         }
       }
 
+      const monnifyConfigured =
+        Boolean(
+          this.config.get<string>(
+            'MONNIFY_API_KEY',
+          ),
+        ) &&
+        Boolean(
+          this.config.get<string>(
+            'MONNIFY_SECRET_KEY',
+          ),
+        );
+
       if (
-        this.config.get<string>(
-          'MONNIFY_API_KEY',
-        ) &&
-        this.config.get<string>(
-          'MONNIFY_SECRET_KEY',
-        ) &&
+        monnifyConfigured &&
         this.config.get<string>(
           'MONNIFY_SOURCE_ACCOUNT_NUMBER',
         )
@@ -107,8 +121,125 @@ export class TreasuryRecoveryService
           );
         }
       }
+
+      const [
+        previousDayFrom,
+        previousDayTo,
+      ] =
+        this.previousWatDay();
+
+      if (
+        monnifyConfigured
+      ) {
+        await this.ensureDailyReconciliation(
+          TreasuryProvider.MONNIFY,
+          previousDayFrom,
+          previousDayTo,
+        );
+      }
+
+      if (
+        this.config.get<string>(
+          'FLUTTERWAVE_SECRET_KEY',
+        )
+      ) {
+        await this.ensureDailyReconciliation(
+          TreasuryProvider.FLUTTERWAVE,
+          previousDayFrom,
+          previousDayTo,
+        );
+      }
     } finally {
       this.running = false;
     }
+  private async ensureDailyReconciliation(
+    provider: TreasuryProvider,
+    from: Date,
+    to: Date,
+  ) {
+    const existing =
+      await this.prisma.reconciliationRun.findFirst({
+        where: {
+          runType:
+            ReconciliationRunType.TRANSACTION,
+          provider,
+          periodFrom:
+            from,
+          periodTo:
+            to,
+          status: {
+            in: [
+              ReconciliationRunStatus.RUNNING,
+              ReconciliationRunStatus.COMPLETED,
+              ReconciliationRunStatus.COMPLETED_WITH_EXCEPTIONS,
+            ],
+          },
+        },
+        select: {
+          runId:
+            true,
+        },
+      });
+
+    if (existing) {
+      return;
+    }
+
+    try {
+      await this.reconciliation.reconcileTransactions(
+        provider,
+        from,
+        to,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `${provider} daily transaction reconciliation failed: ${
+          error instanceof Error
+            ? error.message
+            : 'unknown'
+        }`,
+      );
+    }
+  }
+
+  private previousWatDay(): [
+    Date,
+    Date,
+  ] {
+    const nowWat =
+      new Date(
+        Date.now() +
+        60 * 60 * 1000,
+      );
+
+    const currentWatMidnightUtc =
+      Date.UTC(
+        nowWat.getUTCFullYear(),
+        nowWat.getUTCMonth(),
+        nowWat.getUTCDate(),
+      );
+
+    const previousWatStart =
+      currentWatMidnightUtc -
+      24 * 60 * 60 * 1000 -
+      60 * 60 * 1000;
+
+    const from =
+      new Date(
+        previousWatStart,
+      );
+
+    const to =
+      new Date(
+        previousWatStart +
+        24 * 60 * 60 * 1000 -
+        1,
+      );
+
+    return [
+      from,
+      to,
+    ];
+  }
   }
 }
