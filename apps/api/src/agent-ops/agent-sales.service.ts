@@ -29,6 +29,7 @@ import { CustomerAdminService } from '../admin-ops/customer-admin.service';
 import { SellTicketsDto } from './dto/sell-tickets.dto';
 import { AccountService } from '../account/account.service'
 import { drawDisplayName, drawShortCode } from '../common/draw-naming.util';
+import { AgentAccountingService } from './agent-accounting.service';
 
 @Injectable()
 export class AgentSalesService {
@@ -40,7 +41,8 @@ export class AgentSalesService {
     private readonly jackpotAccumulation: JackpotAccumulationService,
     private readonly notificationQueue: NotificationQueueService,
     private readonly customerAdmin: CustomerAdminService,
-    private readonly account: AccountService
+    private readonly account: AccountService,
+    private readonly agentAccounting: AgentAccountingService,
   ) {}
 
   async sell(agentId: string, dto: SellTicketsDto) {
@@ -94,6 +96,17 @@ export class AgentSalesService {
           confirmedAt: new Date(),
         },
       });
+
+      await this.agentAccounting.recordSaleInTransaction(
+        tx,
+        {
+          paymentTxnId: txn.txnId,
+          agentId,
+          amountNgn,
+          reference,
+          occurredAt: txn.confirmedAt ?? txn.createdAt,
+        },
+      );
 
       const ticketsData = Array.from({ length: dto.quantity }, () => ({
         ticketRef: generateTicketRef(),
