@@ -351,7 +351,7 @@ export class PaymentAccountingService {
     const clearing =
       await this.requireAccount(
         tx,
-        this.collectionClearingCode(
+        this.payoutClearingCode(
           input.gateway,
         ),
       );
@@ -427,6 +427,25 @@ export class PaymentAccountingService {
     });
 
     return journal;
+  }
+
+  private payoutClearingCode(
+    gateway: PaymentGateway,
+  ) {
+    switch (gateway) {
+      case PaymentGateway.MONNIFY:
+        return SYSTEM_LEDGER_ACCOUNT_CODES
+          .MONNIFY_PAYOUT_CLEARING;
+
+      case PaymentGateway.FLUTTERWAVE:
+        return SYSTEM_LEDGER_ACCOUNT_CODES
+          .FLUTTERWAVE_PAYOUT_CLEARING;
+
+      default:
+        throw new ConflictException(
+          `Gateway ${gateway} is not an active payout-wallet provider`,
+        );
+    }
   }
 
   private collectionClearingCode(
