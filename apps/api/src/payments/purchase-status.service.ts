@@ -45,7 +45,10 @@ export class PurchaseStatusService {
       NotificationQueueService,
   ) {}
 
-  async getStatus(reference: string): Promise<PurchaseStatusResponse> {
+  async getStatus(
+    reference: string,
+    transactionId?: string,
+  ): Promise<PurchaseStatusResponse> {
     let txn = await this.prisma.paymentTransaction.findUnique({
       where: { gatewayReference: reference },
     });
@@ -118,6 +121,72 @@ export class PurchaseStatusService {
                 reference,
             },
           });
+      }
+    }
+
+    if (
+      txn.status ===
+        PaymentStatus.PENDING &&
+      txn.gateway ===
+        PaymentGateway.FLUTTERWAVE
+    ) {
+      const providerId =
+        transactionId?.trim() ||
+        txn.providerTransactionId;
+
+      if (providerId) {
+        const verified =
+          await this.verification.verifyFlutterwave(
+            providerId,
+          );
+
+        if (verified) {
+          const confirmed =
+            await this.purchaseConfirmation.confirmAndCreateTickets({
+              reference,
+              verifiedPayment:
+                verified,
+              rawEvent: {
+                source:
+                  'PURCHASE_STATUS_CHECK',
+                providerVerification:
+                  verified.raw,
+              },
+            });
+
+          if (confirmed) {
+            await this.notificationQueue.enqueueTicketConfirmationSms({
+              txnId:
+                confirmed.txnId,
+              buyerPhone:
+                confirmed.buyerPhone,
+              drawCode:
+                confirmed.drawCode,
+              drawScheduledAt:
+                confirmed.drawScheduledAt,
+              ticketRefs:
+                confirmed.ticketRefs,
+              amountNgn:
+                confirmed.amountNgn,
+            });
+
+            if (
+              confirmed.jackpotMinted
+            ) {
+              await this.notificationQueue.enqueueJackpotEntrySms(
+                confirmed.jackpotMinted,
+              );
+            }
+          }
+
+          txn =
+            await this.prisma.paymentTransaction.findUniqueOrThrow({
+              where: {
+                gatewayReference:
+                  reference,
+              },
+            });
+        }
       }
     }
 
