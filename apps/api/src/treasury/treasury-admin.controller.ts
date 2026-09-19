@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -182,7 +183,7 @@ export class TreasuryAdminController {
       provider !== 'MONNIFY' &&
       provider !== 'FLUTTERWAVE'
     ) {
-      throw new Error(
+      throw new BadRequestException(
         'Provider must be MONNIFY or FLUTTERWAVE',
       );
     }
