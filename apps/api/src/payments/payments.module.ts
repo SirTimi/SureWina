@@ -20,6 +20,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { WalletModule } from '../wallet/wallet.module';
 import { CustomerJwtGuard } from '../auth/guards/customer-jwt.guard';
 import { ClaimsModule } from '../claims/claims.module';
+import { LedgerModule } from '../ledger/ledger.module';
 import { WalletFundingService } from './wallet-funding.service';
 import { WalletFundingController } from './wallet-funding.controller';
 import { WalletFundingAdminController } from './wallet-funding-admin.controller';
@@ -59,7 +60,8 @@ import { WalletTicketPurchaseService } from './wallet-ticket-purchase.service';
     AccountModule,
     TicketsModule,
     WalletModule,
-    ClaimsModule
+    ClaimsModule,
+    LedgerModule
   ],  
 })
 export class PaymentsModule {}
