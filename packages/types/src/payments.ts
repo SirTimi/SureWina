@@ -1,6 +1,6 @@
 import type { Timestamp, UUID, PhoneE164, NairaAmount, PurchaseChannel } from './common.js';
 
-export type PaymentGateway = 'PAYSTACK' | 'FLUTTERWAVE';
+export type PaymentGateway = 'MONNIFY' | 'FLUTTERWAVE';
 
 export type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'FAILED' | 'DUPLICATE' | 'REFUNDED';
 
