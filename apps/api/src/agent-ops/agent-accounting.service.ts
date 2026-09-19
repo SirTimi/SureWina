@@ -278,6 +278,21 @@ export class AgentAccountingService {
     });
   }
 
+  async ensureRemittanceCommission(remittanceId: string) {
+    return this.serializable(async (tx) => {
+      await this.lockRemittance(tx, remittanceId);
+
+      await this.recordCommissionInTransaction(
+        tx,
+        remittanceId,
+      );
+
+      return tx.remittance.findUniqueOrThrow({
+        where: { remittanceId },
+      });
+    });
+  }
+
   async settleBankRemittance(remittanceId: string) {
     return this.serializable(async (tx) => {
       await this.lockRemittance(tx, remittanceId);
@@ -289,6 +304,29 @@ export class AgentAccountingService {
       if (remittance.amountDueNgn <= 0) {
         throw new ConflictException(
           'Only positive remittances can be settled to the bank',
+        );
+      }
+
+      if (
+        remittance.status ===
+          RemittanceStatus.RECEIVED &&
+        remittance.settlementLedgerTxnId
+      ) {
+        return remittance;
+      }
+
+      if (
+        remittance.status !==
+        RemittanceStatus.AGENT_CONFIRMED
+      ) {
+        throw new ConflictException(
+          'Agent must confirm the bank transfer before Finance can mark it received',
+        );
+      }
+
+      if (!remittance.bankTransferRef) {
+        throw new ConflictException(
+          'Bank transfer reference is missing',
         );
       }
 
