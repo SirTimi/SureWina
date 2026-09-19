@@ -8,6 +8,9 @@ export const SYSTEM_LEDGER_ACCOUNT_CODES = {
   PAYSTACK_CLEARING:
     'SYS:PSP:PAYSTACK',
 
+  MONNIFY_COLLECTION_CLEARING:
+    'SYS:PSP:MONNIFY',
+
   FLUTTERWAVE_CLEARING:
     'SYS:PSP:FLUTTERWAVE',
 
@@ -51,6 +54,19 @@ export const SYSTEM_LEDGER_ACCOUNTS = [
       SYSTEM_LEDGER_ACCOUNT_CODES.PAYSTACK_CLEARING,
     name:
       'Paystack Clearing',
+    accountType:
+      LedgerAccountType.ASSET,
+    purpose:
+      LedgerAccountPurpose.PSP_CLEARING,
+    ownerType:
+      LedgerOwnerType.SYSTEM,
+  },
+
+  {
+    code:
+      SYSTEM_LEDGER_ACCOUNT_CODES.MONNIFY_COLLECTION_CLEARING,
+    name:
+      'Monnify Collection Clearing',
     accountType:
       LedgerAccountType.ASSET,
     purpose:
