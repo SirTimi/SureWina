@@ -499,6 +499,11 @@ model LedgerTransaction {
   prizePayoutAttempt PrizePayoutAttempt? @relation("PrizePayoutLedger")
 
   prizePayoutReversalAttempt PrizePayoutAttempt? @relation("PrizePayoutReversalLedger")
+  agentPayoutClaim            PrizeClaim?         @relation("PrizeClaimAgentPayoutLedger")
+
+  remittanceCommission   Remittance? @relation("RemittanceCommissionLedger")
+  remittanceSettlement   Remittance? @relation("RemittanceSettlementLedger")
+  remittanceWalletCredit Remittance? @relation("RemittanceWalletCreditLedger")
 
   collectionPayment       PaymentTransaction? @relation("PaymentCollectionLedger")
   refundAccrualPayment    PaymentTransaction? @relation("PaymentRefundAccrualLedger")
@@ -1335,8 +1340,10 @@ model PrizeClaim {
   kycReviewedAt       DateTime? @map("kyc_reviewed_at")
 
   prizeAccrualLedgerTxnId String? @unique @map("prize_accrual_ledger_txn_id")
+  agentPayoutLedgerTxnId  String? @unique @map("agent_payout_ledger_txn_id")
 
   prizeAccrualLedgerTxn LedgerTransaction? @relation("PrizeClaimAccrualLedger", fields: [prizeAccrualLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  agentPayoutLedgerTxn  LedgerTransaction? @relation("PrizeClaimAgentPayoutLedger", fields: [agentPayoutLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
   payoutAttempts PrizePayoutAttempt[]
 
@@ -1513,10 +1520,19 @@ model Remittance {
   agentConfirmedAt DateTime?        @map("agent_confirmed_at")
   deadlineWarnedAt DateTime?        @map("deadline_warned_at")
   receivedAt       DateTime?        @map("received_at")
+
+  commissionLedgerTxnId   String? @unique @map("commission_ledger_txn_id")
+  settlementLedgerTxnId   String? @unique @map("settlement_ledger_txn_id")
+  walletCreditLedgerTxnId String? @unique @map("wallet_credit_ledger_txn_id")
+
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
   agent Agent @relation(fields: [agentId], references: [agentId])
+
+  commissionLedgerTxn LedgerTransaction? @relation("RemittanceCommissionLedger", fields: [commissionLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  settlementLedgerTxn LedgerTransaction? @relation("RemittanceSettlementLedger", fields: [settlementLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  walletCreditLedgerTxn LedgerTransaction? @relation("RemittanceWalletCreditLedger", fields: [walletCreditLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
   @@unique([agentId, periodDate])
   @@index([status, periodDate])
