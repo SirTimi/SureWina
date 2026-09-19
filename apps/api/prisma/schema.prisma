@@ -673,7 +673,6 @@ enum LedgerTransactionKind {
 // ─── TREASURY & RECONCILIATION ──────────────────────────────
 
 enum TreasuryProvider {
-  PAYSTACK
   FLUTTERWAVE
   MONNIFY
   BANK
