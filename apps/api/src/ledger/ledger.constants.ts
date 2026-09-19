@@ -44,6 +44,9 @@ export const SYSTEM_LEDGER_ACCOUNT_CODES = {
   PAYMENT_PROCESSING_FEES:
     'SYS:EXPENSE:PAYMENT-FEES',
 
+  PROVIDER_ADJUSTMENT_EXPENSE:
+    'SYS:EXPENSE:PROVIDER-ADJUSTMENT',
+
   SUSPENSE:
     'SYS:SUSPENSE',
 } as const;
@@ -214,6 +217,19 @@ export const SYSTEM_LEDGER_ACCOUNTS = [
       LedgerAccountType.EXPENSE,
     purpose:
       LedgerAccountPurpose.PAYMENT_PROCESSING_FEES,
+    ownerType:
+      LedgerOwnerType.SYSTEM,
+  },
+
+  {
+    code:
+      SYSTEM_LEDGER_ACCOUNT_CODES.PROVIDER_ADJUSTMENT_EXPENSE,
+    name:
+      'Provider Adjustments and Chargebacks',
+    accountType:
+      LedgerAccountType.EXPENSE,
+    purpose:
+      LedgerAccountPurpose.PROVIDER_ADJUSTMENT_EXPENSE,
     ownerType:
       LedgerOwnerType.SYSTEM,
   },
