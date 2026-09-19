@@ -7,7 +7,9 @@ import { MonnifyDriver } from './gateway/monnify.driver';
 import { PurchaseConfirmationService } from './purchase-confirmation.service';
 import { JackpotAccumulationService } from './jackpot-accumulation.service';
 import { PaystackWebhookController } from './webhook/paystack-webhook.controller';
+import { MonnifyWebhookController } from './webhook/monnify-webhook.controller';
 import { PaystackWebhookService } from './webhook/paystack-webhook.service';
+import { MonnifyWebhookService } from './webhook/monnify-webhook.service';
 import { PaystackSignatureGuard } from './webhook/paystack-signature.guard';
 import { FlutterwaveWebhookController } from './webhook/flutterwave-webhook.controller';
 import { FlutterwaveWebhookService } from './webhook/flutterwave-webhook.service';
@@ -34,6 +36,7 @@ import { WalletTicketPurchaseService } from './wallet-ticket-purchase.service';
   controllers: [
     PaymentsController,
     PaystackWebhookController,
+    MonnifyWebhookController,
     FlutterwaveWebhookController,
     WalletFundingController,
     WalletFundingAdminController,
@@ -47,6 +50,7 @@ import { WalletTicketPurchaseService } from './wallet-ticket-purchase.service';
     PurchaseConfirmationService,
     JackpotAccumulationService,
     PaystackWebhookService,
+    MonnifyWebhookService,
     PaystackSignatureGuard,
     FlutterwaveWebhookService,
     PurchaseStatusService,
