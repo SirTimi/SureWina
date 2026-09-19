@@ -152,6 +152,8 @@ export class TreasuryRecoveryService
     } finally {
       this.running = false;
     }
+  }
+
   private async ensureDailyReconciliation(
     provider: TreasuryProvider,
     from: Date,
@@ -240,6 +242,5 @@ export class TreasuryRecoveryService
       from,
       to,
     ];
-  }
   }
 }
