@@ -484,7 +484,7 @@ model LedgerTransaction {
   prizePayoutAttempt PrizePayoutAttempt? @relation("PrizePayoutLedger")
 
   prizePayoutReversalAttempt PrizePayoutAttempt? @relation("PrizePayoutReversalLedger")
-  agentPayoutClaim            PrizeClaim?         @relation("PrizeClaimAgentPayoutLedger")
+  agentPayoutClaim           PrizeClaim?         @relation("PrizeClaimAgentPayoutLedger")
 
   remittanceCommission   Remittance? @relation("RemittanceCommissionLedger")
   remittanceSettlement   Remittance? @relation("RemittanceSettlementLedger")
@@ -882,7 +882,7 @@ model TreasuryBalanceSnapshot {
 model TreasurySettlement {
   settlementId String @id @default(uuid()) @map("settlement_id")
 
-  treasuryAccountId String @map("treasury_account_id")
+  treasuryAccountId String           @map("treasury_account_id")
   provider          TreasuryProvider
 
   providerSettlementId String @map("provider_settlement_id") @db.VarChar(200)
@@ -979,7 +979,7 @@ model ReconciliationRun {
 
   errorMessage String? @map("error_message") @db.Text
 
-  startedAt   DateTime @default(now()) @map("started_at")
+  startedAt   DateTime  @default(now()) @map("started_at")
   completedAt DateTime? @map("completed_at")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -1017,9 +1017,9 @@ model ReconciliationIssue {
 
   details Json?
 
-  resolvedByAdminId String? @map("resolved_by_admin_id")
+  resolvedByAdminId String?   @map("resolved_by_admin_id")
   resolvedAt        DateTime? @map("resolved_at")
-  resolutionNote    String? @map("resolution_note") @db.Text
+  resolutionNote    String?   @map("resolution_note") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1564,13 +1564,13 @@ model Remittance {
   settlementLedgerTxnId   String? @unique @map("settlement_ledger_txn_id")
   walletCreditLedgerTxnId String? @unique @map("wallet_credit_ledger_txn_id")
 
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   agent Agent @relation(fields: [agentId], references: [agentId])
 
-  commissionLedgerTxn LedgerTransaction? @relation("RemittanceCommissionLedger", fields: [commissionLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
-  settlementLedgerTxn LedgerTransaction? @relation("RemittanceSettlementLedger", fields: [settlementLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  commissionLedgerTxn   LedgerTransaction? @relation("RemittanceCommissionLedger", fields: [commissionLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  settlementLedgerTxn   LedgerTransaction? @relation("RemittanceSettlementLedger", fields: [settlementLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
   walletCreditLedgerTxn LedgerTransaction? @relation("RemittanceWalletCreditLedger", fields: [walletCreditLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
   @@unique([agentId, periodDate])
