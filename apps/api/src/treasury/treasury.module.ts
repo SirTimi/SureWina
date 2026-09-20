@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-
+import { JwtModule } from '@nestjs/jwt';
 import { ClaimsModule } from '../claims/claims.module';
 import { LedgerModule } from '../ledger/ledger.module';
 import { MonnifyModule } from '../integrations/monnify/monnify.module';
@@ -17,6 +17,7 @@ import { TreasuryAdminController } from './treasury-admin.controller';
   imports: [
     ConfigModule,
     ClaimsModule,
+    JwtModule.register({}),
     LedgerModule,
     MonnifyModule,
   ],
