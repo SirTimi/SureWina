@@ -35,6 +35,7 @@ CREATE TABLE "financial_migration_runs" (
   "label" VARCHAR(160) NOT NULL,
   "status" "FinancialMigrationRunStatus" NOT NULL DEFAULT 'PLANNED',
   "created_by" VARCHAR(120),
+  "cutover_at" TIMESTAMP(3) NOT NULL,
   "planned_count" INTEGER NOT NULL DEFAULT 0,
   "applied_count" INTEGER NOT NULL DEFAULT 0,
   "skipped_count" INTEGER NOT NULL DEFAULT 0,
