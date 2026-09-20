@@ -16,7 +16,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema prisma/schema.prisma",
     "db:seed": "prisma db seed --schema prisma/schema.prisma",
-    "seed:admin": "tsx prisma/seed.ts"
+    "seed:admin": "tsx prisma/seed.ts",
+    "phase8:migrate": "tsx src/migration/phase8-migrate.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
