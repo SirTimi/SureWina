@@ -54,6 +54,12 @@ const MIGRATABLE_PAYMENT_STATUSES: PaymentStatus[] = [
 
 class ReviewRequiredError extends Error {}
 
+type MigrationResult = {
+  skipped: boolean;
+  ledgerTxnId: string | null;
+  result: unknown;
+};
+
 @Injectable()
 export class Phase8MigrationService {
   constructor(
@@ -643,7 +649,7 @@ export class Phase8MigrationService {
     kind: FinancialMigrationKind,
     sourceId: string,
     cutoverAt: Date,
-  ) {
+  ): Promise<MigrationResult> {
     switch (
       kind
     ) {
@@ -686,6 +692,11 @@ export class Phase8MigrationService {
       case FinancialMigrationKind.PRIZE_PAYOUT_HISTORY:
         return this.migratePrizePayoutHistory(
           sourceId,
+        );
+
+      default:
+        throw new Error(
+          `Unsupported financial migration kind: ${kind}`,
         );
     }
   }
