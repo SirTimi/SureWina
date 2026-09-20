@@ -1935,13 +1935,15 @@ export class Phase8MigrationService {
           );
 
         if (
-          [
-            PrizePayoutStatus.REQUESTED,
-            PrizePayoutStatus.SUBMITTED,
-            PrizePayoutStatus.PROCESSING,
-            PrizePayoutStatus.UNKNOWN,
-            PrizePayoutStatus.SUCCEEDED,
-          ].includes(
+          (
+            [
+              PrizePayoutStatus.REQUESTED,
+              PrizePayoutStatus.SUBMITTED,
+              PrizePayoutStatus.PROCESSING,
+              PrizePayoutStatus.UNKNOWN,
+              PrizePayoutStatus.SUCCEEDED,
+            ] as PrizePayoutStatus[]
+          ).includes(
             claim.payoutStatus,
           ) &&
           !providerReference
