@@ -663,6 +663,96 @@ enum LedgerTransactionKind {
   WALLET_CAPTURE
 }
 
+// ─── PHASE 8 FINANCIAL MIGRATION CONTROL ─────────────────────
+
+enum FinancialMigrationKind {
+  AGENT_WALLET_BALANCE
+  PAYMENT_COLLECTION
+  PAYMENT_REFUND
+  PRIZE_ACCRUAL
+  AGENT_PRIZE_PAYOUT
+  REMITTANCE_ACCOUNTING
+  PRIZE_PAYOUT_HISTORY
+}
+
+enum FinancialMigrationRunStatus {
+  PLANNED
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_EXCEPTIONS
+  FAILED
+  FINALIZED
+}
+
+enum FinancialMigrationItemStatus {
+  PENDING
+  APPLIED
+  SKIPPED
+  REVIEW_REQUIRED
+  FAILED
+}
+
+model FinancialMigrationRun {
+  runId String @id @default(uuid()) @map("run_id")
+
+  label String @db.VarChar(160)
+
+  status FinancialMigrationRunStatus @default(PLANNED)
+
+  createdBy String? @map("created_by") @db.VarChar(120)
+
+  plannedCount Int @default(0) @map("planned_count")
+  appliedCount Int @default(0) @map("applied_count")
+  skippedCount Int @default(0) @map("skipped_count")
+  reviewCount  Int @default(0) @map("review_count")
+  failedCount  Int @default(0) @map("failed_count")
+
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  finalizedAt DateTime? @map("finalized_at")
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  items FinancialMigrationItem[]
+
+  @@index([status, createdAt])
+  @@map("financial_migration_runs")
+}
+
+model FinancialMigrationItem {
+  itemId String @id @default(uuid()) @map("item_id")
+
+  runId String @map("run_id")
+
+  kind FinancialMigrationKind
+
+  sourceType String @map("source_type") @db.VarChar(100)
+  sourceId   String @map("source_id") @db.VarChar(180)
+
+  status FinancialMigrationItemStatus @default(PENDING)
+
+  snapshot Json?
+  result   Json?
+
+  ledgerTxnId String? @map("ledger_txn_id") @db.VarChar(180)
+
+  errorMessage String? @map("error_message") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  run FinancialMigrationRun @relation(fields: [runId], references: [runId], onDelete: Restrict)
+
+  @@unique([runId, kind, sourceType, sourceId])
+  @@index([runId, status])
+  @@index([kind, status])
+  @@index([sourceType, sourceId])
+  @@map("financial_migration_items")
+}
+
 // ─── TREASURY & RECONCILIATION ──────────────────────────────
 
 enum TreasuryProvider {
