@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
-import { PaystackDriver } from './gateway/paystack.driver';
 import { FlutterwaveDriver } from './gateway/flutterwave.driver';
+import { MonnifyDriver } from './gateway/monnify.driver';
 import { PurchaseConfirmationService } from './purchase-confirmation.service';
 import { JackpotAccumulationService } from './jackpot-accumulation.service';
 import { PaystackWebhookController } from './webhook/paystack-webhook.controller';
+import { MonnifyWebhookController } from './webhook/monnify-webhook.controller';
 import { PaystackWebhookService } from './webhook/paystack-webhook.service';
+import { MonnifyWebhookService } from './webhook/monnify-webhook.service';
 import { PaystackSignatureGuard } from './webhook/paystack-signature.guard';
 import { FlutterwaveWebhookController } from './webhook/flutterwave-webhook.controller';
 import { FlutterwaveWebhookService } from './webhook/flutterwave-webhook.service';
@@ -20,6 +22,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { WalletModule } from '../wallet/wallet.module';
 import { CustomerJwtGuard } from '../auth/guards/customer-jwt.guard';
 import { ClaimsModule } from '../claims/claims.module';
+import { LedgerModule } from '../ledger/ledger.module';
+import { MonnifyModule } from '../integrations/monnify/monnify.module';
 import { WalletFundingService } from './wallet-funding.service';
 import { WalletFundingController } from './wallet-funding.controller';
 import { WalletFundingAdminController } from './wallet-funding-admin.controller';
@@ -31,6 +35,7 @@ import { WalletTicketPurchaseService } from './wallet-ticket-purchase.service';
   controllers: [
     PaymentsController,
     PaystackWebhookController,
+    MonnifyWebhookController,
     FlutterwaveWebhookController,
     WalletFundingController,
     WalletFundingAdminController,
@@ -38,11 +43,12 @@ import { WalletTicketPurchaseService } from './wallet-ticket-purchase.service';
   ],
   providers: [
     PaymentsService,
-    PaystackDriver,
+    MonnifyDriver,
     FlutterwaveDriver,
     PurchaseConfirmationService,
     JackpotAccumulationService,
     PaystackWebhookService,
+    MonnifyWebhookService,
     PaystackSignatureGuard,
     FlutterwaveWebhookService,
     PurchaseStatusService,
@@ -59,7 +65,9 @@ import { WalletTicketPurchaseService } from './wallet-ticket-purchase.service';
     AccountModule,
     TicketsModule,
     WalletModule,
-    ClaimsModule
+    ClaimsModule,
+    LedgerModule,
+    MonnifyModule
   ],  
 })
 export class PaymentsModule {}

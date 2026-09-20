@@ -7,14 +7,12 @@ import { ConfigService } from '@nestjs/config';
 import {
   AuditActorType,
   AuditSeverity,
-  DisbStatus,
   DrawStatus,
   Prisma,
   ClaimType,
   PrizePayoutStatus,
   PrizeClaimStatus,
 } from '@prisma/client';
-import { randomUUID } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -54,35 +52,26 @@ export class FinanceAdminService {
     };
   }
 
-  async retryCommission(disbId: string, adminId: string) {
-    const disb = await this.prisma.commissionDisbursement.findUnique({
-      where: { disbId },
-      include: { agent: { select: { agentCode: true } } },
-    });
-    if (!disb) throw new NotFoundException('Disbursement not found');
-    if (disb.status !== DisbStatus.FAILED) {
-      throw new ConflictException(`Only FAILED disbursements can be retried (is ${disb.status})`);
+  async retryCommission(
+    disbId: string,
+    _adminId: string,
+  ) {
+    const disb =
+      await this.prisma.commissionDisbursement.findUnique({
+        where: {
+          disbId,
+        },
+      });
+
+    if (!disb) {
+      throw new NotFoundException(
+        'Disbursement not found',
+      );
     }
 
-    const reference = `DEV-COMM-RETRY-${randomUUID()}`;
-    const updated = await this.prisma.commissionDisbursement.update({
-      where: { disbId },
-      data: {
-        status: DisbStatus.INITIATED,
-        payoutReference: reference,
-        initiatedAt: new Date(),
-      },
-    });
-
-    await this.audit.write({
-      severity: AuditSeverity.INFO,
-      actor: { type: AuditActorType.ADMIN, id: adminId },
-      action: 'COMMISSION_RETRIED',
-      resource: { type: 'CommissionDisbursement', id: disbId },
-      metadata: { agentCode: disb.agent.agentCode, amountNgn: disb.amountNgn, reference },
-    });
-
-    return updated;
+    throw new ConflictException(
+      'CommissionDisbursement is a retired legacy model. Review this historical row during Phase 8 migration instead of retrying it.',
+    );
   }
 
   // Prize payouts: cash claims paid via app transfer or agent cash.

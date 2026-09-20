@@ -77,10 +77,7 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
-      // Most recent business day whose 19:00 close has passed. (Older gaps
-      // heal on later ticks once those sales exist; for dev this single-day
-      // sweep is sufficient.)
-            // Most recent business day whose close has passed.
+      // Most recent business day whose close has passed.
       const closeMinutes = await this.closeMinutesWat();
       const { periodDate, startUtc, endUtc } = lastClosedBusinessDay(
         new Date(),
@@ -209,42 +206,13 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
                 // A credit day has nothing for the agent to pay, so it is
                 // settled the moment it is written rather than left open.
                 status:
-                  amountDue < 0
-                    ? RemittanceStatus.CREDITED_TO_WALLET
-                    : RemittanceStatus.PENDING,
+                  RemittanceStatus.PENDING,
               },
             });
-
-            if (amountDue < 0) {
-              await tx.agent.update({
-                where: { agentId },
-                data: { walletBalanceNgn: { increment: -amountDue } },
-              });
-            }
 
             return created;
           });
 
-          await this.prisma.auditLog.create({
-            data: {
-              severity: amountDue < 0 ? AuditSeverity.WARNING : AuditSeverity.INFO,
-              actorType: AuditActorType.SYSTEM,
-              action: 'REMITTANCE_CREATED',
-              resourceType: 'Remittance',
-              resourceId: rem.remittanceId,
-              metadata: {
-                agentCode: agent.agentCode,
-                gross,
-                commission,
-                winningsPaidOut: payout.ngn,
-                prizesPaidCount: payout.count,
-                amountDue,
-                walletCreditNgn: amountDue < 0 ? -amountDue : 0,
-                standardTickets: tally.standardTickets,
-                jackpotTickets: tally.jackpotTickets,
-              },
-            },
-          });
           await this.prisma.auditLog.create({
             data: {
               severity: amountDue < 0 ? AuditSeverity.WARNING : AuditSeverity.INFO,

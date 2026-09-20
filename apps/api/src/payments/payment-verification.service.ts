@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 
 import { PaymentGateway } from '@prisma/client';
+import { MonnifyClientService } from '../integrations/monnify/monnify-client.service';
 
 export type PaymentVerificationStatus =
   | 'SUCCESS'
@@ -92,6 +93,21 @@ type PaystackVerifyResponse = {
   };
 };
 
+type MonnifyVerifyBody = {
+  transactionReference?: string;
+  paymentReference?: string;
+  amountPaid?: number | string;
+  totalPayable?: number | string;
+  settlementAmount?: number | string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  currencyCode?: string;
+  currency?: string;
+  paidOn?: string | null;
+  completedOn?: string | null;
+  metaData?: Record<string, unknown> | null;
+};
+
 type FlutterwaveVerifyResponse = {
   status?: string;
 
@@ -128,6 +144,7 @@ export class PaymentVerificationService {
 
   constructor(
     private readonly config: ConfigService,
+    private readonly monnify: MonnifyClientService,
   ) {}
 
   async verifyPaystack(
@@ -272,6 +289,111 @@ export class PaymentVerificationService {
       verifiedAt,
 
       metadata,
+
+      raw:
+        payload,
+    };
+  }
+
+  async verifyMonnify(
+    reference: string,
+  ): Promise<VerifiedProviderPayment | null> {
+    const cleanReference =
+      reference.trim();
+
+    if (!cleanReference) {
+      return null;
+    }
+
+    const result =
+      await this.monnify.request<MonnifyVerifyBody>(
+        `/api/v2/merchant/transactions/query?paymentReference=${encodeURIComponent(
+          cleanReference,
+        )}`,
+        {
+          method: 'GET',
+        },
+      );
+
+    const payload =
+      result.payload;
+
+    const data =
+      payload?.responseBody;
+
+    if (
+      !payload?.requestSuccessful ||
+      !data?.paymentReference
+    ) {
+      this.logger.warn(
+        `Monnify verification failed for ${cleanReference}: ${
+          payload?.responseMessage ??
+          `HTTP ${result.httpStatus}`
+        }`,
+      );
+
+      return null;
+    }
+
+    const amountRaw =
+      data.amountPaid;
+
+    const amountNgn =
+      typeof amountRaw === 'number'
+        ? amountRaw
+        : typeof amountRaw === 'string'
+          ? Number(amountRaw)
+          : null;
+
+    const currency =
+      (
+        data.currencyCode ??
+        data.currency ??
+        ''
+      )
+        .trim()
+        .toUpperCase() ||
+      null;
+
+    return {
+      gateway:
+        PaymentGateway.MONNIFY,
+
+      reference:
+        data.paymentReference,
+
+      providerTransactionId:
+        data.transactionReference ??
+        null,
+
+      status:
+        this.mapMonnifyStatus(
+          data.paymentStatus,
+        ),
+
+      amountNgn:
+        amountNgn !== null &&
+        Number.isFinite(amountNgn)
+          ? amountNgn
+          : null,
+
+      currency,
+
+      paidAt:
+        this.parseDate(
+          data.paidOn ??
+          data.completedOn,
+        ),
+
+      verifiedAt:
+        new Date(),
+
+      metadata:
+        data.metaData &&
+        typeof data.metaData === 'object' &&
+        !Array.isArray(data.metaData)
+          ? data.metaData
+          : null,
 
       raw:
         payload,
@@ -452,6 +574,30 @@ export class PaymentVerificationService {
       case 'failed':
       case 'abandoned':
       case 'reversed':
+        return 'FAILED';
+
+      default:
+        return 'PENDING';
+    }
+  }
+
+  private mapMonnifyStatus(
+    status?: string,
+  ): PaymentVerificationStatus {
+    switch (
+      status
+        ?.trim()
+        .toUpperCase()
+    ) {
+      case 'PAID':
+        return 'SUCCESS';
+
+      case 'FAILED':
+      case 'CANCELLED':
+      case 'ABANDONED':
+      case 'REVERSED':
+      case 'EXPIRED':
+      case 'REFUNDED':
         return 'FAILED';
 
       default:

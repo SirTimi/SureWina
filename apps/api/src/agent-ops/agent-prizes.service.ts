@@ -11,11 +11,13 @@ import {
   AuditSeverity,
   ClaimType,
   PrizeClaimStatus,
+  Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { WhtDeductionService } from '../claims/wht-deduction.service';
 import { SettingsService } from '../config/settings.service';
+import { AgentAccountingService } from './agent-accounting.service';
 
 // Claims an agent may settle in cash: not yet in KYC, not terminal.
 const AGENT_PAYABLE: PrizeClaimStatus[] = [
@@ -33,7 +35,7 @@ export class AgentPrizesService {
     private readonly config: ConfigService,
     private readonly whtDeductions: WhtDeductionService,
     private readonly settings: SettingsService,
-
+    private readonly agentAccounting: AgentAccountingService,
   ) {}
 
   async lookup(ticketRefRaw: string) {
@@ -77,26 +79,80 @@ export class AgentPrizesService {
     }
 
     const reference = `AGT-CASH-${agent.agentCode}-${Date.now()}`;
+    const paidAt = new Date();
 
-    // Guarded one-shot: only flips from an agent-payable status. A second
-    // attempt (same or different agent) matches zero rows and 409s.
-    const result = await this.prisma.prizeClaim.updateMany({
-      where: { claimId: claim.claimId, status: { in: AGENT_PAYABLE } },
-      data: {
-        status: PrizeClaimStatus.CASH_PAID,
-        claimType: ClaimType.CASH,
-        claimTypeSelectedAt: claim.claimTypeSelectedAt ?? new Date(),
-        payoutReference: reference,
-        payoutInitiatedAt: new Date(),
-        fulfilledAt: new Date(),
-        paidByAgentId: agentId,
-        paidByAgentAt: new Date(),
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`
+          SELECT "claim_id"
+          FROM "prize_claims"
+          WHERE "claim_id" = ${claim.claimId}
+          FOR UPDATE
+        `;
+
+        const current = await tx.prizeClaim.findUnique({
+          where: { claimId: claim.claimId },
+          select: {
+            claimId: true,
+            winnerTicketRef: true,
+            status: true,
+            claimTypeSelectedAt: true,
+            grossPrizeValueNgn: true,
+            whtAmountNgn: true,
+            netPrizeValueNgn: true,
+            prizeAccrualLedgerTxnId: true,
+            agentPayoutLedgerTxnId: true,
+          },
+        });
+
+        if (!current) {
+          throw new NotFoundException('Claim not found');
+        }
+
+        if (!AGENT_PAYABLE.includes(current.status)) {
+          throw new ConflictException(
+            'This prize can no longer be paid by an agent',
+          );
+        }
+
+        if (current.grossPrizeValueNgn > maxNgn) {
+          throw new ConflictException(
+            'Prize exceeds the agent-payable limit',
+          );
+        }
+
+        await this.agentAccounting.recordAgentPrizePayoutInTransaction(
+          tx,
+          {
+            claim: current,
+            agentId,
+            reference,
+            occurredAt: paidAt,
+          },
+        );
+
+        await tx.prizeClaim.update({
+          where: { claimId: current.claimId },
+          data: {
+            status: PrizeClaimStatus.CASH_PAID,
+            claimType: ClaimType.CASH,
+            claimTypeSelectedAt:
+              current.claimTypeSelectedAt ?? paidAt,
+            payoutReference: reference,
+            payoutInitiatedAt: paidAt,
+            payoutCompletedAt: paidAt,
+            fulfilledAt: paidAt,
+            paidByAgentId: agentId,
+            paidByAgentAt: paidAt,
+          },
+        });
       },
-      
-    });
-    if (result.count === 0) {
-      throw new ConflictException('This prize can no longer be paid by an agent');
-    }
+      {
+        isolationLevel:
+          Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
+
     await this.whtDeductions.recordForClaim(claim.claimId);
 
     await this.audit.write({

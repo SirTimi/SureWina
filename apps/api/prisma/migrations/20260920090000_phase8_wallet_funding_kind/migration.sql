@@ -1,0 +1,2 @@
+ALTER TYPE "FinancialMigrationKind"
+ADD VALUE 'WALLET_FUNDING';

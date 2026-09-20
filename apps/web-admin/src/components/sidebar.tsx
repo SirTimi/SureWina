@@ -179,6 +179,14 @@ const navGroups: Array<{
         roles: ['FINANCE_OFFICER'],
       },
       {
+        label: 'Treasury',
+        href: '/treasury',
+        icon: Banknote,
+        help: 'Provider settlements, balances, and reconciliation exceptions',
+        permission: 'VIEW_FINANCE',
+        roles: ['FINANCE_OFFICER'],
+      },
+      {
         label: 'Jackpot entries',
         href: '/jackpot-fund',
         icon: Gauge,

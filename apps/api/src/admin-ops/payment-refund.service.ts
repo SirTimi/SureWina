@@ -21,6 +21,8 @@ import {
 
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { PaymentAccountingService } from '../ledger/payment-accounting.service';
+import { MonnifyClientService } from '../integrations/monnify/monnify-client.service';
 
 const REFUNDABLE_DRAW_STATES: DrawStatus[] = [
   DrawStatus.SCHEDULED,
@@ -88,6 +90,18 @@ type PaystackTransactionVerifyResponse = {
   };
 };
 
+type MonnifyRefundBody = {
+  refundReference?: string;
+  transactionReference?: string;
+  refundAmount?: number | string;
+  refundStatus?: string;
+  refundType?: string;
+  refundStrategy?: string;
+  comment?: string;
+  completedOn?: string;
+  createdOn?: string;
+};
+
 type FlutterwaveRefundResponse = {
   status?: string;
   message?: string;
@@ -144,6 +158,12 @@ export class PaymentRefundService {
 
     private readonly config:
       ConfigService,
+
+    private readonly paymentAccounting:
+      PaymentAccountingService,
+
+    private readonly monnify:
+      MonnifyClientService,
   ) {}
 
   async initiate(
@@ -222,12 +242,16 @@ export class PaymentRefundService {
     }
 
     if (
-      existing.gateway ===
-        PaymentGateway.FLUTTERWAVE &&
+      (
+        existing.gateway ===
+          PaymentGateway.FLUTTERWAVE ||
+        existing.gateway ===
+          PaymentGateway.MONNIFY
+      ) &&
       !existing.providerTransactionId
     ) {
       throw new ConflictException(
-        'Flutterwave provider transaction ID is missing. Manual finance review is required.',
+        `${existing.gateway} provider transaction ID is missing. Manual finance review is required.`,
       );
     }
 
@@ -398,6 +422,53 @@ export class PaymentRefundService {
           }
         }
 
+        if (
+          (
+            current.gateway ===
+              PaymentGateway.MONNIFY ||
+            current.gateway ===
+              PaymentGateway.FLUTTERWAVE
+          ) &&
+          !current.collectionLedgerTxnId
+        ) {
+          await this.paymentAccounting.recordProviderCollectionInTransaction(
+            tx,
+            {
+              paymentTxnId:
+                txnId,
+
+              gateway:
+                current.gateway,
+
+              amountNgn:
+                current.amountNgn,
+
+              disposition:
+                current.status ===
+                PaymentStatus.CONFIRMED
+                  ? 'REVENUE'
+                  : 'SUSPENSE',
+
+              providerReference:
+                current.gatewayReference,
+
+              providerTransactionId:
+                current.providerTransactionId,
+
+              occurredAt:
+                current.providerPaidAt ??
+                current.confirmedAt ??
+                current.updatedAt,
+            },
+          );
+        }
+
+        const refundSource =
+          current.status ===
+          PaymentStatus.CONFIRMED
+            ? 'REVENUE'
+            : 'SUSPENSE';
+
         const reserved =
           await tx.paymentTransaction.updateMany({
             where: {
@@ -442,6 +513,30 @@ export class PaymentRefundService {
         ) {
           throw new ConflictException(
             'Refund has already been started',
+          );
+        }
+
+        if (
+          current.gateway ===
+            PaymentGateway.MONNIFY ||
+          current.gateway ===
+            PaymentGateway.FLUTTERWAVE
+        ) {
+          await this.paymentAccounting.recordRefundAccrualInTransaction(
+            tx,
+            {
+              paymentTxnId:
+                txnId,
+
+              amountNgn:
+                current.amountNgn,
+
+              source:
+                refundSource,
+
+              reason:
+                cleanReason,
+            },
           );
         }
 
@@ -546,6 +641,16 @@ export class PaymentRefundService {
             result =
               await this.initiatePaystack(
                 existing.gatewayReference,
+                existing.amountNgn,
+                cleanReason,
+              );
+            break;
+
+          case PaymentGateway.MONNIFY:
+            result =
+              await this.initiateMonnify(
+                existing.providerTransactionId!,
+                idempotencyKey,
                 existing.amountNgn,
                 cleanReason,
               );
@@ -693,6 +798,15 @@ export class PaymentRefundService {
             txn.refundReference,
             txn.providerTransactionId,
             txn.gatewayReference,
+            txn.amountNgn,
+          );
+        break;
+
+      case PaymentGateway.MONNIFY:
+        result =
+          await this.getMonnifyRefundStatus(
+            txn.refundReference ??
+            txn.refundIdempotencyKey,
             txn.amountNgn,
           );
         break;
@@ -1105,6 +1219,37 @@ export class PaymentRefundService {
             return false;
           }
 
+          const current =
+            await tx.paymentTransaction.findUniqueOrThrow({
+              where: {
+                txnId,
+              },
+            });
+
+          if (
+            current.gateway ===
+              PaymentGateway.MONNIFY ||
+            current.gateway ===
+              PaymentGateway.FLUTTERWAVE
+          ) {
+            await this.paymentAccounting.recordRefundSettlementInTransaction(
+              tx,
+              {
+                paymentTxnId:
+                  txnId,
+
+                gateway:
+                  current.gateway,
+
+                amountNgn:
+                  current.amountNgn,
+
+                providerReference:
+                  result.reference,
+              },
+            );
+          }
+
           await tx.ticket.updateMany({
             where: {
               paymentTxnId:
@@ -1287,6 +1432,311 @@ export class PaymentRefundService {
           null,
       },
     });
+  }
+
+  private async initiateMonnify(
+    transactionReference: string,
+    refundReference: string,
+    amountNgn: number,
+    reason: string,
+  ): Promise<RefundProviderResult> {
+    const result =
+      await this.monnify.request<MonnifyRefundBody>(
+        '/api/v1/refunds/initiate-refund',
+        {
+          method: 'POST',
+
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+
+          body: JSON.stringify({
+            transactionReference,
+
+            refundReference,
+
+            refundAmount:
+              amountNgn,
+
+            refundReason:
+              reason.slice(
+                0,
+                64,
+              ),
+
+            customerNote:
+              'SureWina refund',
+          }),
+        },
+      );
+
+    const payload =
+      result.payload;
+
+    const body =
+      payload?.responseBody;
+
+    if (
+      payload?.requestSuccessful &&
+      body?.refundReference
+    ) {
+      return this.fromMonnifyRefund(
+        body,
+      );
+    }
+
+    const code =
+      payload?.responseCode;
+
+    /*
+     * R9 means the exact refund reference already exists.
+     * Query it rather than creating another refund.
+     */
+    if (
+      code === 'R9'
+    ) {
+      return this.getMonnifyRefundStatus(
+        refundReference,
+        amountNgn,
+      );
+    }
+
+    /*
+     * 99/M01/M02 and network-style provider errors are not
+     * proof that a refund was rejected.
+     */
+    const conclusivelyRejected =
+      Boolean(
+        code &&
+        [
+          'R1',
+          'R2',
+          'R3',
+          'R4',
+          'R5',
+          'R6',
+          'R7',
+          'R8',
+          'R10',
+          'R11',
+          'R12',
+        ].includes(
+          code,
+        ),
+      );
+
+    return {
+      provider:
+        PaymentGateway.MONNIFY,
+
+      reference:
+        refundReference,
+
+      status:
+        conclusivelyRejected
+          ? PaymentRefundStatus.FAILED
+          : PaymentRefundStatus.UNKNOWN,
+
+      amountNgn:
+        null,
+
+      currency:
+        'NGN',
+
+      rawStatus:
+        code ??
+        `HTTP_${result.httpStatus}`,
+
+      failureReason:
+        payload?.responseMessage ??
+        'Could not determine Monnify refund state',
+    };
+  }
+
+  private async getMonnifyRefundStatus(
+    refundReference: string | null,
+    expectedAmountNgn: number,
+  ): Promise<RefundProviderResult> {
+    if (!refundReference) {
+      return {
+        provider:
+          PaymentGateway.MONNIFY,
+
+        reference:
+          null,
+
+        status:
+          PaymentRefundStatus.UNKNOWN,
+
+        amountNgn:
+          null,
+
+        currency:
+          'NGN',
+
+        rawStatus:
+          'MISSING_REFERENCE',
+
+        failureReason:
+          'Monnify refund reference is not known',
+      };
+    }
+
+    const result =
+      await this.monnify.request<MonnifyRefundBody>(
+        `/api/v1/refunds/${encodeURIComponent(
+          refundReference,
+        )}`,
+        {
+          method:
+            'GET',
+        },
+      );
+
+    const payload =
+      result.payload;
+
+    const body =
+      payload?.responseBody;
+
+    if (
+      payload?.requestSuccessful &&
+      body
+    ) {
+      const normalized =
+        this.fromMonnifyRefund(
+          body,
+        );
+
+      if (
+        normalized.amountNgn !==
+          null &&
+        normalized.amountNgn !==
+          expectedAmountNgn
+      ) {
+        return {
+          ...normalized,
+
+          status:
+            PaymentRefundStatus.UNKNOWN,
+
+          failureReason:
+            `Monnify refund amount mismatch. Expected ${expectedAmountNgn}, got ${normalized.amountNgn}`,
+        };
+      }
+
+      return normalized;
+    }
+
+    return {
+      provider:
+        PaymentGateway.MONNIFY,
+
+      reference:
+        refundReference,
+
+      status:
+        payload?.responseCode ===
+        'R7'
+          ? PaymentRefundStatus.FAILED
+          : PaymentRefundStatus.UNKNOWN,
+
+      amountNgn:
+        null,
+
+      currency:
+        'NGN',
+
+      rawStatus:
+        payload?.responseCode ??
+        `HTTP_${result.httpStatus}`,
+
+      failureReason:
+        payload?.responseMessage ??
+        'Could not determine Monnify refund status',
+    };
+  }
+
+  private fromMonnifyRefund(
+    data: MonnifyRefundBody,
+  ): RefundProviderResult {
+    const rawStatus =
+      data.refundStatus
+        ?.trim()
+        .toUpperCase() ??
+      null;
+
+    const amountRaw =
+      data.refundAmount;
+
+    const amountNgn =
+      typeof amountRaw ===
+        'number'
+        ? amountRaw
+        : typeof amountRaw ===
+            'string'
+          ? Number(
+              amountRaw,
+            )
+          : null;
+
+    let status:
+      PaymentRefundStatus;
+
+    switch (
+      rawStatus
+    ) {
+      case 'COMPLETED':
+        status =
+          PaymentRefundStatus.SUCCEEDED;
+        break;
+
+      case 'FAILED':
+        status =
+          PaymentRefundStatus.FAILED;
+        break;
+
+      case 'PENDING':
+        status =
+          PaymentRefundStatus.PROCESSING;
+        break;
+
+      default:
+        status =
+          PaymentRefundStatus.UNKNOWN;
+    }
+
+    return {
+      provider:
+        PaymentGateway.MONNIFY,
+
+      reference:
+        data.refundReference ??
+        null,
+
+      status,
+
+      amountNgn:
+        amountNgn !== null &&
+        Number.isFinite(
+          amountNgn,
+        )
+          ? amountNgn
+          : null,
+
+      currency:
+        'NGN',
+
+      rawStatus,
+
+      failureReason:
+        status ===
+        PaymentRefundStatus.FAILED
+          ? data.comment ??
+            'Monnify refund failed'
+          : undefined,
+    };
   }
 
   private async initiatePaystack(

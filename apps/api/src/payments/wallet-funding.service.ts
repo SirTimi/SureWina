@@ -23,7 +23,7 @@ import {
   SYSTEM_LEDGER_ACCOUNT_CODES,
 } from '../ledger/ledger.constants';
 
-import { PaystackDriver } from './gateway/paystack.driver';
+import { MonnifyDriver } from './gateway/monnify.driver';
 import { FlutterwaveDriver } from './gateway/flutterwave.driver';
 import { PaymentGatewayDriver } from './gateway/payment-gateway.interface';
 import {
@@ -47,7 +47,7 @@ export class WalletFundingService {
     private readonly config: ConfigService,
     private readonly audit: AuditService,
     private readonly wallets: WalletService,
-    private readonly paystack: PaystackDriver,
+    private readonly monnify: MonnifyDriver,
     private readonly flutterwave: FlutterwaveDriver,
     private readonly verification: PaymentVerificationService,
   ) {}
@@ -76,11 +76,16 @@ export class WalletFundingService {
 
     const reference = `SW-WAL-${randomUUID()}`;
 
+    const selectedGateway =
+      dto.gateway === 'MONNIFY'
+        ? PaymentGateway.MONNIFY
+        : PaymentGateway.FLUTTERWAVE;
+
     const funding = await this.prisma.walletFunding.create({
       data: {
         walletId: wallet.walletId,
         gatewayReference: reference,
-        gateway: PaymentGateway.PAYSTACK,
+        gateway: selectedGateway,
         amountNgn: dto.amountNgn,
         currency: 'NGN',
         status: WalletFundingStatus.PENDING,
@@ -93,8 +98,8 @@ export class WalletFundingService {
       this.syntheticEmail(user.phoneNumber);
 
     try {
-      const initialized = await this.initializeWithFallback(
-        funding.fundingId,
+      const initialized = await this.initializeChosenGateway(
+        selectedGateway,
         {
           amountKobo: dto.amountNgn * 100,
           reference,
@@ -388,8 +393,8 @@ export class WalletFundingService {
 
     let verified: VerifiedProviderPayment | null = null;
 
-    if (funding.gateway === PaymentGateway.PAYSTACK) {
-      verified = await this.verification.verifyPaystack(
+    if (funding.gateway === PaymentGateway.MONNIFY) {
+      verified = await this.verification.verifyMonnify(
         funding.gatewayReference,
       );
     } else if (funding.gateway === PaymentGateway.FLUTTERWAVE) {
@@ -510,8 +515,8 @@ export class WalletFundingService {
 
     let verified: VerifiedProviderPayment | null = null;
 
-    if (funding.gateway === PaymentGateway.PAYSTACK) {
-      verified = await this.verification.verifyPaystack(
+    if (funding.gateway === PaymentGateway.MONNIFY) {
+      verified = await this.verification.verifyMonnify(
         funding.gatewayReference,
       );
     } else if (funding.gateway === PaymentGateway.FLUTTERWAVE) {
@@ -538,48 +543,39 @@ export class WalletFundingService {
     });
   }
 
-  private async initializeWithFallback(
-    fundingId: string,
+  private async initializeChosenGateway(
+    gateway: PaymentGateway,
     input: Parameters<PaymentGatewayDriver['initialize']>[0],
   ) {
-    try {
-      const result = await this.paystack.initialize(input);
+    const driver =
+      gateway === PaymentGateway.MONNIFY
+        ? this.monnify
+        : gateway === PaymentGateway.FLUTTERWAVE
+          ? this.flutterwave
+          : null;
 
-      if (result.gatewayReference !== input.reference) {
-        throw new ConflictException('Paystack returned an unexpected reference');
-      }
-
-      return {
-        ...result,
-        gateway: PaymentGateway.PAYSTACK,
-      };
-    } catch (paystackError) {
-      this.logger.warn(
-        `Paystack wallet funding init failed, falling back to Flutterwave: ${
-          paystackError instanceof Error
-            ? paystackError.message
-            : 'unknown'
-        }`,
+    if (!driver) {
+      throw new BadRequestException(
+        'Wallet funding gateway must be MONNIFY or FLUTTERWAVE',
       );
-
-      const result = await this.flutterwave.initialize(input);
-
-      if (result.gatewayReference !== input.reference) {
-        throw new ConflictException(
-          'Flutterwave returned an unexpected reference',
-        );
-      }
-
-      await this.prisma.walletFunding.update({
-        where: { fundingId },
-        data: { gateway: PaymentGateway.FLUTTERWAVE },
-      });
-
-      return {
-        ...result,
-        gateway: PaymentGateway.FLUTTERWAVE,
-      };
     }
+
+    const result =
+      await driver.initialize(input);
+
+    if (
+      result.gatewayReference !==
+      input.reference
+    ) {
+      throw new ConflictException(
+        `${gateway} returned an unexpected reference`,
+      );
+    }
+
+    return {
+      ...result,
+      gateway,
+    };
   }
 
   private async findCustomerFunding(
@@ -666,8 +662,8 @@ export class WalletFundingService {
 
   private clearingAccountCode(gateway: PaymentGateway) {
     switch (gateway) {
-      case PaymentGateway.PAYSTACK:
-        return SYSTEM_LEDGER_ACCOUNT_CODES.PAYSTACK_CLEARING;
+      case PaymentGateway.MONNIFY:
+        return SYSTEM_LEDGER_ACCOUNT_CODES.MONNIFY_COLLECTION_CLEARING;
 
       case PaymentGateway.FLUTTERWAVE:
         return SYSTEM_LEDGER_ACCOUNT_CODES.FLUTTERWAVE_CLEARING;

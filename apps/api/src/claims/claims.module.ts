@@ -87,6 +87,7 @@ import { MonnifyPayoutWebhookController } from './payout/monnify-payout-webhook.
     PrizePayoutProviderRegistry,
     PrizePayoutEngineService,
     PrizePayoutSyncService,
+    MonnifyWebhookSignatureGuard,
   ],
 })
 export class ClaimsModule {}

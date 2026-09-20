@@ -15,10 +15,16 @@ export class PaymentsController {
   }
 
   @Get('status')
-  status(@Query('reference') reference: string) {
+  status(
+    @Query('reference') reference: string,
+    @Query('transactionId') transactionId?: string,
+  ) {
     if (!reference?.startsWith('SW-')) {
       throw new BadRequestException('reference is required');
     }
-    return this.purchaseStatus.getStatus(reference);
+    return this.purchaseStatus.getStatus(
+      reference,
+      transactionId,
+    );
   }
 }

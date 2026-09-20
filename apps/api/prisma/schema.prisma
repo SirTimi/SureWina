@@ -340,6 +340,19 @@ model PaymentTransaction {
   refundLastCheckedAt      DateTime?            @map("refund_last_checked_at")
   refundFailureReason      String?              @map("refund_failure_reason")
 
+  // Phase 7: immutable accounting links for externally received/refunded money.
+  collectionLedgerTxnId       String? @unique @map("collection_ledger_txn_id")
+  refundAccrualLedgerTxnId    String? @unique @map("refund_accrual_ledger_txn_id")
+  refundSettlementLedgerTxnId String? @unique @map("refund_settlement_ledger_txn_id")
+
+  collectionLedgerTxn LedgerTransaction? @relation("PaymentCollectionLedger", fields: [collectionLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+
+  refundAccrualLedgerTxn LedgerTransaction? @relation("PaymentRefundAccrualLedger", fields: [refundAccrualLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+
+  refundSettlementLedgerTxn LedgerTransaction? @relation("PaymentRefundSettlementLedger", fields: [refundSettlementLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+
+  treasurySettlementLines TreasurySettlementLine[]
+
   @@index([gateway, status])
   @@index([buyerPhone, createdAt])
   @@index([agentId, createdAt])
@@ -350,7 +363,9 @@ model PaymentTransaction {
 }
 
 enum PaymentGateway {
+  // Legacy only. New customer collections use MONNIFY or FLUTTERWAVE.
   PAYSTACK
+  MONNIFY
   FLUTTERWAVE
   AGENT_CASH
 }
@@ -421,6 +436,8 @@ model LedgerAccount {
   availableForWallet Wallet? @relation("WalletAvailableAccount")
   heldForWallet      Wallet? @relation("WalletHeldAccount")
 
+  treasuryAccount TreasuryAccount? @relation("TreasuryAccountLedger")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -467,6 +484,16 @@ model LedgerTransaction {
   prizePayoutAttempt PrizePayoutAttempt? @relation("PrizePayoutLedger")
 
   prizePayoutReversalAttempt PrizePayoutAttempt? @relation("PrizePayoutReversalLedger")
+  agentPayoutClaim            PrizeClaim?         @relation("PrizeClaimAgentPayoutLedger")
+
+  remittanceCommission   Remittance? @relation("RemittanceCommissionLedger")
+  remittanceSettlement   Remittance? @relation("RemittanceSettlementLedger")
+  remittanceWalletCredit Remittance? @relation("RemittanceWalletCreditLedger")
+
+  collectionPayment       PaymentTransaction? @relation("PaymentCollectionLedger")
+  refundAccrualPayment    PaymentTransaction? @relation("PaymentRefundAccrualLedger")
+  refundSettlementPayment PaymentTransaction? @relation("PaymentRefundSettlementLedger")
+  treasurySettlement      TreasurySettlement? @relation("TreasurySettlementLedger")
 
   entries LedgerEntry[]
 
@@ -505,6 +532,8 @@ model WalletFunding {
   wallet Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
 
   ledgerTransaction LedgerTransaction? @relation("WalletFundingLedger", fields: [ledgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+
+  treasurySettlementLines TreasurySettlementLine[]
 
   @@unique([gateway, providerTransactionId])
   @@index([walletId, createdAt])
@@ -593,7 +622,9 @@ enum LedgerAccountPurpose {
   REFUND_PAYABLE
 
   AGENT_COMMISSION_EXPENSE
+  AGENT_RECEIVABLE
   PAYMENT_PROCESSING_FEES
+  PROVIDER_ADJUSTMENT_EXPENSE
 
   SUSPENSE
 }
@@ -608,17 +639,22 @@ enum LedgerTransactionKind {
 
   FUNDING
   PURCHASE
+  PROVIDER_COLLECTION
+  PROVIDER_SETTLEMENT
 
   PRIZE_ACCRUAL
   PRIZE_PAYOUT
 
   REFUND
+  REFUND_ACCRUAL
+  REFUND_SETTLEMENT
 
   AGENT_SALE
   AGENT_REMITTANCE
   COMMISSION
 
   TRANSFER
+  TREASURY_TRANSFER
   ADJUSTMENT
 
   REVERSAL
@@ -626,6 +662,378 @@ enum LedgerTransactionKind {
   WALLET_HOLD
   WALLET_RELEASE
   WALLET_CAPTURE
+}
+
+// ─── PHASE 8 FINANCIAL MIGRATION CONTROL ─────────────────────
+
+enum FinancialMigrationKind {
+  AGENT_WALLET_BALANCE
+  PAYMENT_COLLECTION
+  WALLET_FUNDING
+  PAYMENT_REFUND
+  PRIZE_ACCRUAL
+  AGENT_PRIZE_PAYOUT
+  REMITTANCE_ACCOUNTING
+  PRIZE_PAYOUT_HISTORY
+}
+
+enum FinancialMigrationRunStatus {
+  PLANNED
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_EXCEPTIONS
+  FAILED
+  FINALIZED
+}
+
+enum FinancialMigrationItemStatus {
+  PENDING
+  APPLIED
+  SKIPPED
+  REVIEW_REQUIRED
+  FAILED
+}
+
+model FinancialMigrationRun {
+  runId String @id @default(uuid()) @map("run_id")
+
+  label String @db.VarChar(160)
+
+  status FinancialMigrationRunStatus @default(PLANNED)
+
+  createdBy String? @map("created_by") @db.VarChar(120)
+
+  // Records before this instant are legacy migration candidates.
+  // New operational recovery services must not rewrite that history.
+  cutoverAt DateTime @map("cutover_at")
+
+  plannedCount Int @default(0) @map("planned_count")
+  appliedCount Int @default(0) @map("applied_count")
+  skippedCount Int @default(0) @map("skipped_count")
+  reviewCount  Int @default(0) @map("review_count")
+  failedCount  Int @default(0) @map("failed_count")
+
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  finalizedAt DateTime? @map("finalized_at")
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  items FinancialMigrationItem[]
+
+  @@index([status, createdAt])
+  @@map("financial_migration_runs")
+}
+
+model FinancialMigrationItem {
+  itemId String @id @default(uuid()) @map("item_id")
+
+  runId String @map("run_id")
+
+  kind FinancialMigrationKind
+
+  sourceType String @map("source_type") @db.VarChar(100)
+  sourceId   String @map("source_id") @db.VarChar(180)
+
+  status FinancialMigrationItemStatus @default(PENDING)
+
+  snapshot Json?
+  result   Json?
+
+  ledgerTxnId String? @map("ledger_txn_id") @db.VarChar(180)
+
+  errorMessage String? @map("error_message") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  run FinancialMigrationRun @relation(fields: [runId], references: [runId], onDelete: Restrict)
+
+  @@unique([runId, kind, sourceType, sourceId])
+  @@index([runId, status])
+  @@index([kind, status])
+  @@index([sourceType, sourceId])
+  @@map("financial_migration_items")
+}
+
+// ─── TREASURY & RECONCILIATION ──────────────────────────────
+
+enum TreasuryProvider {
+  FLUTTERWAVE
+  MONNIFY
+  BANK
+}
+
+enum TreasuryAccountKind {
+  COLLECTION_CLEARING
+  PAYOUT_WALLET
+  BANK_ACCOUNT
+}
+
+enum TreasuryAccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum TreasurySettlementStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  FLAGGED
+  UNKNOWN
+}
+
+enum ReconciliationRunType {
+  TRANSACTION
+  SETTLEMENT
+  BALANCE
+  FULL
+}
+
+enum ReconciliationRunStatus {
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_EXCEPTIONS
+  FAILED
+}
+
+enum ReconciliationIssueType {
+  MISSING_INTERNAL
+  MISSING_EXTERNAL
+  UNMAPPED_REFERENCE
+  DUPLICATE_EXTERNAL
+  AMOUNT_MISMATCH
+  CURRENCY_MISMATCH
+  STATUS_MISMATCH
+  FEE_MISMATCH
+  SETTLEMENT_SHORTFALL
+  BALANCE_VARIANCE
+}
+
+enum ReconciliationIssueStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+model TreasuryAccount {
+  treasuryAccountId String @id @default(uuid()) @map("treasury_account_id")
+
+  code String @unique @db.VarChar(180)
+  name String @db.VarChar(180)
+
+  provider TreasuryProvider
+  kind     TreasuryAccountKind
+
+  currency String @default("NGN") @db.VarChar(3)
+
+  ledgerAccountId String @unique @map("ledger_account_id")
+
+  externalAccountReference String? @map("external_account_reference") @db.VarChar(200)
+
+  bankCode     String? @map("bank_code") @db.VarChar(32)
+  accountLast4 String? @map("account_last4") @db.VarChar(4)
+
+  status TreasuryAccountStatus @default(ACTIVE)
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  ledgerAccount LedgerAccount @relation("TreasuryAccountLedger", fields: [ledgerAccountId], references: [accountId], onDelete: Restrict)
+
+  balanceSnapshots     TreasuryBalanceSnapshot[]
+  settlements          TreasurySettlement[]
+  reconciliationRuns   ReconciliationRun[]
+  reconciliationIssues ReconciliationIssue[]
+
+  @@index([provider, kind])
+  @@index([status])
+  @@map("treasury_accounts")
+}
+
+model TreasuryBalanceSnapshot {
+  snapshotId String @id @default(uuid()) @map("snapshot_id")
+
+  treasuryAccountId String @map("treasury_account_id")
+
+  externalBalanceMinor BigInt @map("external_balance_minor")
+  internalBalanceMinor BigInt @map("internal_balance_minor")
+  varianceMinor        BigInt @map("variance_minor")
+
+  observedAt DateTime @map("observed_at")
+
+  externalReference String? @map("external_reference") @db.VarChar(200)
+  rawPayload        Json?   @map("raw_payload")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  treasuryAccount TreasuryAccount @relation(fields: [treasuryAccountId], references: [treasuryAccountId], onDelete: Restrict)
+
+  @@index([treasuryAccountId, observedAt])
+  @@index([observedAt])
+  @@map("treasury_balance_snapshots")
+}
+
+model TreasurySettlement {
+  settlementId String @id @default(uuid()) @map("settlement_id")
+
+  treasuryAccountId String @map("treasury_account_id")
+  provider          TreasuryProvider
+
+  providerSettlementId String @map("provider_settlement_id") @db.VarChar(200)
+
+  currency String @default("NGN") @db.VarChar(3)
+
+  grossAmountMinor      BigInt @map("gross_amount_minor")
+  feeAmountMinor        BigInt @default(0) @map("fee_amount_minor")
+  refundAmountMinor     BigInt @default(0) @map("refund_amount_minor")
+  chargebackAmountMinor BigInt @default(0) @map("chargeback_amount_minor")
+  netAmountMinor        BigInt @map("net_amount_minor")
+
+  status TreasurySettlementStatus @default(PENDING)
+
+  destination          String? @db.VarChar(120)
+  destinationReference String? @map("destination_reference") @db.VarChar(200)
+
+  settlementDate DateTime? @map("settlement_date")
+  processedAt    DateTime? @map("processed_at")
+
+  ledgerTxnId String? @unique @map("ledger_txn_id")
+  rawPayload  Json?   @map("raw_payload")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  treasuryAccount TreasuryAccount @relation(fields: [treasuryAccountId], references: [treasuryAccountId], onDelete: Restrict)
+
+  ledgerTransaction LedgerTransaction? @relation("TreasurySettlementLedger", fields: [ledgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+
+  lines TreasurySettlementLine[]
+
+  @@unique([provider, providerSettlementId])
+  @@index([treasuryAccountId, settlementDate])
+  @@index([provider, status])
+  @@index([status, processedAt])
+  @@map("treasury_settlements")
+}
+
+model TreasurySettlementLine {
+  settlementLineId String @id @default(uuid()) @map("settlement_line_id")
+
+  settlementId String @map("settlement_id")
+
+  providerTransactionId String? @map("provider_transaction_id") @db.VarChar(200)
+  providerReference     String? @map("provider_reference") @db.VarChar(200)
+
+  grossAmountMinor BigInt @map("gross_amount_minor")
+  feeAmountMinor   BigInt @default(0) @map("fee_amount_minor")
+  netAmountMinor   BigInt @map("net_amount_minor")
+
+  currency String @default("NGN") @db.VarChar(3)
+
+  paymentTxnId    String? @map("payment_txn_id")
+  walletFundingId String? @map("wallet_funding_id")
+
+  rawPayload Json? @map("raw_payload")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  settlement TreasurySettlement @relation(fields: [settlementId], references: [settlementId], onDelete: Restrict)
+
+  payment PaymentTransaction? @relation(fields: [paymentTxnId], references: [txnId], onDelete: Restrict)
+
+  walletFunding WalletFunding? @relation(fields: [walletFundingId], references: [fundingId], onDelete: Restrict)
+
+  @@index([settlementId])
+  @@index([providerReference])
+  @@index([providerTransactionId])
+  @@index([paymentTxnId])
+  @@index([walletFundingId])
+  @@map("treasury_settlement_lines")
+}
+
+model ReconciliationRun {
+  runId String @id @default(uuid()) @map("run_id")
+
+  runType ReconciliationRunType @map("run_type")
+
+  provider TreasuryProvider?
+
+  treasuryAccountId String? @map("treasury_account_id")
+
+  status ReconciliationRunStatus @default(RUNNING)
+
+  periodFrom DateTime @map("period_from")
+  periodTo   DateTime @map("period_to")
+
+  recordsScanned Int @default(0) @map("records_scanned")
+  recordsMatched Int @default(0) @map("records_matched")
+  issueCount     Int @default(0) @map("issue_count")
+
+  varianceMinor BigInt @default(0) @map("variance_minor")
+
+  errorMessage String? @map("error_message") @db.Text
+
+  startedAt   DateTime @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  treasuryAccount TreasuryAccount? @relation(fields: [treasuryAccountId], references: [treasuryAccountId], onDelete: Restrict)
+
+  issues ReconciliationIssue[]
+
+  @@index([status, startedAt])
+  @@index([provider, periodFrom])
+  @@index([treasuryAccountId, periodFrom])
+  @@map("reconciliation_runs")
+}
+
+model ReconciliationIssue {
+  issueId String @id @default(uuid()) @map("issue_id")
+
+  runId String @map("run_id")
+
+  treasuryAccountId String? @map("treasury_account_id")
+
+  type   ReconciliationIssueType
+  status ReconciliationIssueStatus @default(OPEN)
+
+  severity AuditSeverity @default(WARNING)
+
+  provider TreasuryProvider?
+
+  internalReference String? @map("internal_reference") @db.VarChar(200)
+  externalReference String? @map("external_reference") @db.VarChar(200)
+
+  expectedAmountMinor BigInt? @map("expected_amount_minor")
+  actualAmountMinor   BigInt? @map("actual_amount_minor")
+  varianceMinor       BigInt? @map("variance_minor")
+
+  details Json?
+
+  resolvedByAdminId String? @map("resolved_by_admin_id")
+  resolvedAt        DateTime? @map("resolved_at")
+  resolutionNote    String? @map("resolution_note") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  run ReconciliationRun @relation(fields: [runId], references: [runId], onDelete: Restrict)
+
+  treasuryAccount TreasuryAccount? @relation(fields: [treasuryAccountId], references: [treasuryAccountId], onDelete: Restrict)
+
+  @@index([runId, status])
+  @@index([type, status])
+  @@index([provider, status])
+  @@index([treasuryAccountId, status])
+  @@map("reconciliation_issues")
 }
 
 // ─── TICKETS ────────────────────────────────────────────────
@@ -972,8 +1380,10 @@ model PrizeClaim {
   kycReviewedAt       DateTime? @map("kyc_reviewed_at")
 
   prizeAccrualLedgerTxnId String? @unique @map("prize_accrual_ledger_txn_id")
+  agentPayoutLedgerTxnId  String? @unique @map("agent_payout_ledger_txn_id")
 
   prizeAccrualLedgerTxn LedgerTransaction? @relation("PrizeClaimAccrualLedger", fields: [prizeAccrualLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  agentPayoutLedgerTxn  LedgerTransaction? @relation("PrizeClaimAgentPayoutLedger", fields: [agentPayoutLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
   payoutAttempts PrizePayoutAttempt[]
 
@@ -1150,10 +1560,19 @@ model Remittance {
   agentConfirmedAt DateTime?        @map("agent_confirmed_at")
   deadlineWarnedAt DateTime?        @map("deadline_warned_at")
   receivedAt       DateTime?        @map("received_at")
+
+  commissionLedgerTxnId   String? @unique @map("commission_ledger_txn_id")
+  settlementLedgerTxnId   String? @unique @map("settlement_ledger_txn_id")
+  walletCreditLedgerTxnId String? @unique @map("wallet_credit_ledger_txn_id")
+
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
   agent Agent @relation(fields: [agentId], references: [agentId])
+
+  commissionLedgerTxn LedgerTransaction? @relation("RemittanceCommissionLedger", fields: [commissionLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  settlementLedgerTxn LedgerTransaction? @relation("RemittanceSettlementLedger", fields: [settlementLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
+  walletCreditLedgerTxn LedgerTransaction? @relation("RemittanceWalletCreditLedger", fields: [walletCreditLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
   @@unique([agentId, periodDate])
   @@index([status, periodDate])

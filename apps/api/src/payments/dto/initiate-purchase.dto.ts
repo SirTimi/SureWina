@@ -8,9 +8,13 @@ import {
   Min,
   IsOptional,
   IsEmail,
+  IsIn,
 } from 'class-validator';
 
 export class InitiatePurchaseDto {
+  @IsIn(['MONNIFY', 'FLUTTERWAVE'])
+  gateway!: 'MONNIFY' | 'FLUTTERWAVE';
+
   @IsString()
   @IsNotEmpty()
   drawCode!: string;

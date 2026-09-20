@@ -23,6 +23,7 @@ import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../database/prisma.service';
 import { ListRemittancesQueryDto } from './dto/list-remittances.dto'
 import { AgentDayRecordService } from './agent-day-record.service';
+import { AgentAccountingService } from './agent-accounting.service';
 @Controller('admin/finance/remittances')
 @UseGuards(AdminJwtGuard, AdminRoleGuard)
 @AdminRoles(AdminRole.FINANCE_OFFICER)
@@ -31,6 +32,7 @@ export class AdminFinanceAgentsController {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly dayRecords: AgentDayRecordService,
+    private readonly accounting: AgentAccountingService,
   ) {}
 
   @Get()
@@ -93,17 +95,18 @@ export class AdminFinanceAgentsController {
       throw new ConflictException('Remittance is already marked received');
     }
 
-    const updated = await this.prisma.remittance.update({
-      where: { remittanceId: id },
-      data: { status: RemittanceStatus.RECEIVED, receivedAt: new Date() },
-    });
+    const updated = await this.accounting.settleBankRemittance(id);
 
     await this.audit.write({
       severity: AuditSeverity.INFO,
       actor: { type: AuditActorType.ADMIN, id: admin.sub },
       action: 'REMITTANCE_RECEIVED',
       resource: { type: 'Remittance', id },
-      metadata: { amountDueNgn: rem.amountDueNgn },
+      metadata: {
+        amountDueNgn: rem.amountDueNgn,
+        bankTransferRef: rem.bankTransferRef,
+        settlementLedgerTxnId: updated.settlementLedgerTxnId,
+      },
     });
 
     return updated;

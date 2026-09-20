@@ -8,6 +8,9 @@ export const SYSTEM_LEDGER_ACCOUNT_CODES = {
   PAYSTACK_CLEARING:
     'SYS:PSP:PAYSTACK',
 
+  MONNIFY_COLLECTION_CLEARING:
+    'SYS:PSP:MONNIFY',
+
   FLUTTERWAVE_CLEARING:
     'SYS:PSP:FLUTTERWAVE',
 
@@ -38,6 +41,12 @@ export const SYSTEM_LEDGER_ACCOUNT_CODES = {
   AGENT_COMMISSION_EXPENSE:
     'SYS:AGENT:COMMISSION',
 
+  PAYMENT_PROCESSING_FEES:
+    'SYS:EXPENSE:PAYMENT-FEES',
+
+  PROVIDER_ADJUSTMENT_EXPENSE:
+    'SYS:EXPENSE:PROVIDER-ADJUSTMENT',
+
   SUSPENSE:
     'SYS:SUSPENSE',
 } as const;
@@ -48,6 +57,19 @@ export const SYSTEM_LEDGER_ACCOUNTS = [
       SYSTEM_LEDGER_ACCOUNT_CODES.PAYSTACK_CLEARING,
     name:
       'Paystack Clearing',
+    accountType:
+      LedgerAccountType.ASSET,
+    purpose:
+      LedgerAccountPurpose.PSP_CLEARING,
+    ownerType:
+      LedgerOwnerType.SYSTEM,
+  },
+
+  {
+    code:
+      SYSTEM_LEDGER_ACCOUNT_CODES.MONNIFY_COLLECTION_CLEARING,
+    name:
+      'Monnify Collection Clearing',
     accountType:
       LedgerAccountType.ASSET,
     purpose:
@@ -182,6 +204,32 @@ export const SYSTEM_LEDGER_ACCOUNTS = [
       LedgerAccountType.EXPENSE,
     purpose:
       LedgerAccountPurpose.AGENT_COMMISSION_EXPENSE,
+    ownerType:
+      LedgerOwnerType.SYSTEM,
+  },
+
+  {
+    code:
+      SYSTEM_LEDGER_ACCOUNT_CODES.PAYMENT_PROCESSING_FEES,
+    name:
+      'Payment Processing Fees',
+    accountType:
+      LedgerAccountType.EXPENSE,
+    purpose:
+      LedgerAccountPurpose.PAYMENT_PROCESSING_FEES,
+    ownerType:
+      LedgerOwnerType.SYSTEM,
+  },
+
+  {
+    code:
+      SYSTEM_LEDGER_ACCOUNT_CODES.PROVIDER_ADJUSTMENT_EXPENSE,
+    name:
+      'Provider Adjustments and Chargebacks',
+    accountType:
+      LedgerAccountType.EXPENSE,
+    purpose:
+      LedgerAccountPurpose.PROVIDER_ADJUSTMENT_EXPENSE,
     ownerType:
       LedgerOwnerType.SYSTEM,
   },

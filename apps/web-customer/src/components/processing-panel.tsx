@@ -13,6 +13,7 @@ interface ProcessingPanelProps {
   drawCode?: string;
   quantity?: number;
   phoneE164?: string;
+  providerTransactionId?: string;
 }
 
 type Stage = 'connecting' | 'authorising' | 'confirming';
@@ -22,6 +23,7 @@ export function ProcessingPanel({
   drawCode,
   quantity,
   phoneE164,
+  providerTransactionId,
 }: ProcessingPanelProps) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>('connecting');
@@ -36,6 +38,7 @@ export function ProcessingPanel({
           drawCode ?? '',
           quantity ?? 0,
           phoneE164 ?? '',
+          providerTransactionId,
         );
 
         const params = new URLSearchParams({
@@ -63,7 +66,14 @@ export function ProcessingPanel({
       clearTimeout(t2);
       clearTimeout(t3);
     };
-  }, [drawCode, sessionId, quantity, phoneE164, router]);
+  }, [
+    drawCode,
+    sessionId,
+    quantity,
+    phoneE164,
+    providerTransactionId,
+    router,
+  ]);
 
   const stageLabel: Record<Stage, string> = {
     connecting: 'Connecting to your bank…',
