@@ -4,9 +4,11 @@
 ALTER TYPE "PaymentGateway" ADD VALUE 'MONNIFY';
 
 -- Extend ledger enums.
-ALTER TYPE "LedgerAccountPurpose" ADD VALUE 'AGENT_RECEIVABLE';
-ALTER TYPE "LedgerAccountPurpose" ADD VALUE 'PAYMENT_PROCESSING_FEES';
-
+-- AGENT_RECEIVABLE and PAYMENT_PROCESSING_FEES are intentionally added by
+-- the historical 20260920071231 migration, which was already applied on
+-- development databases before the named Phase 7 migration was introduced.
+-- Keeping the additions there avoids checksum/history surgery on an applied
+-- migration while allowing clean shadow-database replay.
 ALTER TYPE "LedgerTransactionKind" ADD VALUE 'PROVIDER_COLLECTION';
 ALTER TYPE "LedgerTransactionKind" ADD VALUE 'PROVIDER_SETTLEMENT';
 ALTER TYPE "LedgerTransactionKind" ADD VALUE 'REFUND_ACCRUAL';
