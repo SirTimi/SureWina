@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../database/prisma.service';
+import { ConfigService } from '@nestjs/config';
 import { AgentAccountingService } from './agent-accounting.service';
 
 const SWEEP_MS = 5 * 60_000;
@@ -25,6 +26,7 @@ export class AgentRemittanceAccountingRecoveryService
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
     private readonly accounting: AgentAccountingService,
   ) {}
 
@@ -55,8 +57,40 @@ export class AgentRemittanceAccountingRecoveryService
     this.running = true;
 
     try {
+      const cutoverRaw =
+        this.config.get<string>(
+          'FINANCIAL_LEDGER_CUTOVER_AT',
+        );
+
+      if (!cutoverRaw) {
+        this.logger.warn(
+          'FINANCIAL_LEDGER_CUTOVER_AT is not configured; legacy remittance recovery is paused',
+        );
+        return;
+      }
+
+      const cutover =
+        new Date(
+          cutoverRaw,
+        );
+
+      if (
+        Number.isNaN(
+          cutover.getTime(),
+        )
+      ) {
+        this.logger.error(
+          'FINANCIAL_LEDGER_CUTOVER_AT is invalid; remittance recovery is paused',
+        );
+        return;
+      }
+
       const rows = await this.prisma.remittance.findMany({
         where: {
+          createdAt: {
+            gte:
+              cutover,
+          },
           OR: [
             {
               commissionNgn: { gt: 0 },
