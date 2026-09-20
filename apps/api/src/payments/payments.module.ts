@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
-import { PaystackDriver } from './gateway/paystack.driver';
 import { FlutterwaveDriver } from './gateway/flutterwave.driver';
 import { MonnifyDriver } from './gateway/monnify.driver';
 import { PurchaseConfirmationService } from './purchase-confirmation.service';
@@ -44,7 +43,6 @@ import { WalletTicketPurchaseService } from './wallet-ticket-purchase.service';
   ],
   providers: [
     PaymentsService,
-    PaystackDriver,
     MonnifyDriver,
     FlutterwaveDriver,
     PurchaseConfirmationService,
