@@ -573,6 +573,7 @@ enum LedgerAccountStatus {
 
 enum LedgerAccountPurpose {
   PSP_CLEARING
+  PAYOUT_CLEARING
   BANK_CASH
 
   CUSTOMER_AVAILABLE
@@ -580,6 +581,7 @@ enum LedgerAccountPurpose {
 
   AGENT_AVAILABLE
   AGENT_HELD
+  AGENT_RECEIVABLE
 
   TICKET_SALES_REVENUE
 
@@ -591,9 +593,9 @@ enum LedgerAccountPurpose {
   REFUND_PAYABLE
 
   AGENT_COMMISSION_EXPENSE
+  PAYMENT_PROCESSING_FEES
 
   SUSPENSE
-  PAYOUT_CLEARING
 }
 
 enum LedgerEntrySide {
