@@ -36,6 +36,7 @@ import { WalletService } from '../wallet/wallet.service';
 
 const APPLY_ORDER: FinancialMigrationKind[] = [
   FinancialMigrationKind.PAYMENT_COLLECTION,
+  FinancialMigrationKind.WALLET_FUNDING,
   FinancialMigrationKind.PAYMENT_REFUND,
   FinancialMigrationKind.PRIZE_ACCRUAL,
   FinancialMigrationKind.AGENT_PRIZE_PAYOUT,
@@ -132,6 +133,12 @@ export class Phase8MigrationService {
     );
 
     await this.planPayments(
+      run.runId,
+      input.cutoverAt,
+      items,
+    );
+
+    await this.planWalletFundings(
       run.runId,
       input.cutoverAt,
       items,
@@ -645,6 +652,11 @@ export class Phase8MigrationService {
           sourceId,
         );
 
+      case FinancialMigrationKind.WALLET_FUNDING:
+        return this.migrateWalletFunding(
+          sourceId,
+        );
+
       case FinancialMigrationKind.PAYMENT_REFUND:
         return this.migratePaymentRefund(
           sourceId,
@@ -913,6 +925,167 @@ export class Phase8MigrationService {
     throw new ReviewRequiredError(
       `Unsupported legacy payment gateway ${payment.gateway}`,
     );
+  }
+
+  private async migrateWalletFunding(
+    fundingId: string,
+  ) {
+    const funding =
+      await this.prisma.walletFunding.findUnique({
+        where: {
+          fundingId,
+        },
+      });
+
+    if (!funding) {
+      throw new ReviewRequiredError(
+        'Wallet funding row no longer exists',
+      );
+    }
+
+    if (funding.ledgerTxnId) {
+      return {
+        skipped: true,
+        ledgerTxnId:
+          funding.ledgerTxnId,
+        result: {
+          reason:
+            'Wallet funding already ledger-backed',
+        },
+      };
+    }
+
+    if (
+      funding.status !==
+      WalletFundingStatus.CREDITED
+    ) {
+      return {
+        skipped: true,
+        ledgerTxnId:
+          null,
+        result: {
+          reason:
+            `Wallet funding is ${funding.status}, not CREDITED`,
+        },
+      };
+    }
+
+    const counterCode =
+      funding.gateway ===
+      PaymentGateway.MONNIFY
+        ? SYSTEM_LEDGER_ACCOUNT_CODES.MONNIFY_COLLECTION_CLEARING
+        : funding.gateway ===
+          PaymentGateway.FLUTTERWAVE
+          ? SYSTEM_LEDGER_ACCOUNT_CODES.FLUTTERWAVE_CLEARING
+          : funding.gateway ===
+            PaymentGateway.PAYSTACK
+            ? SYSTEM_LEDGER_ACCOUNT_CODES.PAYSTACK_CLEARING
+            : null;
+
+    if (!counterCode) {
+      throw new ReviewRequiredError(
+        `Unsupported legacy wallet funding gateway ${funding.gateway}`,
+      );
+    }
+
+    const journal =
+      await this.prisma.$transaction(
+        async (
+          tx,
+        ) => {
+          const current =
+            await tx.walletFunding.findUniqueOrThrow({
+              where: {
+                fundingId,
+              },
+            });
+
+          if (
+            current.ledgerTxnId
+          ) {
+            return tx.ledgerTransaction.findUniqueOrThrow({
+              where: {
+                ledgerTxnId:
+                  current.ledgerTxnId,
+              },
+            });
+          }
+
+          const counter =
+            await this.requireAccount(
+              tx,
+              counterCode,
+            );
+
+          const posted =
+            await this.wallets.creditInTransaction(
+              tx,
+              {
+                walletId:
+                  current.walletId,
+                amountNgn:
+                  current.amountNgn,
+                counterAccountId:
+                  counter.accountId,
+                idempotencyKey:
+                  `migration:phase8:wallet-funding:${current.fundingId}`,
+                kind:
+                  LedgerTransactionKind.FUNDING,
+                referenceType:
+                  'WalletFunding',
+                referenceId:
+                  current.fundingId,
+                description:
+                  'Phase 8 legacy wallet funding backfill',
+                occurredAt:
+                  current.creditedAt ??
+                  current.initiatedAt,
+                metadata:
+                  this.json({
+                    phase:
+                      8,
+                    legacy:
+                      true,
+                    gateway:
+                      current.gateway,
+                    gatewayReference:
+                      current.gatewayReference,
+                    providerTransactionId:
+                      current.providerTransactionId,
+                  }),
+              },
+            );
+
+          await tx.walletFunding.update({
+            where: {
+              fundingId:
+                current.fundingId,
+            },
+            data: {
+              ledgerTxnId:
+                posted.ledgerTxnId,
+            },
+          });
+
+          return posted;
+        },
+        {
+          isolationLevel:
+            Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
+
+    return {
+      skipped: false,
+      ledgerTxnId:
+        journal.ledgerTxnId,
+      result: {
+        gateway:
+          funding.gateway,
+        amountNgn:
+          funding.amountNgn,
+      },
+    };
   }
 
   private async migratePaymentRefund(
@@ -2271,6 +2444,59 @@ export class Phase8MigrationService {
     }
   }
 
+  private async planWalletFundings(
+    runId: string,
+    cutoverAt: Date,
+    items: Prisma.FinancialMigrationItemCreateManyInput[],
+  ) {
+    const rows =
+      await this.prisma.walletFunding.findMany({
+        where: {
+          initiatedAt: {
+            lt:
+              cutoverAt,
+          },
+          status:
+            WalletFundingStatus.CREDITED,
+          ledgerTxnId:
+            null,
+        },
+        select: {
+          fundingId:
+            true,
+          gateway:
+            true,
+          amountNgn:
+            true,
+          gatewayReference:
+            true,
+          initiatedAt:
+            true,
+          creditedAt:
+            true,
+        },
+      });
+
+    for (
+      const row
+      of rows
+    ) {
+      items.push({
+        runId,
+        kind:
+          FinancialMigrationKind.WALLET_FUNDING,
+        sourceType:
+          'WalletFunding',
+        sourceId:
+          row.fundingId,
+        snapshot:
+          this.json(
+            row,
+          ),
+      });
+    }
+  }
+
   private async planRefunds(
     runId: string,
     cutoverAt: Date,
@@ -3429,6 +3655,7 @@ export class Phase8MigrationService {
     const [
       legacyAgentBalances,
       legacyCollections,
+      legacyWalletFundings,
       legacyRefundAccruals,
       legacyRefundSettlements,
       legacyPrizeAccruals,
@@ -3438,6 +3665,7 @@ export class Phase8MigrationService {
       legacyWalletCredits,
       legacyWalletSettlements,
       legacyPayoutHistory,
+      legacyCommissionDisbursements,
       postCutoverPaystackPayments,
       postCutoverPaystackFundings,
       liveCollectionsMissingLedger,
@@ -3465,6 +3693,19 @@ export class Phase8MigrationService {
                 MIGRATABLE_PAYMENT_STATUSES,
             },
             collectionLedgerTxnId:
+              null,
+          },
+        }),
+
+        this.prisma.walletFunding.count({
+          where: {
+            initiatedAt: {
+              lt:
+                cutoverAt,
+            },
+            status:
+              WalletFundingStatus.CREDITED,
+            ledgerTxnId:
               null,
           },
         }),
@@ -3626,6 +3867,15 @@ export class Phase8MigrationService {
           },
         }),
 
+        this.prisma.commissionDisbursement.count({
+          where: {
+            createdAt: {
+              lt:
+                cutoverAt,
+            },
+          },
+        }),
+
         this.prisma.paymentTransaction.count({
           where: {
             createdAt: {
@@ -3689,6 +3939,7 @@ export class Phase8MigrationService {
     return {
       legacyAgentBalances,
       legacyCollections,
+      legacyWalletFundings,
       legacyRefundAccruals,
       legacyRefundSettlements,
       legacyPrizeAccruals,
@@ -3698,6 +3949,7 @@ export class Phase8MigrationService {
       legacyWalletCredits,
       legacyWalletSettlements,
       legacyPayoutHistory,
+      legacyCommissionDisbursements,
       postCutoverPaystackPayments,
       postCutoverPaystackFundings,
       liveCollectionsMissingLedger,
