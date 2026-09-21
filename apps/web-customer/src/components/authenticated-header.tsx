@@ -28,6 +28,11 @@ const navItems = [
     icon: Ticket,
   },
   {
+    label: 'Wallet',
+    href: '/dashboard/wallet',
+    icon: WalletCards,
+  },
+  {
     label: 'Claims',
     href: '/dashboard/claims',
     icon: Trophy,

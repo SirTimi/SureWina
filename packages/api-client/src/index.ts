@@ -10,6 +10,7 @@ import { StatsModule } from './modules/stats.js';
 import { DashboardModule } from './modules/dashboard.js';
 import { AccountModule } from './modules/account.js';
 import { ClaimsModule } from './modules/claims.js';
+import { WalletModule } from './modules/wallet.js';
 
 export interface SurewinaApi {
   health: HealthModule;
@@ -22,6 +23,7 @@ export interface SurewinaApi {
   dashboard: DashboardModule;
   account: AccountModule;
   claims: ClaimsModule;
+  wallet: WalletModule;
 
 }
 
@@ -42,6 +44,7 @@ export function createClient(config: ApiClientConfig): SurewinaApi {
     dashboard,
     account,
     claims: new ClaimsModule(client),
+    wallet: new WalletModule(client),
   };
 }
 
@@ -53,3 +56,4 @@ export type { AdminDashboard, AdminMe, AdminFunction, AdminTier, AdminAgentRow, 
 export type { TicketReceipt } from './modules/tickets.js';
 export type { CustomerDisputeRow, CustomerDisputeStatus, ListCustomerDisputesResponse, RaiseDisputeRequest, RaiseDisputeResponse } from '@surewina/types';
 export type { AgentSalePrint } from './modules/agents.js';
+export type { WalletView, WalletStatus, WalletOwnerType, WalletFundingGateway, WalletFundingStatus, WalletFundingView, WalletFundingHistoryResponse, WalletLedgerEntry, WalletLedgerTransaction, WalletHistoryResponse, InitiateWalletFundingRequest, InitiateWalletFundingResponse } from './modules/wallet.js';
