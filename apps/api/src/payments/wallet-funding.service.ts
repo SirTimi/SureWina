@@ -56,10 +56,6 @@ type FundingOwner = {
   email: string | null;
 
   callbackBaseUrl: string;
-
-  auditActorType:
-    | AuditActorType.CUSTOMER
-    | AuditActorType.AGENT;
 };
 
 @Injectable()
@@ -156,9 +152,6 @@ export class WalletFundingService {
               'PAYMENT_CALLBACK_BASE_URL',
             ),
           ),
-
-        auditActorType:
-          AuditActorType.CUSTOMER,
       },
       dto,
     );
@@ -299,7 +292,9 @@ export class WalletFundingService {
 
         actor: {
           type:
-            owner.auditActorType,
+            owner.ownerType === 'CUSTOMER'
+              ? AuditActorType.CUSTOMER
+              : AuditActorType.AGENT,
 
           id:
             owner.ownerId,

@@ -75,6 +75,12 @@ Only after the user accepts this increment:
 
 ## Testing Status
 
+Latest user test:
+- FAILED on local TypeScript validation with TS2702 in `wallet-funding.service.ts`;
+- root cause: Prisma `AuditActorType.CUSTOMER` / `.AGENT` values were incorrectly used as namespace types inside `FundingOwner`;
+- fix: removed the redundant `auditActorType` field and derive the audit actor directly from `ownerType`;
+- awaiting user re-test after the fix commit.
+
 Engineering review for this increment:
 - inspected latest `main` before changes;
 - inspected recent commits;
@@ -104,4 +110,4 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: add agent wallet funding endpoints` (this development cycle)
+`fix: correct wallet funding audit actor typing` (latest fix cycle)
