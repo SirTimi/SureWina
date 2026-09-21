@@ -94,5 +94,4 @@ export const envValidationSchema = Joi.object({
 
   WALLET_FUNDING_MIN_NGN: Joi.number().integer().min(1).default(100),
   WALLET_FUNDING_MAX_NGN: Joi.number().integer().min(100).default(500000),
-  AGENT_WEB_BASE_URL: Joi.string().uri().default('http://localhost:3001'),
 });

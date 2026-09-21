@@ -10,7 +10,6 @@ import { ConfigService } from '@nestjs/config';
 
 import {
   AgentStatus,
-  AgentStatus,
   AuditActorType,
   AuditSeverity,
   LedgerTransactionKind,
@@ -165,94 +164,6 @@ export class WalletFundingService {
     );
   }
 
-  // ─────────────────────────────────────────────────────────
-  // AGENT FUNDING
-  // ─────────────────────────────────────────────────────────
-
-  async initiateForAgent(
-    agentId: string,
-    dto: InitiateWalletFundingDto,
-  ) {
-    this.validateFundingAmount(
-      dto.amountNgn,
-    );
-
-    const agent =
-      await this.prisma.agent.findUnique({
-        where: {
-          agentId,
-        },
-
-        select: {
-          agentId:
-            true,
-
-          status:
-            true,
-
-          phoneNumber:
-            true,
-
-          email:
-            true,
-        },
-      });
-
-    if (!agent) {
-      throw new NotFoundException(
-        'Agent not found',
-      );
-    }
-
-    /*
-     * Do not allow compliance-suspended or terminated
-     * agents to put fresh money into a wallet they cannot
-     * currently spend.
-     */
-    if (
-      agent.status !==
-      AgentStatus.ACTIVE
-    ) {
-      throw new ConflictException(
-        'Agent account is not active',
-      );
-    }
-
-    const wallet =
-      await this.wallets.ensureAgentWallet(
-        agentId,
-      );
-
-    return this.initiateForOwner(
-      {
-        ownerType:
-          'AGENT',
-
-        ownerId:
-          agentId,
-
-        walletId:
-          wallet.walletId,
-
-        phoneNumber:
-          agent.phoneNumber,
-
-        email:
-          agent.email,
-
-        callbackBaseUrl:
-          this.cleanBaseUrl(
-            this.config.getOrThrow<string>(
-              'AGENT_WEB_BASE_URL',
-            ),
-          ),
-
-        auditActorType:
-          AuditActorType.AGENT,
-      },
-      dto,
-    );
-  }
 
   // ─────────────────────────────────────────────────────────
   // SHARED INITIATION
@@ -1094,22 +1005,6 @@ export class WalletFundingService {
   // AGENT STATUS / HISTORY
   // ─────────────────────────────────────────────────────────
 
-  async statusForAgent(
-    agentId: string,
-    reference: string,
-    transactionId?: string,
-  ) {
-    const funding =
-      await this.findAgentFunding(
-        agentId,
-        reference,
-      );
-
-    return this.resolveFundingStatus(
-      funding,
-      transactionId,
-    );
-  }
 
   async historyForAgent(
     agentId: string,
@@ -1517,24 +1412,6 @@ export class WalletFundingService {
       throw new NotFoundException(
         'Wallet funding not found',
       );
-    }
-
-    return funding;
-  }
-
-  private async findAgentFunding(
-    agentId: string,
-    reference: string,
-  ) {
-    const funding = await this.prisma.walletFunding.findFirst({
-      where: {
-        gatewayReference: reference,
-        wallet: { agentId },
-      },
-    });
-
-    if (!funding) {
-      throw new NotFoundException('Wallet funding not found');
     }
 
     return funding;
