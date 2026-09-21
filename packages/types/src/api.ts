@@ -63,14 +63,12 @@ export interface RecentStatsResponse {
 export type PaymentMethod = 'CARD' | 'TRANSFER' | 'USSD' | 'OPAY';
 
 export interface InitiatePurchaseRequest {
-  gateway: 'MONNIFY' | 'FLUTTERWAVE';
   drawCode: string;
   quantity: number;
   phoneE164: string;
   stateOfPlayCode: string;
   buyerEmail?: string;
 }
-
 export interface InitiatePurchaseResponse {
   purchaseSessionId: string;
   totalNgn: number;

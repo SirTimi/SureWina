@@ -23,6 +23,8 @@ import { InitiatePurchaseDto } from './dto/initiate-purchase.dto';
 import { MonnifyDriver } from './gateway/monnify.driver';
 import { FlutterwaveDriver } from './gateway/flutterwave.driver';
 import { AccountService } from '../account/account.service';
+import { PaystackDriver } from './gateway/paystack.driver';
+
 export type InitiatePurchaseResult = {
   authorizationUrl: string;
   reference: string;
@@ -41,7 +43,8 @@ export class PaymentsService {
     private readonly monnify: MonnifyDriver,
     private readonly flutterwave: FlutterwaveDriver,
     private readonly customerAdmin: CustomerAdminService,
-    private readonly account: AccountService
+    private readonly account: AccountService,
+    private readonly paystack: PaystackDriver
   ) {}
 
   async initiatePurchase(
@@ -81,10 +84,7 @@ export class PaymentsService {
 
     // 4. Create the PENDING transaction BEFORE calling the chosen gateway.
     //    The customer's provider choice is immutable for this payment attempt.
-    const selectedGateway =
-      dto.gateway === 'MONNIFY'
-        ? PaymentGatewayEnum.MONNIFY
-        : PaymentGatewayEnum.FLUTTERWAVE;
+    const selectedGateway = PaymentGatewayEnum.PAYSTACK
 
     const txn =
       await this.prisma.paymentTransaction.create({
@@ -142,7 +142,7 @@ export class PaymentsService {
     // 5. Initialize only the provider the customer selected.
     //    Never silently fail over to another collection rail.
     try {
-      const init = await this.initializeChosenGateway(selectedGateway, {
+      const init = await this.initializeWebPurchase({
         amountKobo,
         reference,
         email: dto.buyerEmail?.trim().toLowerCase() ?? this.syntheticEmail(dto.phoneE164),
@@ -195,42 +195,31 @@ export class PaymentsService {
     }
   }
 
-  private async initializeChosenGateway(
-    gateway: PaymentGatewayEnum,
+  private async initializeWebPurchase(
     input: Parameters<PaymentGatewayDriver['initialize']>[0],
   ): Promise<{
     authorizationUrl: string;
     gatewayReference: string;
     gateway: PaymentGatewayEnum;
   }> {
-    const driver =
-      gateway === PaymentGatewayEnum.MONNIFY
-        ? this.monnify
-        : gateway === PaymentGatewayEnum.FLUTTERWAVE
-          ? this.flutterwave
-          : null;
-
-    if (!driver) {
-      throw new BadRequestException(
-        'Collection gateway must be MONNIFY or FLUTTERWAVE',
-      );
-    }
-
     const result =
-      await driver.initialize(input);
+      await this.paystack.initialize(
+        input,
+      );  
 
     if (
       result.gatewayReference !==
       input.reference
     ) {
       throw new ConflictException(
-        `${gateway} returned an unexpected payment reference`,
+        'Paystack returned an unexpected payment reference',
       );
-    }
+    } 
 
     return {
       ...result,
-      gateway,
+      gateway:
+        PaymentGatewayEnum.PAYSTACK,
     };
   }
 

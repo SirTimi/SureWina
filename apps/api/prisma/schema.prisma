@@ -363,10 +363,14 @@ model PaymentTransaction {
 }
 
 enum PaymentGateway {
-  // Legacy only. New customer collections use MONNIFY or FLUTTERWAVE.
+  // Direct web ticket purchase collection rail.
   PAYSTACK
+
+  // Wallet funding / payout / treasury provider rails.
   MONNIFY
   FLUTTERWAVE
+
+  // Offline agent cash collection rail.
   AGENT_CASH
 }
 

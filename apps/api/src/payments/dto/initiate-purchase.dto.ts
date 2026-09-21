@@ -8,13 +8,9 @@ import {
   Min,
   IsOptional,
   IsEmail,
-  IsIn,
 } from 'class-validator';
 
 export class InitiatePurchaseDto {
-  @IsIn(['MONNIFY', 'FLUTTERWAVE'])
-  gateway!: 'MONNIFY' | 'FLUTTERWAVE';
-
   @IsString()
   @IsNotEmpty()
   drawCode!: string;
@@ -22,7 +18,7 @@ export class InitiatePurchaseDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100) // sanity cap per purchase; tune later
+  @Max(100)
   quantity!: number;
 
   @IsNotEmpty()
@@ -31,13 +27,16 @@ export class InitiatePurchaseDto {
   })
   phoneE164!: string;
 
-  // State code for the "state of play" tracking (e.g. LAG, ABJ).
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[A-Z]{2,4}$/, { message: 'stateOfPlayCode must be 2-4 uppercase letters' })
+  @Matches(/^[A-Z]{2,4}$/, {
+    message: 'stateOfPlayCode must be 2-4 uppercase letters',
+  })
   stateOfPlayCode!: string;
 
   @IsOptional()
-  @IsEmail({}, { message: 'buyerEmail must be a valid email address'})
+  @IsEmail({}, {
+    message: 'buyerEmail must be a valid email address',
+  })
   buyerEmail?: string;
 }

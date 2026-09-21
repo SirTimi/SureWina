@@ -1227,6 +1227,8 @@ export class PaymentRefundService {
             });
 
           if (
+            current.gateway === PaymentGateway.PAYSTACK ||
+
             current.gateway ===
               PaymentGateway.MONNIFY ||
             current.gateway ===

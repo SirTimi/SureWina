@@ -4,16 +4,31 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Lock, Mail, Minus, Phone, Plus } from 'lucide-react';
+import {
+  AlertCircle,
+  Lock,
+  Mail,
+  Minus,
+  Phone,
+  Plus,
+} from 'lucide-react';
+
 import { Button, Card } from '@surewina/ui';
-import { formatNaira, getAllStatesSorted } from '@surewina/utils';
+import {
+  formatNaira,
+  getAllStatesSorted,
+} from '@surewina/utils';
+
 import type { DrawPublic } from '@surewina/types';
+
 import { api } from '@/lib/api';
+
 import {
   purchaseSchema,
   type PurchaseFormParsed,
   type PurchaseFormValues,
 } from '@/lib/schemas';
+
 import {
   getFreeJackpotEntriesFromRegularTickets,
   getTicketsToNextFreeJackpotEntry,
@@ -24,55 +39,139 @@ interface BuyFormProps {
   initialQuantity: number;
 }
 
-export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
+export function BuyForm({
+  draw,
+  initialQuantity,
+}: BuyFormProps) {
   const router = useRouter();
-  const states = getAllStatesSorted();
-  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const states =
+    getAllStatesSorted();
+
+  const [
+    submitError,
+    setSubmitError,
+  ] =
+    useState<string | null>(
+      null,
+    );
 
   const {
     register,
     handleSubmit,
     setValue,
     watch,
-    formState: { errors, isSubmitting },
-  } = useForm<PurchaseFormValues, unknown, PurchaseFormParsed>({
-    resolver: zodResolver(purchaseSchema),
+    formState: {
+      errors,
+      isSubmitting,
+    },
+  } = useForm<
+    PurchaseFormValues,
+    unknown,
+    PurchaseFormParsed
+  >({
+    resolver:
+      zodResolver(
+        purchaseSchema,
+      ),
+
     defaultValues: {
-      gateway: 'MONNIFY',
-      quantity: initialQuantity,
-      phone: '',
-      email: '',
-      stateOfPlayCode: '',
-      ageConfirmed: false,
+      quantity:
+        initialQuantity,
+
+      phone:
+        '',
+
+      email:
+        '',
+
+      stateOfPlayCode:
+        '',
+
+      ageConfirmed:
+        false,
     },
   });
 
-  const quantity = watch('quantity');
+  const quantity =
+    watch('quantity');
 
-  const isJackpotPurchase = draw.drawType === 'SATURDAY_JACKPOT';
-  const freeJackpotEntries = getFreeJackpotEntriesFromRegularTickets(quantity ?? 0);
-  const ticketsToNextJackpotEntry = getTicketsToNextFreeJackpotEntry(quantity ?? 0);
+  const isJackpotPurchase =
+    draw.drawType ===
+    'SATURDAY_JACKPOT';
 
-  const adjustQuantity = (delta: number) => {
-    const next = Math.max(1, Math.min(100, (quantity ?? 1) + delta));
-    setValue('quantity', next, { shouldValidate: true });
+  const freeJackpotEntries =
+    getFreeJackpotEntriesFromRegularTickets(
+      quantity ?? 0,
+    );
+
+  const ticketsToNextJackpotEntry =
+    getTicketsToNextFreeJackpotEntry(
+      quantity ?? 0,
+    );
+
+  const adjustQuantity = (
+    delta: number,
+  ) => {
+    const next =
+      Math.max(
+        1,
+        Math.min(
+          100,
+          (quantity ?? 1) +
+            delta,
+        ),
+      );
+
+    setValue(
+      'quantity',
+      next,
+      {
+        shouldValidate:
+          true,
+      },
+    );
   };
 
-  const onSubmit: SubmitHandler<PurchaseFormParsed> = async (data) => {
-    setSubmitError(null);
+  const onSubmit: SubmitHandler<
+    PurchaseFormParsed
+  > = async (
+    data,
+  ) => {
+    setSubmitError(
+      null,
+    );
 
     try {
-      const result = await api.tickets.initiatePurchase({
-        gateway: data.gateway,
-        drawCode: draw.drawCode,
-        quantity: data.quantity,
-        phoneE164: data.phone,
-        stateOfPlayCode: data.stateOfPlayCode,
-        // Omitted entirely when blank — an empty string fails @IsEmail.
-        ...(data.email ? { buyerEmail: data.email } : {}),
-      });
+      const result =
+        await api.tickets.initiatePurchase(
+          {
+            drawCode:
+              draw.drawCode,
 
-      router.push(result.redirectUrl);
+            quantity:
+              data.quantity,
+
+            phoneE164:
+              data.phone,
+
+            stateOfPlayCode:
+              data.stateOfPlayCode,
+
+            // Omitted entirely when blank.
+            // An empty string fails @IsEmail on the API.
+            ...(data.email
+              ? {
+                  buyerEmail:
+                    data.email,
+                }
+              : {}),
+          },
+        );
+
+      router.push(
+        result.redirectUrl,
+      );
     } catch (err) {
       setSubmitError(
         err instanceof Error
@@ -83,7 +182,12 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form
+      onSubmit={handleSubmit(
+        onSubmit,
+      )}
+      className="space-y-5"
+    >
       <Card
         variant="default"
         className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
@@ -92,16 +196,25 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           Ticket quantity
         </p>
 
-        <label htmlFor="quantity" className="mb-3 block text-sm font-black text-navy-950">
+        <label
+          htmlFor="quantity"
+          className="mb-3 block text-sm font-black text-navy-950"
+        >
           How many tickets?
         </label>
 
         <div className="flex max-w-xs overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-navy-700 focus-within:ring-2 focus-within:ring-amber-400/35">
           <button
             type="button"
-            onClick={() => adjustQuantity(-1)}
+            onClick={() =>
+              adjustQuantity(
+                -1,
+              )
+            }
             className="px-4 text-navy-700 transition hover:bg-amber-50 disabled:opacity-50"
-            disabled={quantity <= 1}
+            disabled={
+              quantity <= 1
+            }
             aria-label="Decrease"
           >
             <Minus className="h-4 w-4" />
@@ -110,7 +223,13 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           <input
             id="quantity"
             type="number"
-            {...register('quantity', { valueAsNumber: true })}
+            {...register(
+              'quantity',
+              {
+                valueAsNumber:
+                  true,
+              },
+            )}
             className="h-12 flex-1 bg-white text-center font-display text-xl font-black tabular-nums text-navy-950 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             min={1}
             max={100}
@@ -118,43 +237,75 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
 
           <button
             type="button"
-            onClick={() => adjustQuantity(1)}
+            onClick={() =>
+              adjustQuantity(
+                1,
+              )
+            }
             className="px-4 text-navy-700 transition hover:bg-amber-50 disabled:opacity-50"
-            disabled={quantity >= 100}
+            disabled={
+              quantity >= 100
+            }
             aria-label="Increase"
           >
             <Plus className="h-4 w-4" />
           </button>
         </div>
 
-        {errors.quantity && <FieldError message={errors.quantity.message} />}
-
-        {!isJackpotPurchase && quantity >= 1 && (
-          <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
-            <p className="text-sm font-bold text-navy-950">
-              {freeJackpotEntries > 0
-                ? `${freeJackpotEntries} free Sure Jackpot ${
-                    freeJackpotEntries === 1 ? 'entry' : 'entries'
-                  } unlocked with this purchase.`
-                : `${ticketsToNextJackpotEntry} more regular ticket${
-                    ticketsToNextJackpotEntry === 1 ? '' : 's'
-                  } to unlock 1 free Sure Jackpot entry.`}
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Every 10 regular ₦500 tickets gives the customer 1 free entry into the coming
-              Saturday jackpot draw.
-            </p>
-          </div>
+        {errors.quantity && (
+          <FieldError
+            message={
+              errors
+                .quantity
+                .message
+            }
+          />
         )}
+
+        {!isJackpotPurchase &&
+          quantity >= 1 && (
+            <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+              <p className="text-sm font-bold text-navy-950">
+                {freeJackpotEntries >
+                0
+                  ? `${freeJackpotEntries} free Sure Jackpot ${
+                      freeJackpotEntries ===
+                      1
+                        ? 'entry'
+                        : 'entries'
+                    } unlocked with this purchase.`
+                  : `${ticketsToNextJackpotEntry} more regular ticket${
+                      ticketsToNextJackpotEntry ===
+                      1
+                        ? ''
+                        : 's'
+                    } to unlock 1 free Sure Jackpot entry.`}
+              </p>
+
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Every 10 regular
+                ₦500 tickets gives
+                the customer 1 free
+                entry into the
+                coming Saturday
+                jackpot draw.
+              </p>
+            </div>
+          )}
 
         {isJackpotPurchase && (
           <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
             <p className="text-sm font-bold text-navy-950">
-              This is a direct Sure Jackpot ticket.
+              This is a direct
+              Sure Jackpot ticket.
             </p>
+
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Jackpot tickets bought directly go straight into the coming Saturday jackpot
-              draw bucket.
+              Jackpot tickets
+              bought directly go
+              straight into the
+              coming Saturday
+              jackpot draw bucket.
             </p>
           </div>
         )}
@@ -168,7 +319,10 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           Buyer details
         </p>
 
-        <label htmlFor="phone" className="mb-3 block text-sm font-black text-navy-950">
+        <label
+          htmlFor="phone"
+          className="mb-3 block text-sm font-black text-navy-950"
+        >
           Phone number
         </label>
 
@@ -179,10 +333,13 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
 
           <div className="relative flex-1">
             <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-700" />
+
             <input
               id="phone"
               type="tel"
-              {...register('phone')}
+              {...register(
+                'phone',
+              )}
               placeholder="803 123 4567"
               className="h-12 w-full bg-white pl-10 pr-3 text-base text-navy-950 outline-none placeholder:text-slate-400"
               autoComplete="tel-national"
@@ -190,24 +347,42 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           </div>
         </div>
 
-        {errors.phone && <FieldError message={errors.phone.message} />}
+        {errors.phone && (
+          <FieldError
+            message={
+              errors.phone
+                .message
+            }
+          />
+        )}
 
         <p className="mt-2 text-xs leading-relaxed text-slate-500">
-          Your ticket reference goes here by SMS within 30 seconds. We never share your
-          number.
+          Your ticket reference
+          goes here by SMS within
+          30 seconds. We never
+          share your number.
         </p>
 
-        <label htmlFor="email" className="mb-3 mt-5 block text-sm font-black text-navy-950">
-          Email <span className="font-medium text-slate-400">(optional)</span>
+        <label
+          htmlFor="email"
+          className="mb-3 mt-5 block text-sm font-black text-navy-950"
+        >
+          Email{' '}
+          <span className="font-medium text-slate-400">
+            (optional)
+          </span>
         </label>
 
         <div className="flex max-w-md overflow-hidden rounded-sm border border-slate-200 bg-white transition focus-within:border-navy-700 focus-within:ring-2 focus-within:ring-amber-400/35">
           <div className="relative flex-1">
             <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-700" />
+
             <input
               id="email"
               type="email"
-              {...register('email')}
+              {...register(
+                'email',
+              )}
               placeholder="you@example.com"
               className="h-12 w-full bg-white pl-10 pr-3 text-base text-navy-950 outline-none placeholder:text-slate-400"
               autoComplete="email"
@@ -215,11 +390,22 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           </div>
         </div>
 
-        {errors.email && <FieldError message={errors.email.message} />}
+        {errors.email && (
+          <FieldError
+            message={
+              errors.email
+                .message
+            }
+          />
+        )}
 
         <p className="mt-2 text-xs leading-relaxed text-slate-500">
-          We&apos;ll email your ticket with a link to print it. You can also use this email
-          to sign in if the SMS code doesn&apos;t arrive.
+          We&apos;ll email your
+          ticket with a link to
+          print it. You can also
+          use this email to sign
+          in if the SMS code
+          doesn&apos;t arrive.
         </p>
       </Card>
 
@@ -240,27 +426,53 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
 
         <select
           id="stateOfPlayCode"
-          {...register('stateOfPlayCode')}
+          {...register(
+            'stateOfPlayCode',
+          )}
           className="h-12 w-full max-w-md appearance-none rounded-sm border border-slate-200 bg-white bg-no-repeat px-3 pr-10 text-base text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/35"
           style={{
             backgroundImage:
               "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%234E8F01' stroke-width='1.5' d='M1 1l5 5 5-5'/%3E%3C/svg%3E\")",
-            backgroundPosition: 'right 1rem center',
+
+            backgroundPosition:
+              'right 1rem center',
           }}
         >
-          <option value="">Select your state…</option>
-          {states.map((s) => (
-            <option key={s.code} value={s.code}>
-              {s.name}
-            </option>
-          ))}
+          <option value="">
+            Select your state…
+          </option>
+
+          {states.map(
+            (state) => (
+              <option
+                key={
+                  state.code
+                }
+                value={
+                  state.code
+                }
+              >
+                {state.name}
+              </option>
+            ),
+          )}
         </select>
 
-        {errors.stateOfPlayCode && <FieldError message={errors.stateOfPlayCode.message} />}
+        {errors.stateOfPlayCode && (
+          <FieldError
+            message={
+              errors
+                .stateOfPlayCode
+                .message
+            }
+          />
+        )}
 
         <p className="mt-2 text-xs leading-relaxed text-slate-500">
-          This is required for lottery board reporting. You can&apos;t change it after
-          purchase.
+          This is required for
+          lottery board reporting.
+          You can&apos;t change it
+          after purchase.
         </p>
       </Card>
 
@@ -272,42 +484,27 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           Payment
         </p>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="cursor-pointer rounded-sm border border-slate-200 bg-[#F8FAF4] p-4 transition has-[:checked]:border-navy-700 has-[:checked]:ring-2 has-[:checked]:ring-amber-400/35">
-            <div className="flex items-start gap-3">
-              <input
-                type="radio"
-                value="MONNIFY"
-                {...register('gateway')}
-                className="mt-1 h-4 w-4 accent-navy-700"
-              />
-              <div>
-                <p className="text-sm font-black text-navy-950">Monnify</p>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                  Continue to Monnify checkout and choose from the payment methods available
-                  on your account.
-                </p>
-              </div>
-            </div>
-          </label>
+        <div className="rounded-sm border border-slate-200 bg-[#F8FAF4] p-4">
+          <div className="flex items-start gap-3">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
 
-          <label className="cursor-pointer rounded-sm border border-slate-200 bg-[#F8FAF4] p-4 transition has-[:checked]:border-navy-700 has-[:checked]:ring-2 has-[:checked]:ring-amber-400/35">
-            <div className="flex items-start gap-3">
-              <input
-                type="radio"
-                value="FLUTTERWAVE"
-                {...register('gateway')}
-                className="mt-1 h-4 w-4 accent-navy-700"
-              />
-              <div>
-                <p className="text-sm font-black text-navy-950">Flutterwave</p>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                  Continue to Flutterwave checkout and complete payment using an available
-                  payment method.
-                </p>
-              </div>
+            <div>
+              <p className="text-sm font-black text-navy-950">
+                Secure payment
+                with Paystack
+              </p>
+
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                You&apos;ll
+                continue to
+                Paystack to
+                complete your
+                payment using
+                the available
+                payment methods.
+              </p>
             </div>
-          </label>
+          </div>
         </div>
       </Card>
 
@@ -318,29 +515,52 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
         <label className="flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
-            {...register('ageConfirmed')}
+            {...register(
+              'ageConfirmed',
+            )}
             className="mt-1 h-4 w-4 accent-navy-700"
           />
 
           <span className="text-sm leading-relaxed text-slate-700">
-            I confirm I am 18 years or older and I accept the{' '}
-            <a href="/terms" className="font-bold text-navy-700 underline" target="_blank">
+            I confirm I am 18
+            years or older and I
+            accept the{' '}
+            <a
+              href="/terms"
+              className="font-bold text-navy-700 underline"
+              target="_blank"
+            >
               raffle rules
             </a>{' '}
             and{' '}
-            <a href="/privacy" className="font-bold text-navy-700 underline" target="_blank">
+            <a
+              href="/privacy"
+              className="font-bold text-navy-700 underline"
+              target="_blank"
+            >
               privacy policy
             </a>
             .
           </span>
         </label>
 
-        {errors.ageConfirmed && <FieldError message={errors.ageConfirmed.message} />}
+        {errors.ageConfirmed && (
+          <FieldError
+            message={
+              errors
+                .ageConfirmed
+                .message
+            }
+          />
+        )}
 
         {submitError && (
           <div className="mt-4 flex items-start gap-2 rounded-sm border border-red-100 bg-red-50 p-3">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-            <p className="text-sm leading-relaxed text-slate-700">{submitError}</p>
+
+            <p className="text-sm leading-relaxed text-slate-700">
+              {submitError}
+            </p>
           </div>
         )}
 
@@ -349,29 +569,46 @@ export function BuyForm({ draw, initialQuantity }: BuyFormProps) {
           variant="accent"
           size="lg"
           fullWidth
-          isLoading={isSubmitting}
+          isLoading={
+            isSubmitting
+          }
           className="mt-5 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
         >
           {isSubmitting
             ? 'Starting payment…'
-            : `Continue to payment of ${formatNaira((quantity ?? 1) * draw.ticketPriceNgn)}`}
+            : `Continue to payment of ${formatNaira(
+                (quantity ??
+                  1) *
+                  draw.ticketPriceNgn,
+              )}`}
         </Button>
 
         <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-slate-500">
           <Lock className="h-3 w-3 text-navy-700" />
-          Payment is processed securely by your selected provider. We never store card details.
+
+          Payment is processed
+          securely by Paystack.
+          We never store card
+          details.
         </p>
       </Card>
     </form>
   );
 }
 
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
+function FieldError({
+  message,
+}: {
+  message?: string;
+}) {
+  if (!message) {
+    return null;
+  }
 
   return (
     <p className="mt-2 flex items-start gap-1 text-xs text-red-600">
       <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+
       {message}
     </p>
   );

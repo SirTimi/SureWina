@@ -3677,7 +3677,6 @@ export class Phase8MigrationService {
       legacyWalletSettlements,
       legacyPayoutHistory,
       legacyCommissionDisbursements,
-      postCutoverPaystackPayments,
       postCutoverPaystackFundings,
       liveCollectionsMissingLedger,
       creditedFundingsMissingLedger,
@@ -3887,17 +3886,6 @@ export class Phase8MigrationService {
           },
         }),
 
-        this.prisma.paymentTransaction.count({
-          where: {
-            createdAt: {
-              gte:
-                cutoverAt,
-            },
-            gateway:
-              PaymentGateway.PAYSTACK,
-          },
-        }),
-
         this.prisma.walletFunding.count({
           where: {
             createdAt: {
@@ -3961,7 +3949,6 @@ export class Phase8MigrationService {
       legacyWalletSettlements,
       legacyPayoutHistory,
       legacyCommissionDisbursements,
-      postCutoverPaystackPayments,
       postCutoverPaystackFundings,
       liveCollectionsMissingLedger,
       creditedFundingsMissingLedger,

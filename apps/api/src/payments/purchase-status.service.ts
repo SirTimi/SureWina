@@ -54,6 +54,76 @@ export class PurchaseStatusService {
     });
     if (!txn) throw new NotFoundException('Purchase not found');
 
+    // Paystack can be verified directly using SureWina's merchant reference.
+    // This lets the processing page recover if the Paystack webhook is delayed.
+    if (
+      txn.status ===
+        PaymentStatus.PENDING &&
+      txn.gateway ===
+        PaymentGateway.PAYSTACK
+    ) {
+      const verified =
+        await this.verification.verifyPaystack(
+          reference,
+        );
+
+      if (verified) {
+        const confirmed =
+          await this.purchaseConfirmation.confirmAndCreateTickets({
+            reference,
+
+            verifiedPayment:
+              verified,
+
+            rawEvent: {
+              source:
+                'PURCHASE_STATUS_CHECK',
+
+              providerVerification:
+                verified.raw,
+            },  
+          });
+
+        if (confirmed) {
+          await this.notificationQueue.enqueueTicketConfirmationSms({
+            txnId:
+              confirmed.txnId,
+
+            buyerPhone:
+              confirmed.buyerPhone,
+
+            drawCode:
+              confirmed.drawCode,
+
+            drawScheduledAt:
+              confirmed.drawScheduledAt,
+
+            ticketRefs:
+              confirmed.ticketRefs,
+
+            amountNgn:
+              confirmed.amountNgn,
+          });
+
+          if (
+            confirmed.jackpotMinted
+          ) {
+            await this.notificationQueue.enqueueJackpotEntrySms(
+              confirmed.jackpotMinted,
+            );
+          }
+        }
+
+        txn =
+          await this.prisma.paymentTransaction.findUniqueOrThrow({
+            where: {
+              gatewayReference:
+                reference,
+            },
+          });
+      }
+    }
+
     // Monnify can be verified directly with SureWina's merchant
     // paymentReference, so a delayed webhook can self-heal here.
     if (

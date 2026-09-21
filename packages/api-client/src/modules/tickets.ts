@@ -44,7 +44,6 @@ export class TicketsModule {
     }>(
       '/tickets/purchase/initiate',
       {
-        gateway: req.gateway,
         drawCode: req.drawCode,
         quantity: req.quantity,
         phoneE164: req.phoneE164,

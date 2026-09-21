@@ -30,6 +30,7 @@ import { WalletFundingAdminController } from './wallet-funding-admin.controller'
 
 import { WalletTicketPurchaseController } from './wallet-ticket-purchase.controller';
 import { WalletTicketPurchaseService } from './wallet-ticket-purchase.service';
+import { PaystackDriver } from './gateway/paystack.driver'
 
 @Module({
   controllers: [
@@ -43,6 +44,7 @@ import { WalletTicketPurchaseService } from './wallet-ticket-purchase.service';
   ],
   providers: [
     PaymentsService,
+    PaystackDriver,
     MonnifyDriver,
     FlutterwaveDriver,
     PurchaseConfirmationService,

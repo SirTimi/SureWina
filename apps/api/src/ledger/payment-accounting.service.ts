@@ -433,6 +433,10 @@ export class PaymentAccountingService {
     gateway: PaymentGateway,
   ) {
     switch (gateway) {
+      case PaymentGateway.PAYSTACK:
+        return SYSTEM_LEDGER_ACCOUNT_CODES
+          .PAYSTACK_CLEARING;
+
       case PaymentGateway.MONNIFY:
         return SYSTEM_LEDGER_ACCOUNT_CODES
           .MONNIFY_PAYOUT_CLEARING;
@@ -452,6 +456,10 @@ export class PaymentAccountingService {
     gateway: PaymentGateway,
   ) {
     switch (gateway) {
+      case PaymentGateway.PAYSTACK:
+        return SYSTEM_LEDGER_ACCOUNT_CODES
+          .PAYSTACK_CLEARING;
+
       case PaymentGateway.MONNIFY:
         return SYSTEM_LEDGER_ACCOUNT_CODES
           .MONNIFY_COLLECTION_CLEARING;

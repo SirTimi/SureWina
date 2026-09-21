@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { isValidNigerianPhone, normalizePhone, isValidStateCode } from '@surewina/utils';
 
 export const purchaseSchema = z.object({
-  gateway: z.enum(['MONNIFY', 'FLUTTERWAVE']),
   quantity: z
     .number({ message: 'Quantity is required' })
     .int()
