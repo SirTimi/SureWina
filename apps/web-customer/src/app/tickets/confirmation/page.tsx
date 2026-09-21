@@ -14,6 +14,7 @@ interface ConfirmationPageProps {
     newEntries?: string;
     cumCount?: string;
     toNext?: string;
+    scheduled?: string;
   }>;
 }
 
@@ -26,6 +27,7 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
   const newEntries = parseInt(params.newEntries ?? '0', 10);
   const cumCount = parseInt(params.cumCount ?? '0', 10);
   const toNext = parseInt(params.toNext ?? '0', 10);
+  const scheduledAt = params.scheduled ?? null;
 
   if (ticketRefs.length === 0 || !drawCode) {
     return (
@@ -42,13 +44,26 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
   const isJackpot = drawCode.includes('JACKPOT');
   const drawType = isJackpot ? 'SATURDAY_JACKPOT' : 'DAILY_STANDARD';
 
-  const drawDate = new Date();
-  if (isJackpot) {
-    drawDate.setHours(21, 0, 0, 0);
-  } else {
-    drawDate.setHours(20, 0, 0, 0);
+  const providerDrawDate = scheduledAt ? new Date(scheduledAt) : null;
+  const hasValidScheduledAt =
+    providerDrawDate !== null && !Number.isNaN(providerDrawDate.getTime());
+
+  const drawDate =
+    hasValidScheduledAt && providerDrawDate
+      ? providerDrawDate
+      : new Date();
+
+  if (!hasValidScheduledAt) {
+    if (isJackpot) {
+      drawDate.setHours(21, 0, 0, 0);
+    } else {
+      drawDate.setHours(20, 0, 0, 0);
+    }
+
+    if (drawDate < new Date()) {
+      drawDate.setDate(drawDate.getDate() + 1);
+    }
   }
-  if (drawDate < new Date()) drawDate.setDate(drawDate.getDate() + 1);
 
   return (
     <Container size="md" className="py-12 sm:py-16">

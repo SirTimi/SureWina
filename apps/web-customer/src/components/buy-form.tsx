@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,6 +12,7 @@ import {
   Minus,
   Phone,
   Plus,
+  WalletCards,
 } from 'lucide-react';
 
 import { Button, Card } from '@surewina/ui';
@@ -20,8 +22,10 @@ import {
 } from '@surewina/utils';
 
 import type { DrawPublic } from '@surewina/types';
+import type { WalletView } from '@surewina/api-client';
 
 import { api } from '@/lib/api';
+import { isSignedIn } from '@/lib/auth';
 
 import {
   purchaseSchema,
@@ -56,10 +60,63 @@ export function BuyForm({
       null,
     );
 
+  const [
+    paymentMethod,
+    setPaymentMethod,
+  ] =
+    useState<'PAYSTACK' | 'WALLET'>(
+      'PAYSTACK',
+    );
+
+  const [
+    signedIn,
+    setSignedIn,
+  ] =
+    useState(false);
+
+  const [
+    wallet,
+    setWallet,
+  ] =
+    useState<WalletView | null>(
+      null,
+    );
+
+  const [
+    walletLoading,
+    setWalletLoading,
+  ] =
+    useState(false);
+
+  const [
+    accountPhone,
+    setAccountPhone,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
+  const [
+    accountEmail,
+    setAccountEmail,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
+  const walletPurchaseAttempt =
+    useRef<{
+      signature: string;
+      key: string;
+    } | null>(
+      null,
+    );
+
   const {
     register,
     handleSubmit,
     setValue,
+    getValues,
     watch,
     formState: {
       errors,
@@ -95,6 +152,141 @@ export function BuyForm({
 
   const quantity =
     watch('quantity');
+
+  const totalAmountNgn =
+    (quantity ?? 1) *
+    draw.ticketPriceNgn;
+
+  const walletHasEnough =
+    wallet !== null &&
+    wallet.status === 'ACTIVE' &&
+    wallet.availableNgn >= totalAmountNgn;
+
+  useEffect(() => {
+    const hasSession =
+      isSignedIn();
+
+    setSignedIn(
+      hasSession,
+    );
+
+    if (!hasSession) {
+      return;
+    }
+
+    setWalletLoading(
+      true,
+    );
+
+    void Promise.all([
+      api.auth.getMe(),
+      api.wallet.getMine(),
+    ])
+      .then(
+        ([
+          user,
+          walletResult,
+        ]) => {
+          setAccountPhone(
+            user.phoneNumber,
+          );
+
+          setAccountEmail(
+            user.email ?? null,
+          );
+
+          setWallet(
+            walletResult,
+          );
+
+          if (
+            !getValues(
+              'phone',
+            )
+          ) {
+            setValue(
+              'phone',
+              phoneInputValue(
+                user.phoneNumber,
+              ),
+            );
+          }
+
+          if (
+            user.email &&
+            !getValues(
+              'email',
+            )
+          ) {
+            setValue(
+              'email',
+              user.email,
+            );
+          }
+        },
+      )
+      .catch(
+        () => {
+          setWallet(
+            null,
+          );
+        },
+      )
+      .finally(
+        () =>
+          setWalletLoading(
+            false,
+          ),
+      );
+  }, [
+    getValues,
+    setValue,
+  ]);
+
+  const selectWalletPayment =
+    () => {
+      if (
+        !signedIn
+      ) {
+        return;
+      }
+
+      if (
+        accountPhone
+      ) {
+        setValue(
+          'phone',
+          phoneInputValue(
+            accountPhone,
+          ),
+          {
+            shouldValidate:
+              true,
+          },
+        );
+      }
+
+      if (
+        accountEmail
+      ) {
+        setValue(
+          'email',
+          accountEmail,
+          {
+            shouldValidate:
+              true,
+          },
+        );
+      }
+
+      setPaymentMethod(
+        'WALLET',
+      );
+
+      setSubmitError(
+        null,
+      );
+    };
 
   const isJackpotPurchase =
     draw.drawType ===
@@ -143,6 +335,127 @@ export function BuyForm({
     );
 
     try {
+      if (
+        paymentMethod ===
+        'WALLET'
+      ) {
+        if (
+          !signedIn
+        ) {
+          setSubmitError(
+            'Sign in to pay from your SureWina wallet.',
+          );
+
+          return;
+        }
+
+        if (
+          !wallet ||
+          wallet.status !==
+            'ACTIVE'
+        ) {
+          setSubmitError(
+            'Your wallet is not available for purchases right now.',
+          );
+
+          return;
+        }
+
+        if (
+          wallet.availableNgn <
+          totalAmountNgn
+        ) {
+          setSubmitError(
+            `Your wallet balance is too low for this purchase. You need ${formatNaira(
+              totalAmountNgn,
+            )} and currently have ${formatNaira(
+              wallet.availableNgn,
+            )}.`,
+          );
+
+          return;
+        }
+
+        const purchaseSignature =
+          `${draw.drawCode}|${data.quantity}|${data.stateOfPlayCode}`;
+
+        if (
+          !walletPurchaseAttempt.current ||
+          walletPurchaseAttempt.current.signature !==
+            purchaseSignature
+        ) {
+          walletPurchaseAttempt.current =
+            {
+              signature:
+                purchaseSignature,
+
+              key:
+                `wallet-purchase-${crypto.randomUUID()}`,
+            };
+        }
+
+        const result =
+          await api.wallet.purchaseTickets(
+            {
+              drawCode:
+                draw.drawCode,
+
+              quantity:
+                data.quantity,
+
+              stateOfPlayCode:
+                data.stateOfPlayCode,
+
+              idempotencyKey:
+                walletPurchaseAttempt.current.key,
+            },
+          );
+
+        const params =
+          new URLSearchParams(
+            {
+              refs:
+                result.ticketRefs.join(
+                  ',',
+                ),
+
+              draw:
+                result.drawCode,
+
+              phone:
+                accountPhone ??
+                data.phone,
+
+              paid:
+                String(
+                  result.amountNgn,
+                ),
+
+              scheduled:
+                result.drawScheduledAt,
+
+              newEntries:
+                String(
+                  result.jackpotMinted
+                    ?.entriesMinted ??
+                    0,
+                ),
+
+              cumCount:
+                '0',
+
+              toNext:
+                '0',
+            },
+          );
+
+        router.push(
+          `/tickets/confirmation?${params.toString()}`,
+        );
+
+        return;
+      }
+
       const result =
         await api.tickets.initiatePurchase(
           {
@@ -176,7 +489,10 @@ export function BuyForm({
       setSubmitError(
         err instanceof Error
           ? err.message
-          : 'Could not start your purchase. Try again or contact support.',
+          : paymentMethod ===
+              'WALLET'
+            ? 'Could not complete the wallet purchase. Your balance was not charged unless the purchase completed.'
+            : 'Could not start your purchase. Try again or contact support.',
       );
     }
   };
@@ -484,27 +800,152 @@ export function BuyForm({
           Payment
         </p>
 
-        <div className="rounded-sm border border-slate-200 bg-[#F8FAF4] p-4">
-          <div className="flex items-start gap-3">
-            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
+        <div className="grid gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setPaymentMethod(
+                'PAYSTACK',
+              );
 
-            <div>
-              <p className="text-sm font-black text-navy-950">
-                Secure payment
-                with Paystack
-              </p>
+              setSubmitError(
+                null,
+              );
+            }}
+            className={
+              paymentMethod ===
+              'PAYSTACK'
+                ? 'rounded-sm border border-navy-700 bg-navy-50 p-4 text-left ring-2 ring-amber-400/25'
+                : 'rounded-sm border border-slate-200 bg-[#F8FAF4] p-4 text-left transition hover:bg-white'
+            }
+          >
+            <div className="flex items-start gap-3">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
 
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                You&apos;ll
-                continue to
-                Paystack to
-                complete your
-                payment using
-                the available
-                payment methods.
-              </p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black text-navy-950">
+                      Pay online with Paystack
+                    </p>
+
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                      Continue to Paystack and use the payment methods available there.
+                    </p>
+                  </div>
+
+                  <PaymentRadio
+                    selected={
+                      paymentMethod ===
+                      'PAYSTACK'
+                    }
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          </button>
+
+          {signedIn ? (
+            <button
+              type="button"
+              onClick={
+                selectWalletPayment
+              }
+              className={
+                paymentMethod ===
+                'WALLET'
+                  ? 'rounded-sm border border-navy-700 bg-navy-50 p-4 text-left ring-2 ring-amber-400/25'
+                  : 'rounded-sm border border-slate-200 bg-white p-4 text-left transition hover:bg-[#F8FAF4]'
+              }
+            >
+              <div className="flex items-start gap-3">
+                <WalletCards className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-navy-950">
+                        Pay from SureWina wallet
+                      </p>
+
+                      <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                        {walletLoading
+                          ? 'Loading your wallet balance…'
+                          : wallet
+                            ? `Available balance: ${formatNaira(
+                                wallet.availableNgn,
+                              )}`
+                            : 'Your wallet balance could not be loaded.'}
+                      </p>
+                    </div>
+
+                    <PaymentRadio
+                      selected={
+                        paymentMethod ===
+                        'WALLET'
+                      }
+                    />
+                  </div>
+
+                  {!walletLoading &&
+                    wallet &&
+                    !walletHasEnough && (
+                      <div className="mt-3 rounded-sm border border-amber-100 bg-amber-50 p-3">
+                        <p className="text-xs font-bold text-amber-800">
+                          {wallet.status !==
+                          'ACTIVE'
+                            ? `Wallet is ${wallet.status.toLowerCase()} and cannot be used for purchases.`
+                            : `You need ${formatNaira(
+                                totalAmountNgn -
+                                  wallet.availableNgn,
+                              )} more for this purchase.`}
+                        </p>
+
+                        <p className="mt-2 text-xs font-medium text-slate-600">
+                          Top up before choosing wallet payment.
+                        </p>
+                      </div>
+                    )}
+                </div>
+              </div>
+            </button>
+
+            {!walletLoading &&
+              wallet &&
+              !walletHasEnough && (
+                <Link
+                  href="/dashboard/wallet"
+                  className="inline-flex w-fit text-xs font-black text-navy-700 underline"
+                >
+                  Top up wallet
+                </Link>
+              )}
+          ) : (
+            <div className="rounded-sm border border-slate-200 bg-white p-4">
+              <div className="flex items-start gap-3">
+                <WalletCards className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
+
+                <div>
+                  <p className="text-sm font-black text-navy-950">
+                    Have a SureWina wallet?
+                  </p>
+
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                    Sign in to use your wallet balance for this ticket purchase.
+                  </p>
+
+                  <Link
+                    href={`/sign-in?next=${encodeURIComponent(
+                      `/draws/${draw.drawCode}/buy?qty=${quantity ?? 1}`,
+                    )}`}
+                    className="mt-2 inline-flex text-xs font-black text-navy-700 underline"
+                  >
+                    Sign in to use wallet
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -572,24 +1013,43 @@ export function BuyForm({
           isLoading={
             isSubmitting
           }
+          disabled={
+            isSubmitting ||
+            (paymentMethod ===
+              'WALLET' &&
+              (!walletHasEnough ||
+                walletLoading))
+          }
           className="mt-5 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
         >
           {isSubmitting
-            ? 'Starting payment…'
-            : `Continue to payment of ${formatNaira(
-                (quantity ??
-                  1) *
-                  draw.ticketPriceNgn,
-              )}`}
+            ? paymentMethod ===
+              'WALLET'
+              ? 'Buying with wallet…'
+              : 'Starting payment…'
+            : paymentMethod ===
+                'WALLET'
+              ? `Pay ${formatNaira(
+                  totalAmountNgn,
+                )} from wallet`
+              : `Continue to Paystack for ${formatNaira(
+                  totalAmountNgn,
+                )}`}
         </Button>
 
         <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-slate-500">
-          <Lock className="h-3 w-3 text-navy-700" />
-
-          Payment is processed
-          securely by Paystack.
-          We never store card
-          details.
+          {paymentMethod ===
+          'WALLET' ? (
+            <>
+              <WalletCards className="h-3 w-3 text-navy-700" />
+              Wallet purchases are issued immediately after the ledger debit completes.
+            </>
+          ) : (
+            <>
+              <Lock className="h-3 w-3 text-navy-700" />
+              Payment is processed securely by Paystack. We never store card details.
+            </>
+          )}
         </p>
       </Card>
     </form>
@@ -612,4 +1072,36 @@ function FieldError({
       {message}
     </p>
   );
+}
+function PaymentRadio({
+  selected,
+}: {
+  selected: boolean;
+}) {
+  return (
+    <span
+      className={
+        selected
+          ? 'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-4 border-navy-700 bg-white'
+          : 'mt-0.5 h-4 w-4 shrink-0 rounded-full border border-slate-300 bg-white'
+      }
+      aria-hidden="true"
+    />
+  );
+}
+
+function phoneInputValue(
+  phoneE164: string,
+) {
+  if (
+    phoneE164.startsWith(
+      '+234',
+    )
+  ) {
+    return phoneE164.slice(
+      4,
+    );
+  }
+
+  return phoneE164;
 }

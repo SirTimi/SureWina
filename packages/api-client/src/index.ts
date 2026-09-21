@@ -56,4 +56,4 @@ export type { AdminDashboard, AdminMe, AdminFunction, AdminTier, AdminAgentRow, 
 export type { TicketReceipt } from './modules/tickets.js';
 export type { CustomerDisputeRow, CustomerDisputeStatus, ListCustomerDisputesResponse, RaiseDisputeRequest, RaiseDisputeResponse } from '@surewina/types';
 export type { AgentSalePrint } from './modules/agents.js';
-export type { WalletView, WalletStatus, WalletOwnerType, WalletFundingGateway, WalletFundingStatus, WalletFundingView, WalletFundingHistoryResponse, WalletLedgerEntry, WalletLedgerTransaction, WalletHistoryResponse, InitiateWalletFundingRequest, InitiateWalletFundingResponse } from './modules/wallet.js';
+export type { WalletView, WalletStatus, WalletOwnerType, WalletFundingGateway, WalletFundingStatus, WalletFundingView, WalletFundingHistoryResponse, WalletLedgerEntry, WalletLedgerTransaction, WalletHistoryResponse, InitiateWalletFundingRequest, InitiateWalletFundingResponse, WalletTicketPurchaseRequest, WalletTicketPurchaseResponse } from './modules/wallet.js';

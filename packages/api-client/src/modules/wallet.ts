@@ -99,6 +99,35 @@ export interface InitiateWalletFundingResponse {
   status: 'PENDING';
 }
 
+export interface WalletTicketPurchaseRequest {
+  drawCode: string;
+  quantity: number;
+  stateOfPlayCode: string;
+  idempotencyKey: string;
+}
+
+export interface WalletTicketPurchaseResponse {
+  purchaseId: string;
+  drawId: string;
+  drawCode: string;
+  drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+  drawScheduledAt: string;
+  amountNgn: number;
+  ticketCount: number;
+  ticketRefs: string[];
+  jackpotMinted?: {
+    accumId: string;
+    buyerPhone: string;
+    entriesMinted: number;
+    entriesThisWeek: number;
+    jackpotDrawCode: string;
+    jackpotScheduledAt: string;
+  } | null;
+  completedAt: string | null;
+  status: 'PENDING' | 'COMPLETED' | 'REVERSED';
+  replayed?: boolean;
+}
+
 export class WalletModule {
   constructor(private readonly client: ApiClient) {}
 
@@ -142,6 +171,15 @@ export class WalletModule {
       {
         query: { page, pageSize },
       },
+    );
+  }
+
+  async purchaseTickets(
+    input: WalletTicketPurchaseRequest,
+  ): Promise<WalletTicketPurchaseResponse> {
+    return this.client.post<WalletTicketPurchaseResponse>(
+      '/wallet/purchases',
+      input,
     );
   }
 }
