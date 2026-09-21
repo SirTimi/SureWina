@@ -60,7 +60,7 @@ import { PaystackDriver } from './gateway/paystack.driver'
     CustomerJwtGuard,
     WalletTicketPurchaseService
   ],
-  exports: [PaymentsService, JackpotAccumulationService],
+  exports: [PaymentsService, JackpotAccumulationService, WalletFundingService],
   imports: [
     JwtModule.register({}),
     AdminOpsModule,

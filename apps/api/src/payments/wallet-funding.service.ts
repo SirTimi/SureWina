@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  AgentStatus,
   AuditActorType,
   AuditSeverity,
   LedgerTransactionKind,
@@ -125,6 +126,122 @@ export class WalletFundingService {
           gateway: initialized.gateway,
           amountNgn: dto.amountNgn,
           walletId: wallet.walletId,
+        },
+      });
+
+      return {
+        fundingId: funding.fundingId,
+        walletId: wallet.walletId,
+        reference,
+        gateway: initialized.gateway,
+        amountNgn: dto.amountNgn,
+        authorizationUrl: initialized.authorizationUrl,
+        status: WalletFundingStatus.PENDING,
+      };
+    } catch (error) {
+      await this.prisma.walletFunding.update({
+        where: { fundingId: funding.fundingId },
+        data: {
+          status: WalletFundingStatus.FAILED,
+          failureReason:
+            error instanceof Error
+              ? error.message
+              : 'Gateway initialization failed',
+        },
+      });
+
+      throw error;
+    }
+  }
+
+  async initiateForAgent(
+    agentId: string,
+    dto: InitiateWalletFundingDto,
+  ) {
+    this.validateFundingAmount(dto.amountNgn);
+
+    const agent = await this.prisma.agent.findUnique({
+      where: { agentId },
+      select: {
+        agentId: true,
+        status: true,
+        phoneNumber: true,
+        email: true,
+      },
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+
+    if (agent.status !== AgentStatus.ACTIVE) {
+      throw new ConflictException('Agent account is not active');
+    }
+
+    const wallet = await this.wallets.ensureAgentWallet(agentId);
+
+    if (wallet.status !== 'ACTIVE') {
+      throw new ConflictException(`Wallet is ${wallet.status}`);
+    }
+
+    const reference = `SW-WAL-${randomUUID()}`;
+
+    const selectedGateway =
+      dto.gateway === 'MONNIFY'
+        ? PaymentGateway.MONNIFY
+        : PaymentGateway.FLUTTERWAVE;
+
+    const funding = await this.prisma.walletFunding.create({
+      data: {
+        walletId: wallet.walletId,
+        gatewayReference: reference,
+        gateway: selectedGateway,
+        amountNgn: dto.amountNgn,
+        currency: 'NGN',
+        status: WalletFundingStatus.PENDING,
+      },
+    });
+
+    const email =
+      dto.email?.trim().toLowerCase() ??
+      agent.email?.trim().toLowerCase() ??
+      this.syntheticEmail(agent.phoneNumber);
+
+    try {
+      const callbackBaseUrl =
+        this.config
+          .getOrThrow<string>('AGENT_WEB_BASE_URL')
+          .replace(/\/+$/, '');
+
+      const initialized = await this.initializeChosenGateway(
+        selectedGateway,
+        {
+          amountKobo: dto.amountNgn * 100,
+          reference,
+          email,
+          callbackUrl: `${callbackBaseUrl}/wallet/funding/callback`,
+          metadata: {
+            purpose: 'WALLET_FUNDING',
+            fundingId: funding.fundingId,
+            walletId: wallet.walletId,
+            ownerType: 'AGENT',
+            agentId,
+          },
+        },
+      );
+
+      await this.audit.write({
+        severity: AuditSeverity.INFO,
+        actor: { type: AuditActorType.AGENT, id: agentId },
+        action: 'WALLET_FUNDING_INITIATED',
+        resource: { type: 'WalletFunding', id: funding.fundingId },
+        metadata: {
+          reference,
+          gateway: initialized.gateway,
+          amountNgn: dto.amountNgn,
+          walletId: wallet.walletId,
+          ownerType: 'AGENT',
+          agentId,
         },
       });
 
@@ -419,6 +536,49 @@ export class WalletFundingService {
     });
   }
 
+  async statusForAgent(
+    agentId: string,
+    reference: string,
+    transactionId?: string,
+  ) {
+    const funding = await this.findAgentFunding(agentId, reference);
+
+    if (
+      funding.status === WalletFundingStatus.CREDITED ||
+      funding.status === WalletFundingStatus.FAILED ||
+      funding.status === WalletFundingStatus.REVIEW_REQUIRED
+    ) {
+      return this.getFundingView(funding.fundingId);
+    }
+
+    let verified: VerifiedProviderPayment | null = null;
+
+    if (funding.gateway === PaymentGateway.MONNIFY) {
+      verified = await this.verification.verifyMonnify(
+        funding.gatewayReference,
+      );
+    } else if (funding.gateway === PaymentGateway.FLUTTERWAVE) {
+      const providerId =
+        transactionId?.trim() ||
+        funding.providerTransactionId;
+
+      if (!providerId) {
+        return this.getFundingView(funding.fundingId);
+      }
+
+      verified = await this.verification.verifyFlutterwave(providerId);
+    }
+
+    if (!verified) {
+      return this.getFundingView(funding.fundingId);
+    }
+
+    return this.confirmVerified({
+      reference: funding.gatewayReference,
+      verifiedPayment: verified,
+    });
+  }
+
   async historyForCustomer(
     userId: string,
     page = 1,
@@ -461,13 +621,57 @@ export class WalletFundingService {
     };
   }
 
+  async historyForAgent(
+    agentId: string,
+    page = 1,
+    pageSize = 20,
+  ) {
+    const safePage = Math.max(1, page);
+    const safePageSize = Math.min(100, Math.max(1, pageSize));
+
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { agentId },
+      select: { walletId: true },
+    });
+
+    if (!wallet) {
+      return {
+        page: safePage,
+        pageSize: safePageSize,
+        total: 0,
+        fundings: [],
+      };
+    }
+
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.walletFunding.findMany({
+        where: { walletId: wallet.walletId },
+        orderBy: { createdAt: 'desc' },
+        skip: (safePage - 1) * safePageSize,
+        take: safePageSize,
+      }),
+      this.prisma.walletFunding.count({
+        where: { walletId: wallet.walletId },
+      }),
+    ]);
+
+    return {
+      page: safePage,
+      pageSize: safePageSize,
+      total,
+      fundings: rows.map((row) => this.mapFunding(row)),
+    };
+  }
+
   async listReviewRequired() {
     const rows = await this.prisma.walletFunding.findMany({
       where: { status: WalletFundingStatus.REVIEW_REQUIRED },
       include: {
         wallet: {
           select: {
+            ownerType: true,
             userId: true,
+            agentId: true,
             status: true,
           },
         },
@@ -479,7 +683,10 @@ export class WalletFundingService {
     return {
       fundings: rows.map((row) => ({
         ...this.mapFunding(row),
+        ownerType: row.wallet.ownerType,
+        ownerId: row.wallet.userId ?? row.wallet.agentId,
         userId: row.wallet.userId,
+        agentId: row.wallet.agentId,
         walletStatus: row.wallet.status,
       })),
     };
@@ -586,6 +793,24 @@ export class WalletFundingService {
       where: {
         gatewayReference: reference,
         wallet: { userId },
+      },
+    });
+
+    if (!funding) {
+      throw new NotFoundException('Wallet funding not found');
+    }
+
+    return funding;
+  }
+
+  private async findAgentFunding(
+    agentId: string,
+    reference: string,
+  ) {
+    const funding = await this.prisma.walletFunding.findFirst({
+      where: {
+        gatewayReference: reference,
+        wallet: { agentId },
       },
     });
 

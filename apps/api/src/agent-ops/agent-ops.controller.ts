@@ -10,6 +10,9 @@ import  { ConfirmRemittanceDto } from './dto/confirm-remittance.dto';
 import { LookupPrizeDto } from './dto/lookup-prize.dto';
 import { AgentPrizesService } from './agent-prizes.service';
 import { AgentDayRecordService } from './agent-day-record.service';
+import { WalletService } from '../wallet/wallet.service';
+import { WalletFundingService } from '../payments/wallet-funding.service';
+import { InitiateWalletFundingDto } from '../payments/dto/initiate-wallet-funding.dto';
 
 @Controller('agent')
 @UseGuards(AgentJwtGuard)
@@ -19,7 +22,9 @@ export class AgentOpsController {
     private readonly agentRemittance: AgentRemittanceService,
     private readonly agentStats: AgentStatsService,
     private readonly agentPrizes: AgentPrizesService,
-    private readonly dayRecords: AgentDayRecordService
+    private readonly dayRecords: AgentDayRecordService,
+    private readonly wallets: WalletService,
+    private readonly walletFunding: WalletFundingService,
   ) {}
 
   @Post('tickets/sell')
@@ -98,6 +103,60 @@ export class AgentOpsController {
     @Param('reference') reference: string,
   ) {
     return this.agentSales.saleForPrint(agent.sub, reference);
+  }
+
+  @Get('wallet')
+  wallet(@CurrentAgent() agent: AgentJwtPayload) {
+    return this.wallets.ensureAgentWallet(agent.sub);
+  }
+
+  @Get('wallet/history')
+  async walletHistory(
+    @CurrentAgent() agent: AgentJwtPayload,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const wallet = await this.wallets.ensureAgentWallet(agent.sub);
+
+    return this.wallets.history(
+      wallet.walletId,
+      Math.max(1, Number(page) || 1),
+      Math.min(100, Math.max(1, Number(pageSize) || 20)),
+    );
+  }
+
+  @Post('wallet/funding/initiate')
+  initiateWalletFunding(
+    @CurrentAgent() agent: AgentJwtPayload,
+    @Body() dto: InitiateWalletFundingDto,
+  ) {
+    return this.walletFunding.initiateForAgent(agent.sub, dto);
+  }
+
+  @Get('wallet/funding/status')
+  walletFundingStatus(
+    @CurrentAgent() agent: AgentJwtPayload,
+    @Query('reference') reference: string,
+    @Query('transactionId') transactionId?: string,
+  ) {
+    return this.walletFunding.statusForAgent(
+      agent.sub,
+      reference,
+      transactionId,
+    );
+  }
+
+  @Get('wallet/funding/history')
+  walletFundingHistory(
+    @CurrentAgent() agent: AgentJwtPayload,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.walletFunding.historyForAgent(
+      agent.sub,
+      Math.max(1, Number(page) || 1),
+      Math.min(100, Math.max(1, Number(pageSize) || 20)),
+    );
   }
 
   @Get('records/:periodDate')
