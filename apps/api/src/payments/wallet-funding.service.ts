@@ -5,8 +5,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+
 import { ConfigService } from '@nestjs/config';
+
 import {
+  AgentStatus,
   AuditActorType,
   AuditSeverity,
   LedgerTransactionKind,
@@ -14,22 +17,27 @@ import {
   Prisma,
   WalletFundingStatus,
 } from '@prisma/client';
+
 import { randomUUID } from 'crypto';
 
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { WalletService } from '../wallet/wallet.service';
+
 import {
   SYSTEM_LEDGER_ACCOUNT_CODES,
 } from '../ledger/ledger.constants';
 
 import { MonnifyDriver } from './gateway/monnify.driver';
 import { FlutterwaveDriver } from './gateway/flutterwave.driver';
+
 import { PaymentGatewayDriver } from './gateway/payment-gateway.interface';
+
 import {
   PaymentVerificationService,
   VerifiedProviderPayment,
 } from './payment-verification.service';
+
 import { InitiateWalletFundingDto } from './dto/initiate-wallet-funding.dto';
 
 type FundingConfirmationInput = {
@@ -38,110 +46,416 @@ type FundingConfirmationInput = {
   rawEvent?: unknown;
 };
 
+type FundingOwner = {
+  ownerType: 'CUSTOMER' | 'AGENT';
+  ownerId: string;
+
+  walletId: string;
+
+  phoneNumber: string;
+  email: string | null;
+
+  callbackBaseUrl: string;
+
+  auditActorType:
+    | AuditActorType.CUSTOMER
+    | AuditActorType.AGENT;
+};
+
 @Injectable()
 export class WalletFundingService {
-  private readonly logger = new Logger(WalletFundingService.name);
+  private readonly logger =
+    new Logger(
+      WalletFundingService.name,
+    );
 
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
-    private readonly audit: AuditService,
-    private readonly wallets: WalletService,
-    private readonly monnify: MonnifyDriver,
-    private readonly flutterwave: FlutterwaveDriver,
-    private readonly verification: PaymentVerificationService,
+    private readonly prisma:
+      PrismaService,
+
+    private readonly config:
+      ConfigService,
+
+    private readonly audit:
+      AuditService,
+
+    private readonly wallets:
+      WalletService,
+
+    private readonly monnify:
+      MonnifyDriver,
+
+    private readonly flutterwave:
+      FlutterwaveDriver,
+
+    private readonly verification:
+      PaymentVerificationService,
   ) {}
 
-  async initiate(userId: string, dto: InitiateWalletFundingDto) {
-    this.validateFundingAmount(dto.amountNgn);
+  // ─────────────────────────────────────────────────────────
+  // CUSTOMER FUNDING
+  // ─────────────────────────────────────────────────────────
 
-    const user = await this.prisma.user.findUnique({
-      where: { userId },
-      select: {
-        userId: true,
-        phoneNumber: true,
-        email: true,
-      },
-    });
+  async initiate(
+    userId: string,
+    dto: InitiateWalletFundingDto,
+  ) {
+    this.validateFundingAmount(
+      dto.amountNgn,
+    );
+
+    const user =
+      await this.prisma.user.findUnique({
+        where: {
+          userId,
+        },
+
+        select: {
+          userId:
+            true,
+
+          phoneNumber:
+            true,
+
+          email:
+            true,
+        },
+      });
 
     if (!user) {
-      throw new NotFoundException('Customer not found');
+      throw new NotFoundException(
+        'Customer not found',
+      );
     }
 
-    const wallet = await this.wallets.getCustomerWallet(userId);
+    const wallet =
+      await this.wallets.getCustomerWallet(
+        userId,
+      );
 
-    if (wallet.status !== 'ACTIVE') {
-      throw new ConflictException(`Wallet is ${wallet.status}`);
+    return this.initiateForOwner(
+      {
+        ownerType:
+          'CUSTOMER',
+
+        ownerId:
+          userId,
+
+        walletId:
+          wallet.walletId,
+
+        phoneNumber:
+          user.phoneNumber,
+
+        email:
+          user.email,
+
+        callbackBaseUrl:
+          this.cleanBaseUrl(
+            this.config.getOrThrow<string>(
+              'PAYMENT_CALLBACK_BASE_URL',
+            ),
+          ),
+
+        auditActorType:
+          AuditActorType.CUSTOMER,
+      },
+      dto,
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // AGENT FUNDING
+  // ─────────────────────────────────────────────────────────
+
+  async initiateForAgent(
+    agentId: string,
+    dto: InitiateWalletFundingDto,
+  ) {
+    this.validateFundingAmount(
+      dto.amountNgn,
+    );
+
+    const agent =
+      await this.prisma.agent.findUnique({
+        where: {
+          agentId,
+        },
+
+        select: {
+          agentId:
+            true,
+
+          status:
+            true,
+
+          phoneNumber:
+            true,
+
+          email:
+            true,
+        },
+      });
+
+    if (!agent) {
+      throw new NotFoundException(
+        'Agent not found',
+      );
     }
 
-    const reference = `SW-WAL-${randomUUID()}`;
+    /*
+     * Do not allow compliance-suspended or terminated
+     * agents to put fresh money into a wallet they cannot
+     * currently spend.
+     */
+    if (
+      agent.status !==
+      AgentStatus.ACTIVE
+    ) {
+      throw new ConflictException(
+        'Agent account is not active',
+      );
+    }
+
+    const wallet =
+      await this.wallets.ensureAgentWallet(
+        agentId,
+      );
+
+    return this.initiateForOwner(
+      {
+        ownerType:
+          'AGENT',
+
+        ownerId:
+          agentId,
+
+        walletId:
+          wallet.walletId,
+
+        phoneNumber:
+          agent.phoneNumber,
+
+        email:
+          agent.email,
+
+        callbackBaseUrl:
+          this.cleanBaseUrl(
+            this.config.getOrThrow<string>(
+              'AGENT_WEB_BASE_URL',
+            ),
+          ),
+
+        auditActorType:
+          AuditActorType.AGENT,
+      },
+      dto,
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // SHARED INITIATION
+  // ─────────────────────────────────────────────────────────
+
+  private async initiateForOwner(
+    owner: FundingOwner,
+    dto: InitiateWalletFundingDto,
+  ) {
+    const wallet =
+      await this.prisma.wallet.findUnique({
+        where: {
+          walletId:
+            owner.walletId,
+        },
+
+        select: {
+          walletId:
+            true,
+
+          status:
+            true,
+        },
+      });
+
+    if (!wallet) {
+      throw new NotFoundException(
+        'Wallet not found',
+      );
+    }
+
+    if (
+      wallet.status !==
+      'ACTIVE'
+    ) {
+      throw new ConflictException(
+        `Wallet is ${wallet.status}`,
+      );
+    }
+
+    const reference =
+      `SW-WAL-${randomUUID()}`;
 
     const selectedGateway =
-      dto.gateway === 'MONNIFY'
+      dto.gateway ===
+      'MONNIFY'
         ? PaymentGateway.MONNIFY
         : PaymentGateway.FLUTTERWAVE;
 
-    const funding = await this.prisma.walletFunding.create({
-      data: {
-        walletId: wallet.walletId,
-        gatewayReference: reference,
-        gateway: selectedGateway,
-        amountNgn: dto.amountNgn,
-        currency: 'NGN',
-        status: WalletFundingStatus.PENDING,
-      },
-    });
+    const funding =
+      await this.prisma.walletFunding.create({
+        data: {
+          walletId:
+            owner.walletId,
+
+          gatewayReference:
+            reference,
+
+          gateway:
+            selectedGateway,
+
+          amountNgn:
+            dto.amountNgn,
+
+          currency:
+            'NGN',
+
+          status:
+            WalletFundingStatus.PENDING,
+        },
+      });
 
     const email =
-      dto.email?.trim().toLowerCase() ??
-      user.email?.trim().toLowerCase() ??
-      this.syntheticEmail(user.phoneNumber);
-
-    try {
-      const initialized = await this.initializeChosenGateway(
-        selectedGateway,
-        {
-          amountKobo: dto.amountNgn * 100,
-          reference,
-          email,
-          callbackUrl:
-            `${this.config.getOrThrow<string>('PAYMENT_CALLBACK_BASE_URL')}/wallet/funding/callback`,
-          metadata: {
-            purpose: 'WALLET_FUNDING',
-            fundingId: funding.fundingId,
-            walletId: wallet.walletId,
-            userId,
-          },
-        },
+      dto.email
+        ?.trim()
+        .toLowerCase() ??
+      owner.email
+        ?.trim()
+        .toLowerCase() ??
+      this.syntheticEmail(
+        owner.phoneNumber,
       );
 
+    try {
+      const initialized =
+        await this.initializeChosenGateway(
+          selectedGateway,
+          {
+            amountKobo:
+              dto.amountNgn *
+              100,
+
+            reference,
+
+            email,
+
+            callbackUrl:
+              `${owner.callbackBaseUrl}/wallet/funding/callback`,
+
+            metadata: {
+              purpose:
+                'WALLET_FUNDING',
+
+              fundingId:
+                funding.fundingId,
+
+              walletId:
+                owner.walletId,
+
+              ownerType:
+                owner.ownerType,
+
+              ownerId:
+                owner.ownerId,
+
+              ...(owner.ownerType ===
+              'CUSTOMER'
+                ? {
+                    userId:
+                      owner.ownerId,
+                  }
+                : {
+                    agentId:
+                      owner.ownerId,
+                  }),
+            },
+          },
+        );
+
       await this.audit.write({
-        severity: AuditSeverity.INFO,
-        actor: { type: AuditActorType.CUSTOMER, id: userId },
-        action: 'WALLET_FUNDING_INITIATED',
-        resource: { type: 'WalletFunding', id: funding.fundingId },
+        severity:
+          AuditSeverity.INFO,
+
+        actor: {
+          type:
+            owner.auditActorType,
+
+          id:
+            owner.ownerId,
+        },
+
+        action:
+          'WALLET_FUNDING_INITIATED',
+
+        resource: {
+          type:
+            'WalletFunding',
+
+          id:
+            funding.fundingId,
+        },
+
         metadata: {
           reference,
-          gateway: initialized.gateway,
-          amountNgn: dto.amountNgn,
-          walletId: wallet.walletId,
+
+          gateway:
+            initialized.gateway,
+
+          amountNgn:
+            dto.amountNgn,
+
+          walletId:
+            owner.walletId,
+
+          ownerType:
+            owner.ownerType,
+
+          ownerId:
+            owner.ownerId,
         },
       });
 
       return {
-        fundingId: funding.fundingId,
-        walletId: wallet.walletId,
+        fundingId:
+          funding.fundingId,
+
+        walletId:
+          owner.walletId,
+
         reference,
-        gateway: initialized.gateway,
-        amountNgn: dto.amountNgn,
-        authorizationUrl: initialized.authorizationUrl,
-        status: WalletFundingStatus.PENDING,
+
+        gateway:
+          initialized.gateway,
+
+        amountNgn:
+          dto.amountNgn,
+
+        authorizationUrl:
+          initialized.authorizationUrl,
+
+        status:
+          WalletFundingStatus.PENDING,
       };
     } catch (error) {
       await this.prisma.walletFunding.update({
-        where: { fundingId: funding.fundingId },
+        where: {
+          fundingId:
+            funding.fundingId,
+        },
+
         data: {
-          status: WalletFundingStatus.FAILED,
+          status:
+            WalletFundingStatus.FAILED,
+
           failureReason:
             error instanceof Error
               ? error.message
@@ -153,270 +467,485 @@ export class WalletFundingService {
     }
   }
 
-  async confirmIfFunding(input: FundingConfirmationInput) {
-    const funding = await this.prisma.walletFunding.findUnique({
-      where: { gatewayReference: input.reference },
-      select: { fundingId: true },
-    });
+  // ─────────────────────────────────────────────────────────
+  // PROVIDER CONFIRMATION
+  // ─────────────────────────────────────────────────────────
+
+  async confirmIfFunding(
+    input:
+      FundingConfirmationInput,
+  ) {
+    const funding =
+      await this.prisma.walletFunding.findUnique({
+        where: {
+          gatewayReference:
+            input.reference,
+        },
+
+        select: {
+          fundingId:
+            true,
+        },
+      });
 
     if (!funding) {
       return null;
     }
 
-    return this.confirmVerified(input);
+    return this.confirmVerified(
+      input,
+    );
   }
 
-  async confirmVerified(input: FundingConfirmationInput) {
-    const result = await this.prisma.$transaction(
-      async (tx) => {
-        const locked = await tx.$queryRaw<
-          Array<{ funding_id: string }>
-        >`
-          SELECT funding_id
-          FROM wallet_fundings
-          WHERE gateway_reference = ${input.reference}
-          FOR UPDATE
-        `;
+  async confirmVerified(
+    input:
+      FundingConfirmationInput,
+  ) {
+    const result =
+      await this.prisma.$transaction(
+        async (
+          tx,
+        ) => {
+          const locked =
+            await tx.$queryRaw<
+              Array<{
+                funding_id: string;
+              }>
+            >`
+              SELECT funding_id
+              FROM wallet_fundings
+              WHERE gateway_reference = ${input.reference}
+              FOR UPDATE
+            `;
 
-        if (locked.length === 0) {
-          throw new NotFoundException('Wallet funding not found');
-        }
+          if (
+            locked.length ===
+            0
+          ) {
+            throw new NotFoundException(
+              'Wallet funding not found',
+            );
+          }
 
-        const funding = await tx.walletFunding.findUniqueOrThrow({
-          where: { gatewayReference: input.reference },
-        });
+          const funding =
+            await tx.walletFunding.findUniqueOrThrow({
+              where: {
+                gatewayReference:
+                  input.reference,
+              },
+            });
 
-        if (funding.status === WalletFundingStatus.CREDITED) {
-          return {
-            fundingId: funding.fundingId,
-            transition: null as string | null,
-          };
-        }
+          if (
+            funding.status ===
+            WalletFundingStatus.CREDITED
+          ) {
+            return {
+              fundingId:
+                funding.fundingId,
 
-        if (
-          funding.status === WalletFundingStatus.REVIEW_REQUIRED ||
-          funding.status === WalletFundingStatus.FAILED
-        ) {
-          return {
-            fundingId: funding.fundingId,
-            transition: null as string | null,
-          };
-        }
+              transition:
+                null as
+                  | string
+                  | null,
+            };
+          }
 
-        const verified = input.verifiedPayment;
-        const payload = {
-          event: input.rawEvent ?? null,
-          verification: verified.raw ?? null,
-        } as Prisma.InputJsonValue;
+          if (
+            funding.status ===
+              WalletFundingStatus.REVIEW_REQUIRED ||
+            funding.status ===
+              WalletFundingStatus.FAILED
+          ) {
+            return {
+              fundingId:
+                funding.fundingId,
 
-        if (verified.status === 'PENDING') {
+              transition:
+                null as
+                  | string
+                  | null,
+            };
+          }
+
+          const verified =
+            input.verifiedPayment;
+
+          const payload = {
+            event:
+              input.rawEvent ??
+              null,
+
+            verification:
+              verified.raw ??
+              null,
+          } as Prisma.InputJsonValue;
+
+          if (
+            verified.status ===
+            'PENDING'
+          ) {
+            await tx.walletFunding.update({
+              where: {
+                fundingId:
+                  funding.fundingId,
+              },
+
+              data: {
+                status:
+                  WalletFundingStatus.PROCESSING,
+
+                providerTransactionId:
+                  verified.providerTransactionId ??
+                  funding.providerTransactionId,
+
+                lastVerifiedAt:
+                  verified.verifiedAt,
+
+                verificationPayload:
+                  payload,
+              },
+            });
+
+            return {
+              fundingId:
+                funding.fundingId,
+
+              transition:
+                'PROCESSING',
+            };
+          }
+
+          if (
+            verified.status ===
+            'FAILED'
+          ) {
+            await tx.walletFunding.update({
+              where: {
+                fundingId:
+                  funding.fundingId,
+              },
+
+              data: {
+                status:
+                  WalletFundingStatus.FAILED,
+
+                providerTransactionId:
+                  verified.providerTransactionId ??
+                  funding.providerTransactionId,
+
+                lastVerifiedAt:
+                  verified.verifiedAt,
+
+                failureReason:
+                  'PROVIDER_VERIFIED_FAILED',
+
+                verificationPayload:
+                  payload,
+              },
+            });
+
+            return {
+              fundingId:
+                funding.fundingId,
+
+              transition:
+                'FAILED',
+            };
+          }
+
+          const mismatches:
+            string[] = [];
+
+          if (
+            verified.reference !==
+            funding.gatewayReference
+          ) {
+            mismatches.push(
+              `REFERENCE expected=${funding.gatewayReference} actual=${verified.reference}`,
+            );
+          }
+
+          if (
+            verified.gateway !==
+            funding.gateway
+          ) {
+            mismatches.push(
+              `GATEWAY expected=${funding.gateway} actual=${verified.gateway}`,
+            );
+          }
+
+          if (
+            verified.currency !==
+            funding.currency
+          ) {
+            mismatches.push(
+              `CURRENCY expected=${funding.currency} actual=${verified.currency ?? 'NULL'}`,
+            );
+          }
+
+          if (
+            verified.amountNgn ===
+              null ||
+            verified.amountNgn !==
+              funding.amountNgn
+          ) {
+            mismatches.push(
+              `AMOUNT expected=${funding.amountNgn} actual=${verified.amountNgn ?? 'NULL'}`,
+            );
+          }
+
+          if (
+            mismatches.length >
+            0
+          ) {
+            await tx.walletFunding.update({
+              where: {
+                fundingId:
+                  funding.fundingId,
+              },
+
+              data: {
+                status:
+                  WalletFundingStatus.REVIEW_REQUIRED,
+
+                providerTransactionId:
+                  verified.providerTransactionId ??
+                  funding.providerTransactionId,
+
+                lastVerifiedAt:
+                  verified.verifiedAt,
+
+                failureReason:
+                  `VERIFICATION_MISMATCH: ${mismatches.join('; ')}`,
+
+                verificationPayload:
+                  payload,
+              },
+            });
+
+            return {
+              fundingId:
+                funding.fundingId,
+
+              transition:
+                'REVIEW_REQUIRED',
+            };
+          }
+
+          const clearingCode =
+            this.clearingAccountCode(
+              funding.gateway,
+            );
+
+          const clearingAccount =
+            await tx.ledgerAccount.findUnique({
+              where: {
+                code:
+                  clearingCode,
+              },
+            });
+
+          if (
+            !clearingAccount
+          ) {
+            throw new ConflictException(
+              `Ledger clearing account ${clearingCode} does not exist`,
+            );
+          }
+
+          const journal =
+            await this.wallets.creditInTransaction(
+              tx,
+              {
+                walletId:
+                  funding.walletId,
+
+                amountNgn:
+                  funding.amountNgn,
+
+                counterAccountId:
+                  clearingAccount.accountId,
+
+                idempotencyKey:
+                  `WALLET-FUNDING:${funding.fundingId}`,
+
+                kind:
+                  LedgerTransactionKind.FUNDING,
+
+                referenceType:
+                  'WalletFunding',
+
+                referenceId:
+                  funding.fundingId,
+
+                description:
+                  `Wallet funding ${funding.gatewayReference}`,
+
+                occurredAt:
+                  verified.paidAt ??
+                  verified.verifiedAt,
+
+                metadata: {
+                  gateway:
+                    funding.gateway,
+
+                  gatewayReference:
+                    funding.gatewayReference,
+
+                  providerTransactionId:
+                    verified.providerTransactionId,
+                },
+              },
+            );
+
           await tx.walletFunding.update({
-            where: { fundingId: funding.fundingId },
+            where: {
+              fundingId:
+                funding.fundingId,
+            },
+
             data: {
-              status: WalletFundingStatus.PROCESSING,
+              status:
+                WalletFundingStatus.CREDITED,
+
               providerTransactionId:
-                verified.providerTransactionId ?? funding.providerTransactionId,
-              lastVerifiedAt: verified.verifiedAt,
-              verificationPayload: payload,
+                verified.providerTransactionId,
+
+              ledgerTxnId:
+                journal.ledgerTxnId,
+
+              lastVerifiedAt:
+                verified.verifiedAt,
+
+              creditedAt:
+                new Date(),
+
+              failureReason:
+                null,
+
+              verificationPayload:
+                payload,
             },
           });
 
           return {
-            fundingId: funding.fundingId,
-            transition: 'PROCESSING',
-          };
-        }
+            fundingId:
+              funding.fundingId,
 
-        if (verified.status === 'FAILED') {
-          await tx.walletFunding.update({
-            where: { fundingId: funding.fundingId },
-            data: {
-              status: WalletFundingStatus.FAILED,
-              providerTransactionId:
-                verified.providerTransactionId ?? funding.providerTransactionId,
-              lastVerifiedAt: verified.verifiedAt,
-              failureReason: 'PROVIDER_VERIFIED_FAILED',
-              verificationPayload: payload,
+            transition:
+              'CREDITED',
+          };
+        },
+        {
+          isolationLevel:
+            Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
+
+    if (
+      result.transition
+    ) {
+      const funding =
+        await this.prisma.walletFunding.findUniqueOrThrow({
+          where: {
+            fundingId:
+              result.fundingId,
+          },
+
+          include: {
+            wallet: {
+              select: {
+                ownerType:
+                  true,
+
+                userId:
+                  true,
+
+                agentId:
+                  true,
+              },
             },
-          });
-
-          return {
-            fundingId: funding.fundingId,
-            transition: 'FAILED',
-          };
-        }
-
-        const mismatches: string[] = [];
-
-        if (verified.reference !== funding.gatewayReference) {
-          mismatches.push(
-            `REFERENCE expected=${funding.gatewayReference} actual=${verified.reference}`,
-          );
-        }
-
-        if (verified.gateway !== funding.gateway) {
-          mismatches.push(
-            `GATEWAY expected=${funding.gateway} actual=${verified.gateway}`,
-          );
-        }
-
-        if (verified.currency !== funding.currency) {
-          mismatches.push(
-            `CURRENCY expected=${funding.currency} actual=${verified.currency ?? 'NULL'}`,
-          );
-        }
-
-        if (
-          verified.amountNgn === null ||
-          verified.amountNgn !== funding.amountNgn
-        ) {
-          mismatches.push(
-            `AMOUNT expected=${funding.amountNgn} actual=${verified.amountNgn ?? 'NULL'}`,
-          );
-        }
-
-        if (mismatches.length > 0) {
-          await tx.walletFunding.update({
-            where: { fundingId: funding.fundingId },
-            data: {
-              status: WalletFundingStatus.REVIEW_REQUIRED,
-              providerTransactionId:
-                verified.providerTransactionId ?? funding.providerTransactionId,
-              lastVerifiedAt: verified.verifiedAt,
-              failureReason: `VERIFICATION_MISMATCH: ${mismatches.join('; ')}`,
-              verificationPayload: payload,
-            },
-          });
-
-          return {
-            fundingId: funding.fundingId,
-            transition: 'REVIEW_REQUIRED',
-          };
-        }
-
-        const clearingCode = this.clearingAccountCode(funding.gateway);
-
-        const clearingAccount = await tx.ledgerAccount.findUnique({
-          where: { code: clearingCode },
-        });
-
-        if (!clearingAccount) {
-          throw new ConflictException(
-            `Ledger clearing account ${clearingCode} does not exist`,
-          );
-        }
-
-        const journal = await this.wallets.creditInTransaction(tx, {
-          walletId: funding.walletId,
-          amountNgn: funding.amountNgn,
-          counterAccountId: clearingAccount.accountId,
-          idempotencyKey: `WALLET-FUNDING:${funding.fundingId}`,
-          kind: LedgerTransactionKind.FUNDING,
-          referenceType: 'WalletFunding',
-          referenceId: funding.fundingId,
-          description: `Wallet funding ${funding.gatewayReference}`,
-          occurredAt: verified.paidAt ?? verified.verifiedAt,
-          metadata: {
-            gateway: funding.gateway,
-            gatewayReference: funding.gatewayReference,
-            providerTransactionId: verified.providerTransactionId,
           },
         });
-
-        await tx.walletFunding.update({
-          where: { fundingId: funding.fundingId },
-          data: {
-            status: WalletFundingStatus.CREDITED,
-            providerTransactionId: verified.providerTransactionId,
-            ledgerTxnId: journal.ledgerTxnId,
-            lastVerifiedAt: verified.verifiedAt,
-            creditedAt: new Date(),
-            failureReason: null,
-            verificationPayload: payload,
-          },
-        });
-
-        return {
-          fundingId: funding.fundingId,
-          transition: 'CREDITED',
-        };
-      },
-      {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      },
-    );
-
-    if (result.transition) {
-      const funding = await this.prisma.walletFunding.findUniqueOrThrow({
-        where: { fundingId: result.fundingId },
-      });
 
       const severity =
-        result.transition === 'REVIEW_REQUIRED'
+        result.transition ===
+        'REVIEW_REQUIRED'
           ? AuditSeverity.CRITICAL
-          : result.transition === 'FAILED'
+          : result.transition ===
+              'FAILED'
             ? AuditSeverity.WARNING
             : AuditSeverity.INFO;
 
       await this.audit.write({
         severity,
-        actor: { type: AuditActorType.SYSTEM },
-        action: `WALLET_FUNDING_${result.transition}`,
-        resource: { type: 'WalletFunding', id: result.fundingId },
+
+        actor: {
+          type:
+            AuditActorType.SYSTEM,
+        },
+
+        action:
+          `WALLET_FUNDING_${result.transition}`,
+
+        resource: {
+          type:
+            'WalletFunding',
+
+          id:
+            result.fundingId,
+        },
+
         metadata: {
-          reference: funding.gatewayReference,
-          gateway: funding.gateway,
-          amountNgn: funding.amountNgn,
-          walletId: funding.walletId,
-          failureReason: funding.failureReason,
+          reference:
+            funding.gatewayReference,
+
+          gateway:
+            funding.gateway,
+
+          amountNgn:
+            funding.amountNgn,
+
+          walletId:
+            funding.walletId,
+
+          ownerType:
+            funding.wallet.ownerType,
+
+          ownerId:
+            funding.wallet.userId ??
+            funding.wallet.agentId,
+
+          failureReason:
+            funding.failureReason,
         },
       });
     }
 
-    return this.getFundingView(result.fundingId);
+    return this.getFundingView(
+      result.fundingId,
+    );
   }
+
+  // ─────────────────────────────────────────────────────────
+  // CUSTOMER STATUS / HISTORY
+  // ─────────────────────────────────────────────────────────
 
   async statusForCustomer(
     userId: string,
     reference: string,
     transactionId?: string,
   ) {
-    const funding = await this.findCustomerFunding(userId, reference);
-
-    if (
-      funding.status === WalletFundingStatus.CREDITED ||
-      funding.status === WalletFundingStatus.FAILED ||
-      funding.status === WalletFundingStatus.REVIEW_REQUIRED
-    ) {
-      return this.getFundingView(funding.fundingId);
-    }
-
-    let verified: VerifiedProviderPayment | null = null;
-
-    if (funding.gateway === PaymentGateway.MONNIFY) {
-      verified = await this.verification.verifyMonnify(
-        funding.gatewayReference,
+    const funding =
+      await this.findCustomerFunding(
+        userId,
+        reference,
       );
-    } else if (funding.gateway === PaymentGateway.FLUTTERWAVE) {
-      const providerId =
-        transactionId?.trim() ||
-        funding.providerTransactionId;
 
-      if (!providerId) {
-        return this.getFundingView(funding.fundingId);
-      }
-
-      verified = await this.verification.verifyFlutterwave(providerId);
-    }
-
-    if (!verified) {
-      return this.getFundingView(funding.fundingId);
-    }
-
-    return this.confirmVerified({
-      reference: funding.gatewayReference,
-      verifiedPayment: verified,
-    });
+    return this.resolveFundingStatus(
+      funding,
+      transactionId,
+    );
   }
 
   async historyForCustomer(
@@ -424,64 +953,299 @@ export class WalletFundingService {
     page = 1,
     pageSize = 20,
   ) {
-    const safePage = Math.max(1, page);
-    const safePageSize = Math.min(100, Math.max(1, pageSize));
+    const wallet =
+      await this.prisma.wallet.findUnique({
+        where: {
+          userId,
+        },
 
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { userId },
-      select: { walletId: true },
+        select: {
+          walletId:
+            true,
+        },
+      });
+
+    return this.historyForWallet(
+      wallet?.walletId ??
+        null,
+      page,
+      pageSize,
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // AGENT STATUS / HISTORY
+  // ─────────────────────────────────────────────────────────
+
+  async statusForAgent(
+    agentId: string,
+    reference: string,
+    transactionId?: string,
+  ) {
+    const funding =
+      await this.findAgentFunding(
+        agentId,
+        reference,
+      );
+
+    return this.resolveFundingStatus(
+      funding,
+      transactionId,
+    );
+  }
+
+  async historyForAgent(
+    agentId: string,
+    page = 1,
+    pageSize = 20,
+  ) {
+    const wallet =
+      await this.prisma.wallet.findUnique({
+        where: {
+          agentId,
+        },
+
+        select: {
+          walletId:
+            true,
+        },
+      });
+
+    return this.historyForWallet(
+      wallet?.walletId ??
+        null,
+      page,
+      pageSize,
+    );
+  }
+
+  private async resolveFundingStatus(
+    funding: {
+      fundingId: string;
+      gatewayReference: string;
+      gateway: PaymentGateway;
+      status: WalletFundingStatus;
+      providerTransactionId: string | null;
+    },
+    transactionId?: string,
+  ) {
+    if (
+      funding.status ===
+        WalletFundingStatus.CREDITED ||
+      funding.status ===
+        WalletFundingStatus.FAILED ||
+      funding.status ===
+        WalletFundingStatus.REVIEW_REQUIRED
+    ) {
+      return this.getFundingView(
+        funding.fundingId,
+      );
+    }
+
+    let verified:
+      VerifiedProviderPayment |
+      null =
+      null;
+
+    if (
+      funding.gateway ===
+      PaymentGateway.MONNIFY
+    ) {
+      verified =
+        await this.verification.verifyMonnify(
+          funding.gatewayReference,
+        );
+    } else if (
+      funding.gateway ===
+      PaymentGateway.FLUTTERWAVE
+    ) {
+      const providerId =
+        transactionId?.trim() ||
+        funding.providerTransactionId;
+
+      if (
+        !providerId
+      ) {
+        return this.getFundingView(
+          funding.fundingId,
+        );
+      }
+
+      verified =
+        await this.verification.verifyFlutterwave(
+          providerId,
+        );
+    }
+
+    if (!verified) {
+      return this.getFundingView(
+        funding.fundingId,
+      );
+    }
+
+    return this.confirmVerified({
+      reference:
+        funding.gatewayReference,
+
+      verifiedPayment:
+        verified,
     });
+  }
 
-    if (!wallet) {
+  private async historyForWallet(
+    walletId: string | null,
+    page: number,
+    pageSize: number,
+  ) {
+    const safePage =
+      Math.max(
+        1,
+        page,
+      );
+
+    const safePageSize =
+      Math.min(
+        100,
+        Math.max(
+          1,
+          pageSize,
+        ),
+      );
+
+    if (!walletId) {
       return {
-        page: safePage,
-        pageSize: safePageSize,
-        total: 0,
-        fundings: [],
+        page:
+          safePage,
+
+        pageSize:
+          safePageSize,
+
+        total:
+          0,
+
+        fundings:
+          [],
       };
     }
 
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.walletFunding.findMany({
-        where: { walletId: wallet.walletId },
-        orderBy: { createdAt: 'desc' },
-        skip: (safePage - 1) * safePageSize,
-        take: safePageSize,
-      }),
-      this.prisma.walletFunding.count({
-        where: { walletId: wallet.walletId },
-      }),
-    ]);
+    const [
+      rows,
+      total,
+    ] =
+      await this.prisma.$transaction([
+        this.prisma.walletFunding.findMany({
+          where: {
+            walletId,
+          },
+
+          orderBy: {
+            createdAt:
+              'desc',
+          },
+
+          skip:
+            (safePage -
+              1) *
+            safePageSize,
+
+          take:
+            safePageSize,
+        }),
+
+        this.prisma.walletFunding.count({
+          where: {
+            walletId,
+          },
+        }),
+      ]);
 
     return {
-      page: safePage,
-      pageSize: safePageSize,
+      page:
+        safePage,
+
+      pageSize:
+        safePageSize,
+
       total,
-      fundings: rows.map((row) => this.mapFunding(row)),
+
+      fundings:
+        rows.map(
+          (
+            row,
+          ) =>
+            this.mapFunding(
+              row,
+            ),
+        ),
     };
   }
 
+  // ─────────────────────────────────────────────────────────
+  // FINANCE
+  // ─────────────────────────────────────────────────────────
+
   async listReviewRequired() {
-    const rows = await this.prisma.walletFunding.findMany({
-      where: { status: WalletFundingStatus.REVIEW_REQUIRED },
-      include: {
-        wallet: {
-          select: {
-            userId: true,
-            status: true,
+    const rows =
+      await this.prisma.walletFunding.findMany({
+        where: {
+          status:
+            WalletFundingStatus.REVIEW_REQUIRED,
+        },
+
+        include: {
+          wallet: {
+            select: {
+              ownerType:
+                true,
+
+              userId:
+                true,
+
+              agentId:
+                true,
+
+              status:
+                true,
+            },
           },
         },
-      },
-      orderBy: { updatedAt: 'desc' },
-      take: 200,
-    });
+
+        orderBy: {
+          updatedAt:
+            'desc',
+        },
+
+        take:
+          200,
+      });
 
     return {
-      fundings: rows.map((row) => ({
-        ...this.mapFunding(row),
-        userId: row.wallet.userId,
-        walletStatus: row.wallet.status,
-      })),
+      fundings:
+        rows.map(
+          (
+            row,
+          ) => ({
+            ...this.mapFunding(
+              row,
+            ),
+
+            ownerType:
+              row.wallet.ownerType,
+
+            ownerId:
+              row.wallet.userId ??
+              row.wallet.agentId,
+
+            userId:
+              row.wallet.userId,
+
+            agentId:
+              row.wallet.agentId,
+
+            walletStatus:
+              row.wallet.status,
+          }),
+        ),
     };
   }
 
@@ -489,68 +1253,106 @@ export class WalletFundingService {
     fundingId: string,
     transactionId?: string,
   ) {
-    const funding = await this.prisma.walletFunding.findUnique({
-      where: { fundingId },
-    });
+    const funding =
+      await this.prisma.walletFunding.findUnique({
+        where: {
+          fundingId,
+        },
+      });
 
     if (!funding) {
-      throw new NotFoundException('Wallet funding not found');
-    }
-
-    /*
-     * REVIEW_REQUIRED is intentionally not auto-credited.
-     * Finance may inspect it, but mismatched money needs a
-     * separate resolution/refund process.
-     */
-    if (funding.status === WalletFundingStatus.REVIEW_REQUIRED) {
-      return this.getFundingView(fundingId);
+      throw new NotFoundException(
+        'Wallet funding not found',
+      );
     }
 
     if (
-      funding.status === WalletFundingStatus.CREDITED ||
-      funding.status === WalletFundingStatus.FAILED
+      funding.status ===
+      WalletFundingStatus.REVIEW_REQUIRED
     ) {
-      return this.getFundingView(fundingId);
+      return this.getFundingView(
+        fundingId,
+      );
     }
 
-    let verified: VerifiedProviderPayment | null = null;
-
-    if (funding.gateway === PaymentGateway.MONNIFY) {
-      verified = await this.verification.verifyMonnify(
-        funding.gatewayReference,
+    if (
+      funding.status ===
+        WalletFundingStatus.CREDITED ||
+      funding.status ===
+        WalletFundingStatus.FAILED
+    ) {
+      return this.getFundingView(
+        fundingId,
       );
-    } else if (funding.gateway === PaymentGateway.FLUTTERWAVE) {
+    }
+
+    let verified:
+      VerifiedProviderPayment |
+      null =
+      null;
+
+    if (
+      funding.gateway ===
+      PaymentGateway.MONNIFY
+    ) {
+      verified =
+        await this.verification.verifyMonnify(
+          funding.gatewayReference,
+        );
+    } else if (
+      funding.gateway ===
+      PaymentGateway.FLUTTERWAVE
+    ) {
       const providerId =
         transactionId?.trim() ||
         funding.providerTransactionId;
 
-      if (!providerId) {
+      if (
+        !providerId
+      ) {
         throw new ConflictException(
           'Flutterwave provider transaction ID is not known yet',
         );
       }
 
-      verified = await this.verification.verifyFlutterwave(providerId);
+      verified =
+        await this.verification.verifyFlutterwave(
+          providerId,
+        );
     }
 
     if (!verified) {
-      return this.getFundingView(fundingId);
+      return this.getFundingView(
+        fundingId,
+      );
     }
 
     return this.confirmVerified({
-      reference: funding.gatewayReference,
-      verifiedPayment: verified,
+      reference:
+        funding.gatewayReference,
+
+      verifiedPayment:
+        verified,
     });
   }
 
+  // ─────────────────────────────────────────────────────────
+  // INTERNAL HELPERS
+  // ─────────────────────────────────────────────────────────
+
   private async initializeChosenGateway(
     gateway: PaymentGateway,
-    input: Parameters<PaymentGatewayDriver['initialize']>[0],
+    input:
+      Parameters<
+        PaymentGatewayDriver['initialize']
+      >[0],
   ) {
     const driver =
-      gateway === PaymentGateway.MONNIFY
+      gateway ===
+      PaymentGateway.MONNIFY
         ? this.monnify
-        : gateway === PaymentGateway.FLUTTERWAVE
+        : gateway ===
+            PaymentGateway.FLUTTERWAVE
           ? this.flutterwave
           : null;
 
@@ -561,7 +1363,9 @@ export class WalletFundingService {
     }
 
     const result =
-      await driver.initialize(input);
+      await driver.initialize(
+        input,
+      );
 
     if (
       result.gatewayReference !==
@@ -582,91 +1386,197 @@ export class WalletFundingService {
     userId: string,
     reference: string,
   ) {
-    const funding = await this.prisma.walletFunding.findFirst({
-      where: {
-        gatewayReference: reference,
-        wallet: { userId },
-      },
-    });
+    const funding =
+      await this.prisma.walletFunding.findFirst({
+        where: {
+          gatewayReference:
+            reference,
+
+          wallet: {
+            userId,
+          },
+        },
+      });
 
     if (!funding) {
-      throw new NotFoundException('Wallet funding not found');
+      throw new NotFoundException(
+        'Wallet funding not found',
+      );
     }
 
     return funding;
   }
 
-  private async getFundingView(fundingId: string) {
-    const funding = await this.prisma.walletFunding.findUniqueOrThrow({
-      where: { fundingId },
-    });
+  private async findAgentFunding(
+    agentId: string,
+    reference: string,
+  ) {
+    const funding =
+      await this.prisma.walletFunding.findFirst({
+        where: {
+          gatewayReference:
+            reference,
 
-    return this.mapFunding(funding);
+          wallet: {
+            agentId,
+          },
+        },
+      });
+
+    if (!funding) {
+      throw new NotFoundException(
+        'Wallet funding not found',
+      );
+    }
+
+    return funding;
   }
 
-  private mapFunding(funding: {
-    fundingId: string;
-    walletId: string;
-    gatewayReference: string;
-    gateway: PaymentGateway;
-    amountNgn: number;
-    currency: string;
-    status: WalletFundingStatus;
-    providerTransactionId: string | null;
-    ledgerTxnId: string | null;
-    failureReason: string | null;
-    initiatedAt: Date;
-    lastVerifiedAt: Date | null;
-    creditedAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }) {
+  private async getFundingView(
+    fundingId: string,
+  ) {
+    const funding =
+      await this.prisma.walletFunding.findUniqueOrThrow({
+        where: {
+          fundingId,
+        },
+      });
+
+    return this.mapFunding(
+      funding,
+    );
+  }
+
+  private mapFunding(
+    funding: {
+      fundingId: string;
+      walletId: string;
+      gatewayReference: string;
+      gateway: PaymentGateway;
+      amountNgn: number;
+      currency: string;
+      status: WalletFundingStatus;
+      providerTransactionId:
+        string | null;
+      ledgerTxnId:
+        string | null;
+      failureReason:
+        string | null;
+      initiatedAt:
+        Date;
+      lastVerifiedAt:
+        Date | null;
+      creditedAt:
+        Date | null;
+      createdAt:
+        Date;
+      updatedAt:
+        Date;
+    },
+  ) {
     return {
-      fundingId: funding.fundingId,
-      walletId: funding.walletId,
-      reference: funding.gatewayReference,
-      gateway: funding.gateway,
-      amountNgn: funding.amountNgn,
-      currency: funding.currency,
-      status: funding.status,
-      providerTransactionId: funding.providerTransactionId,
-      ledgerTxnId: funding.ledgerTxnId,
-      failureReason: funding.failureReason,
-      initiatedAt: funding.initiatedAt.toISOString(),
-      lastVerifiedAt: funding.lastVerifiedAt?.toISOString() ?? null,
-      creditedAt: funding.creditedAt?.toISOString() ?? null,
-      createdAt: funding.createdAt.toISOString(),
-      updatedAt: funding.updatedAt.toISOString(),
+      fundingId:
+        funding.fundingId,
+
+      walletId:
+        funding.walletId,
+
+      reference:
+        funding.gatewayReference,
+
+      gateway:
+        funding.gateway,
+
+      amountNgn:
+        funding.amountNgn,
+
+      currency:
+        funding.currency,
+
+      status:
+        funding.status,
+
+      providerTransactionId:
+        funding.providerTransactionId,
+
+      ledgerTxnId:
+        funding.ledgerTxnId,
+
+      failureReason:
+        funding.failureReason,
+
+      initiatedAt:
+        funding.initiatedAt.toISOString(),
+
+      lastVerifiedAt:
+        funding.lastVerifiedAt
+          ?.toISOString() ??
+        null,
+
+      creditedAt:
+        funding.creditedAt
+          ?.toISOString() ??
+        null,
+
+      createdAt:
+        funding.createdAt.toISOString(),
+
+      updatedAt:
+        funding.updatedAt.toISOString(),
     };
   }
 
-  private validateFundingAmount(amountNgn: number) {
-    if (!Number.isSafeInteger(amountNgn)) {
+  private validateFundingAmount(
+    amountNgn: number,
+  ) {
+    if (
+      !Number.isSafeInteger(
+        amountNgn,
+      )
+    ) {
       throw new BadRequestException(
         'Wallet funding amount must be a whole naira value',
       );
     }
 
     const minimum =
-      this.config.get<number>('WALLET_FUNDING_MIN_NGN') ?? 100;
+      this.config.get<number>(
+        'WALLET_FUNDING_MIN_NGN',
+      ) ??
+      100;
 
     const maximum =
-      this.config.get<number>('WALLET_FUNDING_MAX_NGN') ?? 500000;
+      this.config.get<number>(
+        'WALLET_FUNDING_MAX_NGN',
+      ) ??
+      500000;
 
-    if (amountNgn < minimum || amountNgn > maximum) {
+    if (
+      amountNgn <
+        minimum ||
+      amountNgn >
+        maximum
+    ) {
       throw new BadRequestException(
         `Wallet funding amount must be between ${minimum} and ${maximum} NGN`,
       );
     }
   }
 
-  private clearingAccountCode(gateway: PaymentGateway) {
-    switch (gateway) {
+  private clearingAccountCode(
+    gateway:
+      PaymentGateway,
+  ) {
+    switch (
+      gateway
+    ) {
       case PaymentGateway.MONNIFY:
-        return SYSTEM_LEDGER_ACCOUNT_CODES.MONNIFY_COLLECTION_CLEARING;
+        return SYSTEM_LEDGER_ACCOUNT_CODES
+          .MONNIFY_COLLECTION_CLEARING;
 
       case PaymentGateway.FLUTTERWAVE:
-        return SYSTEM_LEDGER_ACCOUNT_CODES.FLUTTERWAVE_CLEARING;
+        return SYSTEM_LEDGER_ACCOUNT_CODES
+          .FLUTTERWAVE_CLEARING;
 
       default:
         throw new ConflictException(
@@ -675,8 +1585,24 @@ export class WalletFundingService {
     }
   }
 
-  private syntheticEmail(phone: string) {
-    const digits = phone.replace(/\D/g, '');
+  private syntheticEmail(
+    phone: string,
+  ) {
+    const digits =
+      phone.replace(
+        /\D/g,
+        '',
+      );
+
     return `${digits}@buyers.surewina.ng`;
+  }
+
+  private cleanBaseUrl(
+    value: string,
+  ) {
+    return value.replace(
+      /\/+$/,
+      '',
+    );
   }
 }
