@@ -6,6 +6,14 @@ import type {
   VerifyAgentOtpResponse,
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
+import type {
+  InitiateWalletFundingRequest,
+  InitiateWalletFundingResponse,
+  WalletFundingHistoryResponse,
+  WalletFundingView,
+  WalletHistoryResponse,
+  WalletView,
+} from './wallet.js';
 
 type PeriodAgg = { grossSalesNgn: number; ticketsSold: number; saleCount: number };
 
@@ -214,5 +222,43 @@ export class AgentsModule {
     return this.client.get(`/agent/tickets/sale/${encodeURIComponent(reference)}`);
   }
 
-  
+  async wallet(): Promise<WalletView> {
+    return this.client.get<WalletView>('/agent/wallet');
+  }
+
+  async walletHistory(page = 1, pageSize = 20): Promise<WalletHistoryResponse> {
+    return this.client.get<WalletHistoryResponse>('/agent/wallet/history', {
+      query: { page, pageSize },
+    });
+  }
+
+  async initiateWalletFunding(
+    input: InitiateWalletFundingRequest,
+  ): Promise<InitiateWalletFundingResponse> {
+    return this.client.post<InitiateWalletFundingResponse>(
+      '/agent/wallet/funding/initiate',
+      input,
+    );
+  }
+
+  async walletFundingStatus(
+    reference: string,
+    transactionId?: string,
+  ): Promise<WalletFundingView> {
+    return this.client.get<WalletFundingView>('/agent/wallet/funding/status', {
+      query: { reference, transactionId },
+    });
+  }
+
+  async walletFundingHistory(
+    page = 1,
+    pageSize = 20,
+  ): Promise<WalletFundingHistoryResponse> {
+    return this.client.get<WalletFundingHistoryResponse>(
+      '/agent/wallet/funding/history',
+      {
+        query: { page, pageSize },
+      },
+    );
+  }
 }

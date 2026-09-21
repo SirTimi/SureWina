@@ -12,7 +12,7 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Agent wallet funding backend. The user pulled the TS2702 fix, ran local validation, and reported the build green on 2026-09-21.
+Customer wallet/top-up experience. The user pulled the customer-wallet increment, ran local validation, and reported the build green on 2026-09-21.
 
 ## Current Implementation
 
@@ -20,10 +20,11 @@ Agent wallet funding backend. The user pulled the TS2702 fix, ran local validati
 - Customer wallet funding uses Monnify or Flutterwave.
 - Prize payouts use Monnify or Flutterwave.
 - Ledger-backed wallets support both CUSTOMER and AGENT owners.
-- Authenticated agents can retrieve their wallet, view ledger history, initiate Monnify/Flutterwave funding, verify funding status, and view funding history.
-- This increment adds the customer wallet experience at `/dashboard/wallet`: balances, top-up initiation, provider-return verification, funding history, and ledger activity.
-- Customer hosted-payment returns land on `/wallet/funding/callback`, then redirect into the authenticated wallet page. Provider-returned status is not trusted; the API verifies the payment server-side before crediting.
-- The authenticated customer navigation now includes Wallet.
+- Customer wallet UI is available at `/dashboard/wallet` with balances, Monnify/Flutterwave top-up, provider-return verification, funding history, and wallet ledger activity.
+- Authenticated agents already have wallet/funding backend endpoints.
+- This increment adds the agent wallet experience at `/wallet`: balance, top-up initiation, provider-return verification, funding history, and ledger activity.
+- Agent hosted-payment returns land on the agent portal's `/wallet/funding/callback` and then return to `/wallet` for server-side verification.
+- Agent navigation and dashboard now surface the wallet directly.
 - Agent ticket sales still use the legacy receivable/remittance model. Prepaid sale accounting has not started yet.
 
 ## Completed
@@ -43,55 +44,56 @@ Recent accepted work:
 - Paystack restored as the direct web ticket-purchase collection rail.
 - Paystack remains blocked for wallet funding.
 - Monnify and Flutterwave remain the wallet-funding and payout rails.
-- Agent wallet funding backend accepted after local type-check/build validation.
+- Agent wallet funding backend accepted.
+- Customer wallet/top-up UI accepted after local type-check/build validation.
 
 Current engineering increment:
-- typed customer wallet API-client module;
-- customer wallet balance page;
-- Monnify/Flutterwave top-up initiation UI;
-- hosted-payment callback routing;
-- server-side funding verification/status refresh;
-- funding history display;
-- wallet ledger activity display;
-- authenticated Wallet navigation.
+- typed agent wallet methods in the shared API client;
+- agent wallet page;
+- Monnify/Flutterwave agent top-up initiation UI;
+- agent hosted-payment callback routing;
+- server-side provider verification/status refresh;
+- agent funding history;
+- agent wallet ledger activity;
+- Wallet item in agent navigation;
+- always-visible wallet balance shortcut on the agent dashboard;
+- top-up disabled for non-active agents to match backend policy.
 
 ## Next Tasks
 
 Only after the user accepts this increment:
-1. Add the agent wallet/top-up UI and callback/status experience.
-2. Wire customer wallet ticket purchase into the customer buying experience so wallet funds can be selected at checkout.
-3. Convert agent ticket sales to prepaid wallet accounting with atomic balance enforcement and commission recognition.
-4. Credit agent wallets immediately for eligible agent-paid prizes.
-5. Stop creating new remittance debt after the prepaid-agent cutover.
-6. Retire `UNSETTLED_REMITTANCE` automatic suspension for post-cutover activity while preserving historical remittance records.
-7. Update admin finance views for agent/customer wallet balances, funding history, and wallet activity.
-8. Remove obsolete remittance-first UX after prepaid sales are accepted.
-9. Complete controlled end-to-end rollout testing.
+1. Wire customer wallet ticket purchase into the customer buying experience so wallet funds can be selected at checkout.
+2. Convert agent ticket sales to prepaid wallet accounting with atomic balance enforcement and commission recognition.
+3. Credit agent wallets immediately for eligible agent-paid prizes.
+4. Stop creating new remittance debt after the prepaid-agent cutover.
+5. Retire `UNSETTLED_REMITTANCE` automatic suspension for post-cutover activity while preserving historical remittance records.
+6. Update admin finance views for agent/customer wallet balances, funding history, and wallet activity.
+7. Remove obsolete remittance-first UX after prepaid sales are accepted.
+8. Complete controlled end-to-end rollout testing.
 
 ## Known Issues
 
 - Agent sales still create agent receivables and feed the remittance worker.
 - The remittance deadline worker can still suspend agents for `UNSETTLED_REMITTANCE`.
-- Agent wallet top-up UI has not been implemented yet.
 - Customer wallet ticket purchase exists on the backend but is not yet selectable in the customer buy form.
-- `AGENT_WEB_BASE_URL` must be set to the public agent-site origin before agent funding is enabled in production.
+- The agent wallet can be topped up in this increment, but those funds do not yet replace the legacy agent receivable/remittance sale model.
+- `AGENT_WEB_BASE_URL` must be the public agent-site origin before live agent funding is enabled in production.
 - Production Monnify/Flutterwave credentials and treasury values still need controlled configuration before live funding/payout testing.
 
 ## Testing Status
 
 Previous increment:
-- initial local validation failed with TS2702 in `wallet-funding.service.ts`;
-- the audit-actor typing root cause was fixed;
-- user re-ran local validation and reported the build green;
-- agent wallet funding backend is therefore accepted.
+- customer wallet page, top-up UI, callback/status verification, funding history, ledger activity, and navigation were pushed;
+- user ran local validation and reported the build green;
+- customer wallet/top-up experience is accepted.
 
 Current increment engineering review:
-- inspected latest `main` before changes;
-- inspected recent commits;
-- confirmed no root `AGENTS.md` is present;
-- inspected customer wallet/funding controllers, wallet ledger response shape, provider callback behavior, customer route structure, authenticated navigation, and shared API client;
-- no Prisma schema or database migration is required;
-- customer wallet credits continue to rely on provider verification in the existing API.
+- inspected latest `main` and recent commits before changes;
+- inspected agent authentication/session handling, agent shell/header/navigation, dashboard wallet balance source, agent wallet backend routes, provider callback construction, and shared wallet types;
+- confirmed the agent dashboard's `settlement.walletBalanceNgn` is sourced from the ledger-backed wallet available balance;
+- confirmed `AGENT_WEB_BASE_URL` is present in environment validation with local default `http://localhost:3001`;
+- confirmed no Prisma schema or database migration is required;
+- agent funding remains provider-verified and idempotent.
 
 Runtime/type/build validation:
 - the connected GitHub environment does not expose a checked-out Node workspace, so local `pnpm type-check` and `pnpm build` cannot be run from this session before push;
@@ -105,12 +107,12 @@ Runtime/type/build validation:
 - Wallet funding: Monnify or Flutterwave only.
 - Prize payouts: Monnify or Flutterwave only.
 - Wallet balances are derived from immutable ledger entries.
-- Customer wallet funding uses the existing `WalletFunding` model and provider-verification flow.
+- Agent wallet identity comes from the authenticated agent JWT; the frontend never chooses an arbitrary agent id.
 - Browser/provider callback status never credits a wallet by itself.
-- Customer wallet UI belongs in the authenticated `/dashboard` area.
-- The provider callback route stays at `/wallet/funding/callback` because the existing backend constructs that path from `PAYMENT_CALLBACK_BASE_URL`.
+- Agent wallet UI belongs at `/wallet` inside the agent portal and uses `AGENT_WEB_BASE_URL` for hosted-payment return URLs.
+- Remittance navigation and behavior remain intact until prepaid agent sales are implemented and accepted.
 - Historical remittances remain auditable; the future prepaid-agent cutover must stop only new debt generation rather than deleting history.
 
 ## Last Commit
 
-`feat: add customer wallet top-up experience` (this development cycle)
+`feat: add agent wallet top-up experience` (this development cycle)

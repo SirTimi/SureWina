@@ -131,18 +131,24 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
         />
       </section>
 
-      {settlement.walletBalanceNgn > 0 && (
-        <Link href="/remittance" className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Wallet className="h-5 w-5 shrink-0 text-emerald-700" />
-            <p className="text-sm text-emerald-900">
-              <span className="font-black">{formatNaira(settlement.walletBalanceNgn)}</span> in your
-              wallet from prizes you paid out. Use it to settle any day.
+      <Link
+        href="/wallet"
+        className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 transition hover:bg-emerald-100/70"
+      >
+        <div className="flex items-center gap-3">
+          <Wallet className="h-5 w-5 shrink-0 text-emerald-700" />
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700">
+              Available wallet balance
+            </p>
+            <p className="mt-0.5 text-sm text-emerald-900">
+              <span className="font-black">{formatNaira(settlement.walletBalanceNgn)}</span>{' '}
+              available. Top up or review wallet activity.
             </p>
           </div>
-          <ArrowRight className="h-4 w-4 shrink-0 text-emerald-700" />
-        </Link>
-      )}
+        </div>
+        <ArrowRight className="h-4 w-4 shrink-0 text-emerald-700" />
+      </Link>
 
       <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card variant="default" className="overflow-hidden rounded-3xl border-slate-200 bg-white shadow-sm">

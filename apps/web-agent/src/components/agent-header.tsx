@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Trophy,
   User,
+  WalletCards,
   X,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -22,6 +23,7 @@ import { clearAgentSession } from '@/lib/agent-auth';
 const navItems = [
   { label: 'Home', href: '/', icon: Home },
   { label: 'Sell', href: '/sell', icon: QrCode },
+  { label: 'Wallet', href: '/wallet', icon: WalletCards },
   { label: 'Remit', href: '/remittance', icon: ReceiptText },
   { label: 'Commission', href: '/commission', icon: Banknote },
   { label: 'Profile', href: '/profile', icon: User },
