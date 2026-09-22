@@ -134,9 +134,10 @@ Current increment engineering review:
 
 Runtime/type/build validation:
 - the connected GitHub environment does not expose a checked-out Node workspace, so local `pnpm type-check`, `pnpm build`, and the database rollout check cannot be executed before push;
-- user local `rollout:check` after `46143e1` failed before validation because the rollout-only module reused the full API Joi schema, and blank local `PAYMENT_CALLBACK_BASE_URL` / `FLUTTERWAVE_BASE_URL` values were rejected;
-- fix: the rollout-only module now loads environment files without the full runtime validation schema; production-specific requirements remain enforced explicitly by `rollout:check --production`;
-- normal API startup still uses the full Joi environment schema and is unchanged;
+- user local `rollout:check` after `46143e1` first failed before validation because the rollout-only module reused the full API Joi schema; commit `8fad349` decoupled the checker from full runtime env validation;
+- the next local run reached `RolloutCheckService` but `PrismaService` was undefined under the standalone `tsx` Nest context because constructor metadata was not reliably available;
+- fix: `RolloutCheckService` now uses explicit Nest `@Inject(PrismaService)` and `@Inject(ConfigService)` tokens, making the standalone CLI independent of implicit decorator metadata;
+- normal API startup and financial runtime behavior remain unchanged;
 - local validation must include build/type-check plus `pnpm --filter @surewina/api rollout:check`;
 - the manual browser/provider matrix remains a separate acceptance step after the checker itself builds and runs.
 
@@ -159,4 +160,4 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`fix: decouple rollout check from runtime env validation` (this development cycle)
+`fix: inject rollout checker dependencies explicitly` (this development cycle)

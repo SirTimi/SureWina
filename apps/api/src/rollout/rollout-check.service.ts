@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import {
@@ -67,7 +67,9 @@ type BalanceRow = {
 @Injectable()
 export class RolloutCheckService {
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
+    @Inject(ConfigService)
     private readonly config: ConfigService,
   ) {}
 
