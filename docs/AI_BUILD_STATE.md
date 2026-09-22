@@ -4,7 +4,7 @@ Updated: 2026-09-22
 
 ## Current Goal
 
-Validate the completed prepaid-wallet architecture end to end, then move to production provider/treasury configuration and controlled small-value live-money verification.
+Run the controlled prepaid-wallet functional matrix on the finalized local database, then move to provider sandbox verification and finally production provider/treasury configuration with small-value live-money testing.
 
 ## Current Status
 
@@ -12,7 +12,7 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Technical legacy cleanup. The user reported the build green on 2026-09-22, satisfying the manual acceptance gate.
+Financial rollout validation gate and Phase 8 local migration. The user finalized migration run `859c56c9-6111-4cc5-afe7-985926eb48a1` and reported the strict rollout checker fully green: 16 PASS, 0 BLOCKER, 0 REVIEW, Ready=YES.
 
 ## Current Implementation
 
@@ -70,32 +70,25 @@ Accepted wallet UX/accounting:
 - technical cleanup of offline sale replay and browser shadow finance state.
 
 Current engineering increment:
-- read-only ledger balance validation;
-- required system-ledger-account validation;
-- wallet owner/account wiring validation;
-- negative wallet balance detection;
-- payment collection ledger-link validation;
-- wallet funding journal validation and review/stale-funding visibility;
-- completed wallet-purchase hold/ticket validation;
-- prepaid agent sale wallet+commission=gross validation;
-- agent prize reimbursement validation;
-- successful bank-prize payout journal validation;
-- retired debt-suspension validation;
-- open reconciliation issue gate;
-- financial Suspense balance gate;
-- treasury registry/ledger mapping gate;
-- Phase 8 migration status gate;
-- historical remittance visibility;
-- stricter production configuration validation;
-- manual financial rollout runbook.
+- add local-only rollout smoke tooling for the prepaid core;
+- list existing candidate customers, ACTIVE agents, and ACTIVE draws;
+- provision and seed a selected customer wallet from a dedicated local test asset;
+- provision and seed a selected agent wallet from the same dedicated local test asset;
+- keep smoke seeding separate from WalletFunding/provider evidence;
+- make smoke seeding idempotent per selected owner;
+- refuse smoke seeding in production;
+- require Phase 8 FINALIZED before smoke seeding;
+- add a production rollout blocker for any `TEST:ROLLOUT:*` account or `RolloutSmokeSeed` journal;
+- document which browser tests may use local seeded balance and which still require real provider sandbox flows.
 
 ## Next Tasks
 
 Only after the user accepts this increment:
-1. Run the controlled sandbox/local business-flow matrix in `docs/FINANCIAL_ROLLOUT_RUNBOOK.md` and clear all blocker/review items intended for the rollout environment.
-2. Finalize production Monnify/Flutterwave/Paystack callback and treasury configuration.
-3. Run `rollout:check --production --strict-review`.
-4. Perform one-at-a-time small-value live-money verification with dedicated controlled accounts before enabling normal live money movement.
+1. Use `rollout:smoke candidates` and seed one controlled customer wallet plus one controlled ACTIVE agent wallet.
+2. Test customer wallet purchase, insufficient customer balance, prepaid agent sale, insufficient agent balance, and offline-sale protection through the actual browser/API flows.
+3. Rerun `rollout:check --strict-review` and confirm the new wallet/purchase/agent-sale rows remain fully consistent.
+4. Configure and test Monnify/Flutterwave sandbox funding separately; local smoke balance never substitutes for provider verification.
+5. Finalize production provider/callback/treasury configuration, run `rollout:check --production --strict-review`, then perform one-at-a-time small-value live-money verification.
 
 ## Known Issues
 
@@ -165,4 +158,21 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`fix: isolate Phase 8 CLI from HTTP auth modules` (this development cycle)
+`feat: add local prepaid rollout smoke seeding` (this development cycle)
+
+
+## Latest Acceptance Evidence
+
+Strict rollout result reported by user after Phase 8 finalization:
+- system ledger accounts: PASS;
+- 11 ledger transactions balanced: PASS;
+- payment collections: PASS;
+- 4 legacy agent sales correctly classified: PASS;
+- Financial Suspense zero: PASS;
+- treasury registry: PASS;
+- migration FINALIZED: PASS;
+- historical remittance NGN 25,000 preserved: PASS;
+- Blockers=0;
+- Review items=0;
+- Passed checks=16;
+- Ready=YES.

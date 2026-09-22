@@ -103,6 +103,42 @@ Record, for every test:
 - ticket or claim id;
 - PASS/FAIL.
 
+### 3.0 Local prepaid-core setup
+
+When Monnify/Flutterwave sandbox credentials are not yet configured, use the local-only smoke seeder to create controlled wallet balance for browser testing. This does **not** create a WalletFunding row and does **not** claim that a provider payment succeeded.
+
+First list suitable existing accounts and open draws:
+
+```cmd
+pnpm --filter @surewina/api rollout:smoke candidates
+```
+
+Then seed one customer wallet:
+
+```cmd
+pnpm --filter @surewina/api rollout:smoke fund-customer --phone=<CUSTOMER_PHONE> --amount=5000
+```
+
+And one active agent wallet:
+
+```cmd
+pnpm --filter @surewina/api rollout:smoke fund-agent --agent-code=<AGENT_CODE> --amount=10000
+```
+
+The seeder:
+
+- refuses to run when `NODE_ENV=production`;
+- requires the latest Phase 8 migration run to be `FINALIZED`;
+- creates/uses `TEST:ROLLOUT:CASH` as a local test asset;
+- posts an immutable `ADJUSTMENT` journal with reference type `RolloutSmokeSeed`;
+- is idempotent per chosen customer/agent wallet;
+- never creates provider evidence;
+- never touches Monnify/Flutterwave treasury settlement records.
+
+The normal pre-live rollout checker allows these local artifacts. The production checker blocks any `TEST:ROLLOUT:*` account or `RolloutSmokeSeed` journal, preventing a smoke-test database from being treated as production-ready.
+
+Use these seeded balances only for sections 3.4, 3.5, 3.7, 3.8 and 3.9. Provider funding itself must still be tested separately with real sandbox provider flows in sections 3.2, 3.3 and 3.6.
+
 ### 3.1 Customer direct Paystack ticket purchase
 
 Expected:

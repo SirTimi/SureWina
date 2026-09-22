@@ -81,6 +81,7 @@ export class RolloutCheckService {
       await this.checkLedgerBalance(),
       await this.checkWalletStructure(),
       await this.checkWalletBalances(),
+      await this.checkLocalSmokeArtifacts(options.production),
       await this.checkPaymentCollections(),
       await this.checkWalletFunding(),
       await this.checkWalletPurchases(),
@@ -575,6 +576,59 @@ export class RolloutCheckService {
             100,
           ),
         );
+  }
+
+  private async checkLocalSmokeArtifacts(production: boolean): Promise<CheckResult> {
+    const [accounts, journals] =
+      await Promise.all([
+        this.prisma.ledgerAccount.count({
+          where: {
+            code: {
+              startsWith:
+                'TEST:ROLLOUT:',
+            },
+          },
+        }),
+        this.prisma.ledgerTransaction.count({
+          where: {
+            referenceType:
+              'RolloutSmokeSeed',
+          },
+        }),
+      ]);
+
+    if (
+      accounts === 0 &&
+      journals === 0
+    ) {
+      return this.pass(
+        'rollout.smoke-artifacts',
+        'Local rollout smoke artifacts',
+        'No local rollout smoke ledger artifacts are present.',
+      );
+    }
+
+    if (production) {
+      return this.blocker(
+        'rollout.smoke-artifacts',
+        'Local rollout smoke artifacts',
+        `Production database contains local smoke artifacts: accounts=${accounts}, journals=${journals}.`,
+        {
+          accounts,
+          journals,
+        },
+      );
+    }
+
+    return this.pass(
+      'rollout.smoke-artifacts',
+      'Local rollout smoke artifacts',
+      `Local smoke-test artifacts are present as expected for controlled pre-live testing: accounts=${accounts}, journals=${journals}.`,
+      {
+        accounts,
+        journals,
+      },
+    );
   }
 
   private async checkPaymentCollections(): Promise<CheckResult> {
