@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { DatabaseModule } from '../database/database.module';
+import { RequestContextModule } from '../common/request-context/request-context.module';
 import { AuditModule } from '../audit/audit.module';
 import { LedgerModule } from '../ledger/ledger.module';
 import { WalletModule } from '../wallet/wallet.module';
@@ -21,6 +22,7 @@ import { Phase8MigrationService } from './phase8-migration.service';
       ],
     }),
     DatabaseModule,
+    RequestContextModule,
     AuditModule,
     LedgerModule,
     WalletModule,

@@ -137,7 +137,8 @@ Runtime/type/build validation:
 - rollout checker bootstrap issues were fixed in commits `8fad349` and `7a45616`;
 - the first successful checker run showed the local DB itself is pre-Phase-8: 0 ledger transactions, 0 wallets, all 15 system ledger accounts missing, all 5 treasury registry rows missing, 10 material payments without collection ledgers, 4 agent sales without prepaid/legacy ledger classification, and no migration run;
 - this is an environment-state blocker rather than a checker false positive;
-- Phase 8 migration bootstrap is hardened for this path: the migration-only module no longer requires unrelated provider callback configuration, the CLI uses `ts-node` so Nest decorator metadata is preserved, and TreasuryBootstrapService runs alongside the existing ledger bootstrap;
+- Phase 8 migration bootstrap is hardened for this path: the migration-only module no longer requires unrelated provider callback configuration, the CLI uses `ts-node` so Nest decorator metadata is preserved, TreasuryBootstrapService runs alongside the existing ledger bootstrap, and RequestContextModule is imported so AuditService can be resolved in the standalone migration context;
+- first local migration-plan attempt after `343921d` reached Nest startup but failed because AuditService could not resolve RequestContextService; this is fixed by importing RequestContextModule into Phase8MigrationModule;
 - normal API startup environment validation and financial runtime behavior remain unchanged;
 - local validation must include build/type-check plus `pnpm --filter @surewina/api rollout:check`;
 - the manual browser/provider matrix remains a separate acceptance step after the checker itself builds and runs.
@@ -161,4 +162,4 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`fix: harden Phase 8 local migration bootstrap` (this development cycle)
+`fix: wire request context into Phase 8 CLI` (this development cycle)
