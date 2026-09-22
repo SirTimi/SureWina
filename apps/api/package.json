@@ -17,7 +17,8 @@
     "prisma:studio": "prisma studio --schema prisma/schema.prisma",
     "db:seed": "prisma db seed --schema prisma/schema.prisma",
     "seed:admin": "tsx prisma/seed.ts",
-    "phase8:migrate": "tsx src/migration/phase8-migrate.ts"
+    "phase8:migrate": "tsx src/migration/phase8-migrate.ts",
+    "rollout:check": "tsx src/rollout/rollout-check.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
