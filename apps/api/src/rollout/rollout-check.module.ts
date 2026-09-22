@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
-import { envValidationSchema } from '../config/env.validation';
 import { DatabaseModule } from '../database/database.module';
 import { RolloutCheckService } from './rollout-check.service';
 
@@ -9,7 +8,6 @@ import { RolloutCheckService } from './rollout-check.service';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      validationSchema: envValidationSchema,
       envFilePath: [
         '../../.env.local',
         '../../.env',

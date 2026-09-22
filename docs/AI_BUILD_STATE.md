@@ -134,6 +134,9 @@ Current increment engineering review:
 
 Runtime/type/build validation:
 - the connected GitHub environment does not expose a checked-out Node workspace, so local `pnpm type-check`, `pnpm build`, and the database rollout check cannot be executed before push;
+- user local `rollout:check` after `46143e1` failed before validation because the rollout-only module reused the full API Joi schema, and blank local `PAYMENT_CALLBACK_BASE_URL` / `FLUTTERWAVE_BASE_URL` values were rejected;
+- fix: the rollout-only module now loads environment files without the full runtime validation schema; production-specific requirements remain enforced explicitly by `rollout:check --production`;
+- normal API startup still uses the full Joi environment schema and is unchanged;
 - local validation must include build/type-check plus `pnpm --filter @surewina/api rollout:check`;
 - the manual browser/provider matrix remains a separate acceptance step after the checker itself builds and runs.
 
@@ -156,4 +159,4 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: add financial rollout validation gate` (this development cycle)
+`fix: decouple rollout check from runtime env validation` (this development cycle)
