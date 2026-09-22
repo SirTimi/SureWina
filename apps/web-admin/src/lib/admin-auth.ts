@@ -366,6 +366,7 @@ const routePermissions: Array<{ path: string; permission: AdminPermission }> = [
   { path: '/collection-point', permission: 'VIEW_COLLECTION_POINT' },
   { path: '/kyc/review', permission: 'REVIEW_KYC' },
   { path: '/payouts', permission: 'VIEW_PAYOUTS' },
+  { path: '/wallets', permission: 'VIEW_FINANCE' },
   { path: '/remittance', permission: 'VIEW_FINANCE' },
   { path: '/commission', permission: 'VIEW_FINANCE' },
   { path: '/jackpot-fund', permission: 'VIEW_FINANCE' },

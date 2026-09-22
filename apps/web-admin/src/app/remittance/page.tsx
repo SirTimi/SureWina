@@ -14,7 +14,7 @@ import { api } from '@/lib/api';
 
 const FILTERS = [
   { label: 'Awaiting finance', value: 'AGENT_CONFIRMED' },
-  { label: 'Pending agent', value: 'PENDING' },
+  { label: 'Legacy pending', value: 'PENDING' },
   { label: 'Late', value: 'LATE' },
   { label: 'Received', value: 'RECEIVED' },
   { label: 'Open', value: '' },
@@ -72,14 +72,14 @@ function Body({ session }: { session: AdminSession }) {
     <>
       <PageHeader
         eyebrow="Finance"
-        title="Agent remittances"
-        description="Agents confirm their transfer; finance verifies receipt. Marking received releases their commission."
+        title="Legacy agent remittances"
+        description="Historical balances from the old remit-after-selling model. New prepaid agent sales do not create rows here."
         breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Remittances' }]}
       />
 
       <div className="mx-auto max-w-[1400px] space-y-4 px-6 py-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Kpi icon={Banknote} label="Outstanding" value={formatNaira(totalOutstanding)} />
+          <Kpi icon={Banknote} label="Legacy outstanding" value={formatNaira(totalOutstanding)} />
           <Kpi icon={Hourglass} label="Awaiting finance" value={String(awaitingFinance)} tone={awaitingFinance > 0 ? 'warn' : 'ok'} />
           <Kpi icon={BadgeCheck} label="Rows shown" value={String(rows.length)} />
         </div>
@@ -112,7 +112,7 @@ function Body({ session }: { session: AdminSession }) {
             <p className="py-6 text-center text-sm text-slate-500">No remittances in this state.</p>
           </SectionCard>
         ) : (
-          <SectionCard title="Remittance periods" padded={false}>
+          <SectionCard title="Historical remittance periods" padded={false}>
             <table className="min-w-full text-sm">
               <thead className="bg-[#F8FAF4] text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
                 <tr>
@@ -165,7 +165,7 @@ function Body({ session }: { session: AdminSession }) {
                             : 'Settled'}
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-400">Waiting on agent</span>
+                        <span className="text-xs text-slate-400">Legacy payment pending</span>
                       )}
                     </td>
                   </tr>

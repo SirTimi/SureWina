@@ -1,4 +1,5 @@
 import type { ApiClient } from '../client.js';
+import type { WalletFundingHistoryResponse, WalletFundingView, WalletHistoryResponse, WalletView } from './wallet.js';
 
 export type AdminFunction =
   | 'OPERATOR'
@@ -233,6 +234,75 @@ export interface AdminReconciliationIssue {
   resolvedAt: string | null;
   resolutionNote: string | null;
   createdAt: string;
+}
+
+
+export interface AdminFinanceWalletOwner {
+  type: 'CUSTOMER' | 'AGENT';
+  id: string | null;
+  name: string | null;
+  identifier: string;
+  secondary: string | null;
+  status: string | null;
+  tier?: string | null;
+  commissionRate: number | null;
+}
+
+export interface AdminFinanceWalletRow {
+  walletId: string;
+  ownerType: 'CUSTOMER' | 'AGENT';
+  ownerId: string | null;
+  owner: AdminFinanceWalletOwner;
+  currency: string;
+  status: 'ACTIVE' | 'FROZEN' | 'CLOSED';
+  availableNgn: number;
+  heldNgn: number;
+  totalNgn: number;
+  latestFunding: {
+    fundingId: string;
+    gateway: 'MONNIFY' | 'FLUTTERWAVE';
+    amountNgn: number;
+    status: string;
+    createdAt: string;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminFinanceWalletDetail {
+  walletId: string;
+  ownerType: 'CUSTOMER' | 'AGENT';
+  ownerId: string | null;
+  currency: string;
+  status: 'ACTIVE' | 'FROZEN' | 'CLOSED';
+  availableNgn: number;
+  heldNgn: number;
+  totalNgn: number;
+  availableAccountId: string;
+  heldAccountId: string;
+  createdAt: string;
+  updatedAt: string;
+  owner: AdminFinanceWalletOwner;
+  legacyRemittance: {
+    outstandingNgn: number;
+    awaitingFinanceCount: number;
+  } | null;
+  agentActivity: {
+    prepaidSaleCount: number;
+    walletUsedNgn: number;
+    commissionRecognizedNgn: number;
+    grossPrepaidSalesNgn: number;
+    prizeReimbursedNgn: number;
+  } | null;
+}
+
+export interface AdminWalletFundingReview extends WalletFundingView {
+  userId: string | null;
+  agentId: string | null;
+  ownerType: 'CUSTOMER' | 'AGENT';
+  ownerName: string | null;
+  ownerIdentifier: string | null;
+  walletStatus: 'ACTIVE' | 'FROZEN' | 'CLOSED';
 }
 
 export interface AdminRemittanceRow {
@@ -946,6 +1016,96 @@ export class AdminModule {
     });
   }
 
+
+
+  async financeWallets(params?: {
+    ownerType?: 'CUSTOMER' | 'AGENT';
+    status?: 'ACTIVE' | 'FROZEN' | 'CLOSED';
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
+    wallets: AdminFinanceWalletRow[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    return this.client.get('/admin/finance/wallets', {
+      query: {
+        ownerType: params?.ownerType,
+        status: params?.status,
+        search: params?.search,
+        page: params?.page,
+        pageSize: params?.pageSize,
+      },
+    });
+  }
+
+  async financeWalletOverview(
+    walletId: string,
+  ): Promise<AdminFinanceWalletDetail> {
+    return this.client.get(
+      `/admin/finance/wallets/${encodeURIComponent(walletId)}/overview`,
+    );
+  }
+
+  async financeWalletHistory(
+    walletId: string,
+    page = 1,
+    pageSize = 25,
+  ): Promise<WalletHistoryResponse> {
+    return this.client.get(
+      `/admin/finance/wallets/${encodeURIComponent(walletId)}/history`,
+      { query: { page, pageSize } },
+    );
+  }
+
+  async financeWalletFundingHistory(
+    walletId: string,
+    page = 1,
+    pageSize = 25,
+  ): Promise<WalletFundingHistoryResponse> {
+    return this.client.get(
+      `/admin/finance/wallet-funding/wallet/${encodeURIComponent(walletId)}/history`,
+      { query: { page, pageSize } },
+    );
+  }
+
+  async financeWalletFundingReview(): Promise<{
+    fundings: AdminWalletFundingReview[];
+  }> {
+    return this.client.get('/admin/finance/wallet-funding/review');
+  }
+
+  async financeFreezeWallet(
+    walletId: string,
+    reason: string,
+  ): Promise<WalletView> {
+    return this.client.post(
+      `/admin/finance/wallets/${encodeURIComponent(walletId)}/freeze`,
+      { reason },
+    );
+  }
+
+  async financeUnfreezeWallet(
+    walletId: string,
+    reason: string,
+  ): Promise<WalletView> {
+    return this.client.post(
+      `/admin/finance/wallets/${encodeURIComponent(walletId)}/unfreeze`,
+      { reason },
+    );
+  }
+
+  async financeCloseWallet(
+    walletId: string,
+    reason: string,
+  ): Promise<WalletView> {
+    return this.client.post(
+      `/admin/finance/wallets/${encodeURIComponent(walletId)}/close`,
+      { reason },
+    );
+  }
 
   async treasuryOverview(): Promise<AdminTreasuryOverview> {
     return this.client.get('/admin/finance/treasury/overview');

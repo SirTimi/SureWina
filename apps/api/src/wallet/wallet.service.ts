@@ -15,6 +15,7 @@ import {
   LedgerOwnerType,
   LedgerTransactionKind,
   Prisma,
+  RemittanceStatus,
   WalletHoldStatus,
   WalletStatus,
 } from '@prisma/client';
@@ -122,6 +123,427 @@ export class WalletService {
     }
 
     return this.toWalletView(wallet);
+  }
+
+
+  async listForFinance(input: {
+    ownerType?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const page = Math.max(1, input.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, input.pageSize ?? 25));
+    const search = input.search?.trim() ?? '';
+
+    const ownerType =
+      input.ownerType === LedgerOwnerType.CUSTOMER ||
+      input.ownerType === LedgerOwnerType.AGENT
+        ? input.ownerType
+        : undefined;
+
+    const status =
+      input.status === WalletStatus.ACTIVE ||
+      input.status === WalletStatus.FROZEN ||
+      input.status === WalletStatus.CLOSED
+        ? input.status
+        : undefined;
+
+    const where: Prisma.WalletWhereInput = {
+      ...(ownerType ? { ownerType } : {}),
+      ...(status ? { status } : {}),
+      ...(search
+        ? {
+            OR: [
+              {
+                user: {
+                  is: {
+                    OR: [
+                      {
+                        phoneNumber: {
+                          contains: search,
+                        },
+                      },
+                      {
+                        email: {
+                          contains: search,
+                          mode: 'insensitive',
+                        },
+                      },
+                      {
+                        displayName: {
+                          contains: search,
+                          mode: 'insensitive',
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+              {
+                agent: {
+                  is: {
+                    OR: [
+                      {
+                        agentCode: {
+                          contains: search,
+                          mode: 'insensitive',
+                        },
+                      },
+                      {
+                        phoneNumber: {
+                          contains: search,
+                        },
+                      },
+                      {
+                        fullName: {
+                          contains: search,
+                          mode: 'insensitive',
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.wallet.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              userId: true,
+              phoneNumber: true,
+              email: true,
+              displayName: true,
+              kycStatus: true,
+            },
+          },
+          agent: {
+            select: {
+              agentId: true,
+              agentCode: true,
+              phoneNumber: true,
+              fullName: true,
+              status: true,
+              tier: true,
+              commissionRate: true,
+            },
+          },
+          fundings: {
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
+            select: {
+              fundingId: true,
+              gateway: true,
+              amountNgn: true,
+              status: true,
+              createdAt: true,
+            },
+          },
+        },
+        orderBy: {
+          updatedAt: 'desc',
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.wallet.count({
+        where,
+      }),
+    ]);
+
+    const accountIds = rows.flatMap((wallet) => [
+      wallet.availableAccountId,
+      wallet.heldAccountId,
+    ]);
+
+    const balanceRows =
+      accountIds.length > 0
+        ? await this.prisma.ledgerEntry.groupBy({
+            by: ['accountId', 'side'],
+            where: {
+              accountId: {
+                in: accountIds,
+              },
+            },
+            _sum: {
+              amountNgn: true,
+            },
+          })
+        : [];
+
+    const accountBalances = new Map<string, number>();
+
+    for (const row of balanceRows) {
+      const amount = row._sum.amountNgn ?? 0;
+      const signed =
+        row.side === LedgerEntrySide.CREDIT
+          ? amount
+          : -amount;
+
+      accountBalances.set(
+        row.accountId,
+        (accountBalances.get(row.accountId) ?? 0) + signed,
+      );
+    }
+
+    const wallets = rows.map((wallet) => {
+      const availableNgn =
+        accountBalances.get(wallet.availableAccountId) ?? 0;
+      const heldNgn =
+        accountBalances.get(wallet.heldAccountId) ?? 0;
+
+      return {
+        walletId: wallet.walletId,
+        ownerType: wallet.ownerType,
+        ownerId: wallet.userId ?? wallet.agentId,
+        owner:
+          wallet.ownerType === LedgerOwnerType.CUSTOMER
+            ? {
+                type: 'CUSTOMER' as const,
+                id: wallet.user?.userId ?? wallet.userId,
+                name: wallet.user?.displayName ?? null,
+                identifier: wallet.user?.phoneNumber ?? 'Unknown customer',
+                secondary: wallet.user?.email ?? null,
+                status: wallet.user?.kycStatus ?? null,
+                commissionRate: null,
+              }
+            : {
+                type: 'AGENT' as const,
+                id: wallet.agent?.agentId ?? wallet.agentId,
+                name: wallet.agent?.fullName ?? null,
+                identifier: wallet.agent?.agentCode ?? 'Unknown agent',
+                secondary: wallet.agent?.phoneNumber ?? null,
+                status: wallet.agent?.status ?? null,
+                commissionRate: wallet.agent
+                  ? Number(wallet.agent.commissionRate)
+                  : null,
+              },
+        currency: wallet.currency,
+        status: wallet.status,
+        availableNgn,
+        heldNgn,
+        totalNgn: availableNgn + heldNgn,
+        latestFunding: wallet.fundings[0]
+          ? {
+              fundingId: wallet.fundings[0].fundingId,
+              gateway: wallet.fundings[0].gateway,
+              amountNgn: wallet.fundings[0].amountNgn,
+              status: wallet.fundings[0].status,
+              createdAt: wallet.fundings[0].createdAt.toISOString(),
+            }
+          : null,
+        createdAt: wallet.createdAt.toISOString(),
+        updatedAt: wallet.updatedAt.toISOString(),
+      };
+    });
+
+    return {
+      page,
+      pageSize,
+      total,
+      wallets,
+    };
+  }
+
+  async getFinanceWallet(walletId: string) {
+    const record = await this.prisma.wallet.findUnique({
+      where: { walletId },
+      include: {
+        user: {
+          select: {
+            userId: true,
+            phoneNumber: true,
+            email: true,
+            displayName: true,
+            kycStatus: true,
+          },
+        },
+        agent: {
+          select: {
+            agentId: true,
+            agentCode: true,
+            phoneNumber: true,
+            email: true,
+            fullName: true,
+            status: true,
+            tier: true,
+            commissionRate: true,
+          },
+        },
+      },
+    });
+
+    if (!record) {
+      throw new NotFoundException('Wallet not found');
+    }
+
+    const wallet = await this.getWallet(walletId);
+
+    if (record.ownerType === LedgerOwnerType.CUSTOMER) {
+      return {
+        ...wallet,
+        owner: {
+          type: 'CUSTOMER' as const,
+          id: record.user?.userId ?? record.userId,
+          name: record.user?.displayName ?? null,
+          identifier: record.user?.phoneNumber ?? 'Unknown customer',
+          secondary: record.user?.email ?? null,
+          status: record.user?.kycStatus ?? null,
+          commissionRate: null,
+        },
+        legacyRemittance: null,
+        agentActivity: null,
+      };
+    }
+
+    if (!record.agentId) {
+      throw new ConflictException(
+        'Agent wallet is missing its agent owner',
+      );
+    }
+
+    const [
+      legacyOutstanding,
+      awaitingFinance,
+      walletActivityRows,
+      commissionRows,
+    ] = await Promise.all([
+      this.prisma.remittance.aggregate({
+        where: {
+          agentId: record.agentId,
+          status: {
+            in: [
+              RemittanceStatus.PENDING,
+              RemittanceStatus.LATE,
+            ],
+          },
+          amountDueNgn: {
+            gt: 0,
+          },
+        },
+        _sum: {
+          amountDueNgn: true,
+        },
+      }),
+      this.prisma.remittance.count({
+        where: {
+          agentId: record.agentId,
+          status: RemittanceStatus.AGENT_CONFIRMED,
+        },
+      }),
+      this.prisma.$queryRaw<
+        Array<{
+          wallet_used_ngn: bigint;
+          prize_reimbursed_ngn: bigint;
+          prepaid_sale_count: bigint;
+        }>
+      >`
+        SELECT
+          COALESCE(
+            SUM(
+              CASE
+                WHEN lt."kind"::text = 'AGENT_SALE'
+                  AND le."side"::text = 'DEBIT'
+                THEN le."amount_ngn"
+                ELSE 0
+              END
+            ),
+            0
+          )::bigint AS wallet_used_ngn,
+          COALESCE(
+            SUM(
+              CASE
+                WHEN lt."kind"::text = 'PRIZE_PAYOUT'
+                  AND le."side"::text = 'CREDIT'
+                THEN le."amount_ngn"
+                ELSE 0
+              END
+            ),
+            0
+          )::bigint AS prize_reimbursed_ngn,
+          COUNT(
+            DISTINCT CASE
+              WHEN lt."kind"::text = 'AGENT_SALE'
+              THEN lt."ledger_txn_id"
+            END
+          )::bigint AS prepaid_sale_count
+        FROM "ledger_entries" le
+        INNER JOIN "ledger_transactions" lt
+          ON lt."ledger_txn_id" = le."ledger_txn_id"
+        WHERE le."account_id" = ${record.availableAccountId}
+      `,
+      this.prisma.$queryRaw<
+        Array<{
+          commission_ngn: bigint;
+        }>
+      >`
+        SELECT
+          COALESCE(SUM(le."amount_ngn"), 0)::bigint AS commission_ngn
+        FROM "ledger_entries" le
+        INNER JOIN "ledger_accounts" la
+          ON la."account_id" = le."account_id"
+        INNER JOIN "ledger_transactions" lt
+          ON lt."ledger_txn_id" = le."ledger_txn_id"
+        INNER JOIN "payment_transactions" p
+          ON p."txn_id" = lt."reference_id"
+        WHERE
+          p."agent_id" = ${record.agentId}
+          AND lt."kind"::text = 'COMMISSION'
+          AND lt."reference_type" = 'PaymentTransaction'
+          AND la."purpose"::text = 'AGENT_COMMISSION_EXPENSE'
+          AND le."side"::text = 'DEBIT'
+      `,
+    ]);
+
+    const walletUsedNgn =
+      Number(walletActivityRows[0]?.wallet_used_ngn ?? 0);
+    const commissionRecognizedNgn =
+      Number(commissionRows[0]?.commission_ngn ?? 0);
+    const prizeReimbursedNgn =
+      Number(walletActivityRows[0]?.prize_reimbursed_ngn ?? 0);
+    const prepaidSaleCount =
+      Number(walletActivityRows[0]?.prepaid_sale_count ?? 0);
+
+    return {
+      ...wallet,
+      owner: {
+        type: 'AGENT' as const,
+        id: record.agent?.agentId ?? record.agentId,
+        name: record.agent?.fullName ?? null,
+        identifier: record.agent?.agentCode ?? 'Unknown agent',
+        secondary:
+          record.agent?.phoneNumber ??
+          record.agent?.email ??
+          null,
+        status: record.agent?.status ?? null,
+        tier: record.agent?.tier ?? null,
+        commissionRate: record.agent
+          ? Number(record.agent.commissionRate)
+          : null,
+      },
+      legacyRemittance: {
+        outstandingNgn:
+          legacyOutstanding._sum.amountDueNgn ?? 0,
+        awaitingFinanceCount: awaitingFinance,
+      },
+      agentActivity: {
+        prepaidSaleCount,
+        walletUsedNgn,
+        commissionRecognizedNgn,
+        grossPrepaidSalesNgn:
+          walletUsedNgn + commissionRecognizedNgn,
+        prizeReimbursedNgn,
+      },
+    };
   }
 
   async history(walletId: string, page = 1, pageSize = 20) {

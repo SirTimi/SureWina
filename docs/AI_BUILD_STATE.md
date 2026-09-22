@@ -4,7 +4,7 @@ Updated: 2026-09-22
 
 ## Current Goal
 
-Complete the prepaid-wallet transition across SureWina so current customer/agent operations use wallet-backed accounting while legacy remittance remains clearly separated as historical debt.
+Complete the prepaid-wallet transition across SureWina and expose the new customer/agent wallet model clearly to Finance before production rollout.
 
 ## Current Status
 
@@ -12,7 +12,7 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Retire automatic remittance debt suspension. The user reported the increment green on 2026-09-22, satisfying the manual acceptance gate.
+Separate legacy remittance from prepaid agent UX. The user instructed development to move to the next increment on 2026-09-22, satisfying the manual acceptance gate.
 
 ## Current Implementation
 
@@ -29,17 +29,19 @@ Retire automatic remittance debt suspension. The user reported the increment gre
   - SureWina's net share is debited immediately from the agent wallet;
   - prepaid sales do not create remittance debt.
 - Eligible agent-paid prizes are reimbursed immediately to the agent wallet.
-- Historical remittance records remain stored, visible, settleable, and auditable.
-- Historical remittance can become `LATE`, but it no longer suspends or blocks prepaid selling.
-- Existing legacy debt-only suspensions are automatically retired without affecting manual/compliance suspensions.
-- This increment updates the agent UX to reflect the architecture:
-  - top navigation calls the old flow `Legacy debt`, not `Remit`;
-  - header status identifies the current operating mode as `Prepaid wallet`;
-  - dashboard shortcuts and debt banners explicitly say historical/legacy;
-  - wallet messaging explains that current sales settle immediately and old remittance is separate;
-  - remittance current/history screens are framed as historical records;
-  - bank transfer instructions only appear when a historical balance remains;
-  - commission copy describes real-time prepaid commission and historical remittance records separately.
+- Historical remittance remains stored, settleable, auditable, and visibly separated from current prepaid operations.
+- Remittance debt no longer suspends prepaid selling.
+- This increment adds Finance wallet operations in the admin portal:
+  - new `/wallets` finance registry;
+  - search/filter by owner type, wallet status, customer identity, or agent identity;
+  - ledger-derived available/held/total balances;
+  - latest funding status on the registry;
+  - `REVIEW_REQUIRED` funding visibility with owner context;
+  - per-wallet detail with owner identity, ledger activity, and funding history;
+  - agent wallet detail includes all-time prepaid sales, wallet usage, recognised commission, prize reimbursements, and historical remittance context;
+  - existing audited freeze/unfreeze/close controls are exposed to Finance/Super admins;
+  - auditors remain read-only in both the admin UI and wallet/funding mutation endpoints;
+  - admin remittance navigation/copy now identifies remittance as legacy.
 
 ## Completed
 
@@ -61,57 +63,62 @@ Accepted wallet UX/accounting:
 - customer wallet payment at checkout;
 - prepaid agent ticket sales with immediate commission recognition;
 - immediate wallet reimbursement for eligible agent-paid prizes;
-- retirement of `UNSETTLED_REMITTANCE` selling suspension.
+- retirement of `UNSETTLED_REMITTANCE` selling suspension;
+- agent UX separation of current prepaid operations and historical remittance.
 
 Current engineering increment:
-- rename agent remittance navigation to legacy debt;
-- replace stale header remittance status with prepaid-wallet operating mode;
-- make dashboard debt notices explicitly historical;
-- remove stale wallet copy claiming current sales still use remittance;
-- reframe remittance current/history pages as legacy obligations;
-- hide legacy bank settlement instructions when no historical balance is due;
-- keep historical wallet/bank settlement actions intact;
-- update commission messaging to separate prepaid earnings from remittance-era records.
+- finance wallet registry and filters;
+- finance wallet owner context;
+- ledger-derived wallet balances;
+- wallet ledger drill-down;
+- wallet funding history drill-down;
+- review-required funding queue visibility;
+- prepaid agent activity summary from immutable ledger journals;
+- historical remittance context on agent wallet detail;
+- audited wallet freeze/unfreeze/close controls;
+- admin finance navigation updated to Wallets + Legacy remittance.
 
 ## Next Tasks
 
 Only after the user accepts this increment:
-1. Update admin/finance views for customer and agent wallet balances, funding history, wallet activity, prepaid agent sales, commission, prize reimbursements, and historical remittance separation.
-2. Remove remaining dead compatibility code, especially obsolete offline-sale queue/sync infrastructure and stale remittance-first assumptions after repository-wide review.
-3. Complete controlled end-to-end rollout testing.
-4. Finalize production provider/treasury configuration and small-value live payment verification before enabling live money movement.
+1. Remove remaining dead compatibility code, especially obsolete offline-sale queue/sync infrastructure and stale remittance-first assumptions after a repository-wide review.
+2. Complete controlled end-to-end rollout testing across customer, agent, worker, admin, ledger, and treasury flows.
+3. Finalize production provider/treasury configuration and perform controlled small-value live payment tests before enabling live money movement.
 
 ## Known Issues
 
 - Historical remittance settlement controls remain intentionally available until every legacy obligation is settled or otherwise resolved.
-- Legacy offline sale queue records can still exist on devices, although they no longer auto-sync.
-- Admin/finance screens have not yet been updated to expose the full prepaid wallet model.
+- Legacy offline sale queue records can still exist on agent devices, although they no longer auto-sync.
 - Production Monnify/Flutterwave credentials and treasury values still require controlled configuration before live provider testing.
 - Agent cash prize payout still depends on existing agent-payable eligibility/status rules and `AGENT_PAYOUT_MAX_NGN`.
+- The wallet registry's aggregate balance cards intentionally describe the currently loaded page as "visible" balances; they are not system-wide treasury totals.
 
 ## Testing Status
 
 Previous increment:
-- overdue historical remittance stopped suspending prepaid agents;
-- exact legacy debt suspensions are automatically retired;
-- manual/compliance/termination controls remain intact;
-- dashboard and SMS no longer threaten a selling lockout;
-- user reported the increment green on 2026-09-22.
+- agent navigation/header now centres prepaid wallet operation;
+- remittance current/history pages are explicitly historical;
+- wallet and commission copy no longer describe remittance as the current model;
+- historical settlement actions were preserved;
+- user instructed development to move on, so the increment is accepted.
 
 Current increment engineering review:
 - inspected latest `main`, recent commits, and current project state;
 - confirmed no root `AGENTS.md` is present;
-- inspected agent header/navigation, dashboard, wallet, remittance current page, remittance history, commission UI, and shared remittance API contract;
-- preserved all historical settlement routes and backend records;
-- did not change remittance accounting, database schema, or provider behavior;
-- removed stale wording that presented remittance as the active model;
-- ensured current wallet operations are described as prepaid and historical debt remains clearly separated;
-- bank settlement instructions are hidden when there is no outstanding historical amount.
+- inspected existing wallet admin controls, wallet funding review endpoint, wallet ledger service, treasury/admin navigation, admin permissions, and legacy remittance finance view;
+- added read/query endpoints without changing ledger posting or money movement;
+- wallet list balances are derived from immutable ledger entries;
+- agent finance summary derives prepaid wallet debits, per-sale commission journals, and wallet prize reimbursements from ledger data;
+- historical remittance outstanding remains a separate aggregate;
+- reused existing audited wallet status transitions rather than adding new mutation rules;
+- hardened wallet provisioning/status and funding-refresh mutations so AUDITOR tier is rejected at the API boundary, not only hidden in the UI;
+- no Prisma schema or database migration is required;
+- no environment change is required.
 
 Runtime/type/build validation:
-- the connected GitHub environment does not expose a checked-out Node workspace, so local `pnpm type-check` and `pnpm build` cannot be run from this session before push;
+- the connected GitHub environment does not expose a checked-out Node workspace, so local `pnpm type-check` and `pnpm build` cannot be run before push;
 - repository CI is configured to run Prisma generation, type-check, and build on pushes to `main`;
-- local browser/device acceptance remains required from the user.
+- local admin/API/browser acceptance remains required from the user.
 
 ## Architecture Decisions
 
@@ -123,10 +130,11 @@ Runtime/type/build validation:
 - New agent sales are prepaid.
 - Eligible agent-paid prizes reimburse the agent wallet immediately.
 - Historical remittance remains an auditable legacy obligation only.
-- Legacy debt remains settleable but does not control current selling access.
-- Current agent financial UX should center Wallet; legacy remittance should be visibly historical.
-- No historical financial records are deleted as part of UX cleanup.
+- Finance wallet views must display ledger-backed balances rather than deprecated cached agent wallet fields.
+- Prepaid agent activity is reconstructed from immutable AGENT_SALE, COMMISSION, and PRIZE_PAYOUT journals.
+- Wallet status controls reuse the existing audited backend state transitions.
+- No historical financial records are deleted as part of finance/admin visibility work.
 
 ## Last Commit
 
-`feat: separate legacy remittance from prepaid UX` (this development cycle)
+`feat: add admin wallet finance operations` (this development cycle)

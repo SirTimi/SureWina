@@ -1142,6 +1142,33 @@ export class WalletFundingService {
     });
   }
 
+  async historyForFinanceWallet(
+    walletId: string,
+    page = 1,
+    pageSize = 20,
+  ) {
+    const wallet = await this.prisma.wallet.findUnique({
+      where: {
+        walletId,
+      },
+      select: {
+        walletId: true,
+      },
+    });
+
+    if (!wallet) {
+      throw new NotFoundException(
+        'Wallet not found',
+      );
+    }
+
+    return this.historyForWallet(
+      walletId,
+      page,
+      pageSize,
+    );
+  }
+
   private async historyForWallet(
     walletId: string | null,
     page: number,
@@ -1237,7 +1264,21 @@ export class WalletFundingService {
         wallet: {
           select: {
             userId: true,
+            agentId: true,
+            ownerType: true,
             status: true,
+            user: {
+              select: {
+                phoneNumber: true,
+                displayName: true,
+              },
+            },
+            agent: {
+              select: {
+                agentCode: true,
+                fullName: true,
+              },
+            },
           },
         },
       },
@@ -1249,6 +1290,16 @@ export class WalletFundingService {
       fundings: rows.map((row) => ({
         ...this.mapFunding(row),
         userId: row.wallet.userId,
+        agentId: row.wallet.agentId,
+        ownerType: row.wallet.ownerType,
+        ownerName:
+          row.wallet.user?.displayName ??
+          row.wallet.agent?.fullName ??
+          null,
+        ownerIdentifier:
+          row.wallet.user?.phoneNumber ??
+          row.wallet.agent?.agentCode ??
+          null,
         walletStatus: row.wallet.status,
       })),
     };

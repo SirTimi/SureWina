@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -8,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { AdminRole } from '@prisma/client';
+import { AdminRole, AdminTier } from '@prisma/client';
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
@@ -32,13 +33,43 @@ class WalletStatusReasonDto {
 export class WalletAdminController {
   constructor(private readonly wallets: WalletService) {}
 
+  @Get()
+  list(
+    @Query('ownerType') ownerType?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.wallets.listForFinance({
+      ownerType,
+      status,
+      search,
+      page: Number(page) || 1,
+      pageSize: Number(pageSize) || 25,
+    });
+  }
+
+  @Get(':walletId/overview')
+  overview(@Param('walletId') walletId: string) {
+    return this.wallets.getFinanceWallet(walletId);
+  }
+
   @Post('customers/:userId/provision')
-  provisionCustomer(@Param('userId') userId: string) {
+  provisionCustomer(
+    @Param('userId') userId: string,
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    this.assertCanMutate(admin);
     return this.wallets.ensureCustomerWallet(userId);
   }
 
   @Post('agents/:agentId/provision')
-  provisionAgent(@Param('agentId') agentId: string) {
+  provisionAgent(
+    @Param('agentId') agentId: string,
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    this.assertCanMutate(admin);
     return this.wallets.ensureAgentWallet(agentId);
   }
 
@@ -66,6 +97,7 @@ export class WalletAdminController {
     @Body() dto: WalletStatusReasonDto,
     @CurrentAdmin() admin: AdminJwtPayload,
   ) {
+    this.assertCanMutate(admin);
     return this.wallets.freezeWallet(walletId, admin.sub, dto.reason);
   }
 
@@ -75,6 +107,7 @@ export class WalletAdminController {
     @Body() dto: WalletStatusReasonDto,
     @CurrentAdmin() admin: AdminJwtPayload,
   ) {
+    this.assertCanMutate(admin);
     return this.wallets.unfreezeWallet(walletId, admin.sub, dto.reason);
   }
 
@@ -84,6 +117,15 @@ export class WalletAdminController {
     @Body() dto: WalletStatusReasonDto,
     @CurrentAdmin() admin: AdminJwtPayload,
   ) {
+    this.assertCanMutate(admin);
     return this.wallets.closeWallet(walletId, admin.sub, dto.reason);
+  }
+
+  private assertCanMutate(admin: AdminJwtPayload) {
+    if (admin.tier === AdminTier.AUDITOR) {
+      throw new ForbiddenException(
+        'Auditor access is read-only',
+      );
+    }
   }
 }
