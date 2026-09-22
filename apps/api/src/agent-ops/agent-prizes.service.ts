@@ -18,6 +18,7 @@ import { AuditService } from '../audit/audit.service';
 import { WhtDeductionService } from '../claims/wht-deduction.service';
 import { SettingsService } from '../config/settings.service';
 import { AgentAccountingService } from './agent-accounting.service';
+import { WalletService } from '../wallet/wallet.service';
 
 // Claims an agent may settle in cash: not yet in KYC, not terminal.
 const AGENT_PAYABLE: PrizeClaimStatus[] = [
@@ -36,6 +37,7 @@ export class AgentPrizesService {
     private readonly whtDeductions: WhtDeductionService,
     private readonly settings: SettingsService,
     private readonly agentAccounting: AgentAccountingService,
+    private readonly wallets: WalletService,
   ) {}
 
   async lookup(ticketRefRaw: string) {
@@ -51,6 +53,7 @@ export class AgentPrizesService {
       isWinner: ticket.isWinner,
       prizeDescription: claim?.drawResult.draw.prizeDescription ?? null,
       grossPrizeValueNgn: claim?.grossPrizeValueNgn ?? null,
+      netPrizeValueNgn: claim?.netPrizeValueNgn ?? null,
       claimStatus: claim?.status ?? null,
       agentPayableMaxNgn: maxNgn,
       agentPayable: payable,
@@ -78,10 +81,11 @@ export class AgentPrizesService {
       throw new ConflictException('Prize exceeds the agent-payable limit');
     }
 
+    const wallet = await this.wallets.ensureAgentWallet(agentId);
     const reference = `AGT-CASH-${agent.agentCode}-${Date.now()}`;
     const paidAt = new Date();
 
-    await this.prisma.$transaction(
+    const payout = await this.prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`
           SELECT "claim_id"
@@ -126,6 +130,7 @@ export class AgentPrizesService {
           {
             claim: current,
             agentId,
+            walletId: wallet.walletId,
             reference,
             occurredAt: paidAt,
           },
@@ -146,6 +151,10 @@ export class AgentPrizesService {
             paidByAgentAt: paidAt,
           },
         });
+
+        return {
+          amountNgn: current.netPrizeValueNgn,
+        };
       },
       {
         isolationLevel:
@@ -155,6 +164,9 @@ export class AgentPrizesService {
 
     await this.whtDeductions.recordForClaim(claim.claimId);
 
+    const walletAfter =
+      await this.wallets.getWallet(wallet.walletId);
+
     await this.audit.write({
       severity: AuditSeverity.INFO,
       actor: { type: AuditActorType.AGENT, id: agentId },
@@ -163,20 +175,25 @@ export class AgentPrizesService {
       metadata: {
         agentCode: agent.agentCode,
         ticketRef: claim.winnerTicketRef,
-        amountNgn: claim.grossPrizeValueNgn,
+        amountNgn: payout.amountNgn,
+        grossPrizeValueNgn: claim.grossPrizeValueNgn,
+        walletCreditedNgn: payout.amountNgn,
+        walletBalanceNgn: walletAfter.availableNgn,
         reference,
       },
     });
 
     this.logger.log(
-      `Agent prize payout: ${agent.agentCode} paid NGN ${claim.grossPrizeValueNgn.toLocaleString('en-NG')} for ${claim.winnerTicketRef}`,
+      `Agent prize payout: ${agent.agentCode} paid NGN ${payout.amountNgn.toLocaleString('en-NG')} for ${claim.winnerTicketRef}; wallet reimbursed immediately`,
     );
 
     return {
       paid: true,
       reference,
       ticketRef: claim.winnerTicketRef,
-      amountNgn: claim.grossPrizeValueNgn, // small prizes: gross, no WHT path
+      amountNgn: payout.amountNgn,
+      walletCreditedNgn: payout.amountNgn,
+      walletBalanceNgn: walletAfter.availableNgn,
     };
   }
 

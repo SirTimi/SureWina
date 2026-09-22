@@ -129,6 +129,32 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
           where: {
             paidByAgentId: { not: null },
             paidByAgentAt: { gte: startUtc, lt: endUtc },
+
+            /*
+             * New prepaid payouts reimburse the agent wallet immediately and
+             * must never flow into remittance. Keep only legacy payouts that
+             * either predate ledger linkage or settled through the agent
+             * receivable account.
+             */
+            OR: [
+              {
+                agentPayoutLedgerTxnId: null,
+              },
+              {
+                agentPayoutLedgerTxn: {
+                  is: {
+                    entries: {
+                      some: {
+                        account: {
+                          purpose:
+                            LedgerAccountPurpose.AGENT_RECEIVABLE,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
           },
           _sum: { netPrizeValueNgn: true },
           _count: true,
@@ -162,9 +188,9 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      // Union, not just sellers: an agent who paid a prize on a day they sold
-      // nothing is still owed that money, and without a row for the day there
-      // is nowhere for the credit to live.
+      // Union, not just sellers: a legacy prize payout may still need a
+      // remittance credit even when the agent had no sales that day. New
+      // wallet-reimbursed payouts are excluded above.
       const agentIds = new Set<string>([
         ...salesByAgent.keys(),
         ...payoutsByAgent.keys(),

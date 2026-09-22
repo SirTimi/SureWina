@@ -1,5 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PaymentGateway, PaymentStatus, TicketType, DrawType } from '@prisma/client';
+import {
+  DrawType,
+  LedgerAccountPurpose,
+  PaymentGateway,
+  PaymentStatus,
+  TicketType,
+} from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { businessDayBounds } from '../common/sales-window.util';
 
@@ -79,6 +85,19 @@ export class AgentDayRecordService {
           netPrizeValueNgn: true,
           payoutReference: true,
           paidByAgentAt: true,
+          agentPayoutLedgerTxn: {
+            select: {
+              entries: {
+                select: {
+                  account: {
+                    select: {
+                      purpose: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       }),
     ]);
@@ -97,16 +116,43 @@ export class AgentDayRecordService {
       soldAt: t.createdAt.toISOString(),
     }));
 
-    const prizeRows = prizes.map((p) => ({
-      claimId: p.claimId,
-      winnerTicketRef: p.winnerTicketRef,
-      winnerPhone: p.winnerPhone,
-      grossPrizeValueNgn: p.grossPrizeValueNgn,
-      whtAmountNgn: p.whtAmountNgn,
-      netPrizeValueNgn: p.netPrizeValueNgn,
-      payoutReference: p.payoutReference,
-      paidAt: p.paidByAgentAt?.toISOString() ?? null,
-    }));
+    const prizeRows = prizes.map((p) => {
+      const usesLegacyReceivable =
+        !p.agentPayoutLedgerTxn ||
+        p.agentPayoutLedgerTxn.entries.some(
+          (entry) =>
+            entry.account.purpose ===
+            LedgerAccountPurpose.AGENT_RECEIVABLE,
+        );
+
+      return {
+        claimId: p.claimId,
+        winnerTicketRef: p.winnerTicketRef,
+        winnerPhone: p.winnerPhone,
+        grossPrizeValueNgn: p.grossPrizeValueNgn,
+        whtAmountNgn: p.whtAmountNgn,
+        netPrizeValueNgn: p.netPrizeValueNgn,
+        payoutReference: p.payoutReference,
+        paidAt: p.paidByAgentAt?.toISOString() ?? null,
+        settlementMode: usesLegacyReceivable
+          ? 'LEGACY_REMITTANCE'
+          : 'WALLET_REIMBURSEMENT',
+      };
+    });
+
+    const legacyPrizeRows =
+      prizeRows.filter(
+        (p) =>
+          p.settlementMode ===
+          'LEGACY_REMITTANCE',
+      );
+
+    const reimbursedPrizeRows =
+      prizeRows.filter(
+        (p) =>
+          p.settlementMode ===
+          'WALLET_REIMBURSEMENT',
+      );
 
     const lineTotals = {
       ticketCount: ticketRows.length,
@@ -114,7 +160,20 @@ export class AgentDayRecordService {
       jackpotTicketCount: ticketRows.filter((t) => t.ticketType === TicketType.JACKPOT).length,
       grossSalesNgn: ticketRows.reduce((s, t) => s + t.faceValueNgn, 0),
       prizesPaidCount: prizeRows.length,
-      winningsPaidOutNgn: prizeRows.reduce((s, p) => s + p.netPrizeValueNgn, 0),
+      winningsPaidOutNgn:
+        legacyPrizeRows.reduce(
+          (s, p) =>
+            s +
+            p.netPrizeValueNgn,
+          0,
+        ),
+      walletReimbursedNgn:
+        reimbursedPrizeRows.reduce(
+          (s, p) =>
+            s +
+            p.netPrizeValueNgn,
+          0,
+        ),
     };
 
     return {

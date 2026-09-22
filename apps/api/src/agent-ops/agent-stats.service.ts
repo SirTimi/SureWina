@@ -49,8 +49,9 @@ export class AgentStatsService {
 
     const [today, prizesPaid, open, openDraw, wallet] = await Promise.all([
       this.salesBetween(agentId, todayStart, now),
-      // Prizes the agent has paid from their own till today reduce what they
-      // will owe at close, so the live figure has to carry them.
+      // Cash prizes physically paid by this agent today. Under prepaid
+      // settlement these are reimbursed to the wallet immediately; the total
+      // remains useful as an operational activity metric.
       this.prisma.prizeClaim.aggregate({
         where: {
           paidByAgentId: agentId,
@@ -104,18 +105,16 @@ export class AgentStatsService {
         lockedForDebt: agent.suspensionReason === DEBT_SUSPENSION_REASON,
       },
       today: { ...today, commissionNgn, winningsPaidOutNgn },
-      // The day in progress. Provisional until the draw's cutoff, at which
-      // point the sweep seals it and it moves into `settlement`.
+      // Kept for client compatibility during the prepaid cutover.
+      //
+      // New sales and agent-paid prizes settle immediately against the agent
+      // wallet, so there is no new intraday remittance balance to accrue.
       accruing: {
         salesOpen: !!openDraw,
-        // Named so the agent app can say when selling stops rather than
-        // guessing at a fixed hour.
         salesCloseAt: openDraw?.cutoffAt.toISOString() ?? null,
-        // Same basis the sweep uses at close, so the live figure and the
-        // sealed remittance agree to the naira.
-        netNgn: today.grossSalesNgn - commissionNgn - winningsPaidOutNgn,
+        netNgn: 0,
       },
-      // Closed days still to be paid, plus any credit held.
+      // Historical remittance obligations plus the live wallet balance.
       settlement: {
         totalOwedNgn,
         walletBalanceNgn: wallet.availableNgn,

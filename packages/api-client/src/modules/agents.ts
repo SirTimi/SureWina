@@ -202,6 +202,7 @@ export class AgentsModule {
     isWinner: boolean;
     prizeDescription: string | null;
     grossPrizeValueNgn: number | null;
+    netPrizeValueNgn: number | null;
     claimStatus: string | null;
     agentPayableMaxNgn: number;
     agentPayable: boolean;
@@ -215,6 +216,8 @@ export class AgentsModule {
     reference: string;
     ticketRef: string;
     amountNgn: number;
+    walletCreditedNgn: number;
+    walletBalanceNgn: number;
   }> {
     return this.client.post('/agent/prizes/log-payment', { ticketRef });
   }

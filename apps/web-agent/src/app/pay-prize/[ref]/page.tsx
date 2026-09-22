@@ -14,6 +14,7 @@ interface LookupResult {
   isWinner: boolean;
   prizeDescription: string | null;
   grossPrizeValueNgn: number | null;
+  netPrizeValueNgn: number | null;
   claimStatus: string | null;
   agentPayableMaxNgn: number;
   agentPayable: boolean;
@@ -40,7 +41,12 @@ function RefBody({ ref_ }: { ref_: string }) {
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
-  const [paid, setPaid] = useState<{ amountNgn: number; reference: string } | null>(null);
+  const [paid, setPaid] = useState<{
+    amountNgn: number;
+    reference: string;
+    walletCreditedNgn: number;
+    walletBalanceNgn: number;
+  } | null>(null);
 
   useEffect(() => {
     api.agents
@@ -56,7 +62,12 @@ function RefBody({ ref_ }: { ref_: string }) {
     setSubmitting(true);
     try {
       const res = await api.agents.prizeLogPayment(ref_);
-      setPaid({ amountNgn: res.amountNgn, reference: res.reference });
+      setPaid({
+        amountNgn: res.amountNgn,
+        reference: res.reference,
+        walletCreditedNgn: res.walletCreditedNgn,
+        walletBalanceNgn: res.walletBalanceNgn,
+      });
     } catch (e) {
       setPayError(e instanceof Error ? e.message : 'Could not log payment.');
       setSubmitting(false);
@@ -96,13 +107,29 @@ function RefBody({ ref_ }: { ref_: string }) {
             <CheckCircle2 className="h-7 w-7" />
           </div>
           <h2 className="mt-4 font-display text-2xl font-black text-navy-950">
-            Prize payout logged
+            Prize paid and wallet reimbursed
           </h2>
           <p className="mt-2 text-sm text-slate-600">
-            Ticket <span className="font-mono font-black">{ref_}</span> marked paid ·{' '}
-            {formatNaira(paid.amountNgn)}. Reference{' '}
-            <span className="font-mono font-black">{paid.reference}</span>.
+            Ticket <span className="font-mono font-black">{ref_}</span> is marked paid.
+            You paid {formatNaira(paid.amountNgn)} in cash and{' '}
+            <span className="font-black text-emerald-700">
+              {formatNaira(paid.walletCreditedNgn)}
+            </span>{' '}
+            was credited back to your SureWina wallet.
           </p>
+
+          <div className="mx-auto mt-4 max-w-sm rounded-2xl border border-emerald-200 bg-white p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">
+              Available wallet balance
+            </p>
+            <p className="mt-1 font-display text-2xl font-black text-navy-950">
+              {formatNaira(paid.walletBalanceNgn)}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Payout reference{' '}
+              <span className="font-mono font-bold">{paid.reference}</span>
+            </p>
+          </div>
 
           <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
             <Link href="/pay-prize">
@@ -161,6 +188,13 @@ function RefBody({ ref_ }: { ref_: string }) {
               <p className="mt-1 text-xs text-slate-500">
                 Agent-payable up to {formatNaira(result.agentPayableMaxNgn)}
               </p>
+
+              {result.netPrizeValueNgn !== null &&
+                result.netPrizeValueNgn !== result.grossPrizeValueNgn && (
+                  <p className="mt-2 text-xs font-bold text-navy-700">
+                    Cash to pay after withholding: {formatNaira(result.netPrizeValueNgn)}
+                  </p>
+                )}
             </div>
           )}
 
@@ -198,6 +232,11 @@ function RefBody({ ref_ }: { ref_: string }) {
                 </p>
               </label>
 
+              <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                Once this cash payout is recorded successfully, the cash amount is credited
+                back to your SureWina wallet immediately. It will not reduce a new remittance.
+              </div>
+
               {payError && (
                 <div className="mt-3 flex items-start gap-2 rounded-2xl border border-red-100 bg-red-50 p-3 text-red-700">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -215,7 +254,7 @@ function RefBody({ ref_ }: { ref_: string }) {
                 className="mt-5 rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400 disabled:!bg-slate-200 disabled:text-slate-400"
               >
                 <CheckCircle2 className="h-5 w-5" />
-                Confirm &amp; log payment
+                Confirm cash payout &amp; reimburse wallet
               </Button>
             </>
           )}

@@ -157,6 +157,7 @@ export class AgentAccountingService {
         agentPayoutLedgerTxnId: string | null;
       };
       agentId: string;
+      walletId: string;
       reference: string;
       occurredAt: Date;
     },
@@ -173,35 +174,38 @@ export class AgentAccountingService {
       tx,
       SYSTEM_LEDGER_ACCOUNT_CODES.PRIZE_PAYABLE,
     );
-    const receivable = await this.ensureReceivableInTransaction(tx, input.agentId);
 
-    const journal = await this.ledger.postInTransaction(tx, {
-      idempotencyKey: `ledger:agent-prize-payout:${input.claim.claimId}`,
-      kind: LedgerTransactionKind.PRIZE_PAYOUT,
-      referenceType: 'PrizeClaim',
-      referenceId: input.claim.claimId,
-      description: 'Prize paid from agent till',
-      occurredAt: input.occurredAt,
-      metadata: {
-        agentId: input.agentId,
-        payoutReference: input.reference,
-        winnerTicketRef: input.claim.winnerTicketRef,
-      },
-      lines: [
-        {
-          accountId: payable.accountId,
-          side: LedgerEntrySide.DEBIT,
-          amountNgn: input.claim.netPrizeValueNgn,
-          memo: 'Settle winner prize payable',
+    /*
+     * The agent has already handed the winner cash from their own till.
+     * SureWina therefore owes the agent the exact net prize amount.
+     *
+     * Debit Prize Payable clears the winner obligation.
+     * Credit Agent Available increases the agent wallet liability.
+     *
+     * No agent receivable is touched, so this payout cannot create or reduce
+     * a new remittance balance.
+     */
+    const journal =
+      await this.wallets.creditInTransaction(tx, {
+        walletId: input.walletId,
+        amountNgn: input.claim.netPrizeValueNgn,
+        counterAccountId: payable.accountId,
+        idempotencyKey:
+          `ledger:agent-prize-wallet-credit:${input.claim.claimId}`,
+        kind: LedgerTransactionKind.PRIZE_PAYOUT,
+        referenceType: 'PrizeClaim',
+        referenceId: input.claim.claimId,
+        description: 'Agent prize cash reimbursement',
+        occurredAt: input.occurredAt,
+        metadata: {
+          agentId: input.agentId,
+          payoutReference: input.reference,
+          winnerTicketRef: input.claim.winnerTicketRef,
+          grossPrizeValueNgn: input.claim.grossPrizeValueNgn,
+          whtAmountNgn: input.claim.whtAmountNgn,
+          netPrizeValueNgn: input.claim.netPrizeValueNgn,
         },
-        {
-          accountId: receivable.accountId,
-          side: LedgerEntrySide.CREDIT,
-          amountNgn: input.claim.netPrizeValueNgn,
-          memo: 'Reduce amount agent owes SureWina',
-        },
-      ],
-    });
+      });
 
     await tx.prizeClaim.update({
       where: { claimId: input.claim.claimId },

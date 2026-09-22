@@ -12,28 +12,33 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Customer wallet payment at checkout. The user moved development forward after the JSX build fix, so the customer wallet-checkout increment is treated as accepted.
+Prepaid agent ticket sales. The user reported the increment green on 2026-09-22, satisfying the manual acceptance gate.
 
 ## Current Implementation
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
-- Prize payouts use Monnify or Flutterwave.
+- Prize payouts to bank use Monnify or Flutterwave.
 - Ledger-backed wallets support both CUSTOMER and AGENT owners.
 - Customer wallet UI is available at `/dashboard/wallet`.
-- Agent wallet UI is available at `/wallet` in the agent portal.
+- Agent wallet UI is available at `/wallet`.
 - Signed-in customers can buy tickets from their wallet or continue with Paystack.
-- This increment converts NEW agent ticket sales to prepaid wallet settlement:
-  - customer still pays the agent the gross cash amount;
-  - agent commission is retained immediately;
-  - only SureWina's net share is debited from the agent wallet;
-  - full ticket revenue is recognized across the wallet collection and commission journals;
-  - insufficient wallet balance aborts the entire sale before tickets are committed.
-- New prepaid agent sales no longer qualify for remittance sweep because their collection ledger uses AGENT_AVAILABLE rather than AGENT_RECEIVABLE.
-- Historical receivable-backed agent sales remain eligible for legacy remittance creation and settlement.
-- Offline speculative ticket issuance is disabled for prepaid agent sales because wallet funds must be checked atomically online.
-- Historical offline queue entries remain stored on-device and are no longer auto-synced.
-- Agent commission totals now combine historical remittance commission with prepaid per-sale commission ledger entries.
+- New agent ticket sales are prepaid:
+  - customer pays the gross cash amount;
+  - agent retains configured commission;
+  - SureWina's net share is debited immediately from the agent wallet;
+  - prepaid sales do not create new remittance debt.
+- This increment converts NEW eligible agent-paid cash prizes to immediate wallet reimbursement:
+  - the agent physically pays the winner the validated net cash prize;
+  - Prize Payable is debited;
+  - Agent Available Wallet is credited for the same net amount;
+  - the reimbursement journal is linked through `PrizeClaim.agentPayoutLedgerTxnId`;
+  - no Agent Receivable is touched.
+- New wallet-reimbursed prize payouts are excluded from remittance sweep.
+- Legacy agent-paid prizes that used Agent Receivable remain part of historical remittance accounting.
+- Agent daily-record reconciliation distinguishes legacy remittance payouts from wallet-reimbursed payouts.
+- The prize-payment UI reports the wallet reimbursement and resulting wallet balance immediately.
+- Intraday remittance accrual is now neutralized; new sales and prize payouts settle against the wallet in real time.
 
 ## Completed
 
@@ -48,81 +53,79 @@ Financial architecture foundation:
 - Phase 7: reconciliation and treasury.
 - Phase 8 migration/hardening control plane and production schema migration.
 
-Accepted wallet UX:
+Accepted wallet UX/accounting:
 - agent wallet funding backend;
 - customer wallet/top-up UI;
 - agent wallet/top-up UI;
-- customer wallet payment at checkout.
+- customer wallet payment at checkout;
+- prepaid agent ticket sales with immediate commission recognition.
 
 Current engineering increment:
-- prepaid agent sale accounting;
-- atomic agent-wallet balance enforcement;
-- per-sale commission recognition;
-- legacy/new sale separation in remittance sweep;
-- online-only final sale confirmation;
-- agent sale confirmation shows real commission rate and wallet charge;
-- dashboard replaces "owed today" with wallet usage;
-- commission total includes prepaid commission ledger entries;
-- legacy remittance daily breakdown remains historical.
+- direct agent-wallet reimbursement for eligible agent-paid prizes;
+- net prize amount used as the actual cash/reimbursement amount;
+- wallet balance returned after prize payment;
+- remittance sweep restricted to legacy receivable-backed prize payouts;
+- daily finance record identifies wallet reimbursement vs legacy remittance settlement;
+- remittance-page wallet copy updated for top-ups/reimbursements;
+- obsolete intraday remittance amount set to zero while retaining the API field for compatibility.
 
 ## Next Tasks
 
 Only after the user accepts this increment:
-1. Credit agent wallets immediately for eligible agent-paid prizes.
-2. Remove prize payouts from new remittance creation once wallet reimbursement is live.
-3. Retire `UNSETTLED_REMITTANCE` automatic suspension for post-cutover operations while preserving historical obligations.
-4. Update admin finance views for agent/customer wallet balances, funding history, and wallet activity.
-5. Remove obsolete remittance-first UX while keeping historical remittance records accessible.
-6. Complete controlled end-to-end rollout testing.
+1. Retire `UNSETTLED_REMITTANCE` automatic suspension for post-cutover operations while preserving historical obligations and audit history.
+2. Update agent/remittance UX so historical debt is clearly separated from prepaid operations.
+3. Update admin finance views for agent/customer wallet balances, funding history, wallet activity, and prepaid agent operations.
+4. Remove remaining obsolete remittance-first UX and dead offline-sale sync paths after compatibility review.
+5. Complete controlled end-to-end rollout testing.
 
 ## Known Issues
 
-- Agent-paid prizes still reduce/credit through the legacy remittance path until the next increment.
-- Historical positive remittances can still trigger `UNSETTLED_REMITTANCE` suspension; retirement of debt-based suspension is a later controlled step.
-- Legacy offline sale queue entries are preserved locally but no longer auto-sync.
-- The commission daily-breakdown table remains a historical remittance view; current prepaid commission is reflected in live period estimates and the total commission figure.
-- Production Monnify/Flutterwave credentials and treasury values still need controlled configuration before live funding/payout testing.
+- Historical positive remittances can still trigger `UNSETTLED_REMITTANCE` suspension; retirement of debt-based suspension is the next controlled increment.
+- Legacy offline sale queue entries remain stored locally and do not auto-sync.
+- Remittance pages still exist because historical obligations must remain settleable/auditable.
+- Production Monnify/Flutterwave credentials and treasury values still need controlled configuration before live provider testing.
+- Agent cash prize payout still depends on the existing agent-payable eligibility/status rules and configured `AGENT_PAYOUT_MAX_NGN`.
 
 ## Testing Status
 
 Previous increment:
-- customer checkout gained wallet payment while preserving Paystack;
-- an initial JSX build failure in the signed-in wallet branch was fixed in commit `9877796593b7549f9e2baec317fb4d41bb185044`;
-- user then instructed development to move to the next increment, satisfying the manual acceptance gate.
+- new agent ticket sales became prepaid wallet transactions;
+- commission became per-sale ledger accounting;
+- new prepaid sales stopped creating remittance debt;
+- offline speculative sales were disabled;
+- user reported the increment green on 2026-09-22.
 
 Current increment engineering review:
 - inspected latest `main`, recent commits, and current project state;
-- confirmed no root `AGENTS.md` is present;
-- inspected agent sale creation, wallet debit behavior, ledger accounts, agent commission configuration, remittance sweep, remittance settlement, agent dashboard, sale confirmation, offline queue behavior, and commission summary;
+- inspected agent prize lookup/payment service, prize accrual/payout ledger accounting, wallet credit behavior, remittance sweep, daily agent records, dashboard state, agent prize UI, and shared API-client response types;
+- confirmed AgentOpsModule already imports WalletModule, so no module wiring change is required;
 - confirmed no Prisma schema or database migration is required;
-- preserved historical remittance records and settlement behavior;
-- verified new/legacy sale distinction is derived from immutable ledger account purpose rather than a guessed timestamp;
-- checked downstream refund and treasury/reconciliation paths for assumptions that agent collection ledger amount must equal gross;
-- no such gross-equality dependency was found for agent cash.
+- confirmed Phase 8 agent-prize migration applies only to pre-cutover legacy records and does not reinterpret new wallet-reimbursement journals;
+- preserved legacy receivable-backed prize accounting for historical remittances;
+- retained immutable `agentPayoutLedgerTxnId` as the accounting link for both historical and prepaid-era agent payouts.
 
 Runtime/type/build validation:
 - the connected GitHub environment does not expose a checked-out Node workspace, so local `pnpm type-check` and `pnpm build` cannot be run from this session before push;
-- repository CI is configured to run Prisma generation, full type-check, and full build on pushes to `main`;
-- local browser/device and database acceptance remains required from the user.
+- repository CI is configured to run Prisma generation, type-check, and build on pushes to `main`;
+- local browser/device/database acceptance remains required from the user.
 
 ## Architecture Decisions
 
 - GitHub `main` is the implementation source of truth.
 - Direct web ticket purchases: Paystack.
 - Wallet funding: Monnify or Flutterwave only.
-- Prize payouts: Monnify or Flutterwave only.
+- Bank prize payouts: Monnify or Flutterwave only.
 - Wallet balances are derived from immutable ledger entries.
 - New agent sales are prepaid.
-- For a gross agent sale:
-  - wallet debit = gross minus commission;
-  - commission expense = retained commission;
-  - ticket revenue = gross across the two journals.
-- Agent wallet balance is the sale authorization boundary; no wallet funds means no ticket sale.
-- Final agent sale confirmation must be online.
-- Legacy remittance eligibility is determined by AGENT_RECEIVABLE ledger participation.
-- Prepaid AGENT_AVAILABLE sales must never create new remittance debt.
-- Historical remittances remain auditable and settleable until their separate retirement/cleanup step.
+- New eligible agent-paid prizes are reimbursed immediately to the agent wallet.
+- Agent prize reimbursement journal:
+  - DEBIT `SYS:PRIZE:PAYABLE`;
+  - CREDIT agent `AGENT_AVAILABLE` wallet account.
+- Reimbursement amount is the claim's net prize value.
+- New wallet-reimbursed payouts must never create or reduce new remittance debt.
+- Legacy prize payouts remain identifiable by Agent Receivable participation.
+- Historical remittances remain auditable and settleable until their dedicated retirement/cleanup steps.
 
 ## Last Commit
 
-`feat: convert agent sales to prepaid wallet settlement` (this development cycle)
+`feat: reimburse agent prize payouts to wallet` (this development cycle)

@@ -125,8 +125,8 @@ function RemittanceBody() {
                 {formatNaira(walletBalance)}
               </p>
               <p className="mt-1 text-sm text-emerald-900">
-                Surewina owes you this from days your prize payouts were more than your sales.
-                You can use it to settle any day below.
+                Available wallet credit from top-ups, historical adjustments, and reimbursed
+                agent prize payouts. You can use it to settle any legacy remittance below.
               </p>
             </div>
           </div>
