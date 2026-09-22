@@ -10,7 +10,7 @@ import { AgentShell } from '@/components/agent-shell';
 import { SaleStepper } from '@/components/sale-stepper';
 import { SectionHeading } from '@/components/section-heading';
 import { clearSaleDraft, readSaleDraft, type SaleDraft } from '@/lib/sale-session';
-import { isOnline } from '@/lib/offline-queue';
+import { isOnline } from '@/lib/network-status';
 import { api } from '@/lib/api';
 
 export default function SellConfirmPage() {

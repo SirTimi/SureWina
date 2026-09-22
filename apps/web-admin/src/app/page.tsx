@@ -158,7 +158,7 @@ function OperatorDashboard({ session }: { session: AdminSession }) {
       <KpiTile
         key="remittance"
         icon={Banknote}
-        label="Remittance owed"
+        label="Legacy remittance owed"
         value={formatNaira(dash?.remittance.outstandingNgn ?? 0)}
         tone={(dash?.remittance.outstandingNgn ?? 0) > 0 ? 'warning' : 'success'}
         hint={`${dash?.remittance.openCount ?? 0} open periods`}

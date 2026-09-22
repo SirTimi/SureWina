@@ -158,8 +158,8 @@ export class AdminNotificationsService {
         notifications.push({
           id: 'remittance-verify',
           severity: 'WARNING',
-          title: 'Transfers awaiting your verification',
-          detail: 'Agents say the money is sent; commission is held until you confirm.',
+          title: 'Legacy transfers awaiting verification',
+          detail: 'Historical remittance transfers reported by agents and awaiting finance confirmation.',
           count: awaitingVerification,
           href: '/remittance',
         });
@@ -169,8 +169,8 @@ export class AdminNotificationsService {
         notifications.push({
           id: 'remittance-late',
           severity: 'CRITICAL',
-          title: 'Late remittances',
-          detail: 'Agents holding company cash past their deadline.',
+          title: 'Legacy remittances past deadline',
+          detail: 'Historical remittance obligations remain unsettled. Prepaid selling is unaffected.',
           count: late,
           href: '/remittance',
         });

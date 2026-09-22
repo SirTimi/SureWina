@@ -682,7 +682,7 @@ const templates: NotificationTemplate[] = [
     channel: 'SMS',
     name: 'Remittance reminder',
     subject: null,
-    body: 'Hi {{agent_name}}, ₦{{amount}} remittance is due before 23:00 today.',
+    body: 'Hi {{agent_name}}, your historical remittance of ₦{{amount}} remains due. Prepaid sales are unaffected.',
     lastUpdatedAt: isoDays(-10),
   },
   {

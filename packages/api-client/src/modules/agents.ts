@@ -87,10 +87,10 @@ export class AgentsModule {
       grossSalesNgn: number; ticketsSold: number; saleCount: number;
       commissionNgn: number; winningsPaidOutNgn: number;
     };
-    accruing: { salesOpen: boolean; netNgn: number; salesCloseAt: string | null };
-    settlement: {
+    selling: { isOpen: boolean; closesAt: string | null };
+    wallet: { availableNgn: number };
+    legacyRemittance: {
       totalOwedNgn: number;
-      walletBalanceNgn: number;
       openCount: number;
       oldest: {
         periodDate: string; amountDueNgn: number; status: string;

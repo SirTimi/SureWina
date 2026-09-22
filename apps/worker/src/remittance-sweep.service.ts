@@ -28,11 +28,12 @@ const emptyTally = (): DayTally => ({
   jackpotSalesNgn: 0,
 });
 
-// Rolls each closed business day's AGENT_CASH sales and agent-paid prizes
-// into one Remittance row per agent — the agent's immutable record for that
-// day. Catch-up style: any closed day without a row gets one, so downtime
+// Legacy catch-up only: rolls receivable-backed AGENT_CASH sales and legacy
+// agent-paid prizes into immutable Remittance rows. Current prepaid sales and
+// wallet-reimbursed prizes are excluded by ledger-account linkage below.
+// Catch-up style: any eligible closed day without a row gets one, so downtime
 // self-heals. Idempotent via @unique(agentId, periodDate); an existing row is
-// never rewritten, which is what makes the record safe to audit against.
+// never rewritten, which is what makes the historical record safe to audit.
 @Injectable()
 export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RemittanceSweepService.name);
@@ -44,7 +45,7 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     this.timer = setInterval(() => void this.tick(), SWEEP_MS);
     void this.tick();
-    this.logger.log('Remittance sweep started (every 5m)');
+    this.logger.log('Legacy remittance catch-up started (every 5m)');
   }
   onModuleDestroy() {
     if (this.timer) clearInterval(this.timer);

@@ -7,8 +7,7 @@ import type { AgentMe } from '@surewina/types';
 import { AgentHeader } from '@/components/agent-header';
 import { clearAgentSession } from '@/lib/agent-auth';
 import { api } from '@/lib/api';
-import { isOnline, readQueue } from '@/lib/offline-queue';
-import { wireAgentFinanceAdjustments } from '@/lib/wire-agent-finance-adjustments';
+import { discardLegacyOfflineSales, isOnline } from '@/lib/network-status';
 
 interface AgentShellProps {
   children: (agent: AgentMe) => React.ReactNode;
@@ -19,11 +18,6 @@ export function AgentShell({ children }: AgentShellProps) {
   const [agent, setAgent] = useState<AgentMe | null>(null);
   const [checking, setChecking] = useState(true);
   const [online, setOnline] = useState(true);
-  const [pendingSync, setPendingSync] = useState(0);
-
-  useEffect(() => {
-    wireAgentFinanceAdjustments();
-  }, []);
 
   useEffect(() => {
     // The server is the only authority on who is signed in. The token in
@@ -42,13 +36,10 @@ export function AgentShell({ children }: AgentShellProps) {
   }, [router]);
 
   useEffect(() => {
+    discardLegacyOfflineSales();
     setOnline(isOnline());
-    setPendingSync(readQueue().length);
 
-    const onOnline = () => {
-      setOnline(true);
-      setPendingSync(readQueue().length);
-    };
+    const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
 
     window.addEventListener('online', onOnline);
@@ -86,14 +77,6 @@ export function AgentShell({ children }: AgentShellProps) {
         </div>
       )}
 
-      {pendingSync > 0 && (
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
-          <div className="mx-auto flex max-w-[1180px] items-center gap-2 text-xs font-bold text-amber-900">
-            <WifiOff className="h-3.5 w-3.5" />
-            {pendingSync} legacy offline sale{pendingSync > 1 ? 's are' : ' is'} still stored on this device and will not auto-sync under prepaid selling.
-          </div>
-        </div>
-      )}
 
       {children(agent)}
     </div>

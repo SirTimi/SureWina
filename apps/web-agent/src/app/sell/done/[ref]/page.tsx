@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Check, Clock, Copy, Megaphone, Printer, QrCode, Sparkles } from 'lucide-react';
+import { Check, Copy, Megaphone, Printer, QrCode, Sparkles } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import type { AgentSalePrint } from '@surewina/api-client';
@@ -53,42 +53,42 @@ function DoneBody({
   agentCode: string;
 }) {
   const search = useSearchParams();
-  const queued = search.get('queued') === '1';
   const [copied, setCopied] = useState(false);
 
   // Screen details come from the confirm redirect — instant, no loading flash.
   const amount = Number(search.get('amount') ?? '0');
-  const ticketRefs = (search.get('tickets') ?? '').split(',').filter(Boolean);
-  const sale: DoneSale | null = queued
-    ? null
-    : {
-        amountNgn: amount,
-        quantity: Number(search.get('qty') ?? '1'),
-        kind: (search.get('kind') as 'DAILY' | 'JACKPOT') ?? 'DAILY',
-        drawLabel: search.get('label') ?? 'Surewina draw',
-        customerPhone: search.get('phone') || null,
-        notified: search.get('notified') === '1',
-      };
+  const redirectTicketRefs = (search.get('tickets') ?? '').split(',').filter(Boolean);
+  const sale: DoneSale = {
+    amountNgn: amount,
+    quantity: Number(search.get('qty') ?? '1'),
+    kind: (search.get('kind') as 'DAILY' | 'JACKPOT') ?? 'DAILY',
+    drawLabel: search.get('label') ?? 'Surewina draw',
+    customerPhone: search.get('phone') || null,
+    notified: search.get('notified') === '1',
+  };
 
   // Print data is fetched, not passed: the receipt needs terminal, draw
   // number and cutoff, which don't belong in a URL — and this is also the
   // reprint path when an agent returns to a sale later.
   const [printSale, setPrintSale] = useState<AgentSalePrint | null>(null);
-  const [printLoading, setPrintLoading] = useState(!queued);
+  const [printLoading, setPrintLoading] = useState(true);
 
   useEffect(() => {
-    if (queued) return; // offline sale — no tickets issued yet
     api.agents
       .saleForPrint(ref_)
       .then(setPrintSale)
       .catch(() => setPrintSale(null))
       .finally(() => setPrintLoading(false));
-  }, [ref_, queued]);
+  }, [ref_]);
 
-  // The agent's own rate, floored — matches how the sweep computes the
-  // commission line on the day's record. A hardcoded 10% here showed
-  // non-BRONZE agents a figure their dashboard would contradict.
-  const commission = sale ? Math.floor(sale.amountNgn * commissionRate) : 0;
+  const ticketRefs =
+    redirectTicketRefs.length > 0
+      ? redirectTicketRefs
+      : printSale?.tickets ?? [];
+
+  // The agent's own rate, floored — matches the configured rate used by the
+  // sale flow. A hardcoded 10% here showed non-BRONZE agents the wrong value.
+  const commission = Math.floor(sale.amountNgn * commissionRate);
   const jackpotMessage = getJackpotMessage(sale);
 
   const copy = async () => {
@@ -125,7 +125,7 @@ function DoneBody({
             background: #fff !important;
           }
           /* AgentShell wraps everything in a min-h-screen div and renders
-             AgentHeader — logo, hamburger, remittance badge — as a sibling of
+             AgentHeader — logo, hamburger, selling-mode badge — as a sibling of
              this page's content. That header was printing on every ticket.
              Hide every child of the shell except the print area, and drop the
              shell's own screen height so the sheet ends with the slip. */
@@ -166,19 +166,15 @@ function DoneBody({
         <SaleStepper step={4} />
 
         <SectionHeading
-          eyebrow={queued ? 'Sale queued for sync' : 'Sale complete'}
-          title={queued ? 'Customer is covered.' : 'Ticket sale complete.'}
-          description={
-            queued
-              ? 'You were offline. The sale is saved locally and will sync automatically when you are back online.'
-              : 'Show the customer the ticket details, then print the tickets if needed.'
-          }
+          eyebrow="Sale complete"
+          title="Ticket sale complete."
+          description="Show the customer the ticket details, then print the tickets if needed."
         />
 
         <Card className="overflow-hidden rounded-3xl border-navy-100 bg-white shadow-[0_24px_70px_rgba(14,42,71,0.12)]">
           <div className="bg-navy-800 px-5 py-6 text-center text-white">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-400">
-              {queued ? 'Temporary reference' : 'Sale reference'}
+              Sale reference
             </p>
             <p className="mt-3 font-mono text-3xl font-black tracking-[0.18em] sm:text-4xl md:text-5xl">
               {ref_}
@@ -194,16 +190,6 @@ function DoneBody({
           </div>
 
           <div className="space-y-3 p-5">
-            {queued && (
-              <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-900">
-                <Clock className="mt-0.5 h-4 w-4 shrink-0" />
-                <p className="text-sm">
-                  This reference is temporary. The final tickets will be issued once the
-                  sale syncs.
-                </p>
-              </div>
-            )}
-
             <div className="flex items-start gap-2 rounded-2xl border border-navy-100 bg-amber-50 p-3 text-navy-950">
               <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
               <div className="text-sm leading-relaxed">
@@ -236,32 +222,31 @@ function DoneBody({
                   </>
                 ) : (
                   <p>
-                    Tell the customer to keep sale reference{' '}
-                    <span className="font-black">{ref_}</span> safe until tickets sync.
+                    Ticket references are unavailable on this view. Keep sale reference{' '}
+                    <span className="font-black">{ref_}</span> safe and reload to fetch the
+                    confirmed ticket details.
                   </p>
                 )}
               </div>
             </div>
 
-            {sale && jackpotMessage && (
+            {jackpotMessage && (
               <div className="flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">
                 <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
                 <p className="text-sm font-bold leading-relaxed">{jackpotMessage}</p>
               </div>
             )}
 
-            {sale && (
-              <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
-                <Stat label="Draw name" value={sale.drawLabel} />
-                <Stat label="Ticket type" value={formatTicketType(sale.kind)} />
-                <Stat label="Quantity" value={String(sale.quantity)} />
-                <Stat label="Customer phone" value={sale.customerPhone ?? 'Not provided'} />
-                <Stat label="Amount collected" value={formatNaira(sale.amountNgn)} />
-                <Stat label="Your commission" value={formatNaira(commission)} />
-              </div>
-            )}
+            <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
+              <Stat label="Draw name" value={sale.drawLabel} />
+              <Stat label="Ticket type" value={formatTicketType(sale.kind)} />
+              <Stat label="Quantity" value={String(sale.quantity)} />
+              <Stat label="Customer phone" value={sale.customerPhone ?? 'Not provided'} />
+              <Stat label="Amount collected" value={formatNaira(sale.amountNgn)} />
+              <Stat label="Your commission" value={formatNaira(commission)} />
+            </div>
 
-            {sale && sale.customerPhone && (
+            {sale.customerPhone && (
               <p className="text-center text-xs text-slate-500">
                 {sale.notified
                   ? 'Confirmation SMS sent to the customer.'
@@ -312,7 +297,7 @@ function DoneBody({
           </Link>
         </div>
 
-        {!queued && !printLoading && !printSale && (
+        {!printLoading && !printSale && (
           <p className="mt-3 text-center text-xs text-slate-500">
             Ticket details could not be loaded, so printing is unavailable. The sale itself
             is complete — reload this page to try again.
@@ -339,9 +324,7 @@ function DoneBody({
   );
 }
 
-function getJackpotMessage(sale: DoneSale | null) {
-  if (!sale) return null;
-
+function getJackpotMessage(sale: DoneSale) {
   if (sale.kind === 'JACKPOT') {
     return 'Customer bought a direct Sure Jackpot ticket for the coming Saturday draw.';
   }

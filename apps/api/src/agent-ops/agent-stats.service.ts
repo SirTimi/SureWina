@@ -100,19 +100,15 @@ export class AgentStatsService {
         status: agent.status,
       },
       today: { ...today, commissionNgn, winningsPaidOutNgn },
-      // Kept for client compatibility during the prepaid cutover.
-      //
-      // New sales and agent-paid prizes settle immediately against the agent
-      // wallet, so there is no new intraday remittance balance to accrue.
-      accruing: {
-        salesOpen: !!openDraw,
-        salesCloseAt: openDraw?.cutoffAt.toISOString() ?? null,
-        netNgn: 0,
+      selling: {
+        isOpen: !!openDraw,
+        closesAt: openDraw?.cutoffAt.toISOString() ?? null,
       },
-      // Historical remittance obligations plus the live wallet balance.
-      settlement: {
+      wallet: {
+        availableNgn: wallet.availableNgn,
+      },
+      legacyRemittance: {
         totalOwedNgn,
-        walletBalanceNgn: wallet.availableNgn,
         openCount: open.length,
         oldest: oldest
           ? {

@@ -10,17 +10,15 @@ import { api } from '@/lib/api';
 
 type Period = 'today' | 'week' | 'month' | 'allTime';
 
-interface Accruing {
-  salesOpen: boolean;
+interface Selling {
+  isOpen: boolean;
   // The current draw's cutoff. Null when nothing is open — the app cannot
   // know when the next draw starts, only when this one stops.
-  salesCloseAt: string | null;
-  netNgn: number;
+  closesAt: string | null;
 }
 
-interface Settlement {
+interface LegacyRemittance {
   totalOwedNgn: number;
-  walletBalanceNgn: number;
   openCount: number;
   oldest: {
     periodDate: string;
@@ -42,8 +40,9 @@ export default function AgentDashboardPage() {
 function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) {
   const [period, setPeriod] = useState<Period>('today');
   const [today, setToday] = useState({ grossSalesNgn: 0, ticketsSold: 0, saleCount: 0, commissionNgn: 0, winningsPaidOutNgn: 0 });
-  const [accruing, setAccruing] = useState<Accruing>({ salesOpen: true, salesCloseAt: null, netNgn: 0 });
-  const [settlement, setSettlement] = useState<Settlement>({ totalOwedNgn: 0, walletBalanceNgn: 0, openCount: 0, oldest: null });
+  const [selling, setSelling] = useState<Selling>({ isOpen: true, closesAt: null });
+  const [walletBalanceNgn, setWalletBalanceNgn] = useState(0);
+  const [legacyRemittance, setLegacyRemittance] = useState<LegacyRemittance>({ totalOwedNgn: 0, openCount: 0, oldest: null });
   const [perf, setPerf] = useState<Record<Period, { grossSalesNgn: number; ticketsSold: number; saleCount: number }>>({
     today: { grossSalesNgn: 0, ticketsSold: 0, saleCount: 0 },
     week: { grossSalesNgn: 0, ticketsSold: 0, saleCount: 0 },
@@ -60,8 +59,9 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
       .then(([d, p, s]) => {
         if (!active) return;
         setToday(d.today);
-        setAccruing(d.accruing);
-        setSettlement(d.settlement);
+        setSelling(d.selling);
+        setWalletBalanceNgn(d.wallet.availableNgn);
+        setLegacyRemittance(d.legacyRemittance);
         setPerf(p);
         setSales(s.sales);
       })
@@ -86,9 +86,9 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
                 the copy — the draw schedule is configurable, and hardcoded
                 hours here would quietly contradict it. */}
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/75">
-              {accruing.salesOpen
-                ? accruing.salesCloseAt
-                  ? `Selling closes at ${formatTime(accruing.salesCloseAt)}. Sell tickets, track commission, and check your daily record.`
+              {selling.isOpen
+                ? selling.closesAt
+                  ? `Selling closes at ${formatTime(selling.closesAt)}. Sell tickets, track commission, and check your daily record.`
                   : 'Sell tickets, track commission, and check your daily record.'
                 : 'Ticket sales are closed. They reopen when the next draw opens.'}
             </p>
@@ -98,7 +98,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
               variant="accent"
               size="lg"
               fullWidth
-              disabled={!accruing.salesOpen}
+              disabled={!selling.isOpen}
               className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400 disabled:opacity-50"
             >
               Sell ticket now
@@ -110,14 +110,14 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
 
       {/* Historical remittance remains visible and settleable, but it no
           longer controls prepaid selling access. */}
-      {settlement.oldest && <DueBanner settlement={settlement} />}
+      {legacyRemittance.oldest && <DueBanner legacyRemittance={legacyRemittance} />}
 
       <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard icon={<ReceiptText className="h-5 w-5" />} label="Today sales" value={formatNaira(today.grossSalesNgn)} hint={`${today.saleCount} ticket sales`} success />
         <MetricCard icon={<Banknote className="h-5 w-5" />} label="Commission" value={formatNaira(today.commissionNgn)} hint={`${Math.round(commissionRate * 100)}% — keep from cash`} success />
         <MetricCard icon={<Trophy className="h-5 w-5" />} label="Tickets today" value={String(today.ticketsSold)} hint="Cash sales" accent />
         <MetricCard
-          icon={accruing.salesOpen ? <Clock className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+          icon={selling.isOpen ? <Clock className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
           label="Wallet used today"
           value={formatNaira(
             Math.max(
@@ -140,7 +140,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
               Available wallet balance
             </p>
             <p className="mt-0.5 text-sm text-emerald-900">
-              <span className="font-black">{formatNaira(settlement.walletBalanceNgn)}</span>{' '}
+              <span className="font-black">{formatNaira(walletBalanceNgn)}</span>{' '}
               available. Top up or review wallet activity.
             </p>
           </div>
@@ -207,8 +207,12 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
   );
 }
 
-function DueBanner({ settlement }: { settlement: Settlement }) {
-  const o = settlement.oldest!;
+function DueBanner({
+  legacyRemittance,
+}: {
+  legacyRemittance: LegacyRemittance;
+}) {
+  const o = legacyRemittance.oldest!;
   return (
     <Card className={`mt-4 rounded-3xl p-5 shadow-sm ${o.overdue ? 'border border-red-200 bg-red-50' : 'border border-amber-200 bg-amber-50'}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -216,7 +220,7 @@ function DueBanner({ settlement }: { settlement: Settlement }) {
           <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${o.overdue ? 'text-red-700' : 'text-amber-700'}`} />
           <div>
             <p className="text-sm font-black text-navy-950">
-              {formatNaira(settlement.totalOwedNgn)} legacy balance due
+              {formatNaira(legacyRemittance.totalOwedNgn)} legacy balance due
             </p>
             <p className="mt-0.5 text-sm text-navy-950/80">
               {o.overdue
