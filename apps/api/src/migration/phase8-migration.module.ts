@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
-import { envValidationSchema } from '../config/env.validation';
 import { DatabaseModule } from '../database/database.module';
 import { AuditModule } from '../audit/audit.module';
 import { LedgerModule } from '../ledger/ledger.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { TreasuryBootstrapService } from '../treasury/treasury-bootstrap.service';
 
 import { Phase8MigrationService } from './phase8-migration.service';
 
@@ -13,7 +13,6 @@ import { Phase8MigrationService } from './phase8-migration.service';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      validationSchema: envValidationSchema,
       envFilePath: [
         '../../.env.local',
         '../../.env',
@@ -28,6 +27,7 @@ import { Phase8MigrationService } from './phase8-migration.service';
   ],
   providers: [
     Phase8MigrationService,
+    TreasuryBootstrapService,
   ],
   exports: [
     Phase8MigrationService,

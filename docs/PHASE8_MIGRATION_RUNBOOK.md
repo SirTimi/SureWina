@@ -49,9 +49,23 @@ pnpm --filter @surewina/api prisma:migrate:deploy
 
 ## 3. Plan only — no money changes
 
+Before choosing the cutover, stop the API and Worker for the database being migrated so no new financial rows can cross the boundary while the plan is created.
+
+For a local database that has never used the ledger-backed flows, capture the cutover immediately after stopping those services:
+
+```powershell
+$cutover = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+$cutover
+pnpm --filter @surewina/api phase8:migrate plan --cutover=$cutover --label="Phase 8 local cutover"
+```
+
+For an environment with an already-agreed historical cutover, use that exact timestamp instead:
+
 ```cmd
 pnpm --filter @surewina/api phase8:migrate plan --cutover=2026-09-20T07:00:00.000Z --label="Phase 8 cutover"
 ```
+
+Starting the migration CLI also idempotently bootstraps the required system ledger accounts and treasury registry. It does not call payment providers.
 
 Save the returned `runId`.
 
