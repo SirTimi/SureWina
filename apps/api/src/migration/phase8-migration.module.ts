@@ -4,8 +4,10 @@ import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from '../database/database.module';
 import { RequestContextModule } from '../common/request-context/request-context.module';
 import { AuditModule } from '../audit/audit.module';
-import { LedgerModule } from '../ledger/ledger.module';
-import { WalletModule } from '../wallet/wallet.module';
+import { LedgerService } from '../ledger/ledger.service';
+import { LedgerBootstrapService } from '../ledger/ledger-bootstrap.service';
+import { PaymentAccountingService } from '../ledger/payment-accounting.service';
+import { WalletService } from '../wallet/wallet.service';
 import { TreasuryBootstrapService } from '../treasury/treasury-bootstrap.service';
 
 import { Phase8MigrationService } from './phase8-migration.service';
@@ -24,12 +26,14 @@ import { Phase8MigrationService } from './phase8-migration.service';
     DatabaseModule,
     RequestContextModule,
     AuditModule,
-    LedgerModule,
-    WalletModule,
   ],
   providers: [
-    Phase8MigrationService,
+    LedgerService,
+    LedgerBootstrapService,
+    PaymentAccountingService,
+    WalletService,
     TreasuryBootstrapService,
+    Phase8MigrationService,
   ],
   exports: [
     Phase8MigrationService,

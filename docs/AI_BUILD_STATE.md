@@ -138,7 +138,10 @@ Runtime/type/build validation:
 - the first successful checker run showed the local DB itself is pre-Phase-8: 0 ledger transactions, 0 wallets, all 15 system ledger accounts missing, all 5 treasury registry rows missing, 10 material payments without collection ledgers, 4 agent sales without prepaid/legacy ledger classification, and no migration run;
 - this is an environment-state blocker rather than a checker false positive;
 - Phase 8 migration bootstrap is hardened for this path: the migration-only module no longer requires unrelated provider callback configuration, the CLI uses `ts-node` so Nest decorator metadata is preserved, TreasuryBootstrapService runs alongside the existing ledger bootstrap, and RequestContextModule is imported so AuditService can be resolved in the standalone migration context;
-- first local migration-plan attempt after `343921d` reached Nest startup but failed because AuditService could not resolve RequestContextService; this is fixed by importing RequestContextModule into Phase8MigrationModule;
+- first local migration-plan attempt after `343921d` reached Nest startup but failed because AuditService could not resolve RequestContextService; commit `32b1a42` fixed that wiring;
+- the next plan attempt exposed another standalone-module leak: importing full `LedgerModule` instantiated its admin controller guard, which required AdminTokenRevocationService from the HTTP/admin-auth graph;
+- fix: Phase8MigrationModule no longer imports full LedgerModule/WalletModule. It directly provides only LedgerService, LedgerBootstrapService, PaymentAccountingService, WalletService, and TreasuryBootstrapService, so the offline CLI does not load HTTP controllers or auth guards;
+- LedgerBootstrapService still runs on module init, and TreasuryBootstrapService runs on application bootstrap, preserving account/bootstrap order;
 - normal API startup environment validation and financial runtime behavior remain unchanged;
 - local validation must include build/type-check plus `pnpm --filter @surewina/api rollout:check`;
 - the manual browser/provider matrix remains a separate acceptance step after the checker itself builds and runs.
@@ -162,4 +165,4 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`fix: wire request context into Phase 8 CLI` (this development cycle)
+`fix: isolate Phase 8 CLI from HTTP auth modules` (this development cycle)
