@@ -116,6 +116,9 @@ Current increment engineering review:
 
 Runtime/type/build validation:
 - the connected GitHub environment does not expose a checked-out Node workspace, so local `pnpm type-check` and `pnpm build` cannot be run before push;
+- user local build after `168f3ab` failed in `apps/web-agent/src/lib/agent-mock.ts` because the cleanup introduced a local variable named `module`, which violates Next.js `@next/next/no-assign-module-variable`;
+- the regression is fixed by renaming that local binding to `trainingModule`; no behavior changes;
+- existing `<img>` messages are ESLint warnings and were not the build failure;
 - repository CI is configured to run Prisma generation, type-check, and build on pushes to `main`;
 - local browser/device acceptance remains required from the user.
 
@@ -136,4 +139,4 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`refactor: remove legacy agent finance compatibility` (this development cycle)
+`fix: avoid reserved module variable in agent mock` (this development cycle)

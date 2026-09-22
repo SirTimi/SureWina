@@ -171,9 +171,9 @@ export const agentMock = {
   },
 
   completeTraining(id: string): void {
-    const module = state.training.find((item) => item.id === id);
-    if (module && !module.completedAt) {
-      module.completedAt = new Date().toISOString();
+    const trainingModule = state.training.find((item) => item.id === id);
+    if (trainingModule && !trainingModule.completedAt) {
+      trainingModule.completedAt = new Date().toISOString();
     }
   },
 };
