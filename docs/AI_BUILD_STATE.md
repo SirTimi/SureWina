@@ -12,13 +12,13 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Prepaid agent ticket sales. The user reported the increment green on 2026-09-22, satisfying the manual acceptance gate.
+Agent-paid prize wallet reimbursement. The user reported the increment green on 2026-09-22, satisfying the manual acceptance gate.
 
 ## Current Implementation
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
-- Prize payouts to bank use Monnify or Flutterwave.
+- Bank prize payouts use Monnify or Flutterwave.
 - Ledger-backed wallets support both CUSTOMER and AGENT owners.
 - Customer wallet UI is available at `/dashboard/wallet`.
 - Agent wallet UI is available at `/wallet`.
@@ -28,17 +28,17 @@ Prepaid agent ticket sales. The user reported the increment green on 2026-09-22,
   - agent retains configured commission;
   - SureWina's net share is debited immediately from the agent wallet;
   - prepaid sales do not create new remittance debt.
-- This increment converts NEW eligible agent-paid cash prizes to immediate wallet reimbursement:
-  - the agent physically pays the winner the validated net cash prize;
-  - Prize Payable is debited;
-  - Agent Available Wallet is credited for the same net amount;
-  - the reimbursement journal is linked through `PrizeClaim.agentPayoutLedgerTxnId`;
-  - no Agent Receivable is touched.
-- New wallet-reimbursed prize payouts are excluded from remittance sweep.
-- Legacy agent-paid prizes that used Agent Receivable remain part of historical remittance accounting.
-- Agent daily-record reconciliation distinguishes legacy remittance payouts from wallet-reimbursed payouts.
-- The prize-payment UI reports the wallet reimbursement and resulting wallet balance immediately.
-- Intraday remittance accrual is now neutralized; new sales and prize payouts settle against the wallet in real time.
+- New eligible agent-paid prizes are reimbursed immediately to the agent wallet and do not feed new remittance accounting.
+- Historical remittance records remain stored, visible, settleable, and auditable.
+- This increment retires debt-based agent suspension:
+  - historical remittances can still become `LATE`;
+  - an overdue remittance no longer changes an agent from `ACTIVE` to `SUSPENDED`;
+  - no remittance lockout SMS is sent;
+  - existing agents suspended specifically for `UNSETTLED_REMITTANCE` are automatically reactivated;
+  - reactivation is guarded by the exact legacy suspension reason and is audited;
+  - manual/compliance suspensions and terminated agents remain unaffected.
+- Agent dashboard keeps historical debt visible but no longer disables prepaid selling because of remittance.
+- OTP sign-in also self-heals the retired debt-only suspension if the Worker has not performed cleanup yet.
 
 ## Completed
 
@@ -58,56 +58,60 @@ Accepted wallet UX/accounting:
 - customer wallet/top-up UI;
 - agent wallet/top-up UI;
 - customer wallet payment at checkout;
-- prepaid agent ticket sales with immediate commission recognition.
+- prepaid agent ticket sales with immediate commission recognition;
+- immediate wallet reimbursement for eligible agent-paid prizes.
 
 Current engineering increment:
-- direct agent-wallet reimbursement for eligible agent-paid prizes;
-- net prize amount used as the actual cash/reimbursement amount;
-- wallet balance returned after prize payment;
-- remittance sweep restricted to legacy receivable-backed prize payouts;
-- daily finance record identifies wallet reimbursement vs legacy remittance settlement;
-- remittance-page wallet copy updated for top-ups/reimbursements;
-- obsolete intraday remittance amount set to zero while retaining the API field for compatibility.
+- remove automatic `UNSETTLED_REMITTANCE` suspension;
+- preserve remittance due dates and `LATE` status;
+- audit newly late historical remittances without blocking selling;
+- reactivate only legacy debt-suspended agents;
+- retain manual/compliance suspension controls;
+- remove remittance lockout SMS copy;
+- remove agent-dashboard debt lock state;
+- keep historical remittance settlement links and warnings without threatening selling lockout;
+- add OTP-path recovery for legacy debt suspension when Worker cleanup has not yet run.
 
 ## Next Tasks
 
 Only after the user accepts this increment:
-1. Retire `UNSETTLED_REMITTANCE` automatic suspension for post-cutover operations while preserving historical obligations and audit history.
-2. Update agent/remittance UX so historical debt is clearly separated from prepaid operations.
-3. Update admin finance views for agent/customer wallet balances, funding history, wallet activity, and prepaid agent operations.
-4. Remove remaining obsolete remittance-first UX and dead offline-sale sync paths after compatibility review.
-5. Complete controlled end-to-end rollout testing.
+1. Update agent/remittance UX so historical remittance is clearly presented as legacy debt rather than an active operating model.
+2. Update admin finance views for customer/agent wallet balances, funding history, wallet activity, prize reimbursements, and prepaid agent operations.
+3. Remove remaining obsolete remittance-first UX and dead offline-sale sync paths after compatibility review.
+4. Complete controlled end-to-end rollout testing.
 
 ## Known Issues
 
-- Historical positive remittances can still trigger `UNSETTLED_REMITTANCE` suspension; retirement of debt-based suspension is the next controlled increment.
+- Legacy remittance pages still contain operational controls because historical obligations remain settleable; broader legacy UX cleanup is the next increment.
 - Legacy offline sale queue entries remain stored locally and do not auto-sync.
-- Remittance pages still exist because historical obligations must remain settleable/auditable.
 - Production Monnify/Flutterwave credentials and treasury values still need controlled configuration before live provider testing.
 - Agent cash prize payout still depends on the existing agent-payable eligibility/status rules and configured `AGENT_PAYOUT_MAX_NGN`.
 
 ## Testing Status
 
 Previous increment:
-- new agent ticket sales became prepaid wallet transactions;
-- commission became per-sale ledger accounting;
-- new prepaid sales stopped creating remittance debt;
-- offline speculative sales were disabled;
+- eligible agent-paid cash prizes moved from Agent Receivable offsets to immediate Agent Available wallet reimbursement;
+- new wallet-reimbursed payouts were excluded from remittance sweep;
+- legacy receivable-backed payouts remained auditable;
 - user reported the increment green on 2026-09-22.
 
 Current increment engineering review:
 - inspected latest `main`, recent commits, and current project state;
-- inspected agent prize lookup/payment service, prize accrual/payout ledger accounting, wallet credit behavior, remittance sweep, daily agent records, dashboard state, agent prize UI, and shared API-client response types;
-- confirmed AgentOpsModule already imports WalletModule, so no module wiring change is required;
-- confirmed no Prisma schema or database migration is required;
-- confirmed Phase 8 agent-prize migration applies only to pre-cutover legacy records and does not reinterpret new wallet-reimbursement journals;
-- preserved legacy receivable-backed prize accounting for historical remittances;
-- retained immutable `agentPayoutLedgerTxnId` as the accounting link for both historical and prepaid-era agent payouts.
+- searched all repository references to `UNSETTLED_REMITTANCE`, debt-lock state, remittance suspension, and agent status enforcement;
+- confirmed the Worker is the only automatic producer of the debt suspension reason;
+- confirmed agent authentication independently blocks legitimate `SUSPENDED` and `TERMINATED` statuses;
+- preserved those manual/compliance/termination protections;
+- changed the deadline Worker to mark historical debt `LATE` without changing agent status;
+- added guarded cleanup for existing debt-only suspensions with immutable audit logs;
+- added guarded OTP-path recovery so legacy debt suspension does not strand an agent if the Worker is unavailable;
+- updated dashboard/API client state so remittance debt no longer disables the Sell button;
+- updated SMS text so it requests settlement without claiming selling will be locked;
+- no Prisma schema or database migration is required.
 
 Runtime/type/build validation:
 - the connected GitHub environment does not expose a checked-out Node workspace, so local `pnpm type-check` and `pnpm build` cannot be run from this session before push;
 - repository CI is configured to run Prisma generation, type-check, and build on pushes to `main`;
-- local browser/device/database acceptance remains required from the user.
+- local worker/API/browser acceptance remains required from the user.
 
 ## Architecture Decisions
 
@@ -118,14 +122,12 @@ Runtime/type/build validation:
 - Wallet balances are derived from immutable ledger entries.
 - New agent sales are prepaid.
 - New eligible agent-paid prizes are reimbursed immediately to the agent wallet.
-- Agent prize reimbursement journal:
-  - DEBIT `SYS:PRIZE:PAYABLE`;
-  - CREDIT agent `AGENT_AVAILABLE` wallet account.
-- Reimbursement amount is the claim's net prize value.
-- New wallet-reimbursed payouts must never create or reduce new remittance debt.
-- Legacy prize payouts remain identifiable by Agent Receivable participation.
-- Historical remittances remain auditable and settleable until their dedicated retirement/cleanup steps.
+- Historical remittance is an auditable legacy obligation, not an authorization boundary for prepaid selling.
+- `PENDING` remittances may become `LATE`, but `LATE` does not suspend selling.
+- `UNSETTLED_REMITTANCE` is a retired suspension reason used only to identify and safely reactivate legacy debt-suspended agents.
+- Manual/compliance suspensions remain valid and continue to block agent authentication.
+- Historical remittance settlement is preserved until the legacy-debt cleanup/UX work is separately accepted.
 
 ## Last Commit
 
-`feat: reimburse agent prize payouts to wallet` (this development cycle)
+`feat: retire remittance debt suspension` (this development cycle)

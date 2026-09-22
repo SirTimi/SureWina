@@ -21,6 +21,8 @@ import {
 import { Logger } from '@nestjs/common'
 import { V2nSmsProvider } from '../notifications/v2n-sms.provider'
 
+const RETIRED_DEBT_SUSPENSION_REASON = 'UNSETTLED_REMITTANCE';
+
 @Injectable()
 export class AgentAuthService {
   private readonly otpKeyPrefix = 'auth:agent:otp';
@@ -53,6 +55,8 @@ export class AgentAuthService {
     if (!agent) {
       throw new UnauthorizedException('Agent not found');
     }
+
+    await this.reactivateRetiredDebtSuspension(agent);
 
     if (
       agent.status === AgentStatus.SUSPENDED ||
@@ -170,6 +174,8 @@ export class AgentAuthService {
       throw new UnauthorizedException('Agent not found');
     }
 
+    await this.reactivateRetiredDebtSuspension(agent);
+
     if (
       agent.status === AgentStatus.SUSPENDED ||
       agent.status === AgentStatus.TERMINATED
@@ -251,6 +257,77 @@ export class AgentAuthService {
       ...agent,
       commissionRate: agent.commissionRate.toString(),
     };
+  }
+
+  private async reactivateRetiredDebtSuspension(
+    agent: {
+      agentId: string;
+      agentCode: string;
+      status: AgentStatus;
+      suspensionReason: string | null;
+      suspendedAt: Date | null;
+    },
+  ) {
+    if (
+      agent.status !== AgentStatus.SUSPENDED ||
+      agent.suspensionReason !== RETIRED_DEBT_SUSPENSION_REASON
+    ) {
+      return;
+    }
+
+    const reactivated = await this.prismaService.agent.updateMany({
+      where: {
+        agentId: agent.agentId,
+        status: AgentStatus.SUSPENDED,
+        suspensionReason: RETIRED_DEBT_SUSPENSION_REASON,
+      },
+      data: {
+        status: AgentStatus.ACTIVE,
+        suspensionReason: null,
+        suspendedAt: null,
+      },
+    });
+
+    if (reactivated.count === 0) {
+      const current = await this.prismaService.agent.findUnique({
+        where: { agentId: agent.agentId },
+        select: {
+          status: true,
+          suspensionReason: true,
+          suspendedAt: true,
+        },
+      });
+
+      if (current) {
+        agent.status = current.status;
+        agent.suspensionReason = current.suspensionReason;
+        agent.suspendedAt = current.suspendedAt;
+      }
+
+      return;
+    }
+
+    agent.status = AgentStatus.ACTIVE;
+    agent.suspensionReason = null;
+    agent.suspendedAt = null;
+
+    await this.auditService.write({
+      actor: {
+        type: AuditActorType.SYSTEM,
+      },
+      action: 'AGENT_REACTIVATED_DEBT_SUSPENSION_RETIRED',
+      resource: {
+        type: 'Agent',
+        id: agent.agentId,
+      },
+      metadata: {
+        agentCode: agent.agentCode,
+        retiredReason: RETIRED_DEBT_SUSPENSION_REASON,
+        source: 'AGENT_AUTH',
+        remittancesPreserved: true,
+        settlementModel: 'PREPAID_WALLET',
+      },
+    });
   }
 
   private async signAgentAccessToken(payload: AgentJwtPayload) {

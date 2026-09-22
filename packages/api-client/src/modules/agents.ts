@@ -81,7 +81,7 @@ export class AgentsModule {
   async dashboard(): Promise<{
     agent: {
       agentCode: string; fullName: string; tier: string;
-      commissionRate: number; status: string; lockedForDebt: boolean;
+      commissionRate: number; status: string;
     };
     today: {
       grossSalesNgn: number; ticketsSold: number; saleCount: number;

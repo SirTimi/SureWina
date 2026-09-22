@@ -7,7 +7,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 import { V2nSmsService } from './v2n-sms.service';
-import { remittanceDueWarning, remittanceOverdueLock } from './sms-templates';
+import { remittanceDueWarning } from './sms-templates';
 
 const CHECK_MS = 5 * 60_000;
 const WAT_OFFSET_MS = 60 * 60 * 1000;
@@ -17,15 +17,16 @@ const WAT_OFFSET_MS = 60 * 60 * 1000;
 const DEADLINE_MINUTES_WAT = 11 * 60;
 const WARNING_MINUTES_WAT = 9 * 60;
 
-// Marks the suspension so it can be told apart from one a compliance officer
-// applied. Only suspensions carrying this reason are ever lifted here.
+// Historical reason used by the retired debt-lockout model. We keep the
+// literal so existing debt-only suspensions can be identified and safely
+// reactivated without touching compliance/admin suspensions.
 export const DEBT_SUSPENSION_REASON = 'UNSETTLED_REMITTANCE';
 
-// Enforces the 11am settlement deadline: warns, then locks the agent out of
-// selling, then releases them the moment they settle.
+// Historical remittances still have a due date and can become LATE, but under
+// prepaid wallet selling they no longer control whether an agent may sell.
 //
-// Runs on a poll rather than a cron so that a worker restart cannot skip the
-// deadline. Every action is guarded so repeated ticks are harmless.
+// Runs on a poll rather than a cron so a worker restart cannot skip the
+// deadline or the one-time cleanup of legacy debt suspensions.
 @Injectable()
 export class RemittanceDeadlineService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RemittanceDeadlineService.name);
@@ -55,14 +56,13 @@ export class RemittanceDeadlineService implements OnModuleInit, OnModuleDestroy 
     if (this.running) return;
     this.running = true;
     try {
-      // Release first: an agent who has just settled should be selling again
-      // before anything else is considered, including on the same tick that
-      // would otherwise lock someone else.
-      await this.releaseSettled();
+      // Debt-based suspension is retired under prepaid selling. Clear only
+      // the exact legacy reason; manual/compliance suspensions are untouched.
+      await this.retireDebtSuspensions();
 
       const minutes = this.watMinutes(new Date());
       if (minutes >= DEADLINE_MINUTES_WAT) {
-        await this.lockOverdue();
+        await this.markOverdue();
       } else if (minutes >= WARNING_MINUTES_WAT) {
         await this.warnDueToday();
       }
@@ -116,8 +116,8 @@ export class RemittanceDeadlineService implements OnModuleInit, OnModuleDestroy 
     }
   }
 
-  // ── 11:00 — lock out ─────────────────────────────────────────────────
-  private async lockOverdue(): Promise<void> {
+  // ── 11:00 — mark overdue, never suspend ─────────────────────────────
+  private async markOverdue(): Promise<void> {
     const overdue = await this.prisma.remittance.findMany({
       where: {
         status: RemittanceStatus.PENDING,
@@ -129,87 +129,77 @@ export class RemittanceDeadlineService implements OnModuleInit, OnModuleDestroy 
         periodDate: true,
         agentId: true,
         agent: {
-          select: { agentCode: true, phoneNumber: true, status: true },
+          select: { agentCode: true },
         },
       },
       take: 200,
     });
 
     for (const r of overdue) {
-      // The record is LATE regardless of what happens to the agent — an
-      // agent already suspended for something else still owes the money.
-      await this.prisma.remittance.updateMany({
-        where: { remittanceId: r.remittanceId, status: RemittanceStatus.PENDING },
+      const marked = await this.prisma.remittance.updateMany({
+        where: {
+          remittanceId: r.remittanceId,
+          status: RemittanceStatus.PENDING,
+        },
         data: { status: RemittanceStatus.LATE },
       });
-
-      // Only an ACTIVE agent is locked. Someone compliance already suspended
-      // is left exactly as they are, so this job never overwrites a reason
-      // it is not allowed to reverse.
-      const locked = await this.prisma.agent.updateMany({
-        where: { agentId: r.agentId, status: AgentStatus.ACTIVE },
-        data: {
-          status: AgentStatus.SUSPENDED,
-          suspensionReason: DEBT_SUSPENSION_REASON,
-          suspendedAt: new Date(),
-        },
-      });
-      if (locked.count === 0) continue;
+      if (marked.count === 0) continue;
 
       await this.prisma.auditLog.create({
         data: {
           severity: AuditSeverity.WARNING,
           actorType: AuditActorType.SYSTEM,
-          action: 'AGENT_SUSPENDED_UNSETTLED_REMITTANCE',
-          resourceType: 'Agent',
-          resourceId: r.agentId,
+          action: 'REMITTANCE_MARKED_LATE',
+          resourceType: 'Remittance',
+          resourceId: r.remittanceId,
           metadata: {
+            agentId: r.agentId,
             agentCode: r.agent.agentCode,
-            remittanceId: r.remittanceId,
             amountDueNgn: r.amountDueNgn,
             periodDate: r.periodDate.toISOString().slice(0, 10),
+            sellingBlocked: false,
+            settlementModel: 'HISTORICAL_REMITTANCE',
           },
         },
       });
 
-      await this.sms.sendSms(
-        r.agent.phoneNumber,
-        remittanceOverdueLock({ amountNgn: r.amountDueNgn }),
-        `rem-lock-${r.remittanceId}`,
-      );
-
       this.logger.warn(
-        `${r.agent.agentCode} suspended — NGN ${r.amountDueNgn.toLocaleString(
+        `${r.agent.agentCode} historical remittance marked LATE — NGN ${r.amountDueNgn.toLocaleString(
           'en-NG',
-        )} unsettled for ${r.periodDate.toISOString().slice(0, 10)}`,
+        )} for ${r.periodDate.toISOString().slice(0, 10)}; prepaid selling remains available`,
       );
     }
   }
 
-  // ── Any time — release agents who have settled ───────────────────────
-  private async releaseSettled(): Promise<void> {
-    // Suspended for debt, and no longer carrying any. Confirmed by the agent
-    // is enough: they are locked out of selling, which is the leverage, and
-    // holding them until finance reconciles would punish them for a delay on
-    // our side.
+  // ── Any time — retire legacy debt-only suspensions ──────────────────
+  private async retireDebtSuspensions(): Promise<void> {
     const locked = await this.prisma.agent.findMany({
       where: {
         status: AgentStatus.SUSPENDED,
         suspensionReason: DEBT_SUSPENSION_REASON,
+      },
+      select: {
+        agentId: true,
+        agentCode: true,
         remittances: {
-          none: {
-            status: { in: [RemittanceStatus.PENDING, RemittanceStatus.LATE] },
+          where: {
+            status: {
+              in: [
+                RemittanceStatus.PENDING,
+                RemittanceStatus.LATE,
+              ],
+            },
             amountDueNgn: { gt: 0 },
+          },
+          select: {
+            amountDueNgn: true,
           },
         },
       },
-      select: { agentId: true, agentCode: true },
       take: 200,
     });
 
     for (const a of locked) {
-      // Guarded on the reason as well as the status: if compliance changed
-      // the reason in the meantime, this must not fire.
       const released = await this.prisma.agent.updateMany({
         where: {
           agentId: a.agentId,
@@ -224,18 +214,35 @@ export class RemittanceDeadlineService implements OnModuleInit, OnModuleDestroy 
       });
       if (released.count === 0) continue;
 
+      const outstandingRemittanceNgn =
+        a.remittances.reduce(
+          (sum, remittance) =>
+            sum + remittance.amountDueNgn,
+          0,
+        );
+
       await this.prisma.auditLog.create({
         data: {
           severity: AuditSeverity.INFO,
           actorType: AuditActorType.SYSTEM,
-          action: 'AGENT_REACTIVATED_REMITTANCE_SETTLED',
+          action: 'AGENT_REACTIVATED_DEBT_SUSPENSION_RETIRED',
           resourceType: 'Agent',
           resourceId: a.agentId,
-          metadata: { agentCode: a.agentCode },
+          metadata: {
+            agentCode: a.agentCode,
+            retiredReason: DEBT_SUSPENSION_REASON,
+            openRemittanceCount: a.remittances.length,
+            outstandingRemittanceNgn,
+            remittancesPreserved: true,
+            settlementModel: 'PREPAID_WALLET',
+          },
         },
       });
 
-      this.logger.log(`${a.agentCode} reactivated — remittance settled`);
+      this.logger.log(
+        `${a.agentCode} reactivated — debt-based selling suspension retired; historical remittances remain payable`,
+      );
     }
   }
+
 }

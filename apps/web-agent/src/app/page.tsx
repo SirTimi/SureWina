@@ -44,7 +44,6 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
   const [today, setToday] = useState({ grossSalesNgn: 0, ticketsSold: 0, saleCount: 0, commissionNgn: 0, winningsPaidOutNgn: 0 });
   const [accruing, setAccruing] = useState<Accruing>({ salesOpen: true, salesCloseAt: null, netNgn: 0 });
   const [settlement, setSettlement] = useState<Settlement>({ totalOwedNgn: 0, walletBalanceNgn: 0, openCount: 0, oldest: null });
-  const [lockedForDebt, setLockedForDebt] = useState(false);
   const [perf, setPerf] = useState<Record<Period, { grossSalesNgn: number; ticketsSold: number; saleCount: number }>>({
     today: { grossSalesNgn: 0, ticketsSold: 0, saleCount: 0 },
     week: { grossSalesNgn: 0, ticketsSold: 0, saleCount: 0 },
@@ -63,7 +62,6 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
         setToday(d.today);
         setAccruing(d.accruing);
         setSettlement(d.settlement);
-        setLockedForDebt(d.agent.lockedForDebt);
         setPerf(p);
         setSales(s.sales);
       })
@@ -100,7 +98,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
               variant="accent"
               size="lg"
               fullWidth
-              disabled={lockedForDebt || !accruing.salesOpen}
+              disabled={!accruing.salesOpen}
               className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400 disabled:opacity-50"
             >
               Sell ticket now
@@ -110,10 +108,9 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
         </div>
       </section>
 
-      {/* Settlement state leads, because it is the only thing on this screen
-          that has a deadline attached to it. */}
-      {lockedForDebt && <LockedBanner settlement={settlement} />}
-      {!lockedForDebt && settlement.oldest && <DueBanner settlement={settlement} />}
+      {/* Historical remittance remains visible and settleable, but it no
+          longer controls prepaid selling access. */}
+      {settlement.oldest && <DueBanner settlement={settlement} />}
 
       <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard icon={<ReceiptText className="h-5 w-5" />} label="Today sales" value={formatNaira(today.grossSalesNgn)} hint={`${today.saleCount} ticket sales`} success />
@@ -210,32 +207,6 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
   );
 }
 
-function LockedBanner({ settlement }: { settlement: Settlement }) {
-  return (
-    <Card className="mt-4 rounded-3xl border-red-200 bg-red-50 p-5 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-white text-red-700">
-          <Lock className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="font-display text-xl font-black text-navy-950">Selling is locked.</p>
-          <p className="mt-1 text-sm text-red-900">
-            You have <span className="font-black">{formatNaira(settlement.totalOwedNgn)}</span> unsettled
-            past the deadline. Selling resumes automatically as soon as you settle — no one
-            needs to approve it.
-          </p>
-          <Link href="/remittance">
-            <Button variant="accent" size="lg" className="mt-4 rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400">
-              Settle now
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-          </Link>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
 function DueBanner({ settlement }: { settlement: Settlement }) {
   const o = settlement.oldest!;
   return (
@@ -249,8 +220,10 @@ function DueBanner({ settlement }: { settlement: Settlement }) {
             </p>
             <p className="mt-0.5 text-sm text-navy-950/80">
               {o.overdue
-                ? 'Past the deadline. Settle now to avoid your account being locked.'
-                : `Settle by ${formatDeadline(o.deadlineAt)} or your account will be locked from selling.`}
+                ? 'Historical remittance is past its deadline. It remains payable, but prepaid selling stays available.'
+                : `Historical remittance is due by ${formatDeadline(
+                    o.deadlineAt,
+                  )}. It remains separate from prepaid wallet selling.`}
             </p>
           </div>
         </div>

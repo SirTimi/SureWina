@@ -18,7 +18,6 @@ function startOfWatDay(now = new Date()): Date {
   return new Date(wat.getTime() - WAT_OFFSET_MS);
 }
 
-const DEBT_SUSPENSION_REASON = 'UNSETTLED_REMITTANCE';
 
 function settlementDeadline(periodDate: Date): Date {
   return new Date(periodDate.getTime() + 86_400_000 + 10 * 60 * 60_000);
@@ -40,7 +39,6 @@ export class AgentStatsService {
         tier: true,
         commissionRate: true,
         status: true,
-        suspensionReason: true,
       },
     });
 
@@ -100,9 +98,6 @@ export class AgentStatsService {
         tier: agent.tier,
         commissionRate: agent.commissionRate,
         status: agent.status,
-        // Distinguishes a lockout the agent can clear themselves from a
-        // compliance suspension, which they cannot.
-        lockedForDebt: agent.suspensionReason === DEBT_SUSPENSION_REASON,
       },
       today: { ...today, commissionNgn, winningsPaidOutNgn },
       // Kept for client compatibility during the prepaid cutover.

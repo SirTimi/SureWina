@@ -169,8 +169,8 @@ export function smsPlan(message: string): {
   };
 }
 
-// ── Remittance deadline ───────────────────────────────────────
-// Both fit one segment. Run sms-preview if the copy changes.
+// ── Historical remittance deadline ────────────────────────────
+// Keep this inside one segment. Run sms-preview if the copy changes.
 
 export function remittanceDueWarning(args: {
   amountNgn: number;
@@ -179,19 +179,9 @@ export function remittanceDueWarning(args: {
   const d = args.periodDate.toISOString().slice(0, 10).split('-').reverse().join('/');
   return [
     'SUREWINA',
-    `Remittance due: ${naira(args.amountNgn)}`,
+    `Historical remittance due: ${naira(args.amountNgn)}`,
     `For sales on ${d}`,
-    'Pay before 11:00am today or your account will be locked from selling.',
-    `Customer care: ${SUPPORT_LINE}`,
-  ].join('\n');
-}
-
-export function remittanceOverdueLock(args: { amountNgn: number }): string {
-  return [
-    'SUREWINA',
-    'Your account is locked from selling.',
-    `Unsettled remittance: ${naira(args.amountNgn)}`,
-    'Selling resumes automatically once you settle.',
+    'Please settle today. Prepaid selling remains available.',
     `Customer care: ${SUPPORT_LINE}`,
   ].join('\n');
 }
