@@ -9,13 +9,11 @@ import {
   Menu,
   QrCode,
   ReceiptText,
-  ShieldCheck,
-  Trophy,
   User,
   WalletCards,
   X,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Logo } from '@surewina/ui';
 import type { AgentMe } from '@surewina/types';
 import { clearAgentSession } from '@/lib/agent-auth';
@@ -24,7 +22,7 @@ const navItems = [
   { label: 'Home', href: '/', icon: Home },
   { label: 'Sell', href: '/sell', icon: QrCode },
   { label: 'Wallet', href: '/wallet', icon: WalletCards },
-  { label: 'Remit', href: '/remittance', icon: ReceiptText },
+  { label: 'Legacy debt', href: '/remittance', icon: ReceiptText },
   { label: 'Commission', href: '/commission', icon: Banknote },
   { label: 'Profile', href: '/profile', icon: User },
 ];
@@ -38,9 +36,6 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  // Remittance detail (amount owed, deadlines) lives on the Remit page,
-  // driven by /agent/remittance/current — not derivable from the agent object.
-  const remittanceState = { label: 'Open Remit', className: 'border-slate-200 bg-white text-navy-700' };
   const logout = () => {
     clearAgentSession();
     setOpen(false);
@@ -88,11 +83,11 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
             </p>
           </div>
 
-          <div className={`rounded-sm border px-3 py-2 ${remittanceState.className}`}>
+          <div className="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
             <p className="text-[9px] font-black uppercase tracking-[0.14em]">
-              Remit by
+              Selling mode
             </p>
-            <p className="text-xs font-black">{remittanceState.label}</p>
+            <p className="text-xs font-black">Prepaid wallet</p>
           </div>
 
           <button
@@ -116,9 +111,9 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
       </div>
 
       <div className="border-t border-slate-100 bg-white px-4 py-2 sm:hidden">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <MiniStat label="Agent" value={agent.agentCode.replace('RD-AGT-', '')} />
-          <MiniStat label="Remit" value={remittanceState.label} />
+          <MiniStat label="Mode" value="Prepaid" />
         </div>
       </div>
 

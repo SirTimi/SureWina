@@ -423,16 +423,16 @@ function AgentWalletView({
 
             <Card className="rounded-3xl border-navy-100 bg-amber-50 p-5 shadow-sm">
               <p className="text-sm font-black text-navy-950">
-                Selling still uses the current remittance model.
+                Prepaid selling is active.
               </p>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                This wallet screen is being introduced before the prepaid-sales cutover. Existing remittance obligations remain unchanged for now.
+                New ticket sales settle against this wallet immediately. Your commission is retained at sale time, and eligible agent-paid prizes are reimbursed back into this wallet. Any old remittance balance is historical and separate.
               </p>
               <Link
                 href="/remittance"
                 className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-navy-700"
               >
-                View remittance
+                View historical remittance
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Card>

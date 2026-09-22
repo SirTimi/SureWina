@@ -40,9 +40,9 @@ function HistoryBody() {
   return (
     <main className="mx-auto max-w-[860px] px-4 pb-10 pt-5">
       <SectionHeading
-        eyebrow="Remittance · History"
-        title="Past remittances"
-        description="Settlement dates, confirmation status, and any late flags."
+        eyebrow="Legacy remittance · History"
+        title="Historical remittances"
+        description="Audit record of balances created under the old remit-after-selling model. New prepaid sales do not create entries here."
         backHref="/remittance"
       />
 
@@ -54,7 +54,7 @@ function HistoryBody() {
         </div>
       ) : items.length === 0 ? (
         <Card className="rounded-3xl border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-          No remittance history yet.
+          No legacy remittance history.
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-2">
@@ -91,7 +91,7 @@ function RemittanceCard({ item }: { item: RemittanceRow }) {
         <div className="flex items-center justify-between gap-3 sm:gap-6">
           <div className="text-right">
             <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
-              Amount due
+              Legacy amount
             </p>
             <p className="font-display text-base font-black text-navy-950 tabular-nums">
               {formatNaira(item.amountDueNgn)}

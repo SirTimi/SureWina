@@ -116,7 +116,7 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
       <SectionHeading
         eyebrow="Commission"
         title="Your earnings"
-        description="Commission you keep from each sale, and what you remit to Surewina."
+        description="Commission is recognised immediately on prepaid sales. Historical remittance-era records remain below for audit."
         backHref="/"
       />
 

@@ -196,7 +196,7 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">Fast actions</p>
             <div className="mt-4 grid grid-cols-1 gap-2">
               <ActionLink href="/sell" label="Start 60-second sale" />
-              <ActionLink href="/remittance" label="View remittance" />
+              <ActionLink href="/remittance" label="Historical remittance" />
               <ActionLink href="/pay-prize" label="Pay customer prize" />
               <ActionLink href="/profile" label="Agent profile" />
             </div>
@@ -216,7 +216,7 @@ function DueBanner({ settlement }: { settlement: Settlement }) {
           <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${o.overdue ? 'text-red-700' : 'text-amber-700'}`} />
           <div>
             <p className="text-sm font-black text-navy-950">
-              {formatNaira(settlement.totalOwedNgn)} due to Surewina
+              {formatNaira(settlement.totalOwedNgn)} legacy balance due
             </p>
             <p className="mt-0.5 text-sm text-navy-950/80">
               {o.overdue
@@ -229,7 +229,7 @@ function DueBanner({ settlement }: { settlement: Settlement }) {
         </div>
         <Link href="/remittance" className="shrink-0">
           <Button variant="secondary" className="rounded-sm border-navy-200 bg-white font-black text-navy-700">
-            Settle
+            Settle legacy debt
             <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>

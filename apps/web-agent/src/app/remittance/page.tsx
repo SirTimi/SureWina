@@ -83,15 +83,15 @@ function RemittanceBody() {
   return (
     <main className="mx-auto max-w-[860px] px-4 pb-10 pt-5">
       <SectionHeading
-        eyebrow="Remittance"
-        title="Settle your remittance"
-        description="You hold customer money until you remit it. Settle each day's balance by 11am the next day."
+        eyebrow="Historical remittance"
+        title="Legacy balances"
+        description="These balances come from the old remit-after-selling model. New prepaid sales settle through your wallet immediately and do not add new remittance debt."
         backHref="/"
         rightSlot={
           <Link href="/remittance/history">
             <Button variant="secondary" className="rounded-sm border-navy-200 bg-white text-navy-700">
               <History className="h-4 w-4" />
-              History
+              Legacy history
             </Button>
           </Link>
         }
@@ -99,19 +99,20 @@ function RemittanceBody() {
 
       <Card className="rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
-          Total owed right now
+          Historical balance outstanding
         </p>
         <p className="mt-2 font-display text-5xl font-black tracking-[-0.04em] text-navy-950 tabular-nums">
           {formatNaira(totalOwed)}
         </p>
         <p className="mt-2 text-sm text-slate-600">
-          Across {remittances.length} open remittance period{remittances.length === 1 ? '' : 's'}, after your commission.
+          Across {remittances.length} legacy period{remittances.length === 1 ? '' : 's'}. New prepaid sales do not increase this balance.
         </p>
       </Card>
 
-      {/* Credit from days where prize payouts exceeded sales. Shown only when
-          there is a balance — an empty wallet is noise on a settlement page. */}
-      {walletBalance > 0 && (
+      {/* The wallet is the current operating balance. If a historical debt
+          remains, the agent may explicitly choose to use wallet funds to
+          settle it; this is never automatic. */}
+      {walletBalance > 0 && totalOwed > 0 && (
         <Card className="mt-4 rounded-3xl border-emerald-200 bg-emerald-50 p-5 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-white text-emerald-700">
@@ -125,42 +126,46 @@ function RemittanceBody() {
                 {formatNaira(walletBalance)}
               </p>
               <p className="mt-1 text-sm text-emerald-900">
-                Available wallet credit from top-ups, historical adjustments, and reimbursed
-                agent prize payouts. You can use it to settle any legacy remittance below.
+                This is your current prepaid operating balance. If you still have a historical
+                balance below, you may choose to use wallet funds to settle it.
               </p>
             </div>
           </div>
         </Card>
       )}
 
-      <Card className="mt-4 rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
-            <Building2 className="h-5 w-5" />
+      {totalOwed > 0 && (
+        <Card className="mt-4 rounded-3xl border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-navy-50 text-navy-700">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
+                Legacy bank settlement
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Use this only to settle an outstanding historical remittance period, then enter the transfer reference on that period below.
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
-              Bank transfer instructions
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              Transfer to the Surewina pool, then enter your transfer reference on each period below.
-            </p>
-          </div>
-        </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-2">
-          <InstructionRow label="Bank" value={REMIT_BANK.bankName} onCopy={() => copy('bank', REMIT_BANK.bankName)} copied={copied === 'bank'} />
-          <InstructionRow label="Account number" value={REMIT_BANK.accountNumber} onCopy={() => copy('account', REMIT_BANK.accountNumber)} copied={copied === 'account'} mono />
-          <InstructionRow label="Account name" value={REMIT_BANK.accountName} onCopy={() => copy('name', REMIT_BANK.accountName)} copied={copied === 'name'} />
-        </div>
-      </Card>
+          <div className="mt-4 grid grid-cols-1 gap-2">
+            <InstructionRow label="Bank" value={REMIT_BANK.bankName} onCopy={() => copy('bank', REMIT_BANK.bankName)} copied={copied === 'bank'} />
+            <InstructionRow label="Account number" value={REMIT_BANK.accountNumber} onCopy={() => copy('account', REMIT_BANK.accountNumber)} copied={copied === 'account'} mono />
+            <InstructionRow label="Account name" value={REMIT_BANK.accountName} onCopy={() => copy('name', REMIT_BANK.accountName)} copied={copied === 'name'} />
+          </div>
+        </Card>
+      )}
 
       <div className="mt-4 space-y-3">
         {remittances.length === 0 ? (
           <Card className="rounded-3xl border-slate-200 bg-white p-8 text-center shadow-sm">
             <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-600" />
-            <p className="mt-3 font-display text-xl font-black text-navy-950">All settled.</p>
-            <p className="mt-1 text-sm text-slate-500">No open remittance periods right now.</p>
+            <p className="mt-3 font-display text-xl font-black text-navy-950">No historical remittance due.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Your current prepaid sales settle through the wallet in real time.
+            </p>
           </Card>
         ) : (
           remittances.map((r) => (
@@ -257,7 +262,7 @@ function RemittanceRow({
           {canUseWallet && (
             <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-emerald-900">
-                Your wallet covers this day. No transfer needed.
+                Your wallet covers this historical balance. No bank transfer is needed.
               </p>
               <Button
                 variant="secondary"
@@ -288,7 +293,7 @@ function RemittanceRow({
               className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
             >
               <Banknote className="h-5 w-5" />
-              Confirm payment
+              Confirm legacy payment
             </Button>
           </div>
         </>
