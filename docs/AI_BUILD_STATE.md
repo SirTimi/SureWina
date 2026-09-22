@@ -82,6 +82,13 @@ Only after the user accepts this increment:
 
 ## Testing Status
 
+Latest user test:
+- FAILED during `pnpm build` in `web-customer`;
+- Next.js reported a JSX syntax error in `buy-form.tsx` at the signed-in wallet payment branch;
+- root cause: the true branch of the `signedIn` ternary returned the wallet payment button and top-up link as sibling JSX nodes without a wrapping fragment;
+- fix: wrap those sibling nodes in a React fragment with no payment logic change;
+- awaiting user re-test after the fix commit.
+
 Previous increment:
 - agent wallet page, top-up initiation, callback/status verification, funding history, ledger activity, navigation, and dashboard wallet shortcut were present on latest `main`;
 - user reported the build green;
@@ -116,4 +123,4 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: add wallet payment to customer checkout` (this development cycle)
+`fix: wrap signed-in wallet payment branch` (latest fix cycle)

@@ -846,7 +846,8 @@ export function BuyForm({
           </button>
 
           {signedIn ? (
-            <button
+            <>
+              <button
               type="button"
               onClick={
                 selectWalletPayment
@@ -920,6 +921,7 @@ export function BuyForm({
                   Top up wallet
                 </Link>
               )}
+            </>
           ) : (
             <div className="rounded-sm border border-slate-200 bg-white p-4">
               <div className="flex items-start gap-3">
