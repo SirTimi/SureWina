@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import {
   AuditActorType,
   AuditSeverity,
+  LedgerAccountPurpose,
   PaymentGateway,
   PaymentStatus,
   TicketType,
@@ -98,6 +99,23 @@ export class RemittanceSweepService implements OnModuleInit, OnModuleDestroy {
               gateway: PaymentGateway.AGENT_CASH,
               status: PaymentStatus.CONFIRMED,
               confirmedAt: { gte: startUtc, lt: endUtc },
+
+              /*
+               * Only legacy receivable-backed sales belong in remittance.
+               * Prepaid sales debit AGENT_AVAILABLE instead and are already
+               * settled at the instant the ticket is issued.
+               */
+              collectionLedgerTxn: {
+                is: {
+                  entries: {
+                    some: {
+                      account: {
+                        purpose: LedgerAccountPurpose.AGENT_RECEIVABLE,
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
           _sum: { faceValueNgn: true },

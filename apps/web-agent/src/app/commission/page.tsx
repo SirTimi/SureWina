@@ -169,9 +169,8 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
               {formatNaira(totalEarnedNgn)}
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Across your last {periods.length} closed day{periods.length === 1 ? '' : 's'}. You
-              keep this from the cash at the point of sale — it is already deducted from what you
-              remit.
+              Includes historical remittance commission and commission recognised immediately on
+              prepaid wallet sales.
             </p>
           </div>
         </div>
@@ -181,10 +180,10 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
         <div className="flex items-center justify-between border-b border-slate-100 p-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-navy-700">
-              Daily breakdown
+              Legacy remittance breakdown
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              Tickets sold, commission kept, and cash owed for each closed day.
+              Historical closed-day records from before prepaid wallet selling.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -213,7 +212,7 @@ function CommissionBody({ agent }: { agent: AgentMe }) {
         <div className="max-h-[420px] overflow-auto">
           {periods.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-slate-500">
-              No closed days yet. Each day&apos;s figures appear here once ticket sales close.
+              No historical remittance days to show.
             </div>
           ) : (
             periods.map((p, i) => (

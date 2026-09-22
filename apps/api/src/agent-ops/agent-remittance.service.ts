@@ -157,13 +157,46 @@ export class AgentRemittanceService {
       },
     });
 
-    // Earned at the moment of sale, since it never leaves the till. No
-    // status filter: unlike a disbursement, there is no state in which the
-    // agent is holding commission they have not yet received.
-    const totalEarnedNgn = rows.reduce((s, r) => s + r.commissionNgn, 0);
+    // Legacy commission is snapshotted on remittance rows. Prepaid-agent
+    // commission is posted immediately per sale and deliberately never
+    // creates a remittance row, so include those immutable ledger entries in
+    // the lifetime total without double-counting legacy commission journals.
+    const legacyCommission =
+      await this.prisma.remittance.aggregate({
+        where: { agentId },
+        _sum: { commissionNgn: true },
+      });
+
+    const legacyCommissionNgn =
+      legacyCommission._sum.commissionNgn ?? 0;
+
+    const prepaidCommissionRows =
+      await this.prisma.$queryRaw<
+        Array<{ total_ngn: bigint }>
+      >`
+        SELECT
+          COALESCE(SUM(le."amount_ngn"), 0)::bigint AS total_ngn
+        FROM "ledger_entries" le
+        INNER JOIN "ledger_accounts" la
+          ON la."account_id" = le."account_id"
+        INNER JOIN "ledger_transactions" lt
+          ON lt."ledger_txn_id" = le."ledger_txn_id"
+        INNER JOIN "payment_transactions" p
+          ON p."txn_id" = lt."reference_id"
+        WHERE
+          p."agent_id" = ${agentId}
+          AND lt."kind"::text = 'COMMISSION'
+          AND lt."reference_type" = 'PaymentTransaction'
+          AND la."purpose"::text = 'AGENT_COMMISSION_EXPENSE'
+          AND le."side"::text = 'DEBIT'
+      `;
+
+    const prepaidCommissionNgn =
+      Number(prepaidCommissionRows[0]?.total_ngn ?? 0);
 
     return {
-      totalEarnedNgn,
+      totalEarnedNgn:
+        legacyCommissionNgn + prepaidCommissionNgn,
       periods: rows.map((r) => ({
         periodDate: r.periodDate.toISOString().slice(0, 10),
         ticketCount: r.ticketCount,

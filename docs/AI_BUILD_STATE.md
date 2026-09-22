@@ -1,10 +1,10 @@
 # AI Build State
 
-Updated: 2026-09-21
+Updated: 2026-09-22
 
 ## Current Goal
 
-Move SureWina toward ledger-backed customer and agent wallets, with agents ultimately operating on a prepaid wallet model instead of accumulating new remittance debt.
+Move SureWina to ledger-backed customer and agent wallets, with agents operating on a prepaid wallet model instead of accumulating new remittance debt.
 
 ## Current Status
 
@@ -12,7 +12,7 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Agent wallet/top-up experience. The user reported the latest build green on 2026-09-21, satisfying the manual acceptance gate for the agent wallet UI/funding slice.
+Customer wallet payment at checkout. The user moved development forward after the JSX build fix, so the customer wallet-checkout increment is treated as accepted.
 
 ## Current Implementation
 
@@ -22,13 +22,18 @@ Agent wallet/top-up experience. The user reported the latest build green on 2026
 - Ledger-backed wallets support both CUSTOMER and AGENT owners.
 - Customer wallet UI is available at `/dashboard/wallet`.
 - Agent wallet UI is available at `/wallet` in the agent portal.
-- Authenticated customer checkout now keeps Paystack as the default direct-payment option and adds SureWina wallet payment as an alternative.
-- Wallet checkout uses the existing authenticated `POST /wallet/purchases` backend path.
-- Wallet purchases remain atomic: spend-control checks, wallet hold, ticket creation, jackpot accumulation, hold capture, and completion happen inside the existing serializable transaction.
-- Customer wallet balance is loaded before wallet checkout and insufficient balance is blocked in the UI while the backend remains authoritative.
-- Wallet purchase retries reuse an idempotency key only when draw, quantity, and state-of-play are unchanged.
-- Successful wallet purchases go directly to ticket confirmation without a hosted payment redirect.
-- Agent ticket sales still use the legacy receivable/remittance model. Prepaid agent sale accounting has not started yet.
+- Signed-in customers can buy tickets from their wallet or continue with Paystack.
+- This increment converts NEW agent ticket sales to prepaid wallet settlement:
+  - customer still pays the agent the gross cash amount;
+  - agent commission is retained immediately;
+  - only SureWina's net share is debited from the agent wallet;
+  - full ticket revenue is recognized across the wallet collection and commission journals;
+  - insufficient wallet balance aborts the entire sale before tickets are committed.
+- New prepaid agent sales no longer qualify for remittance sweep because their collection ledger uses AGENT_AVAILABLE rather than AGENT_RECEIVABLE.
+- Historical receivable-backed agent sales remain eligible for legacy remittance creation and settlement.
+- Offline speculative ticket issuance is disabled for prepaid agent sales because wallet funds must be checked atomically online.
+- Historical offline queue entries remain stored on-device and are no longer auto-synced.
+- Agent commission totals now combine historical remittance commission with prepaid per-sale commission ledger entries.
 
 ## Completed
 
@@ -46,67 +51,59 @@ Financial architecture foundation:
 Accepted wallet UX:
 - agent wallet funding backend;
 - customer wallet/top-up UI;
-- agent wallet/top-up UI.
+- agent wallet/top-up UI;
+- customer wallet payment at checkout.
 
 Current engineering increment:
-- typed wallet-ticket-purchase method in the shared API client;
-- wallet balance/account bootstrap in the customer buy form;
-- Paystack remains the default checkout path;
-- wallet payment option for signed-in customers;
-- insufficient-balance and inactive-wallet handling;
-- top-up shortcut from checkout;
-- stable idempotency for same-payload retries;
-- fresh idempotency key when purchase details change;
-- immediate ticket-confirmation navigation after wallet purchase;
-- exact backend draw schedule passed into confirmation when available.
+- prepaid agent sale accounting;
+- atomic agent-wallet balance enforcement;
+- per-sale commission recognition;
+- legacy/new sale separation in remittance sweep;
+- online-only final sale confirmation;
+- agent sale confirmation shows real commission rate and wallet charge;
+- dashboard replaces "owed today" with wallet usage;
+- commission total includes prepaid commission ledger entries;
+- legacy remittance daily breakdown remains historical.
 
 ## Next Tasks
 
 Only after the user accepts this increment:
-1. Convert agent ticket sales to prepaid wallet accounting with atomic balance enforcement and commission recognition.
-2. Credit agent wallets immediately for eligible agent-paid prizes.
-3. Stop creating new remittance debt after the prepaid-agent cutover.
-4. Retire `UNSETTLED_REMITTANCE` automatic suspension for post-cutover activity while preserving historical remittance records.
-5. Update admin finance views for agent/customer wallet balances, funding history, and wallet activity.
-6. Remove obsolete remittance-first UX after prepaid sales are accepted.
-7. Complete controlled end-to-end rollout testing.
+1. Credit agent wallets immediately for eligible agent-paid prizes.
+2. Remove prize payouts from new remittance creation once wallet reimbursement is live.
+3. Retire `UNSETTLED_REMITTANCE` automatic suspension for post-cutover operations while preserving historical obligations.
+4. Update admin finance views for agent/customer wallet balances, funding history, and wallet activity.
+5. Remove obsolete remittance-first UX while keeping historical remittance records accessible.
+6. Complete controlled end-to-end rollout testing.
 
 ## Known Issues
 
-- Agent sales still create agent receivables and feed the remittance worker.
-- The remittance deadline worker can still suspend agents for `UNSETTLED_REMITTANCE`.
-- Customer wallet checkout requires a signed-in customer; guest/direct checkout continues through Paystack.
-- Agent wallet funds do not yet replace the legacy agent receivable/remittance sale model.
+- Agent-paid prizes still reduce/credit through the legacy remittance path until the next increment.
+- Historical positive remittances can still trigger `UNSETTLED_REMITTANCE` suspension; retirement of debt-based suspension is a later controlled step.
+- Legacy offline sale queue entries are preserved locally but no longer auto-sync.
+- The commission daily-breakdown table remains a historical remittance view; current prepaid commission is reflected in live period estimates and the total commission figure.
 - Production Monnify/Flutterwave credentials and treasury values still need controlled configuration before live funding/payout testing.
-- The existing confirmation page has limited jackpot-progress context for wallet purchases when no new free jackpot entry is minted; ticket issuance itself is unaffected.
 
 ## Testing Status
 
-Latest user test:
-- FAILED during `pnpm build` in `web-customer`;
-- Next.js reported a JSX syntax error in `buy-form.tsx` at the signed-in wallet payment branch;
-- root cause: the true branch of the `signedIn` ternary returned the wallet payment button and top-up link as sibling JSX nodes without a wrapping fragment;
-- fix: wrap those sibling nodes in a React fragment with no payment logic change;
-- awaiting user re-test after the fix commit.
-
 Previous increment:
-- agent wallet page, top-up initiation, callback/status verification, funding history, ledger activity, navigation, and dashboard wallet shortcut were present on latest `main`;
-- user reported the build green;
-- agent wallet/top-up experience is accepted.
+- customer checkout gained wallet payment while preserving Paystack;
+- an initial JSX build failure in the signed-in wallet branch was fixed in commit `9877796593b7549f9e2baec317fb4d41bb185044`;
+- user then instructed development to move to the next increment, satisfying the manual acceptance gate.
 
 Current increment engineering review:
-- inspected latest `main`, recent commits, and current project state before changes;
-- inspected customer buy form, authentication/session helpers, shared API client, wallet purchase controller/service, wallet response types, direct Paystack purchase flow, and confirmation page;
-- confirmed wallet ticket purchase backend is already atomic and idempotent;
+- inspected latest `main`, recent commits, and current project state;
+- confirmed no root `AGENTS.md` is present;
+- inspected agent sale creation, wallet debit behavior, ledger accounts, agent commission configuration, remittance sweep, remittance settlement, agent dashboard, sale confirmation, offline queue behavior, and commission summary;
 - confirmed no Prisma schema or database migration is required;
-- preserved guest/direct Paystack checkout unchanged;
-- reviewed replay-response shape so client code does not depend on fields omitted by an idempotent replay;
-- reviewed idempotency-key reuse so retries are safe without conflicting after purchase details change.
+- preserved historical remittance records and settlement behavior;
+- verified new/legacy sale distinction is derived from immutable ledger account purpose rather than a guessed timestamp;
+- checked downstream refund and treasury/reconciliation paths for assumptions that agent collection ledger amount must equal gross;
+- no such gross-equality dependency was found for agent cash.
 
 Runtime/type/build validation:
 - the connected GitHub environment does not expose a checked-out Node workspace, so local `pnpm type-check` and `pnpm build` cannot be run from this session before push;
 - repository CI is configured to run Prisma generation, full type-check, and full build on pushes to `main`;
-- local browser/device acceptance remains required from the user.
+- local browser/device and database acceptance remains required from the user.
 
 ## Architecture Decisions
 
@@ -115,12 +112,17 @@ Runtime/type/build validation:
 - Wallet funding: Monnify or Flutterwave only.
 - Prize payouts: Monnify or Flutterwave only.
 - Wallet balances are derived from immutable ledger entries.
-- Paystack remains the default customer checkout path even for signed-in customers.
-- Wallet payment is an authenticated alternative, not a replacement for direct Paystack checkout.
-- Wallet purchase balance checks in the UI are advisory; backend serializable transaction/ledger checks remain authoritative.
-- Wallet purchase idempotency keys are stable for same-payload retries and rotate when purchase details materially change.
-- Historical remittances remain auditable; the future prepaid-agent cutover must stop only new debt generation rather than deleting history.
+- New agent sales are prepaid.
+- For a gross agent sale:
+  - wallet debit = gross minus commission;
+  - commission expense = retained commission;
+  - ticket revenue = gross across the two journals.
+- Agent wallet balance is the sale authorization boundary; no wallet funds means no ticket sale.
+- Final agent sale confirmation must be online.
+- Legacy remittance eligibility is determined by AGENT_RECEIVABLE ledger participation.
+- Prepaid AGENT_AVAILABLE sales must never create new remittance debt.
+- Historical remittances remain auditable and settleable until their separate retirement/cleanup step.
 
 ## Last Commit
 
-`fix: wrap signed-in wallet payment branch` (latest fix cycle)
+`feat: convert agent sales to prepaid wallet settlement` (this development cycle)

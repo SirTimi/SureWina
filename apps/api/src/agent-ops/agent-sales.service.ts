@@ -30,6 +30,7 @@ import { SellTicketsDto } from './dto/sell-tickets.dto';
 import { AccountService } from '../account/account.service'
 import { drawDisplayName, drawShortCode } from '../common/draw-naming.util';
 import { AgentAccountingService } from './agent-accounting.service';
+import { WalletService } from '../wallet/wallet.service';
 
 @Injectable()
 export class AgentSalesService {
@@ -43,6 +44,7 @@ export class AgentSalesService {
     private readonly customerAdmin: CustomerAdminService,
     private readonly account: AccountService,
     private readonly agentAccounting: AgentAccountingService,
+    private readonly wallets: WalletService,
   ) {}
 
   async sell(agentId: string, dto: SellTicketsDto) {
@@ -66,6 +68,18 @@ export class AgentSalesService {
     }
 
     const amountNgn = draw.ticketPriceNgn * dto.quantity;
+    const commissionNgn = Math.floor(
+      amountNgn * Number(agent.commissionRate),
+    );
+    const walletChargeNgn = amountNgn - commissionNgn;
+
+    if (walletChargeNgn <= 0) {
+      throw new ConflictException(
+        'Agent commission configuration leaves no payable ticket amount',
+      );
+    }
+
+    const wallet = await this.wallets.ensureAgentWallet(agentId);
 
     if (dto.customerPhone) {
       await this.account.assertPurchaseAllowed(dto.customerPhone, amountNgn);
@@ -102,7 +116,9 @@ export class AgentSalesService {
         {
           paymentTxnId: txn.txnId,
           agentId,
+          walletId: wallet.walletId,
           amountNgn,
+          commissionNgn,
           reference,
           occurredAt: txn.confirmedAt ?? txn.createdAt,
         },
@@ -173,6 +189,8 @@ export class AgentSalesService {
         drawCode: draw.drawCode,
         quantity: dto.quantity,
         amountNgn,
+        commissionNgn,
+        walletChargeNgn,
         customerPhoneProvided: !!dto.customerPhone,
         jackpotEntriesEarned: minted ? minted.entriesMinted : 0,
       },
@@ -188,6 +206,8 @@ export class AgentSalesService {
       drawCode: draw.drawCode,
       quantity: dto.quantity,
       amountNgn,
+      commissionNgn,
+      walletChargeNgn,
       ticketRefs,
       customerNotified: !!dto.customerPhone,
       soldAt: txn.confirmedAt!.toISOString(),

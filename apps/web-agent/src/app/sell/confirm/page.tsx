@@ -1,32 +1,39 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, Ticket, WifiOff } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Ticket, WalletCards, WifiOff } from 'lucide-react';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { AgentShell } from '@/components/agent-shell';
 import { SaleStepper } from '@/components/sale-stepper';
 import { SectionHeading } from '@/components/section-heading';
 import { clearSaleDraft, readSaleDraft, type SaleDraft } from '@/lib/sale-session';
-import { enqueueSale, isOnline } from '@/lib/offline-queue';
+import { isOnline } from '@/lib/offline-queue';
 import { api } from '@/lib/api';
 
 export default function SellConfirmPage() {
   return (
     <AgentShell>
-      {() => <ConfirmBody />}
+      {(agent) => <ConfirmBody agent={agent} />}
     </AgentShell>
   );
 }
 
-function ConfirmBody() {
+function ConfirmBody({
+  agent,
+}: {
+  agent: import('@surewina/types').AgentMe;
+}) {
   const router = useRouter();
   const [draft, setDraft] = useState<SaleDraft | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
   const [elapsed, setElapsed] = useState(0);
+  const [walletBalanceNgn, setWalletBalanceNgn] = useState<number | null>(null);
+  const [walletLoading, setWalletLoading] = useState(true);
 
   useEffect(() => {
     const current = readSaleDraft();
@@ -36,6 +43,12 @@ function ConfirmBody() {
     }
     setDraft(current);
     setOnline(isOnline());
+
+    void api.agents
+      .wallet()
+      .then((wallet) => setWalletBalanceNgn(wallet.availableNgn))
+      .catch(() => setWalletBalanceNgn(null))
+      .finally(() => setWalletLoading(false));
 
     const sync = () => setOnline(isOnline());
     window.addEventListener('online', sync);
@@ -55,7 +68,12 @@ function ConfirmBody() {
   if (!draft) return null;
 
   const total = draft.quantity * draft.ticketPriceNgn;
-  const commission = Math.round(total * 0.1);
+  const commissionRate = Number(agent.commissionRate);
+  const commission = Math.floor(total * commissionRate);
+  const walletCharge = total - commission;
+  const walletHasEnough =
+    walletBalanceNgn !== null &&
+    walletBalanceNgn >= walletCharge;
 
   const confirm = async () => {
     setSubmitting(true);
@@ -63,18 +81,20 @@ function ConfirmBody() {
 
     try {
       if (!isOnline()) {
-        const ref = `SW-PEND-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-        enqueueSale({
-          queueId: `q_${Math.random().toString(36).slice(2, 10)}`,
-          drawCode: draft.drawCode,
-          quantity: draft.quantity,
-          customerPhone: draft.customerPhone,
-          stateOfPlayCode: draft.stateOfPlayCode,
-          ticketRef: ref,
-          queuedAt: new Date().toISOString(),
-        });
-        clearSaleDraft();
-        router.push(`/sell/done/${ref}?queued=1`);
+        setError(
+          'You must be online to complete a prepaid wallet sale. Your sale details are still saved.',
+        );
+        setSubmitting(false);
+        return;
+      }
+
+      if (walletBalanceNgn === null || walletBalanceNgn < walletCharge) {
+        setError(
+          `Insufficient wallet balance. This sale needs ${formatNaira(
+            walletCharge,
+          )} from your wallet.`,
+        );
+        setSubmitting(false);
         return;
       }
 
@@ -129,8 +149,8 @@ function ConfirmBody() {
           <div>
             <p className="text-sm font-bold">You&apos;re offline.</p>
             <p className="text-xs text-amber-800/80">
-              The sale will be queued and synced once you&apos;re back online. The customer
-              still gets a temporary reference now.
+              Prepaid sales must be verified against your wallet in real time. Reconnect to
+              complete this sale. Your draft stays on this device.
             </p>
           </div>
         </div>
@@ -155,7 +175,16 @@ function ConfirmBody() {
           <Row label="Quantity" value={`${draft.quantity} ticket${draft.quantity > 1 ? 's' : ''}`} />
           <Row label="Customer phone" value={draft.customerPhone ?? 'Not provided'} />
           <Row label="Ticket price" value={formatNaira(draft.ticketPriceNgn)} />
-          <Row label="Your commission" value={formatNaira(commission)} hint="10% (Silver tier)" />
+          <Row
+            label="Your commission"
+            value={formatNaira(commission)}
+            hint={`${Math.round(commissionRate * 100)}% retained from customer cash`}
+          />
+          <Row
+            label="Wallet charge"
+            value={formatNaira(walletCharge)}
+            hint="SureWina share deducted when the sale completes"
+          />
         </div>
 
         <div className="mt-4 rounded-2xl bg-amber-50 p-4">
@@ -165,6 +194,32 @@ function ConfirmBody() {
           <p className="mt-1 font-display text-4xl font-black text-navy-950 tabular-nums">
             {formatNaira(total)}
           </p>
+        </div>
+      </Card>
+
+      <Card className="mt-3 rounded-2xl border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <WalletCards className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-emerald-950">
+              Available wallet balance
+            </p>
+            <p className="mt-1 text-sm text-emerald-900">
+              {walletLoading
+                ? 'Loading balance…'
+                : walletBalanceNgn === null
+                  ? 'Balance could not be loaded.'
+                  : formatNaira(walletBalanceNgn)}
+            </p>
+            {!walletLoading && !walletHasEnough && (
+              <Link
+                href="/wallet"
+                className="mt-2 inline-flex text-xs font-black text-navy-700 underline"
+              >
+                Top up wallet
+              </Link>
+            )}
+          </div>
         </div>
       </Card>
 
@@ -181,12 +236,17 @@ function ConfirmBody() {
           size="lg"
           fullWidth
           isLoading={submitting}
-          disabled={submitting}
+          disabled={
+            submitting ||
+            !online ||
+            walletLoading ||
+            !walletHasEnough
+          }
           onClick={confirm}
           className="rounded-sm !border-transparent bg-amber-500 font-black text-navy-950 hover:!border-transparent hover:bg-amber-400"
         >
           <CheckCircle2 className="h-5 w-5" />
-          Confirm sale · {formatNaira(total)}
+          Confirm sale · charge {formatNaira(walletCharge)}
         </Button>
       </div>
     </main>

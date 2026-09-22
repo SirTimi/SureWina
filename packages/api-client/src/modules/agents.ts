@@ -133,7 +133,8 @@ export class AgentsModule {
     customerPhone?: string;
   }): Promise<{
     saleReference: string; drawCode: string; quantity: number;
-    amountNgn: number; ticketRefs: string[]; customerNotified: boolean; soldAt: string;
+    amountNgn: number; commissionNgn: number; walletChargeNgn: number;
+    ticketRefs: string[]; customerNotified: boolean; soldAt: string;
   }> {
     return this.client.post('/agent/tickets/sell', {
       drawCode: input.drawCode,

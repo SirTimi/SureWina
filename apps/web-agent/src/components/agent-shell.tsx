@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { WifiOff, RotateCw } from 'lucide-react';
+import { WifiOff } from 'lucide-react';
 import type { AgentMe } from '@surewina/types';
 import { AgentHeader } from '@/components/agent-header';
 import { clearAgentSession } from '@/lib/agent-auth';
 import { api } from '@/lib/api';
-import { flushQueue, isOnline, readQueue } from '@/lib/offline-queue';
+import { isOnline, readQueue } from '@/lib/offline-queue';
 import { wireAgentFinanceAdjustments } from '@/lib/wire-agent-finance-adjustments';
 
 interface AgentShellProps {
@@ -45,13 +45,9 @@ export function AgentShell({ children }: AgentShellProps) {
     setOnline(isOnline());
     setPendingSync(readQueue().length);
 
-    const onOnline = async () => {
+    const onOnline = () => {
       setOnline(true);
-      const result = await flushQueue();
       setPendingSync(readQueue().length);
-      if (result.synced > 0) {
-        window.dispatchEvent(new CustomEvent('agent-queue-flushed'));
-      }
     };
     const onOffline = () => setOnline(false);
 
@@ -85,16 +81,16 @@ export function AgentShell({ children }: AgentShellProps) {
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
           <div className="mx-auto flex max-w-[1180px] items-center gap-2 text-xs font-bold text-amber-900">
             <WifiOff className="h-3.5 w-3.5" />
-            You are offline. Sales will queue and sync automatically when the network returns.
+            You are offline. Prepaid ticket sales require a live wallet check and cannot be completed until you reconnect.
           </div>
         </div>
       )}
 
-      {online && pendingSync > 0 && (
-        <div className="border-b border-navy-100 bg-amber-50 px-4 py-2">
-          <div className="mx-auto flex max-w-[1180px] items-center gap-2 text-xs font-bold text-navy-700">
-            <RotateCw className="h-3.5 w-3.5 animate-spin" />
-            Syncing {pendingSync} queued sale{pendingSync > 1 ? 's' : ''}…
+      {pendingSync > 0 && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
+          <div className="mx-auto flex max-w-[1180px] items-center gap-2 text-xs font-bold text-amber-900">
+            <WifiOff className="h-3.5 w-3.5" />
+            {pendingSync} legacy offline sale{pendingSync > 1 ? 's are' : ' is'} still stored on this device and will not auto-sync under prepaid selling.
           </div>
         </div>
       )}

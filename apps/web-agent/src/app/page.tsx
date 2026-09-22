@@ -121,13 +121,14 @@ function DashboardBody({ agent }: { agent: import('@surewina/types').AgentMe }) 
         <MetricCard icon={<Trophy className="h-5 w-5" />} label="Tickets today" value={String(today.ticketsSold)} hint="Cash sales" accent />
         <MetricCard
           icon={accruing.salesOpen ? <Clock className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
-          label={accruing.salesOpen ? 'Owed so far today' : "Today's closing balance"}
-          value={formatNaira(accruing.netNgn)}
-          hint={
-            accruing.salesOpen
-              ? 'Sales less commission — still moving'
-              : 'Locked at close of sales'
-          }
+          label="Wallet used today"
+          value={formatNaira(
+            Math.max(
+              0,
+              today.grossSalesNgn - today.commissionNgn,
+            ),
+          )}
+          hint="SureWina share deducted at each completed sale"
         />
       </section>
 

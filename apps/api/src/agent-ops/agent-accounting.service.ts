@@ -41,7 +41,9 @@ export class AgentAccountingService {
     input: {
       paymentTxnId: string;
       agentId: string;
+      walletId: string;
       amountNgn: number;
+      commissionNgn: number;
       reference: string;
       occurredAt: Date;
     },
@@ -57,45 +59,95 @@ export class AgentAccountingService {
       });
     }
 
-    const receivable = await this.ensureReceivableInTransaction(tx, input.agentId);
+    if (
+      input.commissionNgn < 0 ||
+      input.commissionNgn >= input.amountNgn
+    ) {
+      throw new ConflictException(
+        'Agent commission must be lower than the gross sale amount',
+      );
+    }
+
+    const walletChargeNgn =
+      input.amountNgn - input.commissionNgn;
+
     const revenue = await this.requireAccount(
       tx,
       SYSTEM_LEDGER_ACCOUNT_CODES.TICKET_SALES_REVENUE,
     );
 
-    const journal = await this.ledger.postInTransaction(tx, {
-      idempotencyKey: `ledger:agent-sale:${input.paymentTxnId}`,
-      kind: LedgerTransactionKind.AGENT_SALE,
-      referenceType: 'PaymentTransaction',
-      referenceId: input.paymentTxnId,
-      description: 'Agent cash ticket sale',
-      occurredAt: input.occurredAt,
-      metadata: {
-        agentId: input.agentId,
-        gatewayReference: input.reference,
-      },
-      lines: [
-        {
-          accountId: receivable.accountId,
-          side: LedgerEntrySide.DEBIT,
-          amountNgn: input.amountNgn,
-          memo: 'Cash collected by agent',
+    /*
+     * Prepaid agent sale:
+     *
+     * 1. Reduce the agent wallet by SureWina's net share.
+     * 2. Recognise the retained commission as an expense.
+     * 3. Recognise the full ticket face value as revenue.
+     *
+     * Both journals live inside the caller's sale transaction, so an
+     * insufficient balance rolls back the payment row and ticket creation.
+     */
+    const collectionJournal =
+      await this.wallets.debitInTransaction(tx, {
+        walletId: input.walletId,
+        amountNgn: walletChargeNgn,
+        counterAccountId: revenue.accountId,
+        idempotencyKey: `ledger:agent-sale-wallet:${input.paymentTxnId}`,
+        kind: LedgerTransactionKind.AGENT_SALE,
+        referenceType: 'PaymentTransaction',
+        referenceId: input.paymentTxnId,
+        description: 'Prepaid agent ticket sale',
+        occurredAt: input.occurredAt,
+        metadata: {
+          agentId: input.agentId,
+          gatewayReference: input.reference,
+          grossSaleNgn: input.amountNgn,
+          commissionNgn: input.commissionNgn,
+          walletChargeNgn,
         },
-        {
-          accountId: revenue.accountId,
-          side: LedgerEntrySide.CREDIT,
-          amountNgn: input.amountNgn,
-          memo: 'Ticket sales revenue',
+      });
+
+    if (input.commissionNgn > 0) {
+      const expense = await this.requireAccount(
+        tx,
+        SYSTEM_LEDGER_ACCOUNT_CODES.AGENT_COMMISSION_EXPENSE,
+      );
+
+      await this.ledger.postInTransaction(tx, {
+        idempotencyKey: `ledger:agent-sale-commission:${input.paymentTxnId}`,
+        kind: LedgerTransactionKind.COMMISSION,
+        referenceType: 'PaymentTransaction',
+        referenceId: input.paymentTxnId,
+        description: 'Agent commission retained at sale',
+        occurredAt: input.occurredAt,
+        metadata: {
+          agentId: input.agentId,
+          gatewayReference: input.reference,
+          grossSaleNgn: input.amountNgn,
+          commissionNgn: input.commissionNgn,
         },
-      ],
-    });
+        lines: [
+          {
+            accountId: expense.accountId,
+            side: LedgerEntrySide.DEBIT,
+            amountNgn: input.commissionNgn,
+            memo: 'Agent commission expense',
+          },
+          {
+            accountId: revenue.accountId,
+            side: LedgerEntrySide.CREDIT,
+            amountNgn: input.commissionNgn,
+            memo: 'Ticket revenue represented by retained commission',
+          },
+        ],
+      });
+    }
 
     await tx.paymentTransaction.update({
       where: { txnId: input.paymentTxnId },
-      data: { collectionLedgerTxnId: journal.ledgerTxnId },
+      data: { collectionLedgerTxnId: collectionJournal.ledgerTxnId },
     });
 
-    return journal;
+    return collectionJournal;
   }
 
   async recordAgentPrizePayoutInTransaction(
