@@ -26,11 +26,11 @@ function requiredFlag(name: string) {
   return value;
 }
 
-function amountFlag() {
-  const amount = Number(requiredFlag('amount'));
+function integerFlag(name: string) {
+  const amount = Number(requiredFlag(name));
 
   if (!Number.isSafeInteger(amount) || amount <= 0) {
-    throw new Error('--amount must be a positive integer NGN amount');
+    throw new Error(`--${name} must be a positive integer NGN amount`);
   }
 
   return amount;
@@ -54,7 +54,7 @@ async function main() {
 
   if (!command) {
     throw new Error(
-      'Usage: pnpm rollout:smoke <candidates|fund-customer|fund-agent> [flags]',
+      'Usage: pnpm rollout:smoke <candidates|create-draw|cancel-draw|fund-customer|fund-agent> [flags]',
     );
   }
 
@@ -73,11 +73,30 @@ async function main() {
         output(await smoke.candidates());
         break;
 
+      case 'create-draw':
+        output(
+          await smoke.createDraw({
+            ticketPriceNgn:
+              integerFlag('price'),
+          }),
+        );
+        break;
+
+      case 'cancel-draw':
+        output(
+          await smoke.cancelDraw({
+            drawCode:
+              requiredFlag('draw-code'),
+          }),
+        );
+        break;
+
       case 'fund-customer':
         output(
           await smoke.fundCustomer({
             phone: requiredFlag('phone'),
-            amountNgn: amountFlag(),
+            amountNgn:
+              integerFlag('amount'),
           }),
         );
         break;
@@ -86,7 +105,8 @@ async function main() {
         output(
           await smoke.fundAgent({
             agentCode: requiredFlag('agent-code'),
-            amountNgn: amountFlag(),
+            amountNgn:
+              integerFlag('amount'),
           }),
         );
         break;

@@ -113,6 +113,38 @@ First list suitable existing accounts and open draws:
 pnpm --filter @surewina/api rollout:smoke candidates
 ```
 
+If there is no ACTIVE draw, create a local-only scheduled smoke draw:
+
+```cmd
+pnpm --filter @surewina/api rollout:smoke create-draw --price=500
+```
+
+This creates a `TEST-ROLLOUT-*` draw in `SCHEDULED` state with a future cutoff/schedule. It does not force it ACTIVE.
+
+Start the real Engine in a separate terminal:
+
+```cmd
+pnpm --filter @surewina/engine dev
+```
+
+The Engine must:
+- commit the RNG seed using its normal sealed-seed path;
+- transition the draw from `SCHEDULED` to `ACTIVE`.
+
+Then rerun:
+
+```cmd
+pnpm --filter @surewina/api rollout:smoke candidates
+```
+
+and confirm the test draw appears in `activeDraws` with a committed seed visible in `rolloutDraws`.
+
+After the functional tests, cancel the smoke draw before leaving the environment:
+
+```cmd
+pnpm --filter @surewina/api rollout:smoke cancel-draw --draw-code=<TEST_ROLLOUT_DRAW_CODE>
+```
+
 Then seed one customer wallet:
 
 ```cmd
@@ -135,7 +167,7 @@ The seeder:
 - never creates provider evidence;
 - never touches Monnify/Flutterwave treasury settlement records.
 
-The normal pre-live rollout checker allows these local artifacts. The production checker blocks any `TEST:ROLLOUT:*` account or `RolloutSmokeSeed` journal, preventing a smoke-test database from being treated as production-ready.
+The normal pre-live rollout checker allows these local artifacts. The production checker blocks any `TEST:ROLLOUT:*` account, `RolloutSmokeSeed` journal, or `TEST-ROLLOUT-*` draw, preventing a smoke-test database from being treated as production-ready.
 
 Use these seeded balances only for sections 3.4, 3.5, 3.7, 3.8 and 3.9. Provider funding itself must still be tested separately with real sandbox provider flows in sections 3.2, 3.3 and 3.6.
 

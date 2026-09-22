@@ -71,20 +71,23 @@ Accepted wallet UX/accounting:
 
 Current engineering increment:
 - add local-only rollout smoke tooling for the prepaid core;
-- list existing candidate customers, ACTIVE agents, and ACTIVE draws;
+- list existing candidate customers, ACTIVE agents, ACTIVE draws, and local rollout draws;
+- create a local-only SCHEDULED `TEST-ROLLOUT-*` draw when no active draw exists;
+- require the real Engine to commit the RNG seed and activate that test draw;
+- provide a safe cancel command for the rollout test draw;
 - provision and seed a selected customer wallet from a dedicated local test asset;
 - provision and seed a selected agent wallet from the same dedicated local test asset;
 - keep smoke seeding separate from WalletFunding/provider evidence;
 - make smoke seeding idempotent per selected owner;
 - refuse smoke seeding in production;
 - require Phase 8 FINALIZED before smoke seeding;
-- add a production rollout blocker for any `TEST:ROLLOUT:*` account or `RolloutSmokeSeed` journal;
+- add a production rollout blocker for any `TEST:ROLLOUT:*` account, `RolloutSmokeSeed` journal, or `TEST-ROLLOUT-*` draw;
 - document which browser tests may use local seeded balance and which still require real provider sandbox flows.
 
 ## Next Tasks
 
 Only after the user accepts this increment:
-1. Use `rollout:smoke candidates` and seed one controlled customer wallet plus one controlled ACTIVE agent wallet.
+1. Create/activate one `TEST-ROLLOUT-*` draw through the smoke CLI + real Engine lifecycle, then seed one controlled customer wallet plus one controlled ACTIVE agent wallet.
 2. Test customer wallet purchase, insufficient customer balance, prepaid agent sale, insufficient agent balance, and offline-sale protection through the actual browser/API flows.
 3. Rerun `rollout:check --strict-review` and confirm the new wallet/purchase/agent-sale rows remain fully consistent.
 4. Configure and test Monnify/Flutterwave sandbox funding separately; local smoke balance never substitutes for provider verification.
@@ -158,7 +161,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: add local prepaid rollout smoke seeding` (this development cycle)
+`feat: add engine-backed rollout smoke draw` (this development cycle)
 
 
 ## Latest Acceptance Evidence
@@ -176,3 +179,12 @@ Strict rollout result reported by user after Phase 8 finalization:
 - Review items=0;
 - Passed checks=16;
 - Ready=YES.
+
+
+Latest smoke discovery:
+- rollout smoke CLI starts successfully;
+- Phase 8 is FINALIZED;
+- 2 customer candidates found;
+- 1 ACTIVE agent candidate found;
+- 0 ACTIVE draws found;
+- next prerequisite is a local scheduled smoke draw activated by the real Engine.
