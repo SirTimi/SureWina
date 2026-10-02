@@ -17,6 +17,7 @@ import {
   WalletPurchaseStatus,
 } from '@prisma/client';
 
+import type { JackpotOfferUnlockResult } from '@surewina/types';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AccountService } from '../account/account.service';
@@ -194,7 +195,7 @@ export class WalletTicketPurchaseService {
             data: tickets,
           });
 
-          let jackpotOfferUnlock = null;
+          let jackpotOfferUnlock: JackpotOfferUnlockResult | null = null;
 
           if (draw.drawType === DrawType.DAILY_STANDARD) {
             jackpotOfferUnlock =
@@ -245,9 +246,6 @@ export class WalletTicketPurchaseService {
             amountNgn,
             ticketCount: dto.quantity,
             ticketRefs: tickets.map((ticket) => ticket.ticketRef),
-            // Keep the legacy field neutral until the customer contract is
-            // replaced with the new promotion payload.
-            jackpotMinted: null,
             jackpotOfferUnlock,
             completedAt: completedAt.toISOString(),
           };

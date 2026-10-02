@@ -4,7 +4,7 @@ Updated: 2026-10-02
 
 ## Current Goal
 
-Validate Phase 1 of the new jackpot promotion rule: every 10 DAILY_STANDARD tickets in the current jackpot cycle unlock one persistent NGN 500 discounted Saturday-jackpot purchase offer instead of automatically minting a free JackpotEntry.
+Validate jackpot promotion Phase 2: make the discounted-offer rule authoritative across direct Paystack confirmation, customer wallet purchases, and identified agent sales, with one canonical server-computed JackpotOfferUnlockResult and no new automatic free JackpotEntry minting.
 
 ## Current Status
 
@@ -12,20 +12,21 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Jackpot promotion Phase 1: introduce the persistent JackpotDiscountOffer entitlement model, change weekly accumulation to issue idempotent offers, stop new automatic free-entry notifications, preserve historical JackpotEntry data, and add focused service/idempotency tests.
+Jackpot promotion Phase 2: replace the transitional unlock result with the canonical JackpotOfferUnlockResult, return server-computed weekly progress for every eligible daily purchase, expose the latest newly-created offer, and propagate that same result through direct, wallet, and agent purchase paths.
 
 ## Current Implementation
 
 Latest jackpot-promotion increment:
-- JackpotAccumulation remains the weekly counting source of truth by buyer phone.
-- Every crossed 10-ticket threshold now creates one JackpotDiscountOffer for the active Saturday jackpot.
-- Offer price is snapshotted at NGN 500; normal jackpot price is snapshotted from the target draw.
-- Offers expire at that jackpot draw's sales cutoff.
-- Unique buyerPhone + jackpotDrawId + thresholdNumber prevents duplicate entitlements.
-- Existing JackpotEntry rows and historical free-entry counters remain untouched for auditability.
-- New qualifying purchases no longer mint JackpotEntry rows or send the old free-entry SMS.
-- Legacy customer/agent response fields remain neutral during Phase 1; claim UX and new notification copy are intentionally deferred.
-- Focused Jest coverage is added for 9+1, 5+5, 10-at-once, 20-at-once, weekly reset, and duplicate confirmation.
+- JackpotAccumulation remains the only weekly eligibility source of truth by buyer phone.
+- Every active-cycle DAILY_STANDARD purchase returns JackpotOfferUnlockResult with offersUnlocked, latestOffer, weeklyTicketCount, ticketsToNextOffer, jackpotDrawCode, and jackpotScheduledAt.
+- Every crossed 10-ticket threshold creates one JackpotDiscountOffer for the active Saturday jackpot.
+- The latest newly-created entitlement is reloaded from persistence and returned with its offerId and snapshotted pricing.
+- Direct Paystack confirmation, customer wallet purchases, and identified agent sales all call the same recordDailyPurchase() service inside their purchase transaction.
+- No purchase path independently calculates promotion eligibility.
+- Existing JackpotEntry rows and historical ACCUMULATION entries remain untouched for auditability.
+- New purchases never call jackpotEntry.createMany() and no longer emit the old free-entry SMS.
+- The wallet API client now exposes jackpotOfferUnlock instead of the obsolete jackpotMinted contract.
+- Focused tests explicitly verify authoritative progress, 9+1, 5+5, 10-at-once, 20-at-once, weekly reset, no duplicate threshold, no JackpotEntry minting, and duplicate payment confirmation.
 
 
 - Direct web ticket purchases use Paystack.
@@ -98,12 +99,12 @@ Current engineering increment:
 
 ## Next Tasks
 
-1. Pull main and apply the new Prisma migration locally.
-2. Regenerate Prisma Client.
-3. Run the focused Phase 1 Jest tests.
-4. Run API type-check and build.
-5. Run rollout:check --strict-review and confirm the existing financial invariants remain green.
-6. Only after Phase 1 is accepted, begin Phase 2: secure offer retrieval/reservation/decline/claim lifecycle APIs.
+1. Pull main. No new Phase 2 database migration is required beyond the Phase 1 jackpot_discount_offers migration.
+2. Regenerate Prisma Client if the Phase 1 migration/schema has not yet been generated locally.
+3. Run the focused jackpot accumulation and duplicate-confirmation Jest tests.
+4. Run @surewina/types, @surewina/api-client, API, and monorepo type-check/build validation.
+5. Run rollout:check --strict-review and confirm financial invariants remain green.
+6. Only after Phase 2 is accepted, begin Phase 3: secure offer retrieval/reservation/decline/claim lifecycle APIs.
 7. Provider sandbox/live financial rollout work remains pending after this promotion increment is validated.
 
 ## Known Issues
@@ -174,7 +175,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: introduce jackpot discount offers` (this development cycle)
+`feat: make jackpot offer rule authoritative` (this development cycle)
 
 ## Latest Acceptance Evidence
 

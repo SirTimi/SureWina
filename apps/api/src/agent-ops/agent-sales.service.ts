@@ -19,10 +19,8 @@ import {
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import {
-  JackpotAccumulationService,
-  type UnlockedJackpotOffers,
-} from '../payments/jackpot-accumulation.service';
+import { JackpotAccumulationService } from '../payments/jackpot-accumulation.service';
+import type { JackpotOfferUnlockResult } from '@surewina/types';
 import { NotificationQueueService } from '../queue/notification-queue.service';
 import { generateTicketRef } from '../payments/ticket-ref.util';
 import { CustomerAdminService } from '../admin-ops/customer-admin.service';
@@ -144,7 +142,7 @@ export class AgentSalesService {
       // Returned out of the transaction rather than assigned to an outer
       // variable: the notification must wait for the commit, and a value
       // assigned inside this callback gets narrowed away by the compiler.
-      let offerUnlockInTx: UnlockedJackpotOffers = null;
+      let offerUnlockInTx: JackpotOfferUnlockResult | null = null;
       if (dto.customerPhone && draw.drawType === DrawType.DAILY_STANDARD) {
         offerUnlockInTx = await this.jackpotAccumulation.recordDailyPurchase(tx, {
           buyerPhone: dto.customerPhone,
@@ -203,15 +201,9 @@ export class AgentSalesService {
       ticketRefs,
       customerNotified: !!dto.customerPhone,
       soldAt: txn.confirmedAt!.toISOString(),
-      // Read from the accumulation state rather than this sale's quantity.
-      // The confirmation screen previously guessed from quantity alone, so
-      // it told an agent "3 more needed" to a customer who had just crossed
-      // the threshold on tickets bought earlier in the week.
-      // Legacy fields stay neutral until the agent UX is moved to the
-      // discounted-offer contract.
-      jackpotEntriesEarned: 0,
-      jackpotEntriesThisWeek: null,
-      jackpotOffersUnlocked: offerUnlock?.offersUnlocked ?? 0,
+      // Canonical server-computed promotion result. Consumers must use this
+      // rather than deriving weekly eligibility from this sale's quantity.
+      jackpotOfferUnlock: offerUnlock,
     };
   }
 

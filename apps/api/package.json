@@ -49,7 +49,8 @@
     "nodemailer": "^9.0.3",
     "otplib": "^13.4.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "@surewina/types": "workspace:*"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",

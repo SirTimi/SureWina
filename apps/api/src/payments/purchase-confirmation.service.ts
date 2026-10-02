@@ -16,10 +16,8 @@ import { AuditService } from '../audit/audit.service';
 import { PaymentAccountingService } from '../ledger/payment-accounting.service';
 import { generateTicketRef } from './ticket-ref.util';
 
-import {
-  JackpotAccumulationService,
-  type UnlockedJackpotOffers,
-} from './jackpot-accumulation.service';
+import { JackpotAccumulationService } from './jackpot-accumulation.service';
+import type { JackpotOfferUnlockResult } from '@surewina/types';
 
 import { ZohoEmailProvider } from '../notifications/zoho-email.provider';
 import { ReceiptService } from '../tickets/receipt.service';
@@ -55,7 +53,7 @@ export type ConfirmedPurchase = {
    * Non-null when this purchase crossed a 10-ticket
    * threshold and unlocked discounted jackpot offers.
    */
-  jackpotOfferUnlock: UnlockedJackpotOffers;
+  jackpotOfferUnlock: JackpotOfferUnlockResult | null;
 };
 
 export type ConfirmPurchaseParams = {
@@ -1110,7 +1108,7 @@ export class PurchaseConfirmationService {
          * standard tickets.
          */
         let jackpotOfferUnlock:
-          UnlockedJackpotOffers =
+          JackpotOfferUnlockResult | null =
             null;
 
         if (

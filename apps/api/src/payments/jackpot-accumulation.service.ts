@@ -5,22 +5,19 @@ import {
   JackpotDiscountOfferStatus,
   Prisma,
 } from '@prisma/client';
+import type { JackpotOfferUnlockResult } from '@surewina/types';
 
 const TICKETS_PER_DISCOUNT_OFFER = 10;
 const JACKPOT_DISCOUNT_PRICE_NGN = 500;
 
-export type UnlockedJackpotOffers = {
-  accumId: string;
-  buyerPhone: string;
-  offersUnlocked: number;
-  weeklyTicketCount: number;
-  jackpotDrawId: string;
-  jackpotDrawCode: string;
-  jackpotScheduledAt: string;
-  originalPriceNgn: number;
-  offerPriceNgn: number;
-  expiresAt: string;
-} | null;
+function ticketsToNextOffer(weeklyTicketCount: number): number {
+  const remainder =
+    weeklyTicketCount % TICKETS_PER_DISCOUNT_OFFER;
+
+  return remainder === 0
+    ? TICKETS_PER_DISCOUNT_OFFER
+    : TICKETS_PER_DISCOUNT_OFFER - remainder;
+}
 
 // Every 10 DAILY_STANDARD tickets bought by one identified phone number
 // inside the active Saturday-jackpot cycle unlock one NGN 500 jackpot offer.
@@ -39,7 +36,7 @@ export class JackpotAccumulationService {
       buyerUserId: string | null;
       ticketCount: number;
     },
-  ): Promise<UnlockedJackpotOffers> {
+  ): Promise<JackpotOfferUnlockResult | null> {
     const { buyerPhone, buyerUserId, ticketCount } = params;
     const now = new Date();
 
@@ -144,66 +141,98 @@ export class JackpotAccumulationService {
       accum.cumulativeCount / TICKETS_PER_DISCOUNT_OFFER,
     );
 
-    if (currentThreshold <= previousThreshold) {
-      const remainder =
-        accum.cumulativeCount % TICKETS_PER_DISCOUNT_OFFER;
-      const toNext =
-        remainder === 0
-          ? TICKETS_PER_DISCOUNT_OFFER
-          : TICKETS_PER_DISCOUNT_OFFER - remainder;
+    const thresholdNumbers =
+      currentThreshold > previousThreshold
+        ? Array.from(
+            { length: currentThreshold - previousThreshold },
+            (_, index) => previousThreshold + index + 1,
+          )
+        : [];
 
+    let offersUnlocked = 0;
+    let latestOffer: JackpotOfferUnlockResult['latestOffer'] = null;
+
+    if (thresholdNumbers.length > 0) {
+      const created = await tx.jackpotDiscountOffer.createMany({
+        data: thresholdNumbers.map((thresholdNumber) => ({
+          buyerPhone,
+          buyerUserId,
+          jackpotDrawId: jackpotDraw.drawId,
+          thresholdNumber,
+          regularTicketsAtUnlock:
+            thresholdNumber * TICKETS_PER_DISCOUNT_OFFER,
+          originalPriceNgn: jackpotDraw.ticketPriceNgn,
+          offerPriceNgn: JACKPOT_DISCOUNT_PRICE_NGN,
+          status: JackpotDiscountOfferStatus.AVAILABLE,
+          issuedAt: now,
+          expiresAt: jackpotDraw.cutoffAt,
+        })),
+        skipDuplicates: true,
+      });
+
+      offersUnlocked = created.count;
+
+      if (offersUnlocked > 0) {
+        const storedLatestOffer =
+          await tx.jackpotDiscountOffer.findFirst({
+            where: {
+              buyerPhone,
+              jackpotDrawId: jackpotDraw.drawId,
+              thresholdNumber: { in: thresholdNumbers },
+              issuedAt: now,
+            },
+            orderBy: { thresholdNumber: 'desc' },
+            select: {
+              offerId: true,
+              jackpotDrawId: true,
+              thresholdNumber: true,
+              regularTicketsAtUnlock: true,
+              originalPriceNgn: true,
+              offerPriceNgn: true,
+              status: true,
+              issuedAt: true,
+              expiresAt: true,
+            },
+          });
+
+        if (!storedLatestOffer) {
+          throw new Error(
+            'Jackpot discount offer was created but could not be reloaded',
+          );
+        }
+
+        latestOffer = {
+          ...storedLatestOffer,
+          issuedAt: storedLatestOffer.issuedAt.toISOString(),
+          expiresAt: storedLatestOffer.expiresAt.toISOString(),
+        };
+      }
+    }
+
+    const toNext = ticketsToNextOffer(accum.cumulativeCount);
+
+    if (offersUnlocked > 0) {
+      this.logger.log(
+        `${buyerPhone}: unlocked ${offersUnlocked} discounted jackpot offer${
+          offersUnlocked === 1 ? '' : 's'
+        } for ${jackpotDraw.drawCode}`,
+      );
+    } else {
       this.logger.log(
         `${buyerPhone}: ${accum.cumulativeCount} regular ticket(s) this week, ${toNext} more for the next discounted jackpot offer`,
       );
-      return null;
     }
-
-    const thresholdNumbers = Array.from(
-      { length: currentThreshold - previousThreshold },
-      (_, index) => previousThreshold + index + 1,
-    );
-
-    const created = await tx.jackpotDiscountOffer.createMany({
-      data: thresholdNumbers.map((thresholdNumber) => ({
-        buyerPhone,
-        buyerUserId,
-        jackpotDrawId: jackpotDraw.drawId,
-        thresholdNumber,
-        regularTicketsAtUnlock:
-          thresholdNumber * TICKETS_PER_DISCOUNT_OFFER,
-        originalPriceNgn: jackpotDraw.ticketPriceNgn,
-        offerPriceNgn: JACKPOT_DISCOUNT_PRICE_NGN,
-        status: JackpotDiscountOfferStatus.AVAILABLE,
-        issuedAt: now,
-        expiresAt: jackpotDraw.cutoffAt,
-      })),
-      skipDuplicates: true,
-    });
-
-    if (created.count === 0) {
-      this.logger.debug(
-        `${buyerPhone}: promotion threshold already issued for ${jackpotDraw.drawCode}`,
-      );
-      return null;
-    }
-
-    this.logger.log(
-      `${buyerPhone}: unlocked ${created.count} discounted jackpot offer${
-        created.count === 1 ? '' : 's'
-      } for ${jackpotDraw.drawCode}`,
-    );
 
     return {
       accumId: accum.accumId,
       buyerPhone,
-      offersUnlocked: created.count,
+      offersUnlocked,
+      latestOffer,
       weeklyTicketCount: accum.cumulativeCount,
+      ticketsToNextOffer: toNext,
       jackpotDrawId: jackpotDraw.drawId,
       jackpotDrawCode: jackpotDraw.drawCode,
       jackpotScheduledAt: jackpotDraw.scheduledAt.toISOString(),
-      originalPriceNgn: jackpotDraw.ticketPriceNgn,
-      offerPriceNgn: JACKPOT_DISCOUNT_PRICE_NGN,
-      expiresAt: jackpotDraw.cutoffAt.toISOString(),
     };
   }
 }

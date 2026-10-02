@@ -420,12 +420,10 @@ export function BuyForm({
               scheduled:
                 result.drawScheduledAt,
 
+              // Phase 2 keeps the old confirmation page neutral. The new
+              // offer popup consumes jackpotOfferUnlock in the later UX phase.
               newEntries:
-                String(
-                  result.jackpotMinted
-                    ?.entriesMinted ??
-                    0,
-                ),
+                '0',
 
               cumCount:
                 '0',

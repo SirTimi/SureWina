@@ -1,3 +1,4 @@
+import type { JackpotOfferUnlockResult } from '@surewina/types';
 import type { ApiClient } from '../client.js';
 
 export type WalletOwnerType = 'CUSTOMER' | 'AGENT';
@@ -115,14 +116,7 @@ export interface WalletTicketPurchaseResponse {
   amountNgn: number;
   ticketCount: number;
   ticketRefs: string[];
-  jackpotMinted?: {
-    accumId: string;
-    buyerPhone: string;
-    entriesMinted: number;
-    entriesThisWeek: number;
-    jackpotDrawCode: string;
-    jackpotScheduledAt: string;
-  } | null;
+  jackpotOfferUnlock?: JackpotOfferUnlockResult | null;
   completedAt: string | null;
   status: 'PENDING' | 'COMPLETED' | 'REVERSED';
   replayed?: boolean;
