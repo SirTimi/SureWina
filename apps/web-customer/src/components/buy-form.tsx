@@ -33,11 +33,6 @@ import {
   type PurchaseFormValues,
 } from '@/lib/schemas';
 
-import {
-  getFreeJackpotEntriesFromRegularTickets,
-  getTicketsToNextFreeJackpotEntry,
-} from '@surewina/types';
-
 interface BuyFormProps {
   draw: DrawPublic;
   initialQuantity: number;
@@ -292,15 +287,6 @@ export function BuyForm({
     draw.drawType ===
     'SATURDAY_JACKPOT';
 
-  const freeJackpotEntries =
-    getFreeJackpotEntriesFromRegularTickets(
-      quantity ?? 0,
-    );
-
-  const ticketsToNextJackpotEntry =
-    getTicketsToNextFreeJackpotEntry(
-      quantity ?? 0,
-    );
 
   const adjustQuantity = (
     delta: number,
@@ -578,36 +564,6 @@ export function BuyForm({
           />
         )}
 
-        {!isJackpotPurchase &&
-          quantity >= 1 && (
-            <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
-              <p className="text-sm font-bold text-navy-950">
-                {freeJackpotEntries >
-                0
-                  ? `${freeJackpotEntries} free Sure Jackpot ${
-                      freeJackpotEntries ===
-                      1
-                        ? 'entry'
-                        : 'entries'
-                    } unlocked with this purchase.`
-                  : `${ticketsToNextJackpotEntry} more regular ticket${
-                      ticketsToNextJackpotEntry ===
-                      1
-                        ? ''
-                        : 's'
-                    } to unlock 1 free Sure Jackpot entry.`}
-              </p>
-
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                Every 10 regular
-                ₦500 tickets gives
-                the customer 1 free
-                entry into the
-                coming Saturday
-                jackpot draw.
-              </p>
-            </div>
-          )}
 
         {isJackpotPurchase && (
           <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">

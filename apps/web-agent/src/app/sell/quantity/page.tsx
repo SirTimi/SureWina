@@ -3,10 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Minus, Phone, Plus, Ticket } from 'lucide-react';
-import {
-  getFreeJackpotEntriesFromRegularTickets,
-  getTicketsToNextFreeJackpotEntry,
-} from '@surewina/types';
 import { Button, Card } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
 import { AgentShell } from '@/components/agent-shell';
@@ -49,8 +45,6 @@ function QuantityBody() {
   const total = quantity * draft.ticketPriceNgn;
 
   const isJackpotSale = draft.ticketKind === 'JACKPOT';
-  const freeJackpotEntries = getFreeJackpotEntriesFromRegularTickets(quantity);
-  const ticketsToNextJackpotEntry = getTicketsToNextFreeJackpotEntry(quantity);
 
   const validatePhone = (raw: string): { ok: boolean; e164: string | null } => {
     const trimmed = raw.trim();
@@ -159,24 +153,6 @@ function QuantityBody() {
           </button>
         </div>
 
-        {!isJackpotSale && (
-          <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">
-            <p className="text-sm font-bold text-navy-950">
-              {freeJackpotEntries > 0
-                ? `${freeJackpotEntries} free Sure Jackpot ${
-                    freeJackpotEntries === 1 ? 'entry' : 'entries'
-                  } unlocked for this customer.`
-                : `${ticketsToNextJackpotEntry} more regular ticket${
-                    ticketsToNextJackpotEntry === 1 ? '' : 's'
-                  } to unlock 1 free Sure Jackpot entry.`}
-            </p>
-
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Every 10 regular ₦500 tickets gives the customer 1 free entry into the
-              coming Saturday jackpot draw.
-            </p>
-          </div>
-        )}
 
         {isJackpotSale && (
           <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 p-4">

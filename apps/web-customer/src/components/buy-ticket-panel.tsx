@@ -13,9 +13,7 @@ interface BuyTicketPanelProps {
 
 export function BuyTicketPanel({ draw }: BuyTicketPanelProps) {
   const [quantity, setQuantity] = useState(1);
-  const isJackpot = draw.drawType === 'SATURDAY_JACKPOT';
   const total = quantity * draw.ticketPriceNgn;
-  const ticketsToNextEntry = isJackpot ? null : 10 - (quantity % 10);
 
   return (
     <Card
@@ -68,11 +66,6 @@ export function BuyTicketPanel({ draw }: BuyTicketPanelProps) {
           </button>
         </div>
 
-        {ticketsToNextEntry !== null && ticketsToNextEntry < 10 && (
-          <p className="mt-2 text-xs font-semibold text-navy-700">
-            {ticketsToNextEntry} more for a free Saturday jackpot entry
-          </p>
-        )}
       </div>
 
       <div className="mt-6 rounded-2xl border border-navy-100 bg-[#F8FAF4] p-5">
