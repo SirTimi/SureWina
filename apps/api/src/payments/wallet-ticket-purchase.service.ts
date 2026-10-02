@@ -194,10 +194,10 @@ export class WalletTicketPurchaseService {
             data: tickets,
           });
 
-          let jackpotMinted = null;
+          let jackpotOfferUnlock = null;
 
           if (draw.drawType === DrawType.DAILY_STANDARD) {
-            jackpotMinted =
+            jackpotOfferUnlock =
               await this.jackpotAccumulation.recordDailyPurchase(
                 tx,
                 {
@@ -245,7 +245,10 @@ export class WalletTicketPurchaseService {
             amountNgn,
             ticketCount: dto.quantity,
             ticketRefs: tickets.map((ticket) => ticket.ticketRef),
-            jackpotMinted,
+            // Keep the legacy field neutral until the customer contract is
+            // replaced with the new promotion payload.
+            jackpotMinted: null,
+            jackpotOfferUnlock,
             completedAt: completedAt.toISOString(),
           };
         },
@@ -273,6 +276,8 @@ export class WalletTicketPurchaseService {
             drawCode: committed.drawCode,
             ticketCount: committed.ticketCount,
             amountNgn: committed.amountNgn,
+            jackpotOffersUnlocked:
+              committed.jackpotOfferUnlock?.offersUnlocked ?? 0,
           },
         })
         .catch((error) => {
@@ -291,12 +296,6 @@ export class WalletTicketPurchaseService {
         ticketRefs: committed.ticketRefs,
         amountNgn: committed.amountNgn,
       });
-
-      if (committed.jackpotMinted) {
-        await this.notifications.enqueueJackpotEntrySms(
-          committed.jackpotMinted,
-        );
-      }
 
       return {
         ...committed,

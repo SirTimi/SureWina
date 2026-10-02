@@ -21,7 +21,7 @@ import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import {
   JackpotAccumulationService,
-  type MintedJackpotEntries,
+  type UnlockedJackpotOffers,
 } from '../payments/jackpot-accumulation.service';
 import { NotificationQueueService } from '../queue/notification-queue.service';
 import { generateTicketRef } from '../payments/ticket-ref.util';
@@ -96,7 +96,7 @@ export class AgentSalesService {
 
     // ONE atomic write: cash was handed over, so the transaction is born
     // CONFIRMED and the tickets exist immediately. No webhook, no PENDING.
-    const { txn, ticketRefs, minted } = await this.prisma.$transaction(async (tx) => {
+    const { txn, ticketRefs, offerUnlock } = await this.prisma.$transaction(async (tx) => {
       const txn = await tx.paymentTransaction.create({
         data: {
           gatewayReference: reference,
@@ -144,9 +144,9 @@ export class AgentSalesService {
       // Returned out of the transaction rather than assigned to an outer
       // variable: the notification must wait for the commit, and a value
       // assigned inside this callback gets narrowed away by the compiler.
-      let mintedInTx: MintedJackpotEntries = null;
+      let offerUnlockInTx: UnlockedJackpotOffers = null;
       if (dto.customerPhone && draw.drawType === DrawType.DAILY_STANDARD) {
-        mintedInTx = await this.jackpotAccumulation.recordDailyPurchase(tx, {
+        offerUnlockInTx = await this.jackpotAccumulation.recordDailyPurchase(tx, {
           buyerPhone: dto.customerPhone,
           buyerUserId: null,
           ticketCount: dto.quantity,
@@ -156,7 +156,7 @@ export class AgentSalesService {
       return {
         txn,
         ticketRefs: ticketsData.map((t) => t.ticketRef),
-        minted: mintedInTx,
+        offerUnlock: offerUnlockInTx,
       };
     });
 
@@ -172,14 +172,6 @@ export class AgentSalesService {
       });
     }
 
-    // Separate message from the ticket confirmation: earning a free jackpot
-    // entry is its own news, and burying it in a per-ticket receipt would
-    // lose it among the others. Queued after the commit — a queued job
-    // cannot be rolled back with a failed transaction.
-    if (minted) {
-      await this.notificationQueue.enqueueJackpotEntrySms(minted);
-    }
-
     await this.audit.write({
       severity: AuditSeverity.INFO,
       actor: { type: AuditActorType.AGENT, id: agentId },
@@ -192,7 +184,7 @@ export class AgentSalesService {
         commissionNgn,
         walletChargeNgn,
         customerPhoneProvided: !!dto.customerPhone,
-        jackpotEntriesEarned: minted ? minted.entriesMinted : 0,
+        jackpotOffersUnlocked: offerUnlock?.offersUnlocked ?? 0,
       },
     });
 
@@ -215,8 +207,11 @@ export class AgentSalesService {
       // The confirmation screen previously guessed from quantity alone, so
       // it told an agent "3 more needed" to a customer who had just crossed
       // the threshold on tickets bought earlier in the week.
-      jackpotEntriesEarned: minted ? minted.entriesMinted : 0,
-      jackpotEntriesThisWeek: minted ? minted.entriesThisWeek : null,
+      // Legacy fields stay neutral until the agent UX is moved to the
+      // discounted-offer contract.
+      jackpotEntriesEarned: 0,
+      jackpotEntriesThisWeek: null,
+      jackpotOffersUnlocked: offerUnlock?.offersUnlocked ?? 0,
     };
   }
 

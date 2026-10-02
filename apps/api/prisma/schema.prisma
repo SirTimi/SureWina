@@ -33,8 +33,9 @@ model User {
   updatedAt            DateTime              @updatedAt @map("updated_at")
   tickets              Ticket[]
   paymentTransactions  PaymentTransaction[]
-  jackpotAccumulations JackpotAccumulation[]
-  wallet               Wallet?               @relation("CustomerWallet")
+  jackpotAccumulations  JackpotAccumulation[]
+  jackpotDiscountOffers JackpotDiscountOffer[]
+  wallet                Wallet?               @relation("CustomerWallet")
   walletPurchases      WalletPurchase[]
 
   @@index([phoneNumber])
@@ -250,8 +251,9 @@ model Draw {
   tickets              Ticket[]
   result               DrawResult?
   seedCommit           DrawSeedCommit?
-  jackpotEntries       JackpotEntry[]
-  purchaseTransactions PaymentTransaction[] @relation("PaymentPurchaseDraw")
+  jackpotEntries        JackpotEntry[]
+  jackpotDiscountOffers JackpotDiscountOffer[]
+  purchaseTransactions  PaymentTransaction[] @relation("PaymentPurchaseDraw")
 
   @@index([drawType, status])
   @@index([scheduledAt])
@@ -1230,7 +1232,7 @@ enum WalletHoldStatus {
   CAPTURED
 }
 
-// ─── JACKPOT ACCUMULATION ───────────────────────────────────
+// ─── JACKPOT PROMOTION ACCUMULATION ─────────────────────────
 
 model JackpotAccumulation {
   accumId String @id @default(uuid()) @map("accum_id")
@@ -1238,10 +1240,12 @@ model JackpotAccumulation {
   buyerPhone  String  @unique @map("buyer_phone")
   buyerUserId String? @map("buyer_user_id")
 
-  // Progress toward the current playing week's jackpot. Ten daily tickets
-  // must fall inside one week to earn an entry, so this resets when a
-  // purchase lands in a new cycle rather than accumulating for ever.
-  cumulativeCount     Int @default(0) @map("cumulative_count")
+  // Progress toward the current playing week's promotion. Every ten
+  // DAILY_STANDARD tickets unlock one discounted jackpot purchase offer.
+  cumulativeCount Int @default(0) @map("cumulative_count")
+
+  // Historical free-entry counter. New discount offers do not increment it.
+  // Retained so already-issued free jackpot entries remain auditable.
   jackpotEntriesTotal Int @default(0) @map("jackpot_entries_total")
 
   // Which Saturday jackpot the counts above belong to. Null on rows created
@@ -1249,9 +1253,10 @@ model JackpotAccumulation {
   // purchase starts a clean week.
   cycleDrawId String? @map("cycle_draw_id")
 
-  // Never resets. The weekly counters are for the promotion; these are for
-  // reporting, which would otherwise collapse to zero every Saturday.
-  lifetimeTicketCount  Int @default(0) @map("lifetime_ticket_count")
+  // Never resets. Ticket count remains useful for lifetime reporting.
+  lifetimeTicketCount Int @default(0) @map("lifetime_ticket_count")
+
+  // Historical free-entry total only. New discount offers do not increment it.
   lifetimeEntriesTotal Int @default(0) @map("lifetime_entries_total")
 
   lastTicketAt DateTime @map("last_ticket_at")
@@ -1263,6 +1268,56 @@ model JackpotAccumulation {
 
   @@index([buyerUserId])
   @@map("jackpot_accumulations")
+}
+
+
+model JackpotDiscountOffer {
+  offerId String @id @default(uuid()) @map("offer_id")
+
+  buyerPhone  String  @map("buyer_phone")
+  buyerUserId String? @map("buyer_user_id")
+
+  jackpotDrawId String @map("jackpot_draw_id")
+
+  // 1 = first 10 regular tickets, 2 = first 20, 3 = first 30, and so on.
+  thresholdNumber Int @map("threshold_number")
+
+  regularTicketsAtUnlock Int @map("regular_tickets_at_unlock")
+
+  // Snapshot pricing at unlock time so later draw configuration changes do
+  // not silently alter an already-issued entitlement.
+  originalPriceNgn Int @map("original_price_ngn")
+  offerPriceNgn    Int @map("offer_price_ngn")
+
+  status JackpotDiscountOfferStatus @default(AVAILABLE)
+
+  issuedAt   DateTime  @default(now()) @map("issued_at")
+  expiresAt  DateTime  @map("expires_at")
+  claimedAt  DateTime? @map("claimed_at")
+  declinedAt DateTime? @map("declined_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user        User? @relation(fields: [buyerUserId], references: [userId], onDelete: SetNull)
+  jackpotDraw Draw  @relation(fields: [jackpotDrawId], references: [drawId], onDelete: Restrict)
+
+  // Persistence-level idempotency boundary for retries and concurrent confirms.
+  @@unique([buyerPhone, jackpotDrawId, thresholdNumber])
+
+  @@index([buyerPhone, status])
+  @@index([buyerUserId])
+  @@index([jackpotDrawId, status])
+  @@index([status, expiresAt])
+  @@map("jackpot_discount_offers")
+}
+
+enum JackpotDiscountOfferStatus {
+  AVAILABLE
+  CLAIMING
+  CLAIMED
+  DECLINED
+  EXPIRED
 }
 
 model JackpotEntry {

@@ -1,10 +1,10 @@
 # AI Build State
 
-Updated: 2026-09-22
+Updated: 2026-10-02
 
 ## Current Goal
 
-Run the controlled prepaid-wallet functional matrix on the finalized local database, then move to provider sandbox verification and finally production provider/treasury configuration with small-value live-money testing.
+Validate Phase 1 of the new jackpot promotion rule: every 10 DAILY_STANDARD tickets in the current jackpot cycle unlock one persistent NGN 500 discounted Saturday-jackpot purchase offer instead of automatically minting a free JackpotEntry.
 
 ## Current Status
 
@@ -12,9 +12,21 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Financial rollout validation gate and Phase 8 local migration. The user finalized migration run `859c56c9-6111-4cc5-afe7-985926eb48a1` and reported the strict rollout checker fully green: 16 PASS, 0 BLOCKER, 0 REVIEW, Ready=YES.
+Jackpot promotion Phase 1: introduce the persistent JackpotDiscountOffer entitlement model, change weekly accumulation to issue idempotent offers, stop new automatic free-entry notifications, preserve historical JackpotEntry data, and add focused service/idempotency tests.
 
 ## Current Implementation
+
+Latest jackpot-promotion increment:
+- JackpotAccumulation remains the weekly counting source of truth by buyer phone.
+- Every crossed 10-ticket threshold now creates one JackpotDiscountOffer for the active Saturday jackpot.
+- Offer price is snapshotted at NGN 500; normal jackpot price is snapshotted from the target draw.
+- Offers expire at that jackpot draw's sales cutoff.
+- Unique buyerPhone + jackpotDrawId + thresholdNumber prevents duplicate entitlements.
+- Existing JackpotEntry rows and historical free-entry counters remain untouched for auditability.
+- New qualifying purchases no longer mint JackpotEntry rows or send the old free-entry SMS.
+- Legacy customer/agent response fields remain neutral during Phase 1; claim UX and new notification copy are intentionally deferred.
+- Focused Jest coverage is added for 9+1, 5+5, 10-at-once, 20-at-once, weekly reset, and duplicate confirmation.
+
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
@@ -86,12 +98,13 @@ Current engineering increment:
 
 ## Next Tasks
 
-Only after the user accepts this increment:
-1. Create/activate one `TEST-ROLLOUT-*` draw through the smoke CLI + real Engine lifecycle, then seed one controlled customer wallet plus one controlled ACTIVE agent wallet.
-2. Test customer wallet purchase, insufficient customer balance, prepaid agent sale, insufficient agent balance, and offline-sale protection through the actual browser/API flows.
-3. Rerun `rollout:check --strict-review` and confirm the new wallet/purchase/agent-sale rows remain fully consistent.
-4. Configure and test Monnify/Flutterwave sandbox funding separately; local smoke balance never substitutes for provider verification.
-5. Finalize production provider/callback/treasury configuration, run `rollout:check --production --strict-review`, then perform one-at-a-time small-value live-money verification.
+1. Pull main and apply the new Prisma migration locally.
+2. Regenerate Prisma Client.
+3. Run the focused Phase 1 Jest tests.
+4. Run API type-check and build.
+5. Run rollout:check --strict-review and confirm the existing financial invariants remain green.
+6. Only after Phase 1 is accepted, begin Phase 2: secure offer retrieval/reservation/decline/claim lifecycle APIs.
+7. Provider sandbox/live financial rollout work remains pending after this promotion increment is validated.
 
 ## Known Issues
 
@@ -161,8 +174,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: add engine-backed rollout smoke draw` (this development cycle)
-
+`feat: introduce jackpot discount offers` (this development cycle)
 
 ## Latest Acceptance Evidence
 

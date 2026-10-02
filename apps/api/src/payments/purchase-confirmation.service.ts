@@ -18,7 +18,7 @@ import { generateTicketRef } from './ticket-ref.util';
 
 import {
   JackpotAccumulationService,
-  type MintedJackpotEntries,
+  type UnlockedJackpotOffers,
 } from './jackpot-accumulation.service';
 
 import { ZohoEmailProvider } from '../notifications/zoho-email.provider';
@@ -53,9 +53,9 @@ export type ConfirmedPurchase = {
 
   /*
    * Non-null when this purchase crossed a 10-ticket
-   * threshold and earned free jackpot entries.
+   * threshold and unlocked discounted jackpot offers.
    */
-  jackpotMinted: MintedJackpotEntries;
+  jackpotOfferUnlock: UnlockedJackpotOffers;
 };
 
 export type ConfirmPurchaseParams = {
@@ -1109,15 +1109,15 @@ export class PurchaseConfirmationService {
          * 10-for-1 accumulation applies only to daily
          * standard tickets.
          */
-        let jackpotMinted:
-          MintedJackpotEntries =
+        let jackpotOfferUnlock:
+          UnlockedJackpotOffers =
             null;
 
         if (
           draw.drawType ===
           DrawType.DAILY_STANDARD
         ) {
-          jackpotMinted =
+          jackpotOfferUnlock =
             await this.jackpotAccumulation.recordDailyPurchase(
               tx,
               {
@@ -1190,9 +1190,9 @@ export class PurchaseConfirmationService {
             drawCode:
               draw.drawCode,
 
-            jackpotEntriesEarned:
-              jackpotMinted
-                ? jackpotMinted.entriesMinted
+            jackpotOffersUnlocked:
+              jackpotOfferUnlock
+                ? jackpotOfferUnlock.offersUnlocked
                 : 0,
           },
         });
@@ -1285,7 +1285,7 @@ export class PurchaseConfirmationService {
           amountNgn:
             txn.amountNgn,
 
-          jackpotMinted,
+          jackpotOfferUnlock,
         };
       },
     );

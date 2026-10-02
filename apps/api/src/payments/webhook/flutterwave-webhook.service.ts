@@ -212,12 +212,6 @@ export class FlutterwaveWebhookService {
         amountNgn:
           confirmed.amountNgn,
       });
-
-      if (confirmed.jackpotMinted) {
-        await this.notificationQueue.enqueueJackpotEntrySms(
-          confirmed.jackpotMinted,
-        );
-      }
     } catch (error) {
       this.logger.error(
         `Flutterwave webhook failed for transaction ${transactionId}: ${

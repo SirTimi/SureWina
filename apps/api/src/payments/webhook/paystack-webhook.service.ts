@@ -138,14 +138,6 @@ export class PaystackWebhookService {
         amountNgn:
           confirmed.amountNgn,
       });
-
-      if (
-        confirmed.jackpotMinted
-      ) {
-        await this.notificationQueue.enqueueJackpotEntrySms(
-          confirmed.jackpotMinted,
-        );
-      }
     } catch (error) {
       this.logger.error(
         `Webhook processing failed for ${reference}: ${

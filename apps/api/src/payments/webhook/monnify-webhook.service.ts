@@ -140,14 +140,6 @@ export class MonnifyWebhookService {
         amountNgn:
           confirmed.amountNgn,
       });
-
-      if (
-        confirmed.jackpotMinted
-      ) {
-        await this.notificationQueue.enqueueJackpotEntrySms(
-          confirmed.jackpotMinted,
-        );
-      }
     } catch (error) {
       this.logger.error(
         `Monnify webhook processing failed for ${reference}: ${

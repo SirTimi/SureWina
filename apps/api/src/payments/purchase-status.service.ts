@@ -104,14 +104,6 @@ export class PurchaseStatusService {
             amountNgn:
               confirmed.amountNgn,
           });
-
-          if (
-            confirmed.jackpotMinted
-          ) {
-            await this.notificationQueue.enqueueJackpotEntrySms(
-              confirmed.jackpotMinted,
-            );
-          }
         }
 
         txn =
@@ -174,14 +166,6 @@ export class PurchaseStatusService {
             amountNgn:
               confirmed.amountNgn,
           });
-
-          if (
-            confirmed.jackpotMinted
-          ) {
-            await this.notificationQueue.enqueueJackpotEntrySms(
-              confirmed.jackpotMinted,
-            );
-          }
         }
 
         txn =
@@ -239,14 +223,6 @@ export class PurchaseStatusService {
               amountNgn:
                 confirmed.amountNgn,
             });
-
-            if (
-              confirmed.jackpotMinted
-            ) {
-              await this.notificationQueue.enqueueJackpotEntrySms(
-                confirmed.jackpotMinted,
-              );
-            }
           }
 
           txn =
@@ -294,12 +270,12 @@ export class PurchaseStatusService {
         where: { buyerPhone: txn.buyerPhone },
       });
       if (accum) {
-        const cum = accum.cumulativeCount;
-        const qty = txn.ticketCount;
+        // Legacy fields stay present during Phase 1 so existing clients keep
+        // building, but must not claim a free entry was created.
         jackpotAccumulation = {
-          cumulativeCount: cum,
-          ticketsToNextEntry: 10 - (cum % 10 === 0 ? 10 : cum % 10),
-          newJackpotEntries: Math.floor(cum / 10) - Math.floor((cum - qty) / 10),
+          cumulativeCount: accum.cumulativeCount,
+          ticketsToNextEntry: 0,
+          newJackpotEntries: 0,
         };
       }
     }

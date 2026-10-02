@@ -2,36 +2,32 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   DrawStatus,
   DrawType,
-  JackpotEntrySource,
+  JackpotDiscountOfferStatus,
   Prisma,
 } from '@prisma/client';
 
-const TICKETS_PER_ENTRY = 10;
+const TICKETS_PER_DISCOUNT_OFFER = 10;
+const JACKPOT_DISCOUNT_PRICE_NGN = 500;
 
-// What the caller needs in order to notify, once its transaction commits.
-// Returned rather than enqueued from inside: a job queued mid-transaction
-// cannot be rolled back with it, so a purchase that later failed would still
-// have told the customer they had earned an entry.
-export type MintedJackpotEntries = {
+export type UnlockedJackpotOffers = {
   accumId: string;
   buyerPhone: string;
-  entriesMinted: number;
-  entriesThisWeek: number;
+  offersUnlocked: number;
+  weeklyTicketCount: number;
+  jackpotDrawId: string;
   jackpotDrawCode: string;
   jackpotScheduledAt: string;
+  originalPriceNgn: number;
+  offerPriceNgn: number;
+  expiresAt: string;
 } | null;
 
-// The 10-for-1 rule: ten DAILY tickets bought by one phone number within a
-// single playing week earn one free entry into that week's Saturday jackpot.
+// Every 10 DAILY_STANDARD tickets bought by one identified phone number
+// inside the active Saturday-jackpot cycle unlock one NGN 500 jackpot offer.
 //
-// The week is bounded by the jackpot's own sales cutoff, so a Saturday
-// morning purchase still counts toward that afternoon's draw. Progress does
-// not carry over — a customer sitting on nine tickets when the week closes
-// starts again from zero.
-//
-// Called INSIDE the caller's confirmation transaction, so accumulation is
-// atomic with ticket creation: a crash can never confirm tickets without
-// counting them.
+// Called inside the caller's purchase transaction so tickets, accumulation
+// and promotion entitlements commit or roll back together. Historical
+// JackpotEntry rows are intentionally untouched.
 @Injectable()
 export class JackpotAccumulationService {
   private readonly logger = new Logger(JackpotAccumulationService.name);
@@ -43,20 +39,24 @@ export class JackpotAccumulationService {
       buyerUserId: string | null;
       ticketCount: number;
     },
-  ): Promise<MintedJackpotEntries> {
+  ): Promise<UnlockedJackpotOffers> {
     const { buyerPhone, buyerUserId, ticketCount } = params;
+    const now = new Date();
 
-    // The jackpot this purchase counts toward. Looked up first because it
-    // defines the cycle — without an open jackpot there is no week to count
-    // into, and the tickets earn nothing.
     const jackpotDraw = await tx.draw.findFirst({
       where: {
         drawType: DrawType.SATURDAY_JACKPOT,
         status: DrawStatus.ACTIVE,
-        cutoffAt: { gt: new Date() },
+        cutoffAt: { gt: now },
       },
       orderBy: { scheduledAt: 'asc' },
-      select: { drawId: true, drawCode: true, scheduledAt: true },
+      select: {
+        drawId: true,
+        drawCode: true,
+        scheduledAt: true,
+        cutoffAt: true,
+        ticketPriceNgn: true,
+      },
     });
 
     const existing = await tx.jackpotAccumulation.findUnique({
@@ -69,10 +69,8 @@ export class JackpotAccumulationService {
       },
     });
 
-    // No open jackpot: the lifetime tally still moves, but nothing accrues
-    // toward a week that does not exist. Deliberately different from the old
-    // behaviour, which banked the progress indefinitely — under a weekly
-    // rule there is nothing to bank it into.
+    // Without an open jackpot there is no valid promotion cycle. Lifetime
+    // ticket reporting still advances, but no weekly progress is banked.
     if (!jackpotDraw) {
       await tx.jackpotAccumulation.upsert({
         where: { buyerPhone },
@@ -83,24 +81,25 @@ export class JackpotAccumulationService {
           jackpotEntriesTotal: 0,
           cycleDrawId: null,
           lifetimeTicketCount: ticketCount,
-          lastTicketAt: new Date(),
+          lastTicketAt: now,
         },
         update: {
           lifetimeTicketCount: { increment: ticketCount },
-          lastTicketAt: new Date(),
+          lastTicketAt: now,
           ...(buyerUserId ? { buyerUserId } : {}),
         },
       });
 
       this.logger.log(
-        `${buyerPhone}: ${ticketCount} ticket(s) recorded, no open jackpot to accrue toward`,
+        `${buyerPhone}: ${ticketCount} ticket(s) recorded, no open jackpot promotion cycle`,
       );
       return null;
     }
 
-    // A purchase in a different cycle starts the week again. Rows created
-    // before cycles existed have a null cycleDrawId and take this path too.
     const sameCycle = existing?.cycleDrawId === jackpotDraw.drawId;
+    const previousCycleCount = sameCycle
+      ? existing?.cumulativeCount ?? 0
+      : 0;
 
     const accum = await tx.jackpotAccumulation.upsert({
       where: { buyerPhone },
@@ -111,76 +110,100 @@ export class JackpotAccumulationService {
         jackpotEntriesTotal: 0,
         cycleDrawId: jackpotDraw.drawId,
         lifetimeTicketCount: ticketCount,
-        lastTicketAt: new Date(),
+        lastTicketAt: now,
       },
       update: sameCycle
         ? {
             cumulativeCount: { increment: ticketCount },
             lifetimeTicketCount: { increment: ticketCount },
-            lastTicketAt: new Date(),
+            lastTicketAt: now,
             ...(buyerUserId ? { buyerUserId } : {}),
           }
         : {
-            // New week: counters restart from this purchase alone.
             cumulativeCount: ticketCount,
+            // Historical weekly free-entry counter resets with the cycle but
+            // is no longer incremented by new purchases.
             jackpotEntriesTotal: 0,
             cycleDrawId: jackpotDraw.drawId,
             lifetimeTicketCount: { increment: ticketCount },
-            lastTicketAt: new Date(),
+            lastTicketAt: now,
             ...(buyerUserId ? { buyerUserId } : {}),
           },
     });
 
     if (!sameCycle && existing && existing.cumulativeCount > 0) {
       this.logger.log(
-        `${buyerPhone}: new playing week — ${existing.cumulativeCount} ticket(s) of unspent progress cleared`,
+        `${buyerPhone}: new jackpot cycle — previous weekly progress of ${existing.cumulativeCount} ticket(s) cleared`,
       );
     }
 
-    const owed =
-      Math.floor(accum.cumulativeCount / TICKETS_PER_ENTRY) -
-      accum.jackpotEntriesTotal;
+    const previousThreshold = Math.floor(
+      previousCycleCount / TICKETS_PER_DISCOUNT_OFFER,
+    );
+    const currentThreshold = Math.floor(
+      accum.cumulativeCount / TICKETS_PER_DISCOUNT_OFFER,
+    );
 
-    if (owed <= 0) {
+    if (currentThreshold <= previousThreshold) {
+      const remainder =
+        accum.cumulativeCount % TICKETS_PER_DISCOUNT_OFFER;
       const toNext =
-        TICKETS_PER_ENTRY - (accum.cumulativeCount % TICKETS_PER_ENTRY);
+        remainder === 0
+          ? TICKETS_PER_DISCOUNT_OFFER
+          : TICKETS_PER_DISCOUNT_OFFER - remainder;
+
       this.logger.log(
-        `${buyerPhone}: ${accum.cumulativeCount} this week, ${toNext} more for a jackpot entry`,
+        `${buyerPhone}: ${accum.cumulativeCount} regular ticket(s) this week, ${toNext} more for the next discounted jackpot offer`,
       );
       return null;
     }
 
-    await tx.jackpotEntry.createMany({
-      data: Array.from({ length: owed }, () => ({
-        drawId: jackpotDraw.drawId,
-        source: JackpotEntrySource.ACCUMULATION,
-        sourceAccumId: accum.accumId,
+    const thresholdNumbers = Array.from(
+      { length: currentThreshold - previousThreshold },
+      (_, index) => previousThreshold + index + 1,
+    );
+
+    const created = await tx.jackpotDiscountOffer.createMany({
+      data: thresholdNumbers.map((thresholdNumber) => ({
         buyerPhone,
         buyerUserId,
+        jackpotDrawId: jackpotDraw.drawId,
+        thresholdNumber,
+        regularTicketsAtUnlock:
+          thresholdNumber * TICKETS_PER_DISCOUNT_OFFER,
+        originalPriceNgn: jackpotDraw.ticketPriceNgn,
+        offerPriceNgn: JACKPOT_DISCOUNT_PRICE_NGN,
+        status: JackpotDiscountOfferStatus.AVAILABLE,
+        issuedAt: now,
+        expiresAt: jackpotDraw.cutoffAt,
       })),
+      skipDuplicates: true,
     });
 
-    await tx.jackpotAccumulation.update({
-      where: { accumId: accum.accumId },
-      data: {
-        jackpotEntriesTotal: { increment: owed },
-        lifetimeEntriesTotal: { increment: owed },
-      },
-    });
+    if (created.count === 0) {
+      this.logger.debug(
+        `${buyerPhone}: promotion threshold already issued for ${jackpotDraw.drawCode}`,
+      );
+      return null;
+    }
 
     this.logger.log(
-      `${buyerPhone}: minted ${owed} free jackpot entr${owed === 1 ? 'y' : 'ies'} into ${jackpotDraw.drawCode}`,
+      `${buyerPhone}: unlocked ${created.count} discounted jackpot offer${
+        created.count === 1 ? '' : 's'
+      } for ${jackpotDraw.drawCode}`,
     );
 
     return {
       accumId: accum.accumId,
       buyerPhone,
-      entriesMinted: owed,
-      // accum was read before the increment above, so the running total for
-      // the week is the pre-mint figure plus what we just minted.
-      entriesThisWeek: accum.jackpotEntriesTotal + owed,
+      offersUnlocked: created.count,
+      weeklyTicketCount: accum.cumulativeCount,
+      jackpotDrawId: jackpotDraw.drawId,
       jackpotDrawCode: jackpotDraw.drawCode,
       jackpotScheduledAt: jackpotDraw.scheduledAt.toISOString(),
+      originalPriceNgn: jackpotDraw.ticketPriceNgn,
+      offerPriceNgn: JACKPOT_DISCOUNT_PRICE_NGN,
+      expiresAt: jackpotDraw.cutoffAt.toISOString(),
     };
   }
 }
