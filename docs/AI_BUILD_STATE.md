@@ -4,7 +4,7 @@ Updated: 2026-10-02
 
 ## Current Goal
 
-Validate jackpot promotion Phase 2: make the discounted-offer rule authoritative across direct Paystack confirmation, customer wallet purchases, and identified agent sales, with one canonical server-computed JackpotOfferUnlockResult and no new automatic free JackpotEntry minting.
+Validate jackpot promotion Phase 3: secure authenticated offer lifecycle APIs for listing, retrieving, reserving, releasing, declining, and expiring JackpotDiscountOffer entitlements without charging money or marking an offer CLAIMED yet.
 
 ## Current Status
 
@@ -12,22 +12,23 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Jackpot promotion Phase 2: replace the transitional unlock result with the canonical JackpotOfferUnlockResult, return server-computed weekly progress for every eligible daily purchase, expose the latest newly-created offer, and propagate that same result through direct, wallet, and agent purchase paths.
+Jackpot promotion Phase 3: add secure customer-JWT offer retrieval and state transitions, bind phone-owned guest/agent offers to the verified customer account, add explicit claim reservation timing, prevent cross-customer access, and make abandoned CLAIMING reservations safely reusable.
 
 ## Current Implementation
 
 Latest jackpot-promotion increment:
-- JackpotAccumulation remains the only weekly eligibility source of truth by buyer phone.
-- Every active-cycle DAILY_STANDARD purchase returns JackpotOfferUnlockResult with offersUnlocked, latestOffer, weeklyTicketCount, ticketsToNextOffer, jackpotDrawCode, and jackpotScheduledAt.
-- Every crossed 10-ticket threshold creates one JackpotDiscountOffer for the active Saturday jackpot.
-- The latest newly-created entitlement is reloaded from persistence and returned with its offerId and snapshotted pricing.
-- Direct Paystack confirmation, customer wallet purchases, and identified agent sales all call the same recordDailyPurchase() service inside their purchase transaction.
-- No purchase path independently calculates promotion eligibility.
-- Existing JackpotEntry rows and historical ACCUMULATION entries remain untouched for auditability.
-- New purchases never call jackpotEntry.createMany() and no longer emit the old free-entry SMS.
-- The wallet API client now exposes jackpotOfferUnlock instead of the obsolete jackpotMinted contract.
-- Focused tests explicitly verify authoritative progress, 9+1, 5+5, 10-at-once, 20-at-once, weekly reset, no duplicate threshold, no JackpotEntry minting, and duplicate payment confirmation.
-
+- Jackpot offer lifecycle endpoints require the existing CustomerJwtGuard.
+- GET /jackpot-offers/current returns only the authenticated customer's unexpired AVAILABLE/CLAIMING offers.
+- GET /jackpot-offers/:offerId returns one owned offer without leaking offers belonging to another phone/account.
+- POST /jackpot-offers/:offerId/claim reserves an AVAILABLE entitlement by moving it to CLAIMING; it does not charge money and does not mark the offer CLAIMED.
+- POST /jackpot-offers/:offerId/release returns a CLAIMING entitlement to AVAILABLE for cancelled/failed checkout flows.
+- POST /jackpot-offers/:offerId/decline permanently declines an AVAILABLE entitlement; active CLAIMING offers cannot be declined until released.
+- claimingAt is now persisted separately from claimedAt, with a 15-minute claim reservation window.
+- Stale CLAIMING reservations are lazily released back to AVAILABLE; offers past the jackpot cutoff are lazily marked EXPIRED.
+- Agent/guest offers with buyerUserId=NULL are bound to a customer only after OTP authentication proves the same buyerPhone.
+- JackpotOfferView is shared through @surewina/types and a JackpotOffersModule is available through @surewina/api-client.
+- Phase 3 does not initialize Paystack/wallet payment, create a jackpot Ticket, or transition an offer to CLAIMED; those remain the next financial redemption phase.
+- Focused lifecycle tests cover ownership binding, reserve idempotency, stale reservation recovery, decline conflicts, release, cross-customer isolation, and expiry.
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
@@ -99,12 +100,12 @@ Current engineering increment:
 
 ## Next Tasks
 
-1. Pull main. No new Phase 2 database migration is required beyond the Phase 1 jackpot_discount_offers migration.
-2. Regenerate Prisma Client if the Phase 1 migration/schema has not yet been generated locally.
-3. Run the focused jackpot accumulation and duplicate-confirmation Jest tests.
+1. Pull main and apply the Phase 3 claiming_at Prisma migration.
+2. Regenerate Prisma Client.
+3. Run jackpot accumulation, duplicate confirmation, and jackpot-offer lifecycle Jest tests.
 4. Run @surewina/types, @surewina/api-client, API, and monorepo type-check/build validation.
 5. Run rollout:check --strict-review and confirm financial invariants remain green.
-6. Only after Phase 2 is accepted, begin Phase 3: secure offer retrieval/reservation/decline/claim lifecycle APIs.
+6. After Phase 3 acceptance, begin Phase 4: secure NGN 500 discounted jackpot redemption through Paystack and customer wallet, with final CLAIMED transition only after successful ticket creation/accounting.
 7. Provider sandbox/live financial rollout work remains pending after this promotion increment is validated.
 
 ## Known Issues
@@ -175,7 +176,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: make jackpot offer rule authoritative` (this development cycle)
+`feat: add secure jackpot offer lifecycle` (this development cycle)
 
 ## Latest Acceptance Evidence
 

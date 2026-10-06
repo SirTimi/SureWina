@@ -5,6 +5,8 @@ import { FlutterwaveDriver } from './gateway/flutterwave.driver';
 import { MonnifyDriver } from './gateway/monnify.driver';
 import { PurchaseConfirmationService } from './purchase-confirmation.service';
 import { JackpotAccumulationService } from './jackpot-accumulation.service';
+import { JackpotOffersController } from './jackpot-offers.controller';
+import { JackpotOffersService } from './jackpot-offers.service';
 import { PaystackWebhookController } from './webhook/paystack-webhook.controller';
 import { MonnifyWebhookController } from './webhook/monnify-webhook.controller';
 import { PaystackWebhookService } from './webhook/paystack-webhook.service';
@@ -40,7 +42,8 @@ import { PaystackDriver } from './gateway/paystack.driver'
     FlutterwaveWebhookController,
     WalletFundingController,
     WalletFundingAdminController,
-    WalletTicketPurchaseController
+    WalletTicketPurchaseController,
+    JackpotOffersController
   ],
   providers: [
     PaymentsService,
@@ -58,9 +61,15 @@ import { PaystackDriver } from './gateway/paystack.driver'
     PaymentVerificationService,
     WalletFundingService,
     CustomerJwtGuard,
-    WalletTicketPurchaseService
+    WalletTicketPurchaseService,
+    JackpotOffersService
   ],
-  exports: [PaymentsService, JackpotAccumulationService, WalletFundingService],
+  exports: [
+    PaymentsService,
+    JackpotAccumulationService,
+    JackpotOffersService,
+    WalletFundingService,
+  ],
   imports: [
     JwtModule.register({}),
     AdminOpsModule,

@@ -1293,6 +1293,7 @@ model JackpotDiscountOffer {
 
   issuedAt   DateTime  @default(now()) @map("issued_at")
   expiresAt  DateTime  @map("expires_at")
+  claimingAt DateTime? @map("claiming_at")
   claimedAt  DateTime? @map("claimed_at")
   declinedAt DateTime? @map("declined_at")
 
@@ -1309,6 +1310,7 @@ model JackpotDiscountOffer {
   @@index([buyerUserId])
   @@index([jackpotDrawId, status])
   @@index([status, expiresAt])
+  @@index([status, claimingAt])
   @@map("jackpot_discount_offers")
 }
 

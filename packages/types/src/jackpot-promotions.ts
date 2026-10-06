@@ -28,3 +28,16 @@ export interface JackpotOfferUnlockResult {
   jackpotDrawCode: string;
   jackpotScheduledAt: string;
 }
+
+export interface JackpotOfferView extends JackpotDiscountOfferSummary {
+  jackpotDrawCode: string;
+  jackpotScheduledAt: string;
+  claimingAt: string | null;
+  reservationExpiresAt: string | null;
+  claimedAt: string | null;
+  declinedAt: string | null;
+}
+
+export interface CurrentJackpotOffersResponse {
+  offers: JackpotOfferView[];
+}
