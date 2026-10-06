@@ -182,8 +182,11 @@ export class ReceiptService {
           purchase.createdAt
         ).toISOString(),
 
+      // Receipts show what this purchase actually paid per ticket.
+      // For a discounted jackpot redemption this is NGN 500, while the
+      // draw's standard public price can remain NGN 5,000.
       ticketPriceNgn:
-        purchase.draw.ticketPriceNgn,
+        purchase.tickets[0].faceValueNgn,
 
       amountNgn:
         purchase.amountNgn,
@@ -290,7 +293,7 @@ export class ReceiptService {
         ).toISOString(),
 
       ticketPriceNgn:
-        draw.ticketPriceNgn,
+        txn.tickets[0].faceValueNgn,
 
       amountNgn:
         txn.amountNgn,

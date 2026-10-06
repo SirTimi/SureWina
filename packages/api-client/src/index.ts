@@ -62,3 +62,5 @@ export type { AgentSalePrint } from './modules/agents.js';
 export type { WalletView, WalletStatus, WalletOwnerType, WalletFundingGateway, WalletFundingStatus, WalletFundingView, WalletFundingHistoryResponse, WalletLedgerEntry, WalletLedgerTransaction, WalletHistoryResponse, InitiateWalletFundingRequest, InitiateWalletFundingResponse, WalletTicketPurchaseRequest, WalletTicketPurchaseResponse } from './modules/wallet.js';
 
 export type { CurrentJackpotOffersResponse, JackpotOfferView } from '@surewina/types';
+export type { PromotionalJackpotPaystackPurchaseResponse } from './modules/jackpot-offers.js';
+export type { PromotionalJackpotPaystackPurchaseInput, PromotionalJackpotWalletPurchaseInput, PurchasePricingContext } from '@surewina/types';

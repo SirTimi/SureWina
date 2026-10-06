@@ -11,8 +11,10 @@ import {
   DrawStatus,
   DrawType,
   LedgerTransactionKind,
+  PaymentStatus,
   Prisma,
   PurchaseChannel,
+  PurchasePricingContext,
   TicketType,
   WalletPurchaseStatus,
 } from '@prisma/client';
@@ -27,6 +29,7 @@ import { NotificationQueueService } from '../queue/notification-queue.service';
 import { SYSTEM_LEDGER_ACCOUNT_CODES } from '../ledger/ledger.constants';
 
 import { JackpotAccumulationService } from './jackpot-accumulation.service';
+import { JackpotOffersService } from './jackpot-offers.service';
 import { generateTicketRef } from './ticket-ref.util';
 import { WalletTicketPurchaseDto } from './dto/wallet-ticket-purchase.dto';
 
@@ -41,6 +44,7 @@ export class WalletTicketPurchaseService {
     private readonly customerAdmin: CustomerAdminService,
     private readonly wallets: WalletService,
     private readonly jackpotAccumulation: JackpotAccumulationService,
+    private readonly jackpotOffers: JackpotOffersService,
     private readonly notifications: NotificationQueueService,
   ) {}
 
@@ -82,14 +86,66 @@ export class WalletTicketPurchaseService {
     try {
       const committed = await this.prisma.$transaction(
         async (tx) => {
-          const lockedDraw = await tx.$queryRaw<
-            Array<{ draw_id: string }>
-          >`
-            SELECT draw_id
-            FROM draws
-            WHERE draw_code = ${dto.drawCode}
-            FOR UPDATE
-          `;
+          const promotionalOffer =
+            dto.jackpotDiscountOfferId
+              ? await this.jackpotOffers.reserveForPurchaseInTransaction(
+                  tx,
+                  {
+                    sub: userId,
+                    phoneNumber: user.phoneNumber,
+                    type: 'customer',
+                  },
+                  dto.jackpotDiscountOfferId,
+                )
+              : null;
+
+          if (promotionalOffer && dto.quantity !== 1) {
+            throw new ConflictException(
+              'Promotional jackpot purchases must contain exactly one ticket',
+            );
+          }
+
+          if (promotionalOffer) {
+            const activeProviderPayment =
+              await tx.paymentTransaction.findFirst({
+                where: {
+                  jackpotDiscountOfferId:
+                    promotionalOffer.offerId,
+                  status: {
+                    in: [
+                      PaymentStatus.PENDING,
+                      PaymentStatus.CONFIRMED,
+                      PaymentStatus.REVIEW_REQUIRED,
+                      PaymentStatus.REFUND_PENDING,
+                    ],
+                  },
+                },
+                select: {
+                  txnId: true,
+                  status: true,
+                },
+              });
+
+            if (activeProviderPayment) {
+              throw new ConflictException(
+                'Jackpot offer already has an active Paystack purchase attempt',
+              );
+            }
+          }
+
+          const lockedDraw = promotionalOffer
+            ? await tx.$queryRaw<Array<{ draw_id: string }>>`
+                SELECT draw_id
+                FROM draws
+                WHERE draw_id = ${promotionalOffer.jackpotDrawId}
+                FOR UPDATE
+              `
+            : await tx.$queryRaw<Array<{ draw_id: string }>>`
+                SELECT draw_id
+                FROM draws
+                WHERE draw_code = ${dto.drawCode}
+                FOR UPDATE
+              `;
 
           if (lockedDraw.length === 0) {
             throw new NotFoundException('Draw not found');
@@ -98,6 +154,15 @@ export class WalletTicketPurchaseService {
           const draw = await tx.draw.findUniqueOrThrow({
             where: { drawId: lockedDraw[0].draw_id },
           });
+
+          if (
+            promotionalOffer &&
+            draw.drawCode !== promotionalOffer.jackpotDraw.drawCode
+          ) {
+            throw new ConflictException(
+              'Promotional jackpot offer draw mismatch',
+            );
+          }
 
           if (draw.status !== DrawStatus.ACTIVE) {
             throw new ConflictException(
@@ -111,7 +176,9 @@ export class WalletTicketPurchaseService {
             );
           }
 
-          const amountNgn = draw.ticketPriceNgn * dto.quantity;
+          const amountNgn = promotionalOffer
+            ? promotionalOffer.offerPriceNgn
+            : draw.ticketPriceNgn * dto.quantity;
 
           if (!Number.isSafeInteger(amountNgn) || amountNgn <= 0) {
             throw new ConflictException('Invalid purchase amount');
@@ -145,6 +212,11 @@ export class WalletTicketPurchaseService {
               stateOfPlayCode,
               ticketCount: dto.quantity,
               amountNgn,
+              pricingContext: promotionalOffer
+                ? PurchasePricingContext.PROMOTIONAL_JACKPOT
+                : PurchasePricingContext.NORMAL,
+              jackpotDiscountOfferId:
+                promotionalOffer?.offerId ?? null,
               status: WalletPurchaseStatus.PENDING,
             },
           });
@@ -165,6 +237,11 @@ export class WalletTicketPurchaseService {
                 drawId: draw.drawId,
                 drawCode: draw.drawCode,
                 ticketCount: dto.quantity,
+                pricingContext: promotionalOffer
+                  ? PurchasePricingContext.PROMOTIONAL_JACKPOT
+                  : PurchasePricingContext.NORMAL,
+                jackpotDiscountOfferId:
+                  promotionalOffer?.offerId ?? null,
               },
             },
           );
@@ -180,7 +257,9 @@ export class WalletTicketPurchaseService {
               ticketRef: generateTicketRef(),
               drawId: draw.drawId,
               ticketType,
-              faceValueNgn: draw.ticketPriceNgn,
+              faceValueNgn: promotionalOffer
+                ? promotionalOffer.offerPriceNgn
+                : draw.ticketPriceNgn,
               buyerPhone: user.phoneNumber,
               buyerUserId: userId,
               agentId: null,
@@ -222,6 +301,11 @@ export class WalletTicketPurchaseService {
               drawId: draw.drawId,
               drawCode: draw.drawCode,
               ticketCount: dto.quantity,
+              pricingContext: promotionalOffer
+                ? PurchasePricingContext.PROMOTIONAL_JACKPOT
+                : PurchasePricingContext.NORMAL,
+              jackpotDiscountOfferId:
+                promotionalOffer?.offerId ?? null,
             },
           });
 
@@ -236,6 +320,20 @@ export class WalletTicketPurchaseService {
             },
           });
 
+          if (promotionalOffer) {
+            await this.jackpotOffers.markClaimedInTransaction(
+              tx,
+              {
+                offerId: promotionalOffer.offerId,
+                buyerPhone: user.phoneNumber,
+                buyerUserId: userId,
+                jackpotDrawId: draw.drawId,
+                amountNgn,
+                claimedAt: completedAt,
+              },
+            );
+          }
+
           return {
             purchaseId: purchase.purchaseId,
             walletId: wallet.walletId,
@@ -245,6 +343,11 @@ export class WalletTicketPurchaseService {
             drawScheduledAt: draw.scheduledAt.toISOString(),
             amountNgn,
             ticketCount: dto.quantity,
+            pricingContext: promotionalOffer
+              ? PurchasePricingContext.PROMOTIONAL_JACKPOT
+              : PurchasePricingContext.NORMAL,
+            jackpotDiscountOfferId:
+              promotionalOffer?.offerId ?? null,
             ticketRefs: tickets.map((ticket) => ticket.ticketRef),
             jackpotOfferUnlock,
             completedAt: completedAt.toISOString(),
@@ -274,6 +377,9 @@ export class WalletTicketPurchaseService {
             drawCode: committed.drawCode,
             ticketCount: committed.ticketCount,
             amountNgn: committed.amountNgn,
+            pricingContext: committed.pricingContext,
+            jackpotDiscountOfferId:
+              committed.jackpotDiscountOfferId,
             jackpotOffersUnlocked:
               committed.jackpotOfferUnlock?.offersUnlocked ?? 0,
           },
@@ -369,6 +475,9 @@ export class WalletTicketPurchaseService {
       drawCode: purchase.draw.drawCode,
       amountNgn: purchase.amountNgn,
       ticketCount: purchase.ticketCount,
+      pricingContext: purchase.pricingContext,
+      jackpotDiscountOfferId:
+        purchase.jackpotDiscountOfferId,
       stateOfPlayCode: purchase.stateOfPlayCode,
       status: purchase.status,
       ticketRefs: purchase.tickets.map((ticket) => ticket.ticketRef),
@@ -388,6 +497,8 @@ export class WalletTicketPurchaseService {
       ticketCount: number;
       stateOfPlayCode: string;
       amountNgn: number;
+      pricingContext: PurchasePricingContext;
+      jackpotDiscountOfferId: string | null;
       status: WalletPurchaseStatus;
       completedAt: Date | null;
       draw: {
@@ -408,7 +519,9 @@ export class WalletTicketPurchaseService {
     if (
       purchase.draw.drawCode !== dto.drawCode ||
       purchase.ticketCount !== dto.quantity ||
-      purchase.stateOfPlayCode !== dto.stateOfPlayCode.trim()
+      purchase.stateOfPlayCode !== dto.stateOfPlayCode.trim() ||
+      purchase.jackpotDiscountOfferId !==
+        (dto.jackpotDiscountOfferId ?? null)
     ) {
       throw new ConflictException(
         'Idempotency key was reused with different purchase details',
@@ -424,6 +537,9 @@ export class WalletTicketPurchaseService {
         purchase.draw.scheduledAt.toISOString(),
       amountNgn: purchase.amountNgn,
       ticketCount: purchase.ticketCount,
+      pricingContext: purchase.pricingContext,
+      jackpotDiscountOfferId:
+        purchase.jackpotDiscountOfferId,
       ticketRefs: purchase.tickets.map(
         (ticket) => ticket.ticketRef,
       ),

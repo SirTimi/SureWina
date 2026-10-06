@@ -7,8 +7,12 @@ import {
 import {
   AuditActorType,
   AuditSeverity,
+  DrawStatus,
+  DrawType,
   JackpotDiscountOfferStatus,
+  PaymentStatus,
   Prisma,
+  WalletPurchaseStatus,
 } from '@prisma/client';
 import type {
   CurrentJackpotOffersResponse,
@@ -21,7 +25,19 @@ import { PrismaService } from '../database/prisma.service';
 
 const CLAIM_RESERVATION_MS = 15 * 60 * 1000;
 
-type OfferWithDraw = {
+const ACTIVE_PAYMENT_STATUSES = [
+  PaymentStatus.PENDING,
+  PaymentStatus.CONFIRMED,
+  PaymentStatus.REVIEW_REQUIRED,
+  PaymentStatus.REFUND_PENDING,
+];
+
+const ACTIVE_WALLET_PURCHASE_STATUSES = [
+  WalletPurchaseStatus.PENDING,
+  WalletPurchaseStatus.COMPLETED,
+];
+
+export type OfferWithDraw = {
   offerId: string;
   buyerPhone: string;
   buyerUserId: string | null;
@@ -38,7 +54,11 @@ type OfferWithDraw = {
   declinedAt: Date | null;
   jackpotDraw: {
     drawCode: string;
+    drawType: DrawType;
+    status: DrawStatus;
     scheduledAt: Date;
+    cutoffAt: Date;
+    ticketPriceNgn: number;
   };
 };
 
@@ -46,7 +66,11 @@ const offerInclude = {
   jackpotDraw: {
     select: {
       drawCode: true,
+      drawType: true,
+      status: true,
       scheduledAt: true,
+      cutoffAt: true,
+      ticketPriceNgn: true,
     },
   },
 } satisfies Prisma.JackpotDiscountOfferInclude;
@@ -209,6 +233,187 @@ export class JackpotOffersService {
     return this.toView(result.offer);
   }
 
+  async reserveForPurchaseInTransaction(
+    tx: Prisma.TransactionClient,
+    user: CustomerJwtPayload,
+    offerId: string,
+  ): Promise<OfferWithDraw> {
+    const locked = await tx.$queryRaw<Array<{ offer_id: string }>>`
+      SELECT offer_id
+      FROM jackpot_discount_offers
+      WHERE offer_id = ${offerId}
+      FOR UPDATE
+    `;
+
+    if (locked.length === 0) {
+      throw new NotFoundException('Jackpot offer not found');
+    }
+
+    let offer = await tx.jackpotDiscountOffer.findUnique({
+      where: { offerId },
+      include: offerInclude,
+    });
+
+    if (
+      !offer ||
+      offer.buyerPhone !== user.phoneNumber ||
+      (offer.buyerUserId !== null && offer.buyerUserId !== user.sub)
+    ) {
+      throw new NotFoundException('Jackpot offer not found');
+    }
+
+    if (offer.buyerUserId === null) {
+      offer = await tx.jackpotDiscountOffer.update({
+        where: { offerId },
+        data: { buyerUserId: user.sub },
+        include: offerInclude,
+      });
+    }
+
+    const now = new Date();
+    this.ensureNotExpired(offer, now);
+
+    if (
+      offer.jackpotDraw.drawType !== DrawType.SATURDAY_JACKPOT ||
+      offer.jackpotDraw.status !== DrawStatus.ACTIVE ||
+      offer.jackpotDraw.cutoffAt <= now
+    ) {
+      throw new ConflictException(
+        'Jackpot offer draw is not open for promotional purchase',
+      );
+    }
+
+    if (offer.status === JackpotDiscountOfferStatus.AVAILABLE) {
+      return tx.jackpotDiscountOffer.update({
+        where: { offerId },
+        data: {
+          status: JackpotDiscountOfferStatus.CLAIMING,
+          claimingAt: now,
+        },
+        include: offerInclude,
+      });
+    }
+
+    if (offer.status !== JackpotDiscountOfferStatus.CLAIMING) {
+      throw new ConflictException(this.unavailableMessage(offer.status));
+    }
+
+    const activeAttempt =
+      await this.hasActivePurchaseAttemptInTransaction(tx, offerId);
+
+    const stale =
+      !offer.claimingAt ||
+      offer.claimingAt.getTime() <= now.getTime() - CLAIM_RESERVATION_MS;
+
+    if (stale && !activeAttempt) {
+      offer = await tx.jackpotDiscountOffer.update({
+        where: { offerId },
+        data: { claimingAt: now },
+        include: offerInclude,
+      });
+    }
+
+    return offer;
+  }
+
+  async validatePromotionalPaymentInTransaction(
+    tx: Prisma.TransactionClient,
+    input: {
+      offerId: string | null;
+      buyerPhone: string;
+      buyerUserId: string | null;
+      purchaseDrawId: string;
+      amountNgn: number;
+      ticketCount: number;
+      effectivePaidAt: Date;
+    },
+  ): Promise<{ offer: OfferWithDraw | null; issues: string[] }> {
+    const issues: string[] = [];
+
+    if (!input.offerId) {
+      return { offer: null, issues: ['PROMOTIONAL_PURCHASE_MISSING_OFFER'] };
+    }
+
+    const locked = await tx.$queryRaw<Array<{ offer_id: string }>>`
+      SELECT offer_id
+      FROM jackpot_discount_offers
+      WHERE offer_id = ${input.offerId}
+      FOR UPDATE
+    `;
+
+    if (locked.length === 0) {
+      return { offer: null, issues: ['PROMOTIONAL_OFFER_NOT_FOUND'] };
+    }
+
+    const offer = await tx.jackpotDiscountOffer.findUnique({
+      where: { offerId: input.offerId },
+      include: offerInclude,
+    });
+
+    if (!offer) {
+      return { offer: null, issues: ['PROMOTIONAL_OFFER_NOT_FOUND'] };
+    }
+
+    if (offer.buyerPhone !== input.buyerPhone) {
+      issues.push('PROMOTIONAL_OFFER_BUYER_PHONE_MISMATCH');
+    }
+    if (!input.buyerUserId || offer.buyerUserId !== input.buyerUserId) {
+      issues.push('PROMOTIONAL_OFFER_BUYER_USER_MISMATCH');
+    }
+    if (offer.jackpotDrawId !== input.purchaseDrawId) {
+      issues.push('PROMOTIONAL_OFFER_DRAW_MISMATCH');
+    }
+    if (offer.offerPriceNgn !== input.amountNgn) {
+      issues.push('PROMOTIONAL_OFFER_AMOUNT_MISMATCH');
+    }
+    if (input.ticketCount !== 1) {
+      issues.push('PROMOTIONAL_OFFER_QUANTITY_MUST_BE_ONE');
+    }
+    if (offer.jackpotDraw.drawType !== DrawType.SATURDAY_JACKPOT) {
+      issues.push('PROMOTIONAL_OFFER_TARGET_IS_NOT_JACKPOT');
+    }
+    if (offer.status !== JackpotDiscountOfferStatus.CLAIMING) {
+      issues.push(`PROMOTIONAL_OFFER_STATUS_${offer.status}`);
+    }
+    if (input.effectivePaidAt >= offer.expiresAt) {
+      issues.push('PROMOTIONAL_OFFER_PAYMENT_AFTER_EXPIRY');
+    }
+
+    return { offer, issues };
+  }
+
+  async markClaimedInTransaction(
+    tx: Prisma.TransactionClient,
+    input: {
+      offerId: string;
+      buyerPhone: string;
+      buyerUserId: string;
+      jackpotDrawId: string;
+      amountNgn: number;
+      claimedAt?: Date;
+    },
+  ) {
+    const updated = await tx.jackpotDiscountOffer.updateMany({
+      where: {
+        offerId: input.offerId,
+        buyerPhone: input.buyerPhone,
+        buyerUserId: input.buyerUserId,
+        jackpotDrawId: input.jackpotDrawId,
+        offerPriceNgn: input.amountNgn,
+        status: JackpotDiscountOfferStatus.CLAIMING,
+      },
+      data: {
+        status: JackpotDiscountOfferStatus.CLAIMED,
+        claimingAt: null,
+        claimedAt: input.claimedAt ?? new Date(),
+      },
+    });
+
+    if (updated.count !== 1) {
+      throw new ConflictException('Jackpot offer could not be finalized');
+    }
+  }
+
   async release(
     user: CustomerJwtPayload,
     offerId: string,
@@ -235,6 +440,17 @@ export class JackpotOffersService {
       if (offer.status !== JackpotDiscountOfferStatus.CLAIMING) {
         throw new ConflictException(
           this.unavailableMessage(offer.status),
+        );
+      }
+
+      if (
+        await this.hasActivePurchaseAttemptInTransaction(
+          tx,
+          offerId,
+        )
+      ) {
+        throw new ConflictException(
+          'Jackpot offer has an active payment attempt',
         );
       }
 
@@ -436,6 +652,20 @@ export class JackpotOffersService {
           ],
         },
         expiresAt: { lte: now },
+        paymentTransactions: {
+          none: {
+            status: {
+              in: ACTIVE_PAYMENT_STATUSES,
+            },
+          },
+        },
+        walletPurchases: {
+          none: {
+            status: {
+              in: ACTIVE_WALLET_PURCHASE_STATUSES,
+            },
+          },
+        },
       },
       data: {
         status: JackpotDiscountOfferStatus.EXPIRED,
@@ -455,6 +685,20 @@ export class JackpotOffersService {
           { claimingAt: null },
           { claimingAt: { lte: staleBefore } },
         ],
+        paymentTransactions: {
+          none: {
+            status: {
+              in: ACTIVE_PAYMENT_STATUSES,
+            },
+          },
+        },
+        walletPurchases: {
+          none: {
+            status: {
+              in: ACTIVE_WALLET_PURCHASE_STATUSES,
+            },
+          },
+        },
       },
       data: {
         status: JackpotDiscountOfferStatus.AVAILABLE,
@@ -463,6 +707,27 @@ export class JackpotOffersService {
     });
   }
 
+  private async hasActivePurchaseAttemptInTransaction(
+    tx: Prisma.TransactionClient,
+    offerId: string,
+  ) {
+    const [paymentCount, walletPurchaseCount] = await Promise.all([
+      tx.paymentTransaction.count({
+        where: {
+          jackpotDiscountOfferId: offerId,
+          status: { in: ACTIVE_PAYMENT_STATUSES },
+        },
+      }),
+      tx.walletPurchase.count({
+        where: {
+          jackpotDiscountOfferId: offerId,
+          status: { in: ACTIVE_WALLET_PURCHASE_STATUSES },
+        },
+      }),
+    ]);
+
+    return paymentCount > 0 || walletPurchaseCount > 0;
+  }
   private findOwnedOffer(
     tx: Prisma.TransactionClient,
     user: CustomerJwtPayload,

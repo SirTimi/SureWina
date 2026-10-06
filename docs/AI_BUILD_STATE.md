@@ -4,7 +4,7 @@ Updated: 2026-10-02
 
 ## Current Goal
 
-Validate jackpot promotion Phase 3: secure authenticated offer lifecycle APIs for listing, retrieving, reserving, releasing, declining, and expiring JackpotDiscountOffer entitlements without charging money or marking an offer CLAIMED yet.
+Validate jackpot promotion Phase 4: allow a valid JackpotDiscountOffer to purchase exactly one Saturday-jackpot ticket at the server-stored NGN 500 offer price through authenticated Paystack or customer-wallet redemption, while leaving all NORMAL draw pricing unchanged.
 
 ## Current Status
 
@@ -12,23 +12,25 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Jackpot promotion Phase 3: add secure customer-JWT offer retrieval and state transitions, bind phone-owned guest/agent offers to the verified customer account, add explicit claim reservation timing, prevent cross-customer access, and make abandoned CLAIMING reservations safely reusable.
+Jackpot promotion Phase 4: persist purchase pricing context and offer linkage, add authenticated promotional Paystack and wallet redemption paths, enforce quantity=1/server-side offer pricing/cross-rail exclusivity, create NGN 500 face-value jackpot tickets, and atomically mark successfully redeemed offers CLAIMED.
 
 ## Current Implementation
 
 Latest jackpot-promotion increment:
-- Jackpot offer lifecycle endpoints require the existing CustomerJwtGuard.
-- GET /jackpot-offers/current returns only the authenticated customer's unexpired AVAILABLE/CLAIMING offers.
-- GET /jackpot-offers/:offerId returns one owned offer without leaking offers belonging to another phone/account.
-- POST /jackpot-offers/:offerId/claim reserves an AVAILABLE entitlement by moving it to CLAIMING; it does not charge money and does not mark the offer CLAIMED.
-- POST /jackpot-offers/:offerId/release returns a CLAIMING entitlement to AVAILABLE for cancelled/failed checkout flows.
-- POST /jackpot-offers/:offerId/decline permanently declines an AVAILABLE entitlement; active CLAIMING offers cannot be declined until released.
-- claimingAt is now persisted separately from claimedAt, with a 15-minute claim reservation window.
-- Stale CLAIMING reservations are lazily released back to AVAILABLE; offers past the jackpot cutoff are lazily marked EXPIRED.
-- Agent/guest offers with buyerUserId=NULL are bound to a customer only after OTP authentication proves the same buyerPhone.
-- JackpotOfferView is shared through @surewina/types and a JackpotOffersModule is available through @surewina/api-client.
-- Phase 3 does not initialize Paystack/wallet payment, create a jackpot Ticket, or transition an offer to CLAIMED; those remain the next financial redemption phase.
-- Focused lifecycle tests cover ownership binding, reserve idempotency, stale reservation recovery, decline conflicts, release, cross-customer isolation, and expiry.
+- PurchasePricingContext is persisted on PaymentTransaction and WalletPurchase with NORMAL as the default and PROMOTIONAL_JACKPOT for offer redemption.
+- PaymentTransaction and WalletPurchase both persist jackpotDiscountOfferId so every discounted purchase is traceable to the entitlement that authorized it.
+- Normal purchases still compute amount from draw.ticketPriceNgn * quantity and do not require an offer.
+- Promotional Paystack checkout is exposed only through the authenticated POST /jackpot-offers/:offerId/purchase/paystack route; the browser never supplies the NGN amount, draw or quantity.
+- Promotional wallet checkout is exposed through POST /jackpot-offers/:offerId/purchase/wallet and reuses WalletTicketPurchaseService with a locked/validated offer.
+- For PROMOTIONAL_JACKPOT the server forces quantity=1 and amountNgn=offer.offerPriceNgn.
+- Paystack initiation stores buyerUserId, pricingContext, offer linkage and the offer's jackpotDrawId before calling the provider.
+- Provider confirmation locks and validates the linked offer against buyer, draw, NGN amount, quantity, CLAIMING state and effective payment time; unsafe successful collections go to REVIEW_REQUIRED/suspense instead of ticket fulfilment.
+- Wallet redemption locks the same offer, blocks an active Paystack attempt, holds/captures exactly offerPriceNgn, creates one JACKPOT Ticket at faceValueNgn=offerPriceNgn and marks the offer CLAIMED in the same serializable transaction.
+- Paystack confirmation creates one JACKPOT Ticket at faceValueNgn=txn.amountNgn and marks the offer CLAIMED in the same confirmation transaction.
+- Stale CLAIMING offers are no longer reopened while a linked provider payment or completed/pending wallet purchase is active.
+- The rollout gate now checks promotional offer/ticket/amount integrity and detects successful duplicate redemption across Paystack and wallet.
+- Focused tests cover server-side NGN 500 Paystack initialization, NGN 500 wallet capture/ticket creation, offer validation and CLAIMING-to-CLAIMED finalization.
+- Customer popup/claim UX is still intentionally deferred; this phase establishes the secure financial redemption backend.
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
@@ -100,12 +102,12 @@ Current engineering increment:
 
 ## Next Tasks
 
-1. Pull main and apply the Phase 3 claiming_at Prisma migration.
+1. Pull main and apply the Phase 4 promotional purchase Prisma migration.
 2. Regenerate Prisma Client.
-3. Run jackpot accumulation, duplicate confirmation, and jackpot-offer lifecycle Jest tests.
-4. Run @surewina/types, @surewina/api-client, API, and monorepo type-check/build validation.
-5. Run rollout:check --strict-review and confirm financial invariants remain green.
-6. After Phase 3 acceptance, begin Phase 4: secure NGN 500 discounted jackpot redemption through Paystack and customer wallet, with final CLAIMED transition only after successful ticket creation/accounting.
+3. Run jackpot accumulation, purchase confirmation, offer lifecycle and promotional purchase Jest tests.
+4. Run @surewina/types, @surewina/api-client, API and full monorepo type-check/build validation.
+5. Run rollout:check --strict-review; the new Discounted jackpot purchase integrity check must PASS.
+6. After Phase 4 acceptance, move to the remaining accounting/reporting hardening and customer Claim Now / No Thank You UX phases.
 7. Provider sandbox/live financial rollout work remains pending after this promotion increment is validated.
 
 ## Known Issues
@@ -176,7 +178,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: add secure jackpot offer lifecycle` (this development cycle)
+`feat: support discounted jackpot purchases` (this development cycle)
 
 ## Latest Acceptance Evidence
 

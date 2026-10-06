@@ -8,6 +8,7 @@ import {
   PaymentStatus,
   Prisma,
   PurchaseChannel,
+  PurchasePricingContext,
   TicketType,
 } from '@prisma/client';
 
@@ -17,6 +18,7 @@ import { PaymentAccountingService } from '../ledger/payment-accounting.service';
 import { generateTicketRef } from './ticket-ref.util';
 
 import { JackpotAccumulationService } from './jackpot-accumulation.service';
+import { JackpotOffersService, type OfferWithDraw } from './jackpot-offers.service';
 import type { JackpotOfferUnlockResult } from '@surewina/types';
 
 import { ZohoEmailProvider } from '../notifications/zoho-email.provider';
@@ -111,6 +113,9 @@ export class PurchaseConfirmationService {
 
     private readonly jackpotAccumulation:
       JackpotAccumulationService,
+
+    private readonly jackpotOffers:
+      JackpotOffersService,
 
     private readonly receipts:
       ReceiptService,
@@ -708,6 +713,41 @@ export class PurchaseConfirmationService {
           );
         }
 
+        let promotionalOffer: OfferWithDraw | null = null;
+
+        if (
+          txn.pricingContext ===
+          PurchasePricingContext.PROMOTIONAL_JACKPOT
+        ) {
+          const validation =
+            await this.jackpotOffers.validatePromotionalPaymentInTransaction(
+              tx,
+              {
+                offerId:
+                  txn.jackpotDiscountOfferId,
+                buyerPhone:
+                  txn.buyerPhone,
+                buyerUserId:
+                  txn.buyerUserId,
+                purchaseDrawId:
+                  purchaseDrawId,
+                amountNgn:
+                  txn.amountNgn,
+                ticketCount:
+                  txn.ticketCount,
+                effectivePaidAt:
+                  providerPaidAt ?? verifiedAt,
+              },
+            );
+
+          promotionalOffer = validation.offer;
+          reviewReasons.push(...validation.issues);
+        } else if (txn.jackpotDiscountOfferId) {
+          reviewReasons.push(
+            'NORMAL_PURCHASE_HAS_PROMOTIONAL_OFFER_LINK',
+          );
+        }
+
         /*
          * -------------------------------------------------
          * PROVIDER METADATA CONSISTENCY
@@ -1103,6 +1143,45 @@ export class PurchaseConfirmationService {
             ticketsData,
         });
 
+        if (
+          txn.pricingContext ===
+          PurchasePricingContext.PROMOTIONAL_JACKPOT
+        ) {
+          if (
+            !promotionalOffer ||
+            !txn.jackpotDiscountOfferId ||
+            !txn.buyerUserId
+          ) {
+            throw new Error(
+              'Validated promotional purchase lost its offer linkage',
+            );
+          }
+
+          await this.jackpotOffers.markClaimedInTransaction(
+            tx,
+            {
+              offerId:
+                txn.jackpotDiscountOfferId,
+
+              buyerPhone:
+                txn.buyerPhone,
+
+              buyerUserId:
+                txn.buyerUserId,
+
+              jackpotDrawId:
+                draw.drawId,
+
+              amountNgn:
+                txn.amountNgn,
+
+              claimedAt:
+                verifiedPayment.paidAt ??
+                new Date(),
+            },
+          );
+        }
+
         /*
          * 10-for-1 accumulation applies only to daily
          * standard tickets.
@@ -1187,6 +1266,12 @@ export class PurchaseConfirmationService {
 
             drawCode:
               draw.drawCode,
+
+            pricingContext:
+              txn.pricingContext,
+
+            jackpotDiscountOfferId:
+              txn.jackpotDiscountOfferId,
 
             jackpotOffersUnlocked:
               jackpotOfferUnlock

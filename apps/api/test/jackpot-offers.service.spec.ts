@@ -3,6 +3,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  DrawStatus,
+  DrawType,
   JackpotDiscountOfferStatus,
 } from '@prisma/client';
 
@@ -28,7 +30,11 @@ type TestOffer = {
   declinedAt: Date | null;
   jackpotDraw: {
     drawCode: string;
+    drawType: DrawType;
+    status: DrawStatus;
     scheduledAt: Date;
+    cutoffAt: Date;
+    ticketPriceNgn: number;
   };
 };
 
@@ -60,7 +66,11 @@ function buildOffer(
     declinedAt: null,
     jackpotDraw: {
       drawCode: 'SW-JACKPOT-A',
+      drawType: DrawType.SATURDAY_JACKPOT,
+      status: DrawStatus.ACTIVE,
       scheduledAt: new Date(now + 2 * 60 * 60 * 1000),
+      cutoffAt: new Date(now + 60 * 60 * 1000),
+      ticketPriceNgn: 5000,
     },
     ...overrides,
   };
@@ -138,6 +148,20 @@ function buildHarness(initialOffer: TestOffer) {
     }
 
     if (
+      where.jackpotDrawId &&
+      where.jackpotDrawId !== offer.jackpotDrawId
+    ) {
+      return false;
+    }
+
+    if (
+      where.offerPriceNgn &&
+      where.offerPriceNgn !== offer.offerPriceNgn
+    ) {
+      return false;
+    }
+
+    if (
       where.expiresAt &&
       !matchesDate(offer.expiresAt, where.expiresAt)
     ) {
@@ -164,6 +188,18 @@ function buildHarness(initialOffer: TestOffer) {
   }
 
   const tx = {
+    $queryRaw: jest.fn(async () => [
+      { offer_id: offer.offerId },
+    ]),
+
+    paymentTransaction: {
+      count: jest.fn(async () => 0),
+    },
+
+    walletPurchase: {
+      count: jest.fn(async () => 0),
+    },
+
     jackpotDiscountOffer: {
       updateMany: jest.fn(async (args: {
         where: Record<string, unknown>;
@@ -201,6 +237,13 @@ function buildHarness(initialOffer: TestOffer) {
             (args.data.declinedAt as Date | null) ?? null;
         }
 
+        if (
+          Object.prototype.hasOwnProperty.call(args.data, 'claimedAt')
+        ) {
+          offer.claimedAt =
+            (args.data.claimedAt as Date | null) ?? null;
+        }
+
         return { count: 1 };
       }),
 
@@ -210,6 +253,46 @@ function buildHarness(initialOffer: TestOffer) {
         return matchesWhere(args.where)
           ? { ...offer }
           : null;
+      }),
+
+      findUnique: jest.fn(async (args: {
+        where: Record<string, unknown>;
+      }) => {
+        return matchesWhere(args.where)
+          ? { ...offer }
+          : null;
+      }),
+
+      update: jest.fn(async (args: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+      }) => {
+        if (!matchesWhere(args.where)) {
+          throw new Error('Offer not found');
+        }
+
+        if (
+          Object.prototype.hasOwnProperty.call(args.data, 'buyerUserId')
+        ) {
+          offer.buyerUserId =
+            args.data.buyerUserId as string;
+        }
+
+        if (
+          Object.prototype.hasOwnProperty.call(args.data, 'status')
+        ) {
+          offer.status =
+            args.data.status as JackpotDiscountOfferStatus;
+        }
+
+        if (
+          Object.prototype.hasOwnProperty.call(args.data, 'claimingAt')
+        ) {
+          offer.claimingAt =
+            (args.data.claimingAt as Date | null) ?? null;
+        }
+
+        return { ...offer };
       }),
 
       findMany: jest.fn(async (args: {
@@ -238,6 +321,7 @@ function buildHarness(initialOffer: TestOffer) {
   return {
     service,
     audit,
+    tx,
     getOffer: () => ({ ...offer }),
   };
 }
@@ -382,6 +466,88 @@ describe('JackpotOffersService', () => {
         '11111111-1111-4111-8111-111111111111',
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('validates the persisted NGN 500 offer for one jackpot ticket', async () => {
+    const h = buildHarness(
+      buildOffer({
+        status: JackpotDiscountOfferStatus.CLAIMING,
+        claimingAt: new Date(),
+      }),
+    );
+
+    const validation =
+      await h.service.validatePromotionalPaymentInTransaction(
+        h.tx as never,
+        {
+          offerId: '11111111-1111-4111-8111-111111111111',
+          buyerPhone: user.phoneNumber,
+          buyerUserId: user.sub,
+          purchaseDrawId: 'jackpot-1',
+          amountNgn: 500,
+          ticketCount: 1,
+          effectivePaidAt: new Date(),
+        },
+      );
+
+    expect(validation.issues).toEqual([]);
+    expect(validation.offer?.offerPriceNgn).toBe(500);
+  });
+
+  it('rejects client-incompatible promotional amount and quantity', async () => {
+    const h = buildHarness(
+      buildOffer({
+        status: JackpotDiscountOfferStatus.CLAIMING,
+        claimingAt: new Date(),
+      }),
+    );
+
+    const validation =
+      await h.service.validatePromotionalPaymentInTransaction(
+        h.tx as never,
+        {
+          offerId: '11111111-1111-4111-8111-111111111111',
+          buyerPhone: user.phoneNumber,
+          buyerUserId: user.sub,
+          purchaseDrawId: 'jackpot-1',
+          amountNgn: 5000,
+          ticketCount: 2,
+          effectivePaidAt: new Date(),
+        },
+      );
+
+    expect(validation.issues).toEqual(
+      expect.arrayContaining([
+        'PROMOTIONAL_OFFER_AMOUNT_MISMATCH',
+        'PROMOTIONAL_OFFER_QUANTITY_MUST_BE_ONE',
+      ]),
+    );
+  });
+
+  it('marks a validated CLAIMING offer as CLAIMED', async () => {
+    const h = buildHarness(
+      buildOffer({
+        status: JackpotDiscountOfferStatus.CLAIMING,
+        claimingAt: new Date(),
+      }),
+    );
+
+    await h.service.markClaimedInTransaction(
+      h.tx as never,
+      {
+        offerId: '11111111-1111-4111-8111-111111111111',
+        buyerPhone: user.phoneNumber,
+        buyerUserId: user.sub,
+        jackpotDrawId: 'jackpot-1',
+        amountNgn: 500,
+      },
+    );
+
+    expect(h.getOffer().status).toBe(
+      JackpotDiscountOfferStatus.CLAIMED,
+    );
+    expect(h.getOffer().claimingAt).toBeNull();
+    expect(h.getOffer().claimedAt).not.toBeNull();
   });
 
   it('expires an offer whose jackpot cutoff has passed', async () => {

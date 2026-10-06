@@ -13,7 +13,9 @@ import {
   DrawStatus,
   PaymentGateway as PaymentGatewayEnum,
   PaymentStatus,
+  Prisma,
   PurchaseChannel,
+  PurchasePricingContext,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -24,6 +26,9 @@ import { MonnifyDriver } from './gateway/monnify.driver';
 import { FlutterwaveDriver } from './gateway/flutterwave.driver';
 import { AccountService } from '../account/account.service';
 import { PaystackDriver } from './gateway/paystack.driver';
+import type { CustomerJwtPayload } from '../auth/auth.types';
+import { JackpotOffersService } from './jackpot-offers.service';
+import { PromotionalJackpotPaystackPurchaseDto } from './dto/promotional-jackpot-paystack-purchase.dto';
 
 export type InitiatePurchaseResult = {
   authorizationUrl: string;
@@ -44,7 +49,8 @@ export class PaymentsService {
     private readonly flutterwave: FlutterwaveDriver,
     private readonly customerAdmin: CustomerAdminService,
     private readonly account: AccountService,
-    private readonly paystack: PaystackDriver
+    private readonly paystack: PaystackDriver,
+    private readonly jackpotOffers: JackpotOffersService,
   ) {}
 
   async initiatePurchase(
@@ -191,6 +197,154 @@ export class PaymentsService {
         },
       });
       this.logger.error(`Payment init failed for ${reference}`);
+      throw error;
+    }
+  }
+
+  async initiatePromotionalJackpotPurchase(
+    user: CustomerJwtPayload,
+    offerId: string,
+    dto: PromotionalJackpotPaystackPurchaseDto,
+  ): Promise<InitiatePurchaseResult> {
+    await this.customerAdmin.assertNotBlocked(user.phoneNumber);
+
+    // Preflight for responsible-play controls. The locked transaction below
+    // repeats all promotion validation before it creates a payment attempt.
+    const preview = await this.jackpotOffers.get(user, offerId);
+    await this.account.assertPurchaseAllowed(
+      user.phoneNumber,
+      preview.offerPriceNgn,
+    );
+
+    const prepared = await this.prisma.$transaction(
+      async (tx) => {
+        const offer =
+          await this.jackpotOffers.reserveForPurchaseInTransaction(
+            tx,
+            user,
+            offerId,
+          );
+
+        const existing = await tx.paymentTransaction.findFirst({
+          where: {
+            jackpotDiscountOfferId: offerId,
+            status: {
+              in: [
+                PaymentStatus.PENDING,
+                PaymentStatus.CONFIRMED,
+                PaymentStatus.REVIEW_REQUIRED,
+                PaymentStatus.REFUND_PENDING,
+              ],
+            },
+          },
+          select: {
+            txnId: true,
+            status: true,
+          },
+        });
+
+        if (existing) {
+          throw new ConflictException(
+            `This jackpot offer already has a ${existing.status.toLowerCase()} payment attempt`,
+          );
+        }
+
+        const reference = `SW-PAY-${randomUUID()}`;
+
+        const txn = await tx.paymentTransaction.create({
+          data: {
+            gatewayReference: reference,
+            gateway: PaymentGatewayEnum.PAYSTACK,
+            amountNgn: offer.offerPriceNgn,
+            buyerEmail: dto.buyerEmail?.trim().toLowerCase() ?? null,
+            buyerPhone: user.phoneNumber,
+            buyerUserId: user.sub,
+            channel: PurchaseChannel.DIRECT,
+            pricingContext: PurchasePricingContext.PROMOTIONAL_JACKPOT,
+            jackpotDiscountOfferId: offer.offerId,
+            ticketCount: 1,
+            status: PaymentStatus.PENDING,
+            purchaseDrawId: offer.jackpotDrawId,
+          },
+        });
+
+        return { offer, reference, txn };
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
+
+    if (dto.buyerEmail) {
+      await this.prisma.user
+        .updateMany({
+          where: { userId: user.sub, email: null },
+          data: { email: dto.buyerEmail.trim().toLowerCase() },
+        })
+        .catch(() => undefined);
+    }
+
+    try {
+      const init = await this.initializeWebPurchase({
+        amountKobo: prepared.offer.offerPriceNgn * 100,
+        reference: prepared.reference,
+        email:
+          dto.buyerEmail?.trim().toLowerCase() ??
+          this.syntheticEmail(user.phoneNumber),
+        callbackUrl: `${this.config.getOrThrow<string>(
+          'PAYMENT_CALLBACK_BASE_URL',
+        )}/payment/callback`,
+        metadata: {
+          txnId: prepared.txn.txnId,
+          drawCode: prepared.offer.jackpotDraw.drawCode,
+          buyerPhone: user.phoneNumber,
+          quantity: 1,
+          stateOfPlayCode: dto.stateOfPlayCode,
+          pricingContext: PurchasePricingContext.PROMOTIONAL_JACKPOT,
+          jackpotDiscountOfferId: prepared.offer.offerId,
+        },
+      });
+
+      await this.audit.write({
+        severity: AuditSeverity.INFO,
+        actor: { type: AuditActorType.CUSTOMER, id: user.sub },
+        action: 'PROMOTIONAL_JACKPOT_PAYMENT_INITIATED',
+        resource: {
+          type: 'PaymentTransaction',
+          id: prepared.txn.txnId,
+        },
+        metadata: {
+          offerId: prepared.offer.offerId,
+          drawCode: prepared.offer.jackpotDraw.drawCode,
+          amountNgn: prepared.offer.offerPriceNgn,
+          quantity: 1,
+          gateway: init.gateway,
+        },
+      });
+
+      return {
+        authorizationUrl: init.authorizationUrl,
+        reference: prepared.reference,
+        txnId: prepared.txn.txnId,
+        amountNgn: prepared.offer.offerPriceNgn,
+      };
+    } catch (error) {
+      await this.prisma.paymentTransaction.update({
+        where: { txnId: prepared.txn.txnId },
+        data: {
+          status: PaymentStatus.FAILED,
+          failureReason:
+            error instanceof Error ? error.message : 'gateway init failed',
+        },
+      });
+
+      await this.jackpotOffers
+        .release(user, offerId)
+        .catch(() => undefined);
+
+      this.logger.error(
+        `Promotional jackpot payment init failed for ${prepared.reference}`,
+      );
       throw error;
     }
   }

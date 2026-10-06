@@ -105,6 +105,7 @@ export interface WalletTicketPurchaseRequest {
   quantity: number;
   stateOfPlayCode: string;
   idempotencyKey: string;
+  jackpotDiscountOfferId?: string;
 }
 
 export interface WalletTicketPurchaseResponse {
@@ -115,6 +116,8 @@ export interface WalletTicketPurchaseResponse {
   drawScheduledAt: string;
   amountNgn: number;
   ticketCount: number;
+  pricingContext?: 'NORMAL' | 'PROMOTIONAL_JACKPOT';
+  jackpotDiscountOfferId?: string | null;
   ticketRefs: string[];
   jackpotOfferUnlock?: JackpotOfferUnlockResult | null;
   completedAt: string | null;

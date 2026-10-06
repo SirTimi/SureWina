@@ -5,6 +5,7 @@ import {
   AgentStatus,
   AuditSeverity,
   FinancialMigrationRunStatus,
+  JackpotDiscountOfferStatus,
   LedgerAccountType,
   LedgerAccountPurpose,
   LedgerEntrySide,
@@ -12,10 +13,12 @@ import {
   LedgerTransactionKind,
   PaymentGateway,
   PaymentStatus,
+  PurchasePricingContext,
   PrizeClaimStatus,
   PrizePayoutStatus,
   ReconciliationIssueStatus,
   RemittanceStatus,
+  TicketType,
   TreasuryAccountStatus,
   WalletFundingStatus,
   WalletHoldStatus,
@@ -85,6 +88,7 @@ export class RolloutCheckService {
       await this.checkPaymentCollections(),
       await this.checkWalletFunding(),
       await this.checkWalletPurchases(),
+      await this.checkPromotionalJackpotPurchases(),
       await this.checkAgentSales(),
       await this.checkAgentPrizeReimbursements(),
       await this.checkBankPrizePayouts(),
@@ -1011,6 +1015,186 @@ export class RolloutCheckService {
       'Wallet ticket purchase integrity',
       `${completed.length} completed wallet purchase(s) have captured holds and matching ticket counts.`,
     );
+  }
+
+  private async checkPromotionalJackpotPurchases(): Promise<CheckResult> {
+    const [providerPurchases, walletPurchases] = await Promise.all([
+      this.prisma.paymentTransaction.findMany({
+        where: {
+          pricingContext:
+            PurchasePricingContext.PROMOTIONAL_JACKPOT,
+          status:
+            PaymentStatus.CONFIRMED,
+        },
+        include: {
+          jackpotDiscountOffer:
+            true,
+          tickets:
+            true,
+        },
+      }),
+      this.prisma.walletPurchase.findMany({
+        where: {
+          pricingContext:
+            PurchasePricingContext.PROMOTIONAL_JACKPOT,
+          status:
+            WalletPurchaseStatus.COMPLETED,
+        },
+        include: {
+          jackpotDiscountOffer:
+            true,
+          tickets:
+            true,
+        },
+      }),
+    ]);
+
+    const problems: Array<{
+      source: 'PAYSTACK' | 'WALLET' | 'OFFER';
+      id: string;
+      reason: string;
+    }> = [];
+
+    const successfulByOffer =
+      new Map<string, number>();
+
+    for (const purchase of providerPurchases) {
+      const offer =
+        purchase.jackpotDiscountOffer;
+
+      if (
+        !purchase.jackpotDiscountOfferId ||
+        !offer
+      ) {
+        problems.push({
+          source: 'PAYSTACK',
+          id: purchase.txnId,
+          reason:
+            'promotional payment is missing offer linkage',
+        });
+        continue;
+      }
+
+      successfulByOffer.set(
+        offer.offerId,
+        (successfulByOffer.get(offer.offerId) ?? 0) + 1,
+      );
+
+      const ticket =
+        purchase.tickets[0];
+
+      if (
+        purchase.ticketCount !== 1 ||
+        purchase.amountNgn !==
+          offer.offerPriceNgn ||
+        purchase.purchaseDrawId !==
+          offer.jackpotDrawId ||
+        purchase.buyerPhone !==
+          offer.buyerPhone ||
+        purchase.buyerUserId !==
+          offer.buyerUserId ||
+        purchase.tickets.length !== 1 ||
+        !ticket ||
+        ticket.ticketType !==
+          TicketType.JACKPOT ||
+        ticket.faceValueNgn !==
+          purchase.amountNgn ||
+        ticket.drawId !==
+          offer.jackpotDrawId ||
+        offer.status !==
+          JackpotDiscountOfferStatus.CLAIMED
+      ) {
+        problems.push({
+          source: 'PAYSTACK',
+          id: purchase.txnId,
+          reason:
+            'promotional payment/offer/ticket values are inconsistent',
+        });
+      }
+    }
+
+    for (const purchase of walletPurchases) {
+      const offer =
+        purchase.jackpotDiscountOffer;
+
+      if (
+        !purchase.jackpotDiscountOfferId ||
+        !offer
+      ) {
+        problems.push({
+          source: 'WALLET',
+          id: purchase.purchaseId,
+          reason:
+            'promotional wallet purchase is missing offer linkage',
+        });
+        continue;
+      }
+
+      successfulByOffer.set(
+        offer.offerId,
+        (successfulByOffer.get(offer.offerId) ?? 0) + 1,
+      );
+
+      const ticket =
+        purchase.tickets[0];
+
+      if (
+        purchase.ticketCount !== 1 ||
+        purchase.amountNgn !==
+          offer.offerPriceNgn ||
+        purchase.drawId !==
+          offer.jackpotDrawId ||
+        purchase.buyerPhone !==
+          offer.buyerPhone ||
+        purchase.buyerUserId !==
+          offer.buyerUserId ||
+        purchase.tickets.length !== 1 ||
+        !ticket ||
+        ticket.ticketType !==
+          TicketType.JACKPOT ||
+        ticket.faceValueNgn !==
+          purchase.amountNgn ||
+        ticket.drawId !==
+          offer.jackpotDrawId ||
+        offer.status !==
+          JackpotDiscountOfferStatus.CLAIMED
+      ) {
+        problems.push({
+          source: 'WALLET',
+          id: purchase.purchaseId,
+          reason:
+            'promotional wallet/offer/ticket values are inconsistent',
+        });
+      }
+    }
+
+    for (const [offerId, count] of successfulByOffer) {
+      if (count > 1) {
+        problems.push({
+          source: 'OFFER',
+          id: offerId,
+          reason:
+            `offer has ${count} successful redemptions across payment rails`,
+        });
+      }
+    }
+
+    const total =
+      providerPurchases.length +
+      walletPurchases.length;
+
+    return problems.length === 0
+      ? this.pass(
+          'jackpot.promotional-purchases',
+          'Discounted jackpot purchase integrity',
+          `${total} promotional jackpot purchase(s) have one claimed offer, one matching NGN-priced jackpot ticket, and no cross-rail duplicate redemption.`,
+        )
+      : this.blocker(
+          'jackpot.promotional-purchases',
+          'Discounted jackpot purchase integrity',
+          `${problems.length} promotional jackpot purchase issue(s) found.`,
+          problems.slice(0, 100),
+        );
   }
 
   private async checkAgentSales(): Promise<CheckResult> {

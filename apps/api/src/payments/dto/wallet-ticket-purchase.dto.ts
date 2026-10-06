@@ -1,6 +1,8 @@
 import {
   IsInt,
+  IsOptional,
   IsString,
+  IsUUID,
   Length,
   Max,
   Min,
@@ -23,4 +25,8 @@ export class WalletTicketPurchaseDto {
   @IsString()
   @Length(16, 200)
   idempotencyKey!: string;
+
+  @IsOptional()
+  @IsUUID()
+  jackpotDiscountOfferId?: string;
 }

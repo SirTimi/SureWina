@@ -41,3 +41,17 @@ export interface JackpotOfferView extends JackpotDiscountOfferSummary {
 export interface CurrentJackpotOffersResponse {
   offers: JackpotOfferView[];
 }
+
+export type PurchasePricingContext =
+  | 'NORMAL'
+  | 'PROMOTIONAL_JACKPOT';
+
+export interface PromotionalJackpotPaystackPurchaseInput {
+  stateOfPlayCode: string;
+  buyerEmail?: string;
+}
+
+export interface PromotionalJackpotWalletPurchaseInput {
+  stateOfPlayCode: string;
+  idempotencyKey: string;
+}

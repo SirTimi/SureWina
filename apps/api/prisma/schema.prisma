@@ -305,6 +305,9 @@ model PaymentTransaction {
   channel PurchaseChannel
   agentId String?         @map("agent_id")
 
+  pricingContext PurchasePricingContext @default(NORMAL) @map("pricing_context")
+  jackpotDiscountOfferId String? @map("jackpot_discount_offer_id")
+
   ticketCount Int           @map("ticket_count")
   status      PaymentStatus @default(PENDING)
 
@@ -327,6 +330,7 @@ model PaymentTransaction {
   purchaseDrawId String? @map("purchase_draw_id")
 
   purchaseDraw   Draw?     @relation("PaymentPurchaseDraw", fields: [purchaseDrawId], references: [drawId])
+  jackpotDiscountOffer JackpotDiscountOffer? @relation("PaymentJackpotDiscountOffer", fields: [jackpotDiscountOfferId], references: [offerId], onDelete: Restrict)
   providerPaidAt DateTime? @map("provider_paid_at")
 
   providerTransactionId String? @map("provider_transaction_id")
@@ -359,6 +363,7 @@ model PaymentTransaction {
   @@index([buyerPhone, createdAt])
   @@index([agentId, createdAt])
   @@index([purchaseDrawId])
+  @@index([jackpotDiscountOfferId, status])
   @@index([gateway, providerTransactionId])
   @@index([refundStatus, refundRequestedAt])
   @@map("payment_transactions")
@@ -389,6 +394,11 @@ enum PaymentStatus {
 enum PurchaseChannel {
   DIRECT
   AGENT
+}
+
+enum PurchasePricingContext {
+  NORMAL
+  PROMOTIONAL_JACKPOT
 }
 
 enum PaymentRefundStatus {
@@ -1188,6 +1198,9 @@ model WalletPurchase {
   ticketCount Int @map("ticket_count")
   amountNgn   Int @map("amount_ngn")
 
+  pricingContext PurchasePricingContext @default(NORMAL) @map("pricing_context")
+  jackpotDiscountOfferId String? @map("jackpot_discount_offer_id")
+
   status WalletPurchaseStatus @default(PENDING)
 
   holdId String? @unique @map("hold_id")
@@ -1200,6 +1213,7 @@ model WalletPurchase {
   wallet Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
   buyer  User   @relation(fields: [buyerUserId], references: [userId], onDelete: Restrict)
   draw   Draw   @relation(fields: [drawId], references: [drawId], onDelete: Restrict)
+  jackpotDiscountOffer JackpotDiscountOffer? @relation("WalletPurchaseJackpotDiscountOffer", fields: [jackpotDiscountOfferId], references: [offerId], onDelete: Restrict)
 
   hold WalletHold? @relation("WalletPurchaseHold", fields: [holdId], references: [holdId], onDelete: Restrict)
 
@@ -1210,6 +1224,7 @@ model WalletPurchase {
   @@index([buyerUserId, createdAt])
   @@index([walletId, createdAt])
   @@index([drawId, status])
+  @@index([jackpotDiscountOfferId, status])
   @@index([status, createdAt])
   @@map("wallet_purchases")
 }
@@ -1302,6 +1317,8 @@ model JackpotDiscountOffer {
 
   user        User? @relation(fields: [buyerUserId], references: [userId], onDelete: SetNull)
   jackpotDraw Draw  @relation(fields: [jackpotDrawId], references: [drawId], onDelete: Restrict)
+  paymentTransactions PaymentTransaction[] @relation("PaymentJackpotDiscountOffer")
+  walletPurchases WalletPurchase[] @relation("WalletPurchaseJackpotDiscountOffer")
 
   // Persistence-level idempotency boundary for retries and concurrent confirms.
   @@unique([buyerPhone, jackpotDrawId, thresholdNumber])

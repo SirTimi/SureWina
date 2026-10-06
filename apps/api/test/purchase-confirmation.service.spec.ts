@@ -5,6 +5,7 @@ import type { PrismaService } from '../src/database/prisma.service';
 import type { AuditService } from '../src/audit/audit.service';
 import type { PaymentAccountingService } from '../src/ledger/payment-accounting.service';
 import type { JackpotAccumulationService } from '../src/payments/jackpot-accumulation.service';
+import type { JackpotOffersService } from '../src/payments/jackpot-offers.service';
 import type { ReceiptService } from '../src/tickets/receipt.service';
 import type { ZohoEmailProvider } from '../src/notifications/zoho-email.provider';
 
@@ -35,6 +36,7 @@ describe('PurchaseConfirmationService idempotency', () => {
       {} as AuditService,
       {} as PaymentAccountingService,
       jackpotAccumulation,
+      {} as JackpotOffersService,
       {} as ReceiptService,
       {} as ZohoEmailProvider,
     );
