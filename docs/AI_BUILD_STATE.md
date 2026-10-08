@@ -4,29 +4,28 @@ Updated: 2026-10-08
 
 ## Current Goal
 
-Validate Phase 11 admin visibility: allow authorized support and finance staff to inspect phone-scoped current jackpot progress, counts of unlocked/available/claimed/declined offers, and the full persisted discount offer history.
+Phase 12–14 preproduction acceptance: prove equal RNG eligibility for mixed-price jackpot tickets using the actual engine, document every promotion flow to test, and prepare a gated migration/deployment/rollback sequence without touching production.
 
 ## Current Status
 
-AWAITING USER TEST — Phase 11 code is staged for main, with a read-only admin offer summary and history table; local Jest, package builds and financial rollout still require user validation.
+AWAITING USER TEST — new actual-engine mixed-price execution regression and a 20-scenario promotion acceptance/rollout runbook are staged. GitHub environment cannot execute pnpm/Jest, provider sandboxes, real database concurrency or Windows production operations; no production deployment performed.
 
 ## Last Accepted Task
 
-Phase 11: extend the existing admin customer detail response with active-cycle offer counts and dated records of actual JackpotDiscountOffer rows; show a six-metric support summary and complete offer history without changing customer redemption or financial flows.
+Phase 12 mixed-price draw-engine regression plus Phase 13 acceptance matrix and Phase 14 controlled deployment runbook; code implementation limited to new tests and documentation, no modifications to draw engine logic, financial ledger, historical JackpotEntry rows or database schema.
 
 ## Current Implementation
 
 Latest jackpot-promotion increment:
-- Authorized GET /admin/customers/detail still uses the existing AdminJwtGuard, AdminRoleGuard and OPERATOR role restriction. No new unauthenticated customer data endpoint is added.
-- CustomerAdminService.detail now fetches the actual JackpotDiscountOffer rows by buyerPhone, including prior jackpot cycles, ordered latest-first with their linked draw code and scheduled date.
-- Admin promotion summary is scoped to the earliest currently ACTIVE Saturday jackpot with a future cutoff and the existing cycleDrawId. Weekly regular tickets, unlocked offers, available, claimed, declined, claiming, expired and tickets-to-next-offer come from the backend, not client-side estimates.
-- AVAILABLE offers whose expiry passed but whose persisted status was not lazily normalized are displayed as EXPIRED, without modifying the original records.
-- No active jackpot is represented explicitly with zero current-week counters and null ticketsToNextOffer, while earlier offer history remains available.
-- The admin customer lookup displays the six requested key metrics and an offer history table showing full offer ID, jackpot/date, threshold, discount/list price, status, issue time, expiry and claimed time in Africa/Lagos local time.
-- Historic JackpotEntry lifetime counts remain visibly labeled as historical free entries. No ticket, offer status, ledger or payout mutation is performed by the admin detail lookup.
-- The API client AdminCustomerDetail type is updated. The existing admin customer query endpoint is reused and no new Prisma migration is required.
-- Added focused tests for 17 regular tickets with one available offer and three to the next threshold, mixed statuses and stale expired offers, new weekly cycles, and no active jackpot.
-- Local tests/builds and browser verification are still required for acceptance.
+- Added apps/api/test/jackpot-mixed-price-engine.spec.ts, importing the actual apps/engine/src/execution.service.ts and draw-math.utils.ts, with an isolated mocked Prisma draw and deterministic seed.
+- The regression executes a Saturday jackpot with 8 NGN 5,000 ACTIVE tickets and 2 NGN 500 ACTIVE promotional tickets; expects ten eligible slots, one signed result and the matching WINNING ticket.
+- Swapping which tickets have promotional prices/offer references must not alter the Merkle root or the chosen winner; ticket face value is intentionally not part of engine ticket selection or deterministicWinnerIndex.
+- Preserved historical JackpotEntry draw eligibility in a second case (10 tickets plus one historical ACTIVE entry means 11 pool positions).
+- Added a seeded RNG sanity check that each of ten pool slots can be selected; this does not substitute for a formal independent RNG assessment.
+- Added docs/JACKPOT_PROMOTION_ACCEPTANCE_AND_ROLLOUT.md mapping all 20 required scenarios to existing regression coverage and manual/sandbox gaps, including the missing exact 5+3+2 case.
+- The runbook inventories existing 2026-10 jackpot offer migrations, requires database backups and recovery rehearsal, and sequences a coordinated cutover with no misleading assumption of independent promotion feature flags.
+- Phase 14: no new schema migration and no changes to historical JackpotEntry data. Production Windows services, providers and money are untouched.
+- Acceptance requires running local tests/builds and controlled sandbox + concurrency + operator-reviewed rollout gates before production.
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
@@ -98,13 +97,13 @@ Current engineering increment:
 
 ## Next Tasks
 
-1. Pull latest main; Phase 11 introduces no Prisma migration.
-2. Build @surewina/api-client and run test/customer-admin-offers.spec.ts against the API Jest setup.
-3. Run API type-check/build, web-admin TypeScript check/build, and whole-monorepo type-check/build.
-4. Run rollout:check --strict-review; financial invariants must remain unchanged.
-5. Use the admin customer lookup with 17 confirmed regular tickets in the active cycle. Confirm one unlocked and available offer, zero claimed/declined, and three tickets remaining.
-6. Verify multiple offers across jackpot cycles, expiry normalization, claimed timestamp, full offer ID, and the read-only admin operator permissions.
-7. Keep SMS sandbox/provider production acceptance separate from this admin read-only visibility change.
+1. Pull latest main; no new Prisma migration for the Phase 12–14 test/documentation increment.
+2. Execute the mixed-price engine regression and all Phase 13 promotion unit suites listed in docs/JACKPOT_PROMOTION_ACCEPTANCE_AND_ROLLOUT.md.
+3. Verify package type-check and builds plus rollout:check --strict-review. Fix any reported local compile/test failures.
+4. Record PASS/FAIL/NOT RUN evidence for all 20 acceptance cases, including exact 1 and 5+3+2 sequences, provider/wallet retries and provider failure cleanup.
+5. In a disposable DB, execute a controlled real engine draw with 8 full-price plus 2 discounted tickets (and separately verify any historical jackpot entry rows).
+6. Complete sandbox PSP/worker SMS and real PostgreSQL concurrent-redemption checks. Unperformed manual gates remain NOT RUN even if Jest passes.
+7. Only after signed-off compliance/finance/ops gates, follow the controlled Windows release runbook. Do not deploy production automatically.
 
 ## Known Issues
 
@@ -174,7 +173,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: show jackpot offer history in admin customer lookup` (this development cycle)
+`test: verify mixed-price jackpot draw fairness and rollout gates` (this development cycle)
 
 ## Latest Acceptance Evidence
 
