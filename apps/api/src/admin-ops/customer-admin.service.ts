@@ -56,18 +56,53 @@ export class CustomerAdminService {
     const count = activeJackpot &&
       accumulation?.cycleDrawId === activeJackpot.drawId
       ? accumulation.cumulativeCount : 0;
-    const availableOfferCount = activeJackpot
-      ? await this.prisma.jackpotDiscountOffer.count({
-          where: {
-            buyerPhone: phoneNumber,
-            jackpotDrawId: activeJackpot.drawId,
-            status: JackpotDiscountOfferStatus.AVAILABLE,
-            expiresAt: { gt: now },
+    // Support needs actual entitlements, not a reconstructed 10-ticket
+    // prediction. Include earlier jackpot cycles for audit/dispute history.
+    const offerRows = await this.prisma.jackpotDiscountOffer.findMany({
+      where: { buyerPhone: phoneNumber },
+      select: {
+        offerId: true,
+        jackpotDrawId: true,
+        jackpotDraw: {
+          select: {
+            drawCode: true,
+            scheduledAt: true,
           },
-        })
-      : 0;
+        },
+        thresholdNumber: true,
+        regularTicketsAtUnlock: true,
+        originalPriceNgn: true,
+        offerPriceNgn: true,
+        status: true,
+        issuedAt: true,
+        expiresAt: true,
+        claimedAt: true,
+        declinedAt: true,
+        offerSmsSentAt: true,
+      },
+      orderBy: [
+        { issuedAt: 'desc' },
+        { offerId: 'desc' },
+      ],
+    });
 
-    if (!user && payments._count === 0 && tickets === 0) {
+    // Status may remain AVAILABLE in storage after cutoff until a lazy
+    // normalization runs. The support view must not promise an expired
+    // entitlement can still be purchased.
+    const effectiveStatus = (offer: (typeof offerRows)[number]) =>
+      offer.status === JackpotDiscountOfferStatus.AVAILABLE &&
+      offer.expiresAt <= now
+        ? JackpotDiscountOfferStatus.EXPIRED
+        : offer.status;
+
+    const activeOffers = activeJackpot
+      ? offerRows.filter((offer) => offer.jackpotDrawId === activeJackpot.drawId)
+      : [];
+    const countStatus = (status: JackpotDiscountOfferStatus) =>
+      activeOffers.filter((offer) => effectiveStatus(offer) === status).length;
+    const availableOfferCount = countStatus(JackpotDiscountOfferStatus.AVAILABLE);
+
+    if (!user && payments._count === 0 && tickets === 0 && offerRows.length === 0) {
       throw new NotFoundException('No activity for this phone number');
     }
 
@@ -83,6 +118,37 @@ export class CustomerAdminService {
         ticketsBought: payments._sum.ticketCount ?? 0,
         transactions: payments._count,
         ticketRows: tickets,
+      },
+      promotion: {
+        activeCycle: !!activeJackpot,
+        jackpotDrawCode: activeJackpot?.drawCode ?? null,
+        weeklyRegularTickets: count,
+        offersUnlocked: activeOffers.length,
+        available: availableOfferCount,
+        claimed: countStatus(JackpotDiscountOfferStatus.CLAIMED),
+        declined: countStatus(JackpotDiscountOfferStatus.DECLINED),
+        claiming: countStatus(JackpotDiscountOfferStatus.CLAIMING),
+        expired: countStatus(JackpotDiscountOfferStatus.EXPIRED),
+        ticketsToNextOffer: activeJackpot
+          ? count % 10 === 0 ? 10 : 10 - (count % 10)
+          : null,
+        // All saved offers, including previous jackpot weeks. No offer
+        // mutation or financial side effect occurs in this admin lookup.
+        offers: offerRows.map((offer) => ({
+          offerId: offer.offerId,
+          jackpotDrawCode: offer.jackpotDraw.drawCode,
+          jackpotScheduledAt: offer.jackpotDraw.scheduledAt.toISOString(),
+          thresholdNumber: offer.thresholdNumber,
+          regularTicketsAtUnlock: offer.regularTicketsAtUnlock,
+          originalPriceNgn: offer.originalPriceNgn,
+          offerPriceNgn: offer.offerPriceNgn,
+          status: effectiveStatus(offer),
+          issuedAt: offer.issuedAt.toISOString(),
+          expiresAt: offer.expiresAt.toISOString(),
+          claimedAt: offer.claimedAt?.toISOString() ?? null,
+          declinedAt: offer.declinedAt?.toISOString() ?? null,
+          offerSmsSentAt: offer.offerSmsSentAt?.toISOString() ?? null,
+        })),
       },
       accumulation: accumulation
         ? {

@@ -8,6 +8,7 @@ import { AdminShell } from '@/components/admin-shell';
 import { GuardedActionButton } from '@/components/guarded-action-button';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
+import { CustomerJackpotOffers } from '@/components/customer-jackpot-offers';
 import { StatusPill, statusToTone } from '@/components/status-pill';
 import type { AdminSession } from '@/lib/admin-auth';
 import { api } from '@/lib/api';
@@ -191,45 +192,10 @@ function Body({ session }: { session: AdminSession }) {
               </Stat>
             </div>
 
-            {/* The question support actually gets asked. Weekly counters reset
-                every Saturday, so this is progress toward the coming jackpot
-                rather than a running total. */}
-            {data.accumulation && (
-              <div className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-xl border border-navy-100 bg-navy-50 px-5 py-3">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
-                    This week
-                  </p>
-                  <p className="mt-0.5 text-sm font-bold text-[#0B1220]">
-                    {data.accumulation.thisWeek.ticketCount} regular tickets
-                    {' · '}
-                    {data.accumulation.thisWeek.completedThresholds} milestone(s)
-                    {' · '}
-                    {data.accumulation.thisWeek.availableOfferCount} available ₦500 offer(s)
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
-                    To next ₦500 offer
-                  </p>
-                  <p className="mt-0.5 text-sm font-bold text-[#0B1220]">
-                    {data.accumulation.thisWeek.ticketsToNextOffer} more ticket
-                    {data.accumulation.thisWeek.ticketsToNextOffer === 1 ? '' : 's'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
-                    Last ticket
-                  </p>
-                  <p className="mt-0.5 text-sm font-bold text-[#0B1220]">
-                    {new Date(data.accumulation.lastTicketAt).toLocaleDateString('en-NG', {
-                      day: '2-digit',
-                      month: 'short',
-                    })}
-                  </p>
-                </div>
-              </div>
-            )}
+            <CustomerJackpotOffers
+              promotion={data.promotion}
+              lastTicketAt={data.accumulation?.lastTicketAt ?? null}
+            />
 
             <SectionCard
               title="Claims"

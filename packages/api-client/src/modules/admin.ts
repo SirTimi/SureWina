@@ -77,6 +77,33 @@ export interface AdminCustomerDetail {
     transactions: number;
     ticketRows: number;
   };
+  promotion: {
+    activeCycle: boolean;
+    jackpotDrawCode: string | null;
+    weeklyRegularTickets: number;
+    offersUnlocked: number;
+    available: number;
+    claimed: number;
+    declined: number;
+    claiming: number;
+    expired: number;
+    ticketsToNextOffer: number | null;
+    offers: Array<{
+      offerId: string;
+      jackpotDrawCode: string;
+      jackpotScheduledAt: string;
+      thresholdNumber: number;
+      regularTicketsAtUnlock: number;
+      originalPriceNgn: number;
+      offerPriceNgn: number;
+      status: 'AVAILABLE' | 'CLAIMING' | 'CLAIMED' | 'DECLINED' | 'EXPIRED';
+      issuedAt: string;
+      expiresAt: string;
+      claimedAt: string | null;
+      declinedAt: string | null;
+      offerSmsSentAt: string | null;
+    }>;
+  };
   accumulation: {
     thisWeek: {
       ticketCount: number;

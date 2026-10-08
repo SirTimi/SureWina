@@ -4,31 +4,29 @@ Updated: 2026-10-08
 
 ## Current Goal
 
-Validate Phase 10: retire current-use free jackpot entry SMS notifications in favor of per-offer notification plumbing, complete agent-earned offer notices, and retain separate historical free-entry reporting.
+Validate Phase 11 admin visibility: allow authorized support and finance staff to inspect phone-scoped current jackpot progress, counts of unlocked/available/claimed/declined offers, and the full persisted discount offer history.
 
 ## Current Status
 
-AWAITING USER TEST — notification worker, agent post-commit dispatch, delivery marker, recovery sweep and current copy have been implemented; requires Prisma migration, generated clients, tests, builds and real SMS sandbox verification.
+AWAITING USER TEST — Phase 11 code is staged for main, with a read-only admin offer summary and history table; local Jest, package builds and financial rollout still require user validation.
 
 ## Last Accepted Task
 
-Phase 10: replace JOB_JACKPOT_ENTRY_SMS with JOB_JACKPOT_OFFER_SMS for new notifications; queue an SMS for each newly issued agent-earned offer, revalidate the persisted entitlement and qualifying confirmed agent sale in the worker, and send only a phone-verification claim URL.
+Phase 11: extend the existing admin customer detail response with active-cycle offer counts and dated records of actual JackpotDiscountOffer rows; show a six-metric support summary and complete offer history without changing customer redemption or financial flows.
 
 ## Current Implementation
 
 Latest jackpot-promotion increment:
-- Phase 9 secure claim page is already live in the repository at /jackpot-offers/claim. It demands OTP-authenticated phone ownership before reading or purchasing any offer.
-- The notification job type has changed from jackpot-entry-sms to jackpot-offer-sms with offerId, buyerPhone, offerPriceNgn, normalPriceNgn, jackpotScheduledAt and expiresAt. New code never enqueues free-entry notifications.
-- Newly created JackpotDiscountOffer rows from the confirmed agent sale are queried by unlockedByPaymentTxnId after the sale commits, and one idempotently keyed notification is queued per offer. No entitlements are inferred from sale quantity alone.
-- The worker verifies the offered amounts/expiry against the persisted offer and checks the source transaction is confirmed AGENT_CASH for the matching buyerPhone. Expired/claimed/declined/already-notified offers do not trigger notifications.
-- SMS includes no unrestricted offer or purchase token; it directs customers to a generic secure sign-in/phone-verification claim page and describes a separate optional NGN 500 ticket purchase, not a free entry.
-- SMS sending respects stored smsEnabled opt-out, self-exclusion, and blocked-phone status. A stable V2N message ID keyed by offerId mitigates duplicates across worker retries.
-- JackpotDiscountOffer.offerSmsSentAt tracks delivery after provider acceptance. The new migration 20261008180000_agent_jackpot_offer_sms adds this nullable column and an index; historical offers remain intact.
-- An agent-only worker recovery sweep finds undelivered available offers joined to confirmed AGENT_CASH transactions, so a Redis outage after the sale commit can be recovered without recreating the entitlement.
-- Customer marquee and admin customer and jackpot screens no longer promise automatically minted free entries. Admin historical counters remain explicitly labeled as historical, not active promotion benefits.
-- Admin customer weekly progress is scoped to the currently open Saturday jackpot cycle, with milestone and available-offer counts.
-- The historical jackpot-entry model, draw engine and results remain untouched to preserve auditability.
-- Added entitlement/notification tests. The customer/agent build, Prisma migration and live SMS/provider behaviour still require local/sandbox validation before production rollout.
+- Authorized GET /admin/customers/detail still uses the existing AdminJwtGuard, AdminRoleGuard and OPERATOR role restriction. No new unauthenticated customer data endpoint is added.
+- CustomerAdminService.detail now fetches the actual JackpotDiscountOffer rows by buyerPhone, including prior jackpot cycles, ordered latest-first with their linked draw code and scheduled date.
+- Admin promotion summary is scoped to the earliest currently ACTIVE Saturday jackpot with a future cutoff and the existing cycleDrawId. Weekly regular tickets, unlocked offers, available, claimed, declined, claiming, expired and tickets-to-next-offer come from the backend, not client-side estimates.
+- AVAILABLE offers whose expiry passed but whose persisted status was not lazily normalized are displayed as EXPIRED, without modifying the original records.
+- No active jackpot is represented explicitly with zero current-week counters and null ticketsToNextOffer, while earlier offer history remains available.
+- The admin customer lookup displays the six requested key metrics and an offer history table showing full offer ID, jackpot/date, threshold, discount/list price, status, issue time, expiry and claimed time in Africa/Lagos local time.
+- Historic JackpotEntry lifetime counts remain visibly labeled as historical free entries. No ticket, offer status, ledger or payout mutation is performed by the admin detail lookup.
+- The API client AdminCustomerDetail type is updated. The existing admin customer query endpoint is reused and no new Prisma migration is required.
+- Added focused tests for 17 regular tickets with one available offer and three to the next threshold, mixed statuses and stale expired offers, new weekly cycles, and no active jackpot.
+- Local tests/builds and browser verification are still required for acceptance.
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
@@ -100,13 +98,13 @@ Current engineering increment:
 
 ## Next Tasks
 
-1. Pull main; validate the Prisma schema and apply the new 20261008180000_agent_jackpot_offer_sms migration to the correct nonproduction database, then regenerate Prisma Client for API and Worker.
-2. Run test/agent-jackpot-offer-entitlement.spec.ts and test/jackpot-offer-notification.spec.ts plus earlier jackpot-offer tests.
-3. Run API/Worker/shared-package and customer/admin web builds, and pnpm type-check / pnpm build.
-4. Run rollout:check --strict-review and verify no financial invariants regressed.
-5. Verify agent 9+1 and single 10-ticket sale: exactly one NGN 500 offer appears, and a phone-verified customer can view it.
-6. In a controlled SMS sandbox, confirm an offer notice is sent once, never before committed confirmation, never after expiry, and never to explicitly opted-out or blocked customers.
-7. Simulate Redis unavailable at sale completion; worker recovery should notify an eligible still-open offer when connectivity is restored. Do not deploy this without consent/legal review of promotional messaging and approved SMS copy.
+1. Pull latest main; Phase 11 introduces no Prisma migration.
+2. Build @surewina/api-client and run test/customer-admin-offers.spec.ts against the API Jest setup.
+3. Run API type-check/build, web-admin TypeScript check/build, and whole-monorepo type-check/build.
+4. Run rollout:check --strict-review; financial invariants must remain unchanged.
+5. Use the admin customer lookup with 17 confirmed regular tickets in the active cycle. Confirm one unlocked and available offer, zero claimed/declined, and three tickets remaining.
+6. Verify multiple offers across jackpot cycles, expiry normalization, claimed timestamp, full offer ID, and the read-only admin operator permissions.
+7. Keep SMS sandbox/provider production acceptance separate from this admin read-only visibility change.
 
 ## Known Issues
 
@@ -176,7 +174,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: replace jackpot entry SMS with offer notifications` (this development cycle)
+`feat: show jackpot offer history in admin customer lookup` (this development cycle)
 
 ## Latest Acceptance Evidence
 
