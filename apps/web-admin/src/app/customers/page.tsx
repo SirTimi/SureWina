@@ -214,7 +214,7 @@ function Body({ session }: { session: AdminSession }) {
                   </p>
                   <p className="mt-0.5 text-sm font-bold text-[#0B1220]">
                     {data.accumulation.thisWeek.ticketsToNextOffer} more ticket
-                    {data.accumulation.thisWeek.ticketsToNextEntry === 1 ? '' : 's'}
+                    {data.accumulation.thisWeek.ticketsToNextOffer === 1 ? '' : 's'}
                   </p>
                 </div>
                 <div>
