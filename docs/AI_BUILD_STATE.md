@@ -1,37 +1,31 @@
 # AI Build State
 
-Updated: 2026-10-02
+Updated: 2026-10-08
 
 ## Current Goal
 
-Validate jackpot discount Phase 8: make server-backed active-cycle weekly progress authoritative for customer pre-purchase UI and dashboard, with accurate threshold and available-offer numbers and no client-side quantity-driven eligibility claims.
+Phase 9 agent purchase handling: verify phone-owned discount entitlements from agent ticket sales and deliver secure, consent-appropriate notifications without exposing offers or authorizing purchases through SMS links.
 
 ## Current Status
 
-AWAITING USER TEST
+PARTIALLY IMPLEMENTED — secure claim landing and agent entitlement tests present; new discount-offer SMS notification and delivery recovery are NOT implemented or validated.
 
 ## Last Accepted Task
 
-Phase 8: add authenticated GET /jackpot-offers/progress, read JackpotAccumulation for the CURRENT active Saturday jackpot cycle and count AVAILABLE discount offers; expose typed progress via the API client; replace lifetime/quantity-derived dashboard and checkout copy; remove obsolete claims of automatic free jackpot entries.
+Added the authenticated /jackpot-offers/claim landing page and tested that named agent sales call the shared accumulation service in the confirmed payment transaction, preserve sale/payment provenance, and never credit anonymous agent tickets to an unverified customer's phone.
 
 ## Current Implementation
 
 Latest jackpot-promotion increment:
-- GET /jackpot-offers/progress is protected by CustomerJwtGuard; the request identifies the customer through a verified JWT phone, not a caller-supplied arbitrary phone.
-- The API uses a read-only REPEATABLE READ transaction to choose the earliest ACTIVE Saturday jackpot with a future cutoff, then reads that specific draw's accumulation and available unexpired offers.
-- The response contains promotionActive, jackpotDrawCode, jackpotScheduledAt, weeklyTicketCount, completedThresholds, ticketsToNextOffer and availableOfferCount.
-- A stale JackpotAccumulation row for an earlier jackpot cycle displays zero this cycle; no active jackpot means promotionActive=false and zero counts.
-- completedThresholds counts multiples of 10 reached in the current weekly tally; availableOfferCount separately counts only unexpired AVAILABLE offers, not already CLAIMED, DECLINED or CLAIMING ones.
-- The customer API client exposes jackpotOffers.progress(), with no-store private HTTP caching headers.
-- Customer dashboard removes its invalid lifetime / 100-ticket-page-based free-entry calculations and gets the same authoritative progress from the API.
-- Customer regular-ticket checkout displays server progress independent of the selected purchase quantity. The progress panel refreshes on focus/tab visibility and on a different authenticated account, and shows no stale guessed values while loading/errors occur.
-- Signed-in buyers see their own account's count only when the purchase phone matches; a guest is invited to use OTP sign-in for a verified read rather than an unauthenticated phone-based purchase-history lookup.
-- Customer landing/draws/FAQ/explainer/lookup and agent sales/receipt text were updated to describe a separate OPTIONAL NGN 500 jackpot ticket purchase, never a free or automatically issued jackpot entry.
-- Agent sale completion no longer uses sale.quantity % 10 to assert customer eligibility.
-- Removed unused exported frontend helper functions that calculated free jackpot entries from an arbitrary selected quantity.
-- No Phase 8 schema migration, ledger change or change to eligibility/redemption logic is needed.
-- New backend unit tests cover pre-threshold progress, milestone boundaries, active-cycle reset, offer state counting, and absence of an open jackpot.
-- Browser/provider acceptance and production rollout remain separate explicit approval gates.
+- Secure claim landing /jackpot-offers/claim is public but contains no offer ID, payment token, or customer phone in the URL; login/OTP is required before viewing any entitlement.
+- The landing page calls authenticated GET /jackpot-offers/current. Backend phone-bound offer ownership and buyerUserId binding are handled by the existing JackpotOffersService.
+- Claim actions route into the existing secured promotional checkout; the landing page does not initiate or authorize payment by itself.
+- Agent sale confirmation already uses JackpotAccumulationService.recordDailyPurchase inside the confirmed payment transaction, with buyerPhone, buyerUserId=null, ticketCount and sourcePaymentTxnId. Anonymous sales do not create buyer-specific offers.
+- Added a focused agent entitlement parity regression test for a named sale reaching the threshold and an anonymous sale without a buyer phone.
+- The ordinary agent ticket confirmation SMS already exists. A separate promotional offer SMS, delivery state, post-commit enqueue and worker retry/reconciliation are NOT yet implemented.
+- A proposed SMS delivery migration was not applied or committed. This increment requires no new database migration.
+- The Phase 9 exit condition, proactive and reliable agent offer notification, remains OPEN.
+- The financial and promotion rules from earlier phases are unchanged.
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
@@ -103,13 +97,11 @@ Current engineering increment:
 
 ## Next Tasks
 
-1. Pull latest main and run pnpm install --frozen-lockfile; there is no Phase 8 Prisma migration.
-2. Run the new jackpot-offers-progress Jest suite, then all existing promotion/financial tests.
-3. Run @surewina/types, @surewina/api-client, API, web-customer and web-agent type-check/build checks; validate full monorepo.
-4. Run rollout:check --strict-review; promotion integrity and other financial checks must remain green.
-5. In a local authenticated browser, verify 7/10, 8/10, 10/10 and 28/30 display exactly what GET /jackpot-offers/progress returns.
-6. Verify dashboard and pre-purchase widget agree, guest view offers sign-in rather than leaking phone purchase data, different buyer-phone hides account progress, and new jackpot cycle resets progress.
-7. Complete provider sandbox and production rollout approval separately before deploying.
+1. Pull main; run the new agent-jackpot-offer-entitlement Jest test and existing accumulation/offer ownership tests.
+2. Run package builds and customer site type-check/build with the ACTUAL filter 'web-customer' (there is no @surewina/web-customer package name or workspace type-check script).
+3. Confirm /jackpot-offers/claim requires OTP before showing phone-bound offers and that a different verified phone sees no other customer's entitlement.
+4. Keep Phase 9 open until an approved, permissioned offer-notification workflow has idempotent dispatch, delivery/retry recovery, consent safeguards and real worker verification.
+5. Do not apply any uncommitted SMS database migration or declare Phase 9 completed.
 
 ## Known Issues
 
@@ -179,7 +171,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: show authoritative weekly jackpot progress` (this development cycle)
+`test: cover agent jackpot offer entitlement parity` (this development cycle)
 
 ## Latest Acceptance Evidence
 
