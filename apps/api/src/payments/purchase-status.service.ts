@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { DrawType, PaymentGateway, PaymentStatus } from '@prisma/client';
+import { DrawType, JackpotDiscountOfferStatus, PaymentGateway, PaymentStatus } from '@prisma/client';
+import type { JackpotPromotionPrompt } from '@surewina/types';
 import { PrismaService } from '../database/prisma.service';
 import { PurchaseConfirmationService } from './purchase-confirmation.service';
 import { NotificationQueueService } from '../queue/notification-queue.service';
@@ -20,6 +21,7 @@ export type PurchaseStatusResponse = {
   drawPrizeDescription: string | null;
   totalPaidNgn: number;
   buyerPhoneE164: string;
+  promotion: JackpotPromotionPrompt | null;
   jackpotAccumulation: {
     cumulativeCount: number;
     ticketsToNextEntry: number;
@@ -253,6 +255,7 @@ export class PurchaseStatusService {
         drawScheduledAt: null,
         drawPrizeDescription: null,
         jackpotAccumulation: null,
+        promotion: null,
       };
     }
 
@@ -280,6 +283,44 @@ export class PurchaseStatusService {
       }
     }
 
+    // The specific purchase that crossed a 10-ticket threshold is the
+    // only source for this popup. Never infer it from the phone's current
+    // accumulator, which may have advanced after another purchase.
+    const unlockedOffer =
+      draw?.drawType === DrawType.DAILY_STANDARD
+        ? await this.prisma.jackpotDiscountOffer.findFirst({
+            where: {
+              unlockedByPaymentTxnId: txn.txnId,
+              status: {
+                in: [
+                  JackpotDiscountOfferStatus.AVAILABLE,
+                  JackpotDiscountOfferStatus.CLAIMING,
+                ],
+              },
+              expiresAt: { gt: new Date() },
+            },
+            include: {
+              jackpotDraw: {
+                select: { drawCode: true },
+              },
+            },
+            orderBy: { thresholdNumber: 'desc' },
+          })
+        : null;
+
+    const promotion: JackpotPromotionPrompt | null =
+      unlockedOffer
+        ? {
+            offerId: unlockedOffer.offerId,
+            status: unlockedOffer.status,
+            priceNgn: unlockedOffer.offerPriceNgn,
+            normalPriceNgn: unlockedOffer.originalPriceNgn,
+            expiresAt: unlockedOffer.expiresAt.toISOString(),
+            jackpotDrawCode: unlockedOffer.jackpotDraw.drawCode,
+            regularTicketsAtUnlock: unlockedOffer.regularTicketsAtUnlock,
+          }
+        : null;
+
     return {
       ...base,
       status: 'CONFIRMED',
@@ -288,6 +329,7 @@ export class PurchaseStatusService {
       drawScheduledAt: draw?.scheduledAt.toISOString() ?? null,
       drawPrizeDescription: draw?.prizeDescription ?? null,
       jackpotAccumulation,
+      promotion,
     };
   }
 }

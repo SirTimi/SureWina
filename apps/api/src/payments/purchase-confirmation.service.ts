@@ -1234,6 +1234,9 @@ export class PurchaseConfirmationService {
 
                 ticketCount:
                   txn.ticketCount,
+
+                sourcePaymentTxnId:
+                  txnId,
               },
             );
         }

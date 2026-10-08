@@ -286,6 +286,7 @@ export class WalletTicketPurchaseService {
                   buyerPhone: user.phoneNumber,
                   buyerUserId: userId,
                   ticketCount: dto.quantity,
+                  sourceWalletPurchaseId: purchase.purchaseId,
                 },
               );
           }

@@ -148,6 +148,7 @@ export class AgentSalesService {
           buyerPhone: dto.customerPhone,
           buyerUserId: null,
           ticketCount: dto.quantity,
+          sourcePaymentTxnId: txn.txnId,
         });
       }
 

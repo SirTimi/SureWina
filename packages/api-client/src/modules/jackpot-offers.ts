@@ -47,6 +47,17 @@ export class JackpotOffersModule {
     );
   }
 
+  declineFromPurchase(
+    offerId: string,
+    reference: string,
+  ): Promise<{ status: 'DECLINED' }> {
+    return this.client.post<{ status: 'DECLINED' }>(
+      `/jackpot-offers/${offerId}/decline-from-purchase`,
+      { reference },
+      { skipAuth: true },
+    );
+  }
+
   purchaseWithPaystack(
     offerId: string,
     input: PromotionalJackpotPaystackPurchaseInput,

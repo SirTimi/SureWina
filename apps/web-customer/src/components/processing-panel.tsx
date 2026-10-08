@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Check, CreditCard, Loader2, ShieldCheck } from 'lucide-react';
 import { Card } from '@surewina/ui';
 import { api } from '@/lib/api';
+import { appendPromotionParams } from '@/lib/jackpot-promotion';
 
 interface ProcessingPanelProps {
   sessionId: string;
@@ -49,7 +50,10 @@ export function ProcessingPanel({
           newEntries: String(result.jackpotAccumulation.newJackpotEntries),
           cumCount: String(result.jackpotAccumulation.cumulativeCount),
           toNext: String(result.jackpotAccumulation.ticketsToNextEntry),
+          purchaseRef: sessionId,
         });
+
+        appendPromotionParams(params, result.promotion);
 
         router.push(`/tickets/confirmation?${params.toString()}`);
       } catch {

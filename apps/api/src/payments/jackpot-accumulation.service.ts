@@ -35,6 +35,8 @@ export class JackpotAccumulationService {
       buyerPhone: string;
       buyerUserId: string | null;
       ticketCount: number;
+      sourcePaymentTxnId?: string;
+      sourceWalletPurchaseId?: string;
     },
   ): Promise<JackpotOfferUnlockResult | null> {
     const { buyerPhone, buyerUserId, ticketCount } = params;
@@ -158,6 +160,10 @@ export class JackpotAccumulationService {
           buyerPhone,
           buyerUserId,
           jackpotDrawId: jackpotDraw.drawId,
+          unlockedByPaymentTxnId:
+            params.sourcePaymentTxnId ?? null,
+          unlockedByWalletPurchaseId:
+            params.sourceWalletPurchaseId ?? null,
           thresholdNumber,
           regularTicketsAtUnlock:
             thresholdNumber * TICKETS_PER_DISCOUNT_OFFER,

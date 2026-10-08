@@ -1,5 +1,6 @@
 import type {
   ConfirmPurchaseResponse,
+  JackpotPromotionPrompt,
   InitiatePurchaseRequest,
   InitiatePurchaseResponse,
   LookupTicketRequest,
@@ -61,6 +62,19 @@ export class TicketsModule {
     };
   }
 
+  async getPurchaseStatus(reference: string): Promise<{
+    status: 'PENDING' | 'CONFIRMED' | 'FAILED' | 'REVIEW_REQUIRED' | 'REFUND_PENDING' | 'REFUNDED';
+    promotion: JackpotPromotionPrompt | null;
+  }> {
+    return this.client.get<{
+      status: 'PENDING' | 'CONFIRMED' | 'FAILED' | 'REVIEW_REQUIRED' | 'REFUND_PENDING' | 'REFUNDED';
+      promotion: JackpotPromotionPrompt | null;
+    }>('/tickets/purchase/status', {
+      skipAuth: true,
+      query: { reference },
+    });
+  }
+
   async confirmPurchase(
     sessionId: string,
     _drawCode: string,
@@ -82,6 +96,7 @@ export class TicketsModule {
         drawPrizeDescription: string | null;
         totalPaidNgn: number;
         buyerPhoneE164: string;
+        promotion: JackpotPromotionPrompt | null;
         jackpotAccumulation: {
           cumulativeCount: number;
           ticketsToNextEntry: number;
@@ -105,6 +120,7 @@ export class TicketsModule {
           drawPrizeDescription: s.drawPrizeDescription ?? '',
           totalPaidNgn: s.totalPaidNgn,
           buyerPhoneE164: s.buyerPhoneE164,
+          promotion: s.promotion ?? null,
           jackpotAccumulation: s.jackpotAccumulation ?? {
             cumulativeCount: 0,
             ticketsToNextEntry: 10,

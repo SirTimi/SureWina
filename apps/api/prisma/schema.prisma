@@ -1299,6 +1299,11 @@ model JackpotDiscountOffer {
 
   jackpotDrawId String @map("jackpot_draw_id")
 
+  // Tracks the actual qualifying purchase. It lets a delayed Paystack
+  // callback display only offers unlocked by THAT confirmed payment.
+  unlockedByPaymentTxnId String? @map("unlocked_by_payment_txn_id")
+  unlockedByWalletPurchaseId String? @map("unlocked_by_wallet_purchase_id")
+
   // 1 = first 10 regular tickets, 2 = first 20, 3 = first 30, and so on.
   thresholdNumber Int @map("threshold_number")
 
@@ -1331,6 +1336,8 @@ model JackpotDiscountOffer {
 
   @@index([buyerPhone, status])
   @@index([buyerUserId])
+  @@index([unlockedByPaymentTxnId])
+  @@index([unlockedByWalletPurchaseId])
   @@index([jackpotDrawId, status])
   @@index([status, expiresAt])
   @@index([status, claimingAt])

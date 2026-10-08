@@ -4,6 +4,8 @@ import { Button, Card, Container } from '@surewina/ui';
 import { formatNaira, formatPhoneForDisplay } from '@surewina/utils';
 import { drawTypeShortLabel, formatDrawDate, formatDrawTime } from '@/lib/draw-helpers';
 import { CopyableTicketRef } from '@/components/copyable-ticket-ref';
+import { JackpotOfferPrompt } from '@/components/jackpot-offer-prompt';
+import { promotionFromParams } from '@/lib/jackpot-promotion';
 import { DownloadReceiptButton } from '@/components/download-reciept-button'
 interface ConfirmationPageProps {
   searchParams: Promise<{
@@ -11,10 +13,14 @@ interface ConfirmationPageProps {
     draw?: string;
     phone?: string;
     paid?: string;
-    newEntries?: string;
-    cumCount?: string;
-    toNext?: string;
     scheduled?: string;
+    purchaseRef?: string;
+    offerId?: string;
+    offerPrice?: string;
+    offerNormalPrice?: string;
+    offerExpires?: string;
+    offerDraw?: string;
+    offerThreshold?: string;
   }>;
 }
 
@@ -24,9 +30,7 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
   const drawCode = params.draw ?? '';
   const phone = params.phone ?? '';
   const paid = parseInt(params.paid ?? '0', 10);
-  const newEntries = parseInt(params.newEntries ?? '0', 10);
-  const cumCount = parseInt(params.cumCount ?? '0', 10);
-  const toNext = parseInt(params.toNext ?? '0', 10);
+  const promotion = promotionFromParams(params);
   const scheduledAt = params.scheduled ?? null;
 
   if (ticketRefs.length === 0 || !drawCode) {
@@ -67,6 +71,13 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
 
   return (
     <Container size="md" className="py-12 sm:py-16">
+      {promotion && !isJackpot && (
+        <JackpotOfferPrompt
+          promotion={promotion}
+          purchaseReference={params.purchaseRef}
+        />
+      )}
+
       {/* Success header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-success-bg mb-4">
@@ -123,30 +134,7 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
   </div>
 )}
 
-{!isJackpot && (newEntries > 0 || toNext > 0) && (
-  <div className="mt-4 bg-amber-50 border border-amber-100 rounded-md p-3 flex items-start gap-2">
-    <Sparkles className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
-    <div className="text-sm text-ink-700">
-      {newEntries > 0 ? (
-        <>
-          <span className="font-semibold text-amber-700">
-            {newEntries} free Sure Jackpot {newEntries === 1 ? 'entry' : 'entries'} unlocked.
-          </span>{' '}
-          Every 10 regular tickets gives 1 free entry into the coming Saturday
-          jackpot draw.
-        </>
-      ) : (
-        <>
-          <span className="font-semibold text-amber-700">
-            {toNext} more regular ticket{toNext === 1 ? '' : 's'}
-          </span>{' '}
-          to unlock 1 free Sure Jackpot entry. Current regular ticket count:{' '}
-          <span className="tabular-nums font-semibold">{cumCount}/10</span>.
-        </>
-      )}
-    </div>
-  </div>
-)}
+
         </div>
 
         <div className="p-5 flex items-center justify-between gap-3 border-t border-ink-100 text-xs">

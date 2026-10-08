@@ -76,6 +76,16 @@ export interface InitiatePurchaseResponse {
   expiresAt: string;
 }
 
+export interface JackpotPromotionPrompt {
+  offerId: string;
+  status: 'AVAILABLE' | 'CLAIMING';
+  priceNgn: number;
+  normalPriceNgn: number;
+  expiresAt: string;
+  jackpotDrawCode: string;
+  regularTicketsAtUnlock: number;
+}
+
 export interface ConfirmPurchaseResponse {
   success: boolean;
   ticketRefs: string[];
@@ -84,6 +94,7 @@ export interface ConfirmPurchaseResponse {
   drawPrizeDescription: string;
   totalPaidNgn: number;
   buyerPhoneE164: string;
+  promotion: JackpotPromotionPrompt | null;
   jackpotAccumulation: {
     cumulativeCount: number;
     ticketsToNextEntry: number;

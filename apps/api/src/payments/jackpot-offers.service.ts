@@ -134,6 +134,86 @@ export class JackpotOffersService {
     });
   }
 
+  // A confirmed purchase reference is an unguessable bearer credential for
+  // guest checkout. It can decline only offers unlocked by THAT purchase.
+  // It never grants ticket purchasing, wallet access or account ownership.
+  async declineFromPurchaseReference(
+    offerId: string,
+    reference: string,
+  ): Promise<{ status: 'DECLINED' }> {
+    if (!/^SW-PAY-[0-9a-f-]{36}$/i.test(reference)) {
+      throw new NotFoundException('Purchase not found');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const txn = await tx.paymentTransaction.findUnique({
+        where: { gatewayReference: reference },
+        select: {
+          txnId: true,
+          buyerPhone: true,
+          status: true,
+          pricingContext: true,
+        },
+      });
+
+      if (
+        !txn ||
+        txn.status !== PaymentStatus.CONFIRMED ||
+        txn.pricingContext !== 'NORMAL'
+      ) {
+        throw new NotFoundException('Purchase not found');
+      }
+
+      const offer = await tx.jackpotDiscountOffer.findFirst({
+        where: {
+          offerId,
+          unlockedByPaymentTxnId: txn.txnId,
+          buyerPhone: txn.buyerPhone,
+        },
+        select: {
+          status: true,
+          expiresAt: true,
+        },
+      });
+
+      if (!offer) {
+        throw new NotFoundException('Jackpot offer not found');
+      }
+      if (offer.status === JackpotDiscountOfferStatus.DECLINED) {
+        return { status: 'DECLINED' as const };
+      }
+      if (
+        offer.status !== JackpotDiscountOfferStatus.AVAILABLE ||
+        offer.expiresAt <= new Date()
+      ) {
+        throw new ConflictException(
+          'This jackpot offer is no longer available to decline',
+        );
+      }
+
+      const changed = await tx.jackpotDiscountOffer.updateMany({
+        where: {
+          offerId,
+          unlockedByPaymentTxnId: txn.txnId,
+          buyerPhone: txn.buyerPhone,
+          status: JackpotDiscountOfferStatus.AVAILABLE,
+          expiresAt: { gt: new Date() },
+        },
+        data: {
+          status: JackpotDiscountOfferStatus.DECLINED,
+          declinedAt: new Date(),
+        },
+      });
+
+      if (changed.count !== 1) {
+        throw new ConflictException(
+          'Jackpot offer changed while declining',
+        );
+      }
+      return { status: 'DECLINED' as const };
+    });
+  }
+
   async reserve(
     user: CustomerJwtPayload,
     offerId: string,

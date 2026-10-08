@@ -28,6 +28,8 @@ type MockOfferCreate = {
   buyerPhone: string;
   buyerUserId: string | null;
   jackpotDrawId: string;
+  unlockedByPaymentTxnId?: string | null;
+  unlockedByWalletPurchaseId?: string | null;
   thresholdNumber: number;
   regularTicketsAtUnlock: number;
   originalPriceNgn: number;
@@ -211,6 +213,32 @@ describe('JackpotAccumulationService', () => {
       jackpotDrawCode: 'SW-JACKPOT-A',
     });
     expect(h.offers).toHaveLength(0);
+  });
+
+  it('links a newly earned discount to the exact confirmed payment', async () => {
+    const h = buildHarness();
+    await service.recordDailyPurchase(h.tx, {
+      ...params(10),
+      sourcePaymentTxnId: 'pay-confirmed-1',
+    });
+    expect(h.offers[0]).toMatchObject({
+      unlockedByPaymentTxnId: 'pay-confirmed-1',
+      unlockedByWalletPurchaseId: null,
+      thresholdNumber: 1,
+    });
+  });
+
+  it('links wallet-unlocked offers to the completed wallet purchase', async () => {
+    const h = buildHarness();
+    await service.recordDailyPurchase(h.tx, {
+      ...params(20),
+      sourceWalletPurchaseId: 'wallet-complete-1',
+    });
+    expect(h.offers).toHaveLength(2);
+    expect(h.offers.map((offer) => offer.unlockedByWalletPurchaseId)).toEqual([
+      'wallet-complete-1',
+      'wallet-complete-1',
+    ]);
   });
 
   it('unlocks one offer for 9 + 1 tickets', async () => {

@@ -25,6 +25,7 @@ import type { DrawPublic } from '@surewina/types';
 import type { WalletView } from '@surewina/api-client';
 
 import { api } from '@/lib/api';
+import { appendPromotionParams } from '@/lib/jackpot-promotion';
 import { isSignedIn } from '@/lib/auth';
 
 import {
@@ -420,8 +421,6 @@ export function BuyForm({
               scheduled:
                 result.drawScheduledAt,
 
-              // Phase 2 keeps the old confirmation page neutral. The new
-              // offer popup consumes jackpotOfferUnlock in the later UX phase.
               newEntries:
                 '0',
 
@@ -432,6 +431,19 @@ export function BuyForm({
                 '0',
             },
           );
+
+        if (result.jackpotOfferUnlock?.latestOffer) {
+          const offer = result.jackpotOfferUnlock.latestOffer;
+          appendPromotionParams(params, {
+            offerId: offer.offerId,
+            status: offer.status === 'AVAILABLE' ? 'AVAILABLE' : 'CLAIMING',
+            priceNgn: offer.offerPriceNgn,
+            normalPriceNgn: offer.originalPriceNgn,
+            expiresAt: offer.expiresAt,
+            jackpotDrawCode: result.jackpotOfferUnlock.jackpotDrawCode,
+            regularTicketsAtUnlock: offer.regularTicketsAtUnlock,
+          });
+        }
 
         router.push(
           `/tickets/confirmation?${params.toString()}`,

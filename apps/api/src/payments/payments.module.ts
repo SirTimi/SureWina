@@ -6,6 +6,7 @@ import { MonnifyDriver } from './gateway/monnify.driver';
 import { PurchaseConfirmationService } from './purchase-confirmation.service';
 import { JackpotAccumulationService } from './jackpot-accumulation.service';
 import { JackpotOffersController } from './jackpot-offers.controller';
+import { JackpotOffersGuestController } from './jackpot-offers-guest.controller';
 import { JackpotOffersService } from './jackpot-offers.service';
 import { PaystackWebhookController } from './webhook/paystack-webhook.controller';
 import { MonnifyWebhookController } from './webhook/monnify-webhook.controller';
@@ -43,7 +44,8 @@ import { PaystackDriver } from './gateway/paystack.driver'
     WalletFundingController,
     WalletFundingAdminController,
     WalletTicketPurchaseController,
-    JackpotOffersController
+    JackpotOffersController,
+    JackpotOffersGuestController
   ],
   providers: [
     PaymentsService,
