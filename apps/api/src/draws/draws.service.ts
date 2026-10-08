@@ -63,13 +63,29 @@ export class DrawsService {
       throw new NotFoundException('Draw not found');
     }
 
-    const ticketsSold = await this.prisma.ticket.count({
-      where: { drawId: draw.drawId, status: TicketStatus.ACTIVE },
-    });
+    const [ticketsSold, stake] = await Promise.all([
+      this.prisma.ticket.count({
+        where: {
+          drawId: draw.drawId,
+          status: TicketStatus.ACTIVE,
+        },
+      }),
+      this.prisma.ticket.aggregate({
+        where: {
+          drawId: draw.drawId,
+          status: TicketStatus.ACTIVE,
+        },
+        _sum: {
+          faceValueNgn: true,
+        },
+      }),
+    ]);
 
-    // Prize pool = tickets sold * price. For jackpot draws this is the
-    // accumulated stake; for product draws it's informational.
-    const prizePoolNgn = ticketsSold * draw.ticketPriceNgn;
+    // The draw keeps its standard/list price, but realized stake comes from
+    // what each active ticket actually paid. This keeps mixed NGN 5,000
+    // normal jackpot tickets and NGN 500 promotional tickets accurate.
+    const prizePoolNgn =
+      stake._sum.faceValueNgn ?? 0;
 
     return {
       draw: toDrawPublic(draw),

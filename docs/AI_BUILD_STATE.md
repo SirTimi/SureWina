@@ -4,7 +4,7 @@ Updated: 2026-10-02
 
 ## Current Goal
 
-Validate jackpot promotion Phase 4: allow a valid JackpotDiscountOffer to purchase exactly one Saturday-jackpot ticket at the server-stored NGN 500 offer price through authenticated Paystack or customer-wallet redemption, while leaving all NORMAL draw pricing unchanged.
+Validate jackpot promotion Phase 5: make Ticket.faceValueNgn the realized-sales/stake source of truth so mixed normal NGN 5,000 and promotional NGN 500 jackpot tickets reconcile through draw stats, provider collections, wallet debits, ticket-sales revenue, and rollout integrity checks.
 
 ## Current Status
 
@@ -12,25 +12,20 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Jackpot promotion Phase 4: persist purchase pricing context and offer linkage, add authenticated promotional Paystack and wallet redemption paths, enforce quantity=1/server-side offer pricing/cross-rail exclusivity, create NGN 500 face-value jackpot tickets, and atomically mark successfully redeemed offers CLAIMED.
+Jackpot promotion Phase 5: preserve the draw's standard list price while treating each ticket's faceValueNgn as the amount actually paid, replace count-times-list-price draw stake calculations with summed ticket face values, and strengthen financial rollout checks so provider/wallet purchase amounts, ticket face values, and ledger postings must reconcile.
 
 ## Current Implementation
 
 Latest jackpot-promotion increment:
-- PurchasePricingContext is persisted on PaymentTransaction and WalletPurchase with NORMAL as the default and PROMOTIONAL_JACKPOT for offer redemption.
-- PaymentTransaction and WalletPurchase both persist jackpotDiscountOfferId so every discounted purchase is traceable to the entitlement that authorized it.
-- Normal purchases still compute amount from draw.ticketPriceNgn * quantity and do not require an offer.
-- Promotional Paystack checkout is exposed only through the authenticated POST /jackpot-offers/:offerId/purchase/paystack route; the browser never supplies the NGN amount, draw or quantity.
-- Promotional wallet checkout is exposed through POST /jackpot-offers/:offerId/purchase/wallet and reuses WalletTicketPurchaseService with a locked/validated offer.
-- For PROMOTIONAL_JACKPOT the server forces quantity=1 and amountNgn=offer.offerPriceNgn.
-- Paystack initiation stores buyerUserId, pricingContext, offer linkage and the offer's jackpotDrawId before calling the provider.
-- Provider confirmation locks and validates the linked offer against buyer, draw, NGN amount, quantity, CLAIMING state and effective payment time; unsafe successful collections go to REVIEW_REQUIRED/suspense instead of ticket fulfilment.
-- Wallet redemption locks the same offer, blocks an active Paystack attempt, holds/captures exactly offerPriceNgn, creates one JACKPOT Ticket at faceValueNgn=offerPriceNgn and marks the offer CLAIMED in the same serializable transaction.
-- Paystack confirmation creates one JACKPOT Ticket at faceValueNgn=txn.amountNgn and marks the offer CLAIMED in the same confirmation transaction.
-- Stale CLAIMING offers are no longer reopened while a linked provider payment or completed/pending wallet purchase is active.
-- The rollout gate now checks promotional offer/ticket/amount integrity and detects successful duplicate redemption across Paystack and wallet.
-- Focused tests cover server-side NGN 500 Paystack initialization, NGN 500 wallet capture/ticket creation, offer validation and CLAIMING-to-CLAIMED finalization.
-- Customer popup/claim UX is still intentionally deferred; this phase establishes the secure financial redemption backend.
+- Draw.ticketPriceNgn remains the standard/list price and is not changed by promotional redemption.
+- Ticket.faceValueNgn is the realized per-ticket sales value: normal jackpot tickets retain the standard price while promotional jackpot tickets retain the server-authorized offer price.
+- Public draw prizePoolNgn/stake now sums ACTIVE Ticket.faceValueNgn values instead of multiplying ticket count by Draw.ticketPriceNgn.
+- Admin draw detail was already using SUM(faceValueNgn); compliance state sales, agent day records and remittance aggregation were also already face-value based and required no pricing rewrite.
+- Provider collection rollout integrity now requires fulfilled payment ticket count to match, SUM(ticket.faceValueNgn) to equal PaymentTransaction.amountNgn, and provider clearing/revenue or suspense ledger postings to equal the collected amount.
+- Wallet purchase rollout integrity now requires SUM(ticket.faceValueNgn) to equal WalletPurchase.amountNgn and verifies customer available debit, held credit, held debit and ticket-sales revenue credit all equal that same amount.
+- Promotional-specific rollout checks from Phase 4 remain in place, including one-offer/one-ticket and cross-rail duplicate-redemption detection.
+- Mixed-price tests explicitly prove a jackpot with one NGN 5,000 ticket plus one NGN 500 promotional ticket reports two tickets and NGN 5,500 realized stake, and both provider/wallet accounting remain green.
+- No Phase 5 database migration is required.
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
@@ -102,12 +97,12 @@ Current engineering increment:
 
 ## Next Tasks
 
-1. Pull main and apply the Phase 4 promotional purchase Prisma migration.
-2. Regenerate Prisma Client.
-3. Run jackpot accumulation, purchase confirmation, offer lifecycle and promotional purchase Jest tests.
-4. Run @surewina/types, @surewina/api-client, API and full monorepo type-check/build validation.
-5. Run rollout:check --strict-review; the new Discounted jackpot purchase integrity check must PASS.
-6. After Phase 4 acceptance, move to the remaining accounting/reporting hardening and customer Claim Now / No Thank You UX phases.
+1. Pull main; no Phase 5 database migration is required.
+2. Regenerate Prisma Client only if Phase 4 has not yet been generated locally.
+3. Run the Phase 5 mixed ticket-value/accounting Jest test plus the existing jackpot promotion tests.
+4. Run API and monorepo type-check/build validation.
+5. Run rollout:check --strict-review; Payment collection accounting, Wallet ticket purchase integrity, Discounted jackpot purchase integrity, and the overall Ready gate must remain PASS/YES.
+6. After Phase 5 acceptance, continue to the customer Claim Now / No Thank You notification/popup UX and any remaining promotion reporting/operations polish.
 7. Provider sandbox/live financial rollout work remains pending after this promotion increment is validated.
 
 ## Known Issues
@@ -178,7 +173,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: support discounted jackpot purchases` (this development cycle)
+`fix: reconcile mixed jackpot ticket values` (this development cycle)
 
 ## Latest Acceptance Evidence
 

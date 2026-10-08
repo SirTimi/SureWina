@@ -663,53 +663,232 @@ export class RolloutCheckService {
           txnId: true,
           gateway: true,
           status: true,
+          amountNgn: true,
           ticketCount: true,
           collectionLedgerTxnId:
             true,
-          _count: {
+          tickets: {
             select: {
-              tickets:
+              faceValueNgn:
                 true,
+            },
+          },
+          collectionLedgerTxn: {
+            select: {
+              kind:
+                true,
+              referenceType:
+                true,
+              referenceId:
+                true,
+              entries: {
+                select: {
+                  side:
+                    true,
+                  amountNgn:
+                    true,
+                  account: {
+                    select: {
+                      purpose:
+                        true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
       });
 
-    const problems =
-      rows
-        .filter(
-          (row) =>
-            !row.collectionLedgerTxnId ||
-            (
-              row.status !==
-                PaymentStatus.REVIEW_REQUIRED &&
-              row._count.tickets !==
-                row.ticketCount
-            ),
-        )
-        .map(
-          (row) => ({
-            txnId:
-              row.txnId,
-            gateway:
-              row.gateway,
-            status:
-              row.status,
-            ticketCount:
-              row.ticketCount,
-            actualTickets:
-              row._count.tickets,
-            collectionLedgerTxnId:
-              row.collectionLedgerTxnId,
-          }),
+    const problems: Array<{
+      txnId: string;
+      gateway: PaymentGateway;
+      status: PaymentStatus;
+      reason: string;
+      amountNgn: number;
+      ticketCount: number;
+      actualTickets: number;
+      ticketFaceValueNgn: number;
+    }> = [];
+
+    for (const row of rows) {
+      const ticketFaceValueNgn =
+        row.tickets.reduce(
+          (sum, ticket) =>
+            sum +
+            ticket.faceValueNgn,
+          0,
         );
+
+      if (!row.collectionLedgerTxnId) {
+        problems.push({
+          txnId:
+            row.txnId,
+          gateway:
+            row.gateway,
+          status:
+            row.status,
+          reason:
+            'material payment is missing collection ledger linkage',
+          amountNgn:
+            row.amountNgn,
+          ticketCount:
+            row.ticketCount,
+          actualTickets:
+            row.tickets.length,
+          ticketFaceValueNgn,
+        });
+        continue;
+      }
+
+      /*
+       * REVIEW_REQUIRED may intentionally have no tickets because money was
+       * collected but fulfilment was unsafe. All fulfilled/refund lifecycle
+       * states must retain tickets whose face values equal the original sale.
+       */
+      if (
+        row.status !==
+          PaymentStatus.REVIEW_REQUIRED &&
+        (
+          row.tickets.length !==
+            row.ticketCount ||
+          ticketFaceValueNgn !==
+            row.amountNgn
+        )
+      ) {
+        problems.push({
+          txnId:
+            row.txnId,
+          gateway:
+            row.gateway,
+          status:
+            row.status,
+          reason:
+            'ticket count or summed face value does not equal the payment',
+          amountNgn:
+            row.amountNgn,
+          ticketCount:
+            row.ticketCount,
+          actualTickets:
+            row.tickets.length,
+          ticketFaceValueNgn,
+        });
+      }
+
+      /*
+       * AGENT_CASH uses its own prepaid/legacy accounting check below.
+       * Provider collections must always debit PSP clearing and credit either
+       * ticket revenue or suspense for exactly the collected amount.
+       */
+      if (
+        row.gateway ===
+        PaymentGateway.AGENT_CASH
+      ) {
+        continue;
+      }
+
+      const journal =
+        row.collectionLedgerTxn;
+
+      if (!journal) {
+        problems.push({
+          txnId:
+            row.txnId,
+          gateway:
+            row.gateway,
+          status:
+            row.status,
+          reason:
+            'provider payment collection ledger row cannot be loaded',
+          amountNgn:
+            row.amountNgn,
+          ticketCount:
+            row.ticketCount,
+          actualTickets:
+            row.tickets.length,
+          ticketFaceValueNgn,
+        });
+        continue;
+      }
+
+      const clearingDebit =
+        journal.entries
+          .filter(
+            (entry) =>
+              entry.account
+                .purpose ===
+                LedgerAccountPurpose.PSP_CLEARING &&
+              entry.side ===
+                LedgerEntrySide.DEBIT,
+          )
+          .reduce(
+            (sum, entry) =>
+              sum +
+              entry.amountNgn,
+            0,
+          );
+
+      const destinationPurpose =
+        row.status ===
+          PaymentStatus.REVIEW_REQUIRED
+          ? LedgerAccountPurpose.SUSPENSE
+          : LedgerAccountPurpose.TICKET_SALES_REVENUE;
+
+      const destinationCredit =
+        journal.entries
+          .filter(
+            (entry) =>
+              entry.account
+                .purpose ===
+                destinationPurpose &&
+              entry.side ===
+                LedgerEntrySide.CREDIT,
+          )
+          .reduce(
+            (sum, entry) =>
+              sum +
+              entry.amountNgn,
+            0,
+          );
+
+      if (
+        journal.kind !==
+          LedgerTransactionKind.PROVIDER_COLLECTION ||
+        journal.referenceType !==
+          'PaymentTransaction' ||
+        journal.referenceId !==
+          row.txnId ||
+        clearingDebit !==
+          row.amountNgn ||
+        destinationCredit !==
+          row.amountNgn
+      ) {
+        problems.push({
+          txnId:
+            row.txnId,
+          gateway:
+            row.gateway,
+          status:
+            row.status,
+          reason:
+            'provider collection journal does not equal the payment amount',
+          amountNgn:
+            row.amountNgn,
+          ticketCount:
+            row.ticketCount,
+          actualTickets:
+            row.tickets.length,
+          ticketFaceValueNgn,
+        });
+      }
+    }
 
     return problems.length ===
       0
       ? this.pass(
           'payments.collections',
           'Payment collection accounting',
-          `${rows.length} material payment transaction(s) have collection ledger linkage and expected ticket counts.`,
+          `${rows.length} material payment transaction(s) have collection ledger linkage, matching ticket counts, and face-value totals equal to collected amounts.`,
         )
       : this.blocker(
           'payments.collections',
@@ -917,54 +1096,247 @@ export class RolloutCheckService {
             WalletPurchaseStatus.COMPLETED,
         },
         include: {
-          hold:
-            true,
-          _count: {
+          tickets: {
             select: {
-              tickets:
+              faceValueNgn:
                 true,
+            },
+          },
+          hold: {
+            include: {
+              holdLedgerTxn: {
+                include: {
+                  entries: {
+                    include: {
+                      account:
+                        true,
+                    },
+                  },
+                },
+              },
+              captureLedgerTxn: {
+                include: {
+                  entries: {
+                    include: {
+                      account:
+                        true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
       });
 
-    const problems =
-      completed
-        .filter(
-          (purchase) =>
-            !purchase.holdId ||
-            !purchase.completedAt ||
-            !purchase.hold ||
-            purchase.hold.status !==
-              WalletHoldStatus.CAPTURED ||
-            !purchase.hold
-              .captureLedgerTxnId ||
-            purchase.hold.amountNgn !==
-              purchase.amountNgn ||
-            purchase._count.tickets !==
-              purchase.ticketCount,
-        )
-        .map(
-          (purchase) => ({
-            purchaseId:
-              purchase.purchaseId,
-            amountNgn:
-              purchase.amountNgn,
-            ticketCount:
-              purchase.ticketCount,
-            actualTickets:
-              purchase._count.tickets,
-            holdId:
-              purchase.holdId,
-            holdStatus:
-              purchase.hold?.status ??
-              null,
-            captureLedgerTxnId:
-              purchase.hold
-                ?.captureLedgerTxnId ??
-              null,
-          }),
+    const problems: Array<{
+      purchaseId: string;
+      reason: string;
+      amountNgn: number;
+      ticketCount: number;
+      actualTickets: number;
+      ticketFaceValueNgn: number;
+      holdId: string | null;
+      holdStatus: WalletHoldStatus | null;
+      captureLedgerTxnId: string | null;
+    }> = [];
+
+    for (const purchase of completed) {
+      const ticketFaceValueNgn =
+        purchase.tickets.reduce(
+          (sum, ticket) =>
+            sum +
+            ticket.faceValueNgn,
+          0,
         );
+
+      const hold =
+        purchase.hold;
+
+      if (
+        !purchase.holdId ||
+        !purchase.completedAt ||
+        !hold ||
+        hold.status !==
+          WalletHoldStatus.CAPTURED ||
+        !hold.captureLedgerTxnId ||
+        hold.amountNgn !==
+          purchase.amountNgn ||
+        purchase.tickets.length !==
+          purchase.ticketCount ||
+        ticketFaceValueNgn !==
+          purchase.amountNgn
+      ) {
+        problems.push({
+          purchaseId:
+            purchase.purchaseId,
+          reason:
+            'purchase, hold, ticket count, or summed ticket face value is inconsistent',
+          amountNgn:
+            purchase.amountNgn,
+          ticketCount:
+            purchase.ticketCount,
+          actualTickets:
+            purchase.tickets.length,
+          ticketFaceValueNgn,
+          holdId:
+            purchase.holdId,
+          holdStatus:
+            hold?.status ??
+            null,
+          captureLedgerTxnId:
+            hold?.captureLedgerTxnId ??
+            null,
+        });
+        continue;
+      }
+
+      const holdJournal =
+        hold.holdLedgerTxn;
+
+      const captureJournal =
+        hold.captureLedgerTxn;
+
+      if (!holdJournal || !captureJournal) {
+        problems.push({
+          purchaseId:
+            purchase.purchaseId,
+          reason:
+            'completed wallet purchase is missing hold/capture journal data',
+          amountNgn:
+            purchase.amountNgn,
+          ticketCount:
+            purchase.ticketCount,
+          actualTickets:
+            purchase.tickets.length,
+          ticketFaceValueNgn,
+          holdId:
+            purchase.holdId,
+          holdStatus:
+            hold.status,
+          captureLedgerTxnId:
+            hold.captureLedgerTxnId,
+        });
+        continue;
+      }
+
+      const availableDebit =
+        holdJournal.entries
+          .filter(
+            (entry) =>
+              entry.account
+                .purpose ===
+                LedgerAccountPurpose.CUSTOMER_AVAILABLE &&
+              entry.account.ownerId ===
+                purchase.buyerUserId &&
+              entry.side ===
+                LedgerEntrySide.DEBIT,
+          )
+          .reduce(
+            (sum, entry) =>
+              sum +
+              entry.amountNgn,
+            0,
+          );
+
+      const heldCredit =
+        holdJournal.entries
+          .filter(
+            (entry) =>
+              entry.account
+                .purpose ===
+                LedgerAccountPurpose.CUSTOMER_HELD &&
+              entry.account.ownerId ===
+                purchase.buyerUserId &&
+              entry.side ===
+                LedgerEntrySide.CREDIT,
+          )
+          .reduce(
+            (sum, entry) =>
+              sum +
+              entry.amountNgn,
+            0,
+          );
+
+      const heldDebit =
+        captureJournal.entries
+          .filter(
+            (entry) =>
+              entry.account
+                .purpose ===
+                LedgerAccountPurpose.CUSTOMER_HELD &&
+              entry.account.ownerId ===
+                purchase.buyerUserId &&
+              entry.side ===
+                LedgerEntrySide.DEBIT,
+          )
+          .reduce(
+            (sum, entry) =>
+              sum +
+              entry.amountNgn,
+            0,
+          );
+
+      const revenueCredit =
+        captureJournal.entries
+          .filter(
+            (entry) =>
+              entry.account
+                .purpose ===
+                LedgerAccountPurpose.TICKET_SALES_REVENUE &&
+              entry.side ===
+                LedgerEntrySide.CREDIT,
+          )
+          .reduce(
+            (sum, entry) =>
+              sum +
+              entry.amountNgn,
+            0,
+          );
+
+      if (
+        holdJournal.kind !==
+          LedgerTransactionKind.WALLET_HOLD ||
+        holdJournal.referenceType !==
+          'WalletPurchase' ||
+        holdJournal.referenceId !==
+          purchase.purchaseId ||
+        captureJournal.kind !==
+          LedgerTransactionKind.PURCHASE ||
+        captureJournal.referenceType !==
+          'WalletPurchase' ||
+        captureJournal.referenceId !==
+          purchase.purchaseId ||
+        availableDebit !==
+          purchase.amountNgn ||
+        heldCredit !==
+          purchase.amountNgn ||
+        heldDebit !==
+          purchase.amountNgn ||
+        revenueCredit !==
+          purchase.amountNgn
+      ) {
+        problems.push({
+          purchaseId:
+            purchase.purchaseId,
+          reason:
+            'wallet debit/hold/capture/revenue journal does not equal purchase amount',
+          amountNgn:
+            purchase.amountNgn,
+          ticketCount:
+            purchase.ticketCount,
+          actualTickets:
+            purchase.tickets.length,
+          ticketFaceValueNgn,
+          holdId:
+            purchase.holdId,
+          holdStatus:
+            hold.status,
+          captureLedgerTxnId:
+            hold.captureLedgerTxnId,
+        });
+      }
+    }
 
     const pending =
       await this.prisma.walletPurchase.count({
@@ -1013,7 +1385,7 @@ export class RolloutCheckService {
     return this.pass(
       'wallet.purchases',
       'Wallet ticket purchase integrity',
-      `${completed.length} completed wallet purchase(s) have captured holds and matching ticket counts.`,
+      `${completed.length} completed wallet purchase(s) have matching wallet debits, captured holds, ticket face values, and ticket-sales revenue.`,
     );
   }
 
