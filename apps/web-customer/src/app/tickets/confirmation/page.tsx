@@ -6,7 +6,7 @@ import { drawTypeShortLabel, formatDrawDate, formatDrawTime } from '@/lib/draw-h
 import { CopyableTicketRef } from '@/components/copyable-ticket-ref';
 import { JackpotOfferPrompt } from '@/components/jackpot-offer-prompt';
 import { promotionFromParams } from '@/lib/jackpot-promotion';
-import { DownloadReceiptButton } from '@/components/download-reciept-button'
+import { DownloadReceiptButton } from '@/components/download-reciept-button';
 interface ConfirmationPageProps {
   searchParams: Promise<{
     refs?: string;
@@ -123,17 +123,16 @@ export default async function ConfirmationPage({ searchParams }: ConfirmationPag
           </div>
 
           {isJackpot && (
-  <div className="mt-4 bg-amber-50 border border-amber-100 rounded-md p-3 flex items-start gap-2">
-    <Sparkles className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
-    <div className="text-sm text-ink-700">
-      <span className="font-semibold text-amber-700">
-        Direct Sure Jackpot ticket confirmed.
-      </span>{' '}
-      Your ticket has been added to the coming Saturday jackpot draw bucket.
-    </div>
-  </div>
-)}
-
+            <div className="mt-4 flex items-start gap-2 rounded-md border border-amber-100 bg-amber-50 p-3">
+              <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-700" />
+              <div className="text-sm text-ink-700">
+                <span className="font-semibold text-amber-700">
+                  Direct Sure Jackpot ticket confirmed.
+                </span>{' '}
+                Your ticket has been added to the coming Saturday jackpot draw bucket.
+              </div>
+            </div>
+          )}
 
         </div>
 

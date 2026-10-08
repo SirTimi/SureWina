@@ -16,6 +16,7 @@ export function JackpotOfferCheckout({ offerId }: { offerId: string }) {
   const [offer, setOffer] = useState<JackpotOfferView | null>(null);
   const [wallet, setWallet] = useState<WalletView | null>(null);
   const [email, setEmail] = useState('');
+  const [accountPhone, setAccountPhone] = useState('');
   const [stateOfPlayCode, setStateOfPlayCode] = useState('');
   const [method, setMethod] = useState<'PAYSTACK' | 'WALLET'>('PAYSTACK');
   const [busy, setBusy] = useState(false);
@@ -40,6 +41,7 @@ export function JackpotOfferCheckout({ offerId }: { offerId: string }) {
         setOffer(result);
         setWallet(walletResult);
         setEmail(user.email ?? '');
+        setAccountPhone(user.phoneNumber);
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : 'Could not load the jackpot offer.');
@@ -94,6 +96,7 @@ export function JackpotOfferCheckout({ offerId }: { offerId: string }) {
           refs: purchased.ticketRefs.join(','),
           draw: purchased.drawCode,
           paid: String(purchased.amountNgn),
+          phone: accountPhone,
           scheduled: purchased.drawScheduledAt,
         });
         router.push(`/tickets/confirmation?${params.toString()}`);

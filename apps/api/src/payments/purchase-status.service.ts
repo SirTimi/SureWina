@@ -312,7 +312,10 @@ export class PurchaseStatusService {
       unlockedOffer
         ? {
             offerId: unlockedOffer.offerId,
-            status: unlockedOffer.status,
+            status:
+              unlockedOffer.status === JackpotDiscountOfferStatus.CLAIMING
+                ? 'CLAIMING'
+                : 'AVAILABLE',
             priceNgn: unlockedOffer.offerPriceNgn,
             normalPriceNgn: unlockedOffer.originalPriceNgn,
             expiresAt: unlockedOffer.expiresAt.toISOString(),
