@@ -1071,6 +1071,10 @@ model Ticket {
   paymentTxnId     String? @map("payment_txn_id")
   walletPurchaseId String? @map("wallet_purchase_id")
 
+  // Exactly one issued ticket may redeem a discount entitlement, across
+  // Paystack and wallet. NULL for every normal/non-promotional ticket.
+  jackpotDiscountOfferId String? @unique @map("jackpot_discount_offer_id")
+
   status   TicketStatus @default(ACTIVE)
   isWinner Boolean      @default(false) @map("is_winner")
 
@@ -1087,6 +1091,7 @@ model Ticket {
   agent          Agent?              @relation(fields: [agentId], references: [agentId])
   payment        PaymentTransaction? @relation(fields: [paymentTxnId], references: [txnId])
   walletPurchase WalletPurchase?     @relation(fields: [walletPurchaseId], references: [purchaseId])
+  jackpotDiscountOffer JackpotDiscountOffer? @relation("TicketJackpotDiscountOffer", fields: [jackpotDiscountOfferId], references: [offerId], onDelete: Restrict)
 
   @@index([buyerPhone, drawId])
   @@index([drawId, status])
@@ -1319,6 +1324,7 @@ model JackpotDiscountOffer {
   jackpotDraw Draw  @relation(fields: [jackpotDrawId], references: [drawId], onDelete: Restrict)
   paymentTransactions PaymentTransaction[] @relation("PaymentJackpotDiscountOffer")
   walletPurchases WalletPurchase[] @relation("WalletPurchaseJackpotDiscountOffer")
+  redeemedTicket Ticket? @relation("TicketJackpotDiscountOffer")
 
   // Persistence-level idempotency boundary for retries and concurrent confirms.
   @@unique([buyerPhone, jackpotDrawId, thresholdNumber])

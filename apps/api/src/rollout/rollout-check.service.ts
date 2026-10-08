@@ -1473,8 +1473,11 @@ export class RolloutCheckService {
           purchase.amountNgn ||
         ticket.drawId !==
           offer.jackpotDrawId ||
+        ticket.jackpotDiscountOfferId !==
+          offer.offerId ||
         offer.status !==
-          JackpotDiscountOfferStatus.CLAIMED
+          JackpotDiscountOfferStatus.CLAIMED ||
+        !offer.claimedAt
       ) {
         problems.push({
           source: 'PAYSTACK',
@@ -1528,8 +1531,11 @@ export class RolloutCheckService {
           purchase.amountNgn ||
         ticket.drawId !==
           offer.jackpotDrawId ||
+        ticket.jackpotDiscountOfferId !==
+          offer.offerId ||
         offer.status !==
-          JackpotDiscountOfferStatus.CLAIMED
+          JackpotDiscountOfferStatus.CLAIMED ||
+        !offer.claimedAt
       ) {
         problems.push({
           source: 'WALLET',

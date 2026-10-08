@@ -487,6 +487,25 @@ export class PurchaseConfirmationService {
         }
 
         /*
+         * Lock ordering: payment -> discount offer -> draw.
+         * Wallet purchase takes offer -> draw, preventing inverse
+         * offer/draw lock ordering during competing redemptions.
+         * An absent offer is handled by later REVIEW_REQUIRED validation.
+         */
+        if (
+          txn.pricingContext ===
+            PurchasePricingContext.PROMOTIONAL_JACKPOT &&
+          txn.jackpotDiscountOfferId
+        ) {
+          await tx.$queryRaw`
+            SELECT offer_id
+            FROM jackpot_discount_offers
+            WHERE offer_id = ${txn.jackpotDiscountOfferId}
+            FOR UPDATE
+          `;
+        }
+
+        /*
          * -------------------------------------------------
          * DRAW LOCK
          * -------------------------------------------------
@@ -1070,6 +1089,14 @@ export class PurchaseConfirmationService {
 
               paymentTxnId:
                 txnId,
+
+              // Persist the concrete entitlement on the ticket itself.
+              // A unique DB constraint blocks two tickets across payment rails.
+              jackpotDiscountOfferId:
+                txn.pricingContext ===
+                PurchasePricingContext.PROMOTIONAL_JACKPOT
+                  ? txn.jackpotDiscountOfferId
+                  : null,
             }),
           );
 
@@ -1175,8 +1202,9 @@ export class PurchaseConfirmationService {
               amountNgn:
                 txn.amountNgn,
 
+              // This is the database redemption time, not the PSP's
+              // earlier successful-payment timestamp.
               claimedAt:
-                verifiedPayment.paidAt ??
                 new Date(),
             },
           );

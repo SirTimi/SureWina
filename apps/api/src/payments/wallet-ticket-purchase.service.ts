@@ -267,6 +267,8 @@ export class WalletTicketPurchaseService {
               stateOfPlayCode,
               paymentTxnId: null,
               walletPurchaseId: purchase.purchaseId,
+              jackpotDiscountOfferId:
+                promotionalOffer?.offerId ?? null,
             }),
           );
 

@@ -200,6 +200,10 @@ function buildHarness(initialOffer: TestOffer) {
       count: jest.fn(async () => 0),
     },
 
+    ticket: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
+
     jackpotDiscountOffer: {
       updateMany: jest.fn(async (args: {
         where: Record<string, unknown>;
@@ -521,6 +525,70 @@ describe('JackpotOffersService', () => {
         'PROMOTIONAL_OFFER_AMOUNT_MISMATCH',
         'PROMOTIONAL_OFFER_QUANTITY_MUST_BE_ONE',
       ]),
+    );
+  });
+
+  it('rejects another provider fulfilment when the offer already has a ticket', async () => {
+    const h = buildHarness(
+      buildOffer({
+        status: JackpotDiscountOfferStatus.CLAIMING,
+        claimingAt: new Date(),
+      }),
+    );
+
+    h.tx.ticket.findUnique.mockResolvedValueOnce({
+      ticketId: 'already-issued-ticket',
+    });
+
+    const validation =
+      await h.service.validatePromotionalPaymentInTransaction(
+        h.tx as never,
+        {
+          offerId: '11111111-1111-4111-8111-111111111111',
+          buyerPhone: user.phoneNumber,
+          buyerUserId: user.sub,
+          purchaseDrawId: 'jackpot-1',
+          amountNgn: 500,
+          ticketCount: 1,
+          effectivePaidAt: new Date(),
+        },
+      );
+
+    expect(validation.issues).toContain(
+      'PROMOTIONAL_OFFER_ALREADY_HAS_TICKET',
+    );
+  });
+
+  it('cannot mark the same offer CLAIMED twice', async () => {
+    const h = buildHarness(
+      buildOffer({
+        status: JackpotDiscountOfferStatus.CLAIMING,
+        claimingAt: new Date(),
+      }),
+    );
+
+    const input = {
+      offerId: '11111111-1111-4111-8111-111111111111',
+      buyerPhone: user.phoneNumber,
+      buyerUserId: user.sub,
+      jackpotDrawId: 'jackpot-1',
+      amountNgn: 500,
+    };
+
+    await h.service.markClaimedInTransaction(
+      h.tx as never,
+      input,
+    );
+
+    await expect(
+      h.service.markClaimedInTransaction(
+        h.tx as never,
+        input,
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(h.getOffer().status).toBe(
+      JackpotDiscountOfferStatus.CLAIMED,
     );
   });
 

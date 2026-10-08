@@ -4,7 +4,7 @@ Updated: 2026-10-02
 
 ## Current Goal
 
-Validate jackpot promotion Phase 5: make Ticket.faceValueNgn the realized-sales/stake source of truth so mixed normal NGN 5,000 and promotional NGN 500 jackpot tickets reconcile through draw stats, provider collections, wallet debits, ticket-sales revenue, and rollout integrity checks.
+Validate jackpot promotion Phase 6: guarantee one-offer/one-ticket redemption across Paystack and wallet, with the ticket, accounting and CLAIMED transition committed atomically.
 
 ## Current Status
 
@@ -12,20 +12,22 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Jackpot promotion Phase 5: preserve the draw's standard list price while treating each ticket's faceValueNgn as the amount actually paid, replace count-times-list-price draw stake calculations with summed ticket face values, and strengthen financial rollout checks so provider/wallet purchase amounts, ticket face values, and ledger postings must reconcile.
+Jackpot promotion Phase 6: bind every promotional ticket to its offer using a nullable unique foreign key, backfill earlier promotional tickets, enforce one physical ticket per offer at the database layer, prevent double Paystack fulfilment, align competing transaction lock order, and extend reconciliation tests.
 
 ## Current Implementation
 
 Latest jackpot-promotion increment:
-- Draw.ticketPriceNgn remains the standard/list price and is not changed by promotional redemption.
-- Ticket.faceValueNgn is the realized per-ticket sales value: normal jackpot tickets retain the standard price while promotional jackpot tickets retain the server-authorized offer price.
-- Public draw prizePoolNgn/stake now sums ACTIVE Ticket.faceValueNgn values instead of multiplying ticket count by Draw.ticketPriceNgn.
-- Admin draw detail was already using SUM(faceValueNgn); compliance state sales, agent day records and remittance aggregation were also already face-value based and required no pricing rewrite.
-- Provider collection rollout integrity now requires fulfilled payment ticket count to match, SUM(ticket.faceValueNgn) to equal PaymentTransaction.amountNgn, and provider clearing/revenue or suspense ledger postings to equal the collected amount.
-- Wallet purchase rollout integrity now requires SUM(ticket.faceValueNgn) to equal WalletPurchase.amountNgn and verifies customer available debit, held credit, held debit and ticket-sales revenue credit all equal that same amount.
-- Promotional-specific rollout checks from Phase 4 remain in place, including one-offer/one-ticket and cross-rail duplicate-redemption detection.
-- Mixed-price tests explicitly prove a jackpot with one NGN 5,000 ticket plus one NGN 500 promotional ticket reports two tickets and NGN 5,500 realized stake, and both provider/wallet accounting remain green.
-- No Phase 5 database migration is required.
+- Phase 4 already created a JACKPOT Ticket and marked the corresponding JackpotDiscountOffer CLAIMED in one wallet serializable transaction or one Paystack confirmation transaction. Phase 6 hardens this existing atomic behavior instead of duplicating redemption logic.
+- Ticket.jackpotDiscountOfferId is now a nullable UNIQUE foreign key to JackpotDiscountOffer; a single offer cannot issue a second physical ticket across providers, retries, or payment rails.
+- Migration backfills ticket-offer linkage from existing PROMOTIONAL_JACKPOT PaymentTransaction / WalletPurchase rows before the unique constraint is applied. Historic JackpotEntrySource.ACCUMULATION records and normal tickets remain unchanged.
+- Both Paystack confirmation and wallet purchase populate Ticket.jackpotDiscountOfferId inside the same transaction as ticket creation, ledger movements, purchase finalization and the offer CLAIMED update.
+- Paystack confirmation uses payment -> offer -> draw lock ordering; wallet uses offer -> draw, reducing cross-rail lock inversion risk.
+- The Paystack promotion validator checks for an existing issued ticket before allocating a new one; an unsafe second payment is put into REVIEW_REQUIRED and financial suspense, not fulfilled.
+- claimedAt records when the claim was finalized in the database, not the earlier provider payment time. Provider payment time is still captured separately on PaymentTransaction.
+- Existing duplicate-confirmation and conditional CLAIMING-to-CLAIMED safeguards are retained. A duplicate callback on an already-CONFIRMED payment is a no-op.
+- Promotion rollout integrity now also checks that the redeemed ticket points directly back to its offer and that CLAIMED offers have claimedAt populated.
+- Added tests for already-redeemed offer rejection, repeated CLAIMED transition rejection, and the wallet ticket's persisted offer link.
+- Phase 6 requires a database migration followed by Prisma Client regeneration; production acceptance remains blocked until local tests, builds, and strict rollout checks are green.
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
@@ -97,13 +99,13 @@ Current engineering increment:
 
 ## Next Tasks
 
-1. Pull main; no Phase 5 database migration is required.
-2. Regenerate Prisma Client only if Phase 4 has not yet been generated locally.
-3. Run the Phase 5 mixed ticket-value/accounting Jest test plus the existing jackpot promotion tests.
-4. Run API and monorepo type-check/build validation.
-5. Run rollout:check --strict-review; Payment collection accounting, Wallet ticket purchase integrity, Discounted jackpot purchase integrity, and the overall Ready gate must remain PASS/YES.
-6. After Phase 5 acceptance, continue to the customer Claim Now / No Thank You notification/popup UX and any remaining promotion reporting/operations polish.
-7. Provider sandbox/live financial rollout work remains pending after this promotion increment is validated.
+1. Pull main; apply Phase 6 migration 20261008070000_jackpot_offer_ticket_redemption_guard and regenerate Prisma Client.
+2. Run the offer lifecycle, purchase confirmation, promotional checkout and mixed ticket-value accounting Jest tests.
+3. Run API type-check/build and whole-monorepo validation.
+4. Run rollout:check --strict-review. Check Discounted jackpot purchase integrity and Ready: YES.
+5. Run a controlled local/staging two-rail race and duplicate Paystack webhook scenario against a real PostgreSQL database before production approval; mocks alone cannot prove transaction isolation.
+6. After Phase 6 acceptance, implement customer-facing Claim Now / No Thank You popup/notification.
+7. Provider sandbox/live-money approval and production deployment remain separate rollout gates.
 
 ## Known Issues
 
@@ -173,7 +175,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`fix: reconcile mixed jackpot ticket values` (this development cycle)
+`fix: enforce one ticket per jackpot offer` (this development cycle)
 
 ## Latest Acceptance Evidence
 

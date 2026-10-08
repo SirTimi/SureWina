@@ -375,6 +375,18 @@ export class JackpotOffersService {
     if (offer.status !== JackpotDiscountOfferStatus.CLAIMING) {
       issues.push(`PROMOTIONAL_OFFER_STATUS_${offer.status}`);
     }
+
+    // Even if an offer status were ever accidentally reset, a second
+    // confirmed PSP payment must go to REVIEW_REQUIRED / suspense instead
+    // of trying to create another ticket against the same entitlement.
+    const redeemed = await tx.ticket.findUnique({
+      where: { jackpotDiscountOfferId: offer.offerId },
+      select: { ticketId: true },
+    });
+    if (redeemed) {
+      issues.push('PROMOTIONAL_OFFER_ALREADY_HAS_TICKET');
+    }
+
     if (input.effectivePaidAt >= offer.expiresAt) {
       issues.push('PROMOTIONAL_OFFER_PAYMENT_AFTER_EXPIRY');
     }

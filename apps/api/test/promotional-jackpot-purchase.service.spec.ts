@@ -326,6 +326,7 @@ describe('Promotional jackpot purchase pricing', () => {
       ticketType: 'JACKPOT',
       faceValueNgn: 500,
       drawId: draw.drawId,
+      jackpotDiscountOfferId: offerId,
     });
 
     expect(wallets.createHoldInTransaction).toHaveBeenCalledWith(
