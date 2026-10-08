@@ -11,7 +11,7 @@ import { Queue } from 'bullmq';
 export const NOTIFICATIONS_QUEUE = 'notifications';
 export const JOB_TICKET_CONFIRMATION_SMS = 'ticket-confirmation-sms';
 export const JOB_REDEMPTION_CODE_SMS = 'redemption-code-sms';
-export const JOB_JACKPOT_ENTRY_SMS = 'jackpot-entry-sms';
+export const JOB_JACKPOT_OFFER_SMS = 'jackpot-offer-sms';
 
 export type TicketConfirmationSmsJob = {
   txnId: string;
@@ -34,16 +34,13 @@ export type RedemptionCodeSmsJob = {
   attempt?: number;
 }
 
-export type JackpotEntrySmsJob = {
-  // One job per mint, keyed on the accumulation row and the running weekly
-  // total — a customer earning a second entry in the same week gets a second
-  // message, but a retry of the same mint does not.
-  accumId: string;
+export type JackpotOfferSmsJob = {
+  offerId: string;
   buyerPhone: string;
-  entriesMinted: number;
-  entriesThisWeek: number;
-  jackpotDrawCode: string;
+  offerPriceNgn: number;
+  normalPriceNgn: number;
   jackpotScheduledAt: string;
+  expiresAt: string;
 };
 
 @Injectable()
@@ -90,23 +87,20 @@ export class NotificationQueueService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-    // Someone has just earned a free jackpot entry. Non-blocking like the
-  // rest: the entry is already minted in the database, so a failed queue
-  // costs a notification, not the prize.
-  async enqueueJackpotEntrySms(job: JackpotEntrySmsJob): Promise<void> {
+  // A retry of the same entitlement is the same notification.
+  // Never let a queue outage roll back a confirmed ticket sale.
+  async enqueueJackpotOfferSms(job: JackpotOfferSmsJob): Promise<void> {
     try {
-      await this.queue.add(JOB_JACKPOT_ENTRY_SMS, job, {
-        // Keyed on the running weekly total, so the second entry of a week
-        // sends its own message while a retry of the first does not.
-        jobId: `jackpot-${job.accumId}-${job.entriesThisWeek}`,
+      await this.queue.add(JOB_JACKPOT_OFFER_SMS, job, {
+        jobId: `jackpot-offer-${job.offerId}`,
         attempts: 5,
-        backoff: { type: 'exponential', delay: 2000 },
+        backoff: { type: 'exponential', delay: 5000 },
         removeOnComplete: 1000,
         removeOnFail: false,
       });
     } catch (error) {
       this.logger.error(
-        `Failed to enqueue jackpot entry SMS for ${job.buyerPhone}: ${
+        `Unable to enqueue jackpot offer notice ${job.offerId}: ${
           error instanceof Error ? error.message : 'unknown'
         }`,
       );

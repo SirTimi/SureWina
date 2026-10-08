@@ -80,8 +80,10 @@ export interface AdminCustomerDetail {
   accumulation: {
     thisWeek: {
       ticketCount: number;
-      entriesEarned: number;
-      ticketsToNextEntry: number;
+      completedThresholds: number;
+      ticketsToNextOffer: number;
+      availableOfferCount: number;
+      jackpotDrawCode: string | null;
     };
     lifetime: {
       ticketCount: number;

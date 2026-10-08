@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AuditActorType, AuditSeverity } from '@prisma/client';
+import { AuditActorType, AuditSeverity, DrawStatus, DrawType, JackpotDiscountOfferStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -16,7 +16,6 @@ export class CustomerAdminService {
 
   // 360° view by phone — works for guests and registered users alike.
   async detail(phoneNumber: string) {
-    console.log('[detail] received:', JSON.stringify(phoneNumber));
     const [user, payments, tickets, claims, accumulation, block] =
       await Promise.all([
         this.prisma.user.findUnique({ where: { phoneNumber } }),
@@ -43,6 +42,31 @@ export class CustomerAdminService {
         this.prisma.blockedPhone.findUnique({ where: { phoneNumber } }),
       ]);
 
+    // Admin progress, like customer progress, is scoped to the open jackpot.
+    const now = new Date();
+    const activeJackpot = await this.prisma.draw.findFirst({
+      where: {
+        drawType: DrawType.SATURDAY_JACKPOT,
+        status: DrawStatus.ACTIVE,
+        cutoffAt: { gt: now },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      select: { drawId: true, drawCode: true },
+    });
+    const count = activeJackpot &&
+      accumulation?.cycleDrawId === activeJackpot.drawId
+      ? accumulation.cumulativeCount : 0;
+    const availableOfferCount = activeJackpot
+      ? await this.prisma.jackpotDiscountOffer.count({
+          where: {
+            buyerPhone: phoneNumber,
+            jackpotDrawId: activeJackpot.drawId,
+            status: JackpotDiscountOfferStatus.AVAILABLE,
+            expiresAt: { gt: now },
+          },
+        })
+      : 0;
+
     if (!user && payments._count === 0 && tickets === 0) {
       throw new NotFoundException('No activity for this phone number');
     }
@@ -60,21 +84,16 @@ export class CustomerAdminService {
         transactions: payments._count,
         ticketRows: tickets,
       },
-            // Support staff need both: the weekly figure answers "am I close to a
-      // free entry?", the lifetime one answers "how much have I earned from
-      // this?". The weekly counters reset every Saturday, so showing only
-      // those would make a long-standing customer look brand new.
       accumulation: accumulation
         ? {
             thisWeek: {
-              ticketCount: accumulation.cumulativeCount,
-              entriesEarned: accumulation.jackpotEntriesTotal,
-              ticketsToNextEntry:
-                accumulation.cumulativeCount % 10 === 0 &&
-                accumulation.cumulativeCount > 0
-                  ? 10
-                  : 10 - (accumulation.cumulativeCount % 10),
+              ticketCount: count,
+              completedThresholds: Math.floor(count / 10),
+              ticketsToNextOffer: count % 10 === 0 ? 10 : 10 - (count % 10),
+              availableOfferCount,
+              jackpotDrawCode: activeJackpot?.drawCode ?? null,
             },
+            // Free entries here are historic, pre-discount-policy records.
             lifetime: {
               ticketCount: accumulation.lifetimeTicketCount,
               entriesEarned: accumulation.lifetimeEntriesTotal,

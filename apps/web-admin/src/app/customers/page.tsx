@@ -186,7 +186,7 @@ function Body({ session }: { session: AdminSession }) {
               <Stat icon={Wallet} label="Transactions">
                 {data.lifetime.transactions.toLocaleString('en-NG')}
               </Stat>
-              <Stat icon={Trophy} label="Jackpot entries">
+              <Stat icon={Trophy} label="Historical free entries">
                 {data.accumulation?.lifetime.entriesEarned ?? 0}
               </Stat>
             </div>
@@ -201,23 +201,19 @@ function Body({ session }: { session: AdminSession }) {
                     This week
                   </p>
                   <p className="mt-0.5 text-sm font-bold text-[#0B1220]">
-                    {data.accumulation.thisWeek.ticketCount} ticket
-                    {data.accumulation.thisWeek.ticketCount === 1 ? '' : 's'}
-                    {data.accumulation.thisWeek.entriesEarned > 0 && (
-                      <>
-                        {' · '}
-                        {data.accumulation.thisWeek.entriesEarned} entr
-                        {data.accumulation.thisWeek.entriesEarned === 1 ? 'y' : 'ies'} earned
-                      </>
-                    )}
+                    {data.accumulation.thisWeek.ticketCount} regular tickets
+                    {' · '}
+                    {data.accumulation.thisWeek.completedThresholds} milestone(s)
+                    {' · '}
+                    {data.accumulation.thisWeek.availableOfferCount} available ₦500 offer(s)
                   </p>
                 </div>
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
-                    To next entry
+                    To next ₦500 offer
                   </p>
                   <p className="mt-0.5 text-sm font-bold text-[#0B1220]">
-                    {data.accumulation.thisWeek.ticketsToNextEntry} more ticket
+                    {data.accumulation.thisWeek.ticketsToNextOffer} more ticket
                     {data.accumulation.thisWeek.ticketsToNextEntry === 1 ? '' : 's'}
                   </p>
                 </div>

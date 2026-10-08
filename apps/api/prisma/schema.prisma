@@ -1321,6 +1321,7 @@ model JackpotDiscountOffer {
   claimingAt DateTime? @map("claiming_at")
   claimedAt  DateTime? @map("claimed_at")
   declinedAt DateTime? @map("declined_at")
+  offerSmsSentAt DateTime? @map("offer_sms_sent_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1337,6 +1338,7 @@ model JackpotDiscountOffer {
   @@index([buyerPhone, status])
   @@index([buyerUserId])
   @@index([unlockedByPaymentTxnId])
+  @@index([offerSmsSentAt, expiresAt])
   @@index([unlockedByWalletPurchaseId])
   @@index([jackpotDrawId, status])
   @@index([status, expiresAt])

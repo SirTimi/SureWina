@@ -32,8 +32,8 @@ function Body() {
     <>
       <PageHeader
         eyebrow="Draws"
-        title="Jackpot entries"
-        description="The Saturday jackpot pays a fixed template prize. Entries come from direct ₦5,000 tickets and from accumulation — every 10 daily tickets earns one free entry."
+        title="Jackpot tickets and historical entries"
+        description="The Saturday jackpot has a fixed prize. Every 10 regular tickets in the active cycle unlocks an optional ₦500 jackpot ticket. Historical free entries remain recorded separately."
         breadcrumbs={[{ label: 'Admin', href: '/' }, { label: 'Jackpot' }]}
       />
 
@@ -61,7 +61,7 @@ function Body() {
               />
               <Kpi
                 icon={Gift}
-                label="Free entries earned"
+                label="Historical free entries"
                 value={data.accumulation.totalEntriesEarned.toLocaleString('en-NG')}
                 accent
               />
@@ -97,15 +97,15 @@ function Body() {
                           {formatNaira(d.prizeValueNgn)}
                         </p>
                         <p className="text-xs text-slate-500">
-                          Entry {formatNaira(d.ticketPriceNgn)} direct · or earned free
+                          Standard price {formatNaira(d.ticketPriceNgn)} · discounted offers ₦500
                         </p>
                       </div>
                     </div>
 
                     <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                      <EntryStat label="Direct" value={d.entries.direct} />
-                      <EntryStat label="Earned" value={d.entries.accumulated} />
-                      <EntryStat label="Total entries" value={d.entries.total} bold />
+                      <EntryStat label="Legacy direct" value={d.entries.direct} />
+                      <EntryStat label="Legacy earned" value={d.entries.accumulated} />
+                      <EntryStat label="Legacy total" value={d.entries.total} bold />
                     </div>
 
                     <div className="mt-3">
@@ -122,8 +122,8 @@ function Body() {
             </div>
 
             <SectionCard
-              title="Approaching a free entry"
-              description="Customers at 7+ of the 10 daily tickets needed for their next earned entry."
+              title="Weekly discounted-offer progress"
+              description="Customers near another 10-ticket milestone in the current jackpot cycle."
               padded={false}
             >
               <table className="min-w-full text-sm">
@@ -131,7 +131,7 @@ function Body() {
                   <tr>
                     <th className="px-4 py-2 text-left">Customer</th>
                     <th className="px-4 py-2 text-left">Progress</th>
-                    <th className="px-4 py-2 text-right">Entries earned</th>
+                    <th className="px-4 py-2 text-right">Historical entries</th>
                     <th className="px-4 py-2 text-right">Last ticket</th>
                   </tr>
                 </thead>
@@ -139,7 +139,7 @@ function Body() {
                   {data.accumulation.nearThreshold.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-500">
-                        No customers close to their next entry.
+                        No customers close to another discounted offer.
                       </td>
                     </tr>
                   ) : (

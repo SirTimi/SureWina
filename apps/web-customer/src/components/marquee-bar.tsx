@@ -6,7 +6,7 @@ const items = [
   { icon: Banknote, text: 'One ticket. ₦500. Could be yours.' },
   { icon: Sparkles, text: 'Someone wins every single day at 20:00 WAT' },
   { icon: Trophy, text: '₦86,000,000 already paid out this year' },
-  { icon: Banknote, text: 'Ten daily tickets = a free shot at ₦4M' },
+  { icon: Banknote, text: 'Ten regular tickets unlock a ₦500 jackpot offer' },
   { icon: Sparkles, text: 'The next millionaire is one ticket away' },
   { icon: Trophy, text: 'Real prizes. Shipped to your door. Paid to your bank.' },
   { icon: Banknote, text: 'No app, no account, no password. Just play.' },

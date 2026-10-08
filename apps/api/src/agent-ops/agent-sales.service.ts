@@ -159,6 +159,37 @@ export class AgentSalesService {
       };
     });
 
+    // The offer is already committed with the sale; notify only for offers
+    // actually created by THIS agent transaction, not from selected quantity.
+    if (dto.customerPhone && offerUnlock?.offersUnlocked) {
+      const newOffers = await this.prisma.jackpotDiscountOffer.findMany({
+        where: {
+          unlockedByPaymentTxnId: txn.txnId,
+          buyerPhone: dto.customerPhone,
+        },
+        select: {
+          offerId: true,
+          buyerPhone: true,
+          offerPriceNgn: true,
+          originalPriceNgn: true,
+          expiresAt: true,
+          jackpotDraw: { select: { scheduledAt: true } },
+        },
+        orderBy: { thresholdNumber: 'asc' },
+      });
+
+      for (const offer of newOffers) {
+        await this.notificationQueue.enqueueJackpotOfferSms({
+          offerId: offer.offerId,
+          buyerPhone: offer.buyerPhone,
+          offerPriceNgn: offer.offerPriceNgn,
+          normalPriceNgn: offer.originalPriceNgn,
+          jackpotScheduledAt: offer.jackpotDraw.scheduledAt.toISOString(),
+          expiresAt: offer.expiresAt.toISOString(),
+        });
+      }
+    }
+
     // Post-commit: SMS only when we have a real customer phone.
     if (dto.customerPhone) {
       await this.notificationQueue.enqueueTicketConfirmationSms({

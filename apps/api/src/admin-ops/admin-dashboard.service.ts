@@ -124,9 +124,8 @@ export class AdminDashboardService {
     };
   }
 
-  // The jackpot has no monetary fund: a fixed template prize, paid direct
-  // entries, and free entries earned via 10-for-1 accumulation. This is the
-  // visibility view of that entries system.
+  // The jackpot prize is fixed. Historic jackpot-entry records are preserved
+  // separately from newly issued discounted ticket offers.
   async jackpotOverview() {
     const draws = await this.prisma.draw.findMany({
       where: {
@@ -162,18 +161,19 @@ export class AdminDashboardService {
       }),
     );
 
+    const activeCycle = draws.find((d) => d.status === DrawStatus.ACTIVE);
     const [accumAgg, nearThreshold] = await Promise.all([
       this.prisma.jackpotAccumulation.aggregate({
         _count: true,
         _sum: { lifetimeTicketCount: true, lifetimeEntriesTotal: true },
 
       }),
-      this.prisma.jackpotAccumulation.findMany({
-        where: { cumulativeCount: { gte: 7 } },
+      activeCycle ? this.prisma.jackpotAccumulation.findMany({
+        where: { cycleDrawId: activeCycle.drawId, cumulativeCount: { gte: 7 } },
         orderBy: { cumulativeCount: 'desc' },
         take: 10,
         select: { buyerPhone: true, cumulativeCount: true, jackpotEntriesTotal: true, lastTicketAt: true },
-      }),
+      }) : Promise.resolve([]),
     ]);
 
     return {
@@ -183,15 +183,15 @@ export class AdminDashboardService {
         participants: accumAgg._count,
         totalEntriesEarned: accumAgg._sum.lifetimeEntriesTotal ?? 0,
         ticketsCounted: accumAgg._sum.lifetimeTicketCount ?? 0,
-        nearThreshold: nearThreshold.map((n) => ({
-          buyerPhone: n.buyerPhone,
-          // Weekly count, and it never reaches 10 without minting and
-          // resetting the remainder — so the modulo is now misleading rather
-          // than helpful.
-          progress: n.cumulativeCount,
-          entriesEarned: n.jackpotEntriesTotal,
-          lastTicketAt: n.lastTicketAt.toISOString(),
-        })),
+        nearThreshold: nearThreshold
+          .filter((n) => n.cumulativeCount % 10 >= 7)
+          .slice(0, 10)
+          .map((n) => ({
+            buyerPhone: n.buyerPhone,
+            progress: n.cumulativeCount % 10,
+            entriesEarned: n.jackpotEntriesTotal,
+            lastTicketAt: n.lastTicketAt.toISOString(),
+          })),
       },
     };
   }

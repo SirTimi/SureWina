@@ -9,18 +9,18 @@ import { Job, Worker } from 'bullmq';
 import { PrismaService } from './prisma.service';
 import { V2nSmsService } from './v2n-sms.service';
 import {
-  JOB_JACKPOT_ENTRY_SMS,
+  JOB_JACKPOT_OFFER_SMS,
   JOB_REDEMPTION_CODE_SMS,
   JOB_TICKET_CONFIRMATION_SMS,
   JOB_WINNER_SMS,
-  JackpotEntrySmsJob,
+  JackpotOfferSmsJob,
   RedemptionCodeSmsJob,
   WinnerSmsJob,
   NOTIFICATIONS_QUEUE,
   TicketConfirmationSmsJob,
 } from './queue.contract';
 import {
-  jackpotEntryEarned,
+  jackpotOfferUnlocked,
   redemptionCode,
   smsPlan,
   ticketPurchase,
@@ -31,6 +31,7 @@ import {
 export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(NotificationsWorker.name);
   private worker!: Worker;
+  private offerRecoveryTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly config: ConfigService,
@@ -48,8 +49,8 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
           await this.handleWinnerSms(job.data as WinnerSmsJob);
         } else if (job.name === JOB_REDEMPTION_CODE_SMS) {
           await this.handleRedemptionCode(job.data as RedemptionCodeSmsJob);
-        } else if (job.name === JOB_JACKPOT_ENTRY_SMS) {
-          await this.handleJackpotEntry(job.data as JackpotEntrySmsJob);
+        } else if (job.name === JOB_JACKPOT_OFFER_SMS) {
+          await this.handleJackpotOffer(job.data as JackpotOfferSmsJob);
         } else {
           this.logger.warn(`Unknown job ${job.name} — ignoring`);
         }
@@ -69,10 +70,21 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`Job ${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`);
     });
 
+    // A failed Redis enqueue must not permanently lose an agent-earned
+    // entitlement notice. Recovery queries the committed source ledger.
+    this.offerRecoveryTimer = setInterval(() => {
+      void this.recoverAgentOfferNotices().catch((error) =>
+        this.logger.error(`Agent offer notice recovery failed: ${error instanceof Error ? error.message : 'unknown'}`),
+      );
+    }, 60_000);
+    void this.recoverAgentOfferNotices().catch((error) =>
+      this.logger.error(`Agent offer notice initial recovery failed: ${error instanceof Error ? error.message : 'unknown'}`),
+    );
     this.logger.log(`Worker listening on queue "${NOTIFICATIONS_QUEUE}"`);
   }
 
   async onModuleDestroy() {
+    if (this.offerRecoveryTimer) clearInterval(this.offerRecoveryTimer);
     await this.worker?.close();
   }
 
@@ -166,36 +178,129 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Redemption code sent for claim ${data.claimId}`);
   }
 
-  // A free jackpot entry has just been minted. Without this the promotion is
-  // invisible: a customer hits ten tickets, earns an entry, and has no way of
-  // knowing unless they think to ask an agent.
-  private async handleJackpotEntry(data: JackpotEntrySmsJob) {
-    const message = jackpotEntryEarned({
-      entriesMinted: data.entriesMinted,
-      entriesThisWeek: data.entriesThisWeek,
-      jackpotScheduledAt: data.jackpotScheduledAt,
+  private async handleJackpotOffer(data: JackpotOfferSmsJob) {
+    const offer = await this.prisma.jackpotDiscountOffer.findUnique({
+      where: { offerId: data.offerId },
+      include: { jackpotDraw: true },
     });
+    if (!offer ||
+        offer.offerSmsSentAt ||
+        offer.status !== 'AVAILABLE' ||
+        offer.expiresAt <= new Date()) return;
 
+    // Only a confirmed, named agent sale may trigger this notice.
+    const purchase = offer.unlockedByPaymentTxnId
+      ? await this.prisma.paymentTransaction.findUnique({
+          where: { txnId: offer.unlockedByPaymentTxnId },
+          select: { gateway: true, status: true, buyerPhone: true },
+        })
+      : null;
+    if (
+      purchase?.gateway !== 'AGENT_CASH' ||
+      purchase.status !== 'CONFIRMED' ||
+      purchase.buyerPhone !== offer.buyerPhone
+    ) return;
+
+    // Honor explicit SMS opt-outs and blocked numbers.
+    const [customer, blocked] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { phoneNumber: offer.buyerPhone },
+        select: { smsEnabled: true, selfExclusionUntil: true },
+      }),
+      this.prisma.blockedPhone.findUnique({
+        where: { phoneNumber: offer.buyerPhone },
+        select: { phoneNumber: true },
+      }),
+    ]);
+    if (
+      customer?.smsEnabled === false ||
+      (customer?.selfExclusionUntil && customer.selfExclusionUntil > new Date()) ||
+      blocked
+    ) return;
+
+    // The persisted entitlement is authoritative. Never accept a price,
+    // expiry or destination embedded in untrusted queue payloads.
+    if (
+      offer.buyerPhone !== data.buyerPhone ||
+      offer.offerPriceNgn !== data.offerPriceNgn ||
+      offer.originalPriceNgn !== data.normalPriceNgn ||
+      offer.expiresAt.toISOString() !== data.expiresAt ||
+      offer.jackpotDraw.scheduledAt.toISOString() !== data.jackpotScheduledAt
+    ) {
+      throw new Error('Jackpot offer notification payload mismatch');
+    }
+
+    const base = (
+      this.config.get<string>('PUBLIC_WEB_BASE_URL') ||
+      'https://surewina.com'
+    ).replace(/\/$/, '');
+    const claimUrl = `${base}/jackpot-offers/claim`;
+    const message = jackpotOfferUnlocked({
+      offerPriceNgn: offer.offerPriceNgn,
+      normalPriceNgn: offer.originalPriceNgn,
+      expiresAt: offer.expiresAt,
+      claimUrl,
+    });
     const plan = smsPlan(message);
     if (plan.segments > 1) {
       this.logger.warn(
-        `Jackpot entry SMS is ${plan.length} ${plan.encoding} chars = ${plan.segments} segments (billed ${plan.segments}x)`,
+        `Offer SMS for ${offer.offerId} is ${plan.length} chars / ${plan.segments} SMS segments`,
       );
     }
 
-    // Stable id: a retry after a delivered-but-unacknowledged send is
-    // rejected by V2N rather than telling the customer twice.
-    await this.sms.sendSms(
-      data.buyerPhone,
-      message,
-      `jkpt-${data.accumId}-${data.entriesThisWeek}`,
-    );
+    // Stable provider message id protects crash/retry duplication.
+    await this.sms.sendSms(offer.buyerPhone, message, `offer-${offer.offerId}`);
+    await this.prisma.jackpotDiscountOffer.updateMany({
+      where: { offerId: offer.offerId, offerSmsSentAt: null },
+      data: { offerSmsSentAt: new Date() },
+    });
+  }
 
-    this.logger.log(
-      `Jackpot entry SMS sent to ${data.buyerPhone}: ${data.entriesMinted} entr${
-        data.entriesMinted === 1 ? 'y' : 'ies'
-      } into ${data.jackpotDrawCode}`,
-    );
+  private async recoverAgentOfferNotices() {
+    // Select only genuinely agent-originated, confirmed offers. A queue
+    // outage after a sale commit cannot remove the durable entitlement.
+    const rows = await this.prisma.$queryRaw<Array<{ offer_id: string }>>`
+      SELECT o.offer_id
+      FROM jackpot_discount_offers AS o
+      JOIN payment_transactions AS p
+        ON p.txn_id = o.unlocked_by_payment_txn_id
+      LEFT JOIN users AS u ON u.phone_number = o.buyer_phone
+      LEFT JOIN blocked_phones AS b ON b.phone_number = o.buyer_phone
+      WHERE o.offer_sms_sent_at IS NULL
+        AND b.phone_number IS NULL
+        AND (u.sms_enabled IS NULL OR u.sms_enabled = TRUE)
+        AND (u.self_exclusion_until IS NULL OR u.self_exclusion_until <= NOW())
+        AND o.status::text = 'AVAILABLE'
+        AND o.expires_at > NOW()
+        AND p.gateway::text = 'AGENT_CASH'
+        AND p.status::text = 'CONFIRMED'
+      ORDER BY o.issued_at ASC
+      LIMIT 50
+    `;
+    for (const row of rows) {
+      const offer = await this.prisma.jackpotDiscountOffer.findUnique({
+        where: { offerId: row.offer_id },
+        include: { jackpotDraw: { select: { scheduledAt: true } } },
+      });
+      if (!offer) continue;
+      try {
+        await this.handleJackpotOffer({
+          offerId: offer.offerId,
+          buyerPhone: offer.buyerPhone,
+          offerPriceNgn: offer.offerPriceNgn,
+          normalPriceNgn: offer.originalPriceNgn,
+          jackpotScheduledAt: offer.jackpotDraw.scheduledAt.toISOString(),
+          expiresAt: offer.expiresAt.toISOString(),
+        });
+      } catch (error) {
+        // One failed provider delivery must not starve other customers.
+        this.logger.error(
+          `Unable to recover offer notice ${offer.offerId}: ${
+            error instanceof Error ? error.message : 'unknown'
+          }`,
+        );
+      }
+    }
   }
 
   private async handleTicketConfirmation(data: TicketConfirmationSmsJob) {

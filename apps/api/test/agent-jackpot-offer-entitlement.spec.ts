@@ -71,9 +71,37 @@ function harness(unlock = offerUnlock) {
     ticket: {
       createMany: jest.fn(async () => ({ count: 1 })),
     },
+    jackpotDiscountOffer: {
+      findMany: jest.fn(async () => [
+        {
+          offerId: offerUnlock.latestOffer.offerId,
+          buyerPhone: customerPhone,
+          offerPriceNgn: 500,
+          originalPriceNgn: 5000,
+          expiresAt: new Date(offerUnlock.latestOffer.expiresAt),
+          jackpotDraw: {
+            scheduledAt: new Date(offerUnlock.jackpotScheduledAt),
+          },
+        },
+      ]),
+    },
   };
 
   const prisma = {
+    jackpotDiscountOffer: {
+      findMany: jest.fn(async () => [
+        {
+          offerId: offerUnlock.latestOffer.offerId,
+          buyerPhone: customerPhone,
+          offerPriceNgn: 500,
+          originalPriceNgn: 5000,
+          expiresAt: new Date(offerUnlock.latestOffer.expiresAt),
+          jackpotDraw: {
+            scheduledAt: new Date(offerUnlock.jackpotScheduledAt),
+          },
+        },
+      ]),
+    },
     agent: {
       findUnique: jest.fn(async () => ({
         agentId,
@@ -99,6 +127,7 @@ function harness(unlock = offerUnlock) {
   };
   const queue = {
     enqueueTicketConfirmationSms: jest.fn().mockResolvedValue(undefined),
+    enqueueJackpotOfferSms: jest.fn().mockResolvedValue(undefined),
   };
   const customers = {
     assertNotBlocked: jest.fn().mockResolvedValue(undefined),
@@ -176,6 +205,14 @@ describe('Agent sales and jackpot offer entitlement parity', () => {
         amountNgn: 500,
       }),
     );
+    expect(h.queue.enqueueJackpotOfferSms).toHaveBeenCalledWith({
+      offerId: offerUnlock.latestOffer.offerId,
+      buyerPhone: customerPhone,
+      offerPriceNgn: 500,
+      normalPriceNgn: 5000,
+      jackpotScheduledAt: offerUnlock.jackpotScheduledAt,
+      expiresAt: offerUnlock.latestOffer.expiresAt,
+    });
   });
 
   it('never credits a named customer entitlement to the agent when customer phone is absent', async () => {
@@ -190,5 +227,6 @@ describe('Agent sales and jackpot offer entitlement parity', () => {
     expect(h.accumulation.recordDailyPurchase).not.toHaveBeenCalled();
     expect(result.jackpotOfferUnlock).toBeNull();
     expect(h.queue.enqueueTicketConfirmationSms).not.toHaveBeenCalled();
+    expect(h.queue.enqueueJackpotOfferSms).not.toHaveBeenCalled();
   });
 });
