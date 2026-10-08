@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Post,
@@ -25,6 +26,14 @@ export class JackpotOffersController {
     private readonly payments: PaymentsService,
     private readonly walletPurchases: WalletTicketPurchaseService,
   ) {}
+
+  @Get('progress')
+  @Header('Cache-Control', 'private, no-store')
+  progress(
+    @CurrentUser() user: CustomerJwtPayload,
+  ) {
+    return this.offers.progress(user);
+  }
 
   @Get('current')
   current(

@@ -4,7 +4,7 @@ Updated: 2026-10-02
 
 ## Current Goal
 
-Validate Phase 7 of the jackpot discount offer promotion: once a DAILY_STANDARD web purchase is confirmed and unlocks a persistent discounted offer, the confirmation page presents a deliberate Claim now / No thank you modal with working redemption checkout and backend decline actions.
+Validate jackpot discount Phase 8: make server-backed active-cycle weekly progress authoritative for customer pre-purchase UI and dashboard, with accurate threshold and available-offer numbers and no client-side quantity-driven eligibility claims.
 
 ## Current Status
 
@@ -12,24 +12,26 @@ AWAITING USER TEST
 
 ## Last Accepted Task
 
-Phase 7: wire the server-confirmed offer to the customer confirmation page for both Paystack and wallet purchases; add an accessible non-backdrop/non-Escape-dismissable two-choice dialog; add authenticated offer checkout; let guests decline only their own confirmed purchase's offer via an opaque purchase reference.
+Phase 8: add authenticated GET /jackpot-offers/progress, read JackpotAccumulation for the CURRENT active Saturday jackpot cycle and count AVAILABLE discount offers; expose typed progress via the API client; replace lifetime/quantity-derived dashboard and checkout copy; remove obsolete claims of automatic free jackpot entries.
 
 ## Current Implementation
 
 Latest jackpot-promotion increment:
-- JackpotDiscountOffer now stores optional unlockedByPaymentTxnId / unlockedByWalletPurchaseId provenance fields; these are set by JackpotAccumulationService inside the qualifying purchase transaction.
-- Paystack purchase status returns promotion only for an AVAILABLE offer tied to that exact CONFIRMED DAILY_STANDARD payment; it does not infer it from the phone's current count or an unrelated purchase. Provider verification and ticket confirmation remain server-side.
-- Wallet purchases already return jackpotOfferUnlock.latestOffer; the customer wallet confirmation now forwards it to the confirmation page when AVAILABLE.
-- Customer confirmation page no longer displays the outdated "free Sure Jackpot entry" messaging.
-- The post-purchase modal presents price, normal price, draw code, expiry and the number of qualifying regular tickets, with Claim now and No thank you actions.
-- Native modal Escape cancellation is prevented and backdrop clicks have no dismiss handler; the customer chooses one of the two actions.
-- Claim now routes to /jackpot-offers/:offerId/checkout; guests first authenticate with their qualifying phone via existing OTP sign-in and preserve the intended destination.
-- The authenticated checkout re-fetches the saved offer, validates its current availability at the API, and offers existing NGN 500 Paystack and customer-wallet redemption methods. It never submits a client-defined price.
-- No thank you calls the existing authenticated offer decline endpoint for signed-in wallet buyers.
-- Confirmed Paystack guest buyers can decline without an account via a purchase-reference-authenticated endpoint, which restricts the action to offers unlocked by that exact confirmed payment and does not grant spending or profile permissions.
-- Shared response types and the customer API client now carry JackpotPromotionPrompt.
-- Focused tests validate offer purchase-origin association, confirmed-status offer propagation and guest decline authorization.
-- No new changes to the monetary ledger, jackpot draw prices or historical free-entry records are introduced by Phase 7.
+- GET /jackpot-offers/progress is protected by CustomerJwtGuard; the request identifies the customer through a verified JWT phone, not a caller-supplied arbitrary phone.
+- The API uses a read-only REPEATABLE READ transaction to choose the earliest ACTIVE Saturday jackpot with a future cutoff, then reads that specific draw's accumulation and available unexpired offers.
+- The response contains promotionActive, jackpotDrawCode, jackpotScheduledAt, weeklyTicketCount, completedThresholds, ticketsToNextOffer and availableOfferCount.
+- A stale JackpotAccumulation row for an earlier jackpot cycle displays zero this cycle; no active jackpot means promotionActive=false and zero counts.
+- completedThresholds counts multiples of 10 reached in the current weekly tally; availableOfferCount separately counts only unexpired AVAILABLE offers, not already CLAIMED, DECLINED or CLAIMING ones.
+- The customer API client exposes jackpotOffers.progress(), with no-store private HTTP caching headers.
+- Customer dashboard removes its invalid lifetime / 100-ticket-page-based free-entry calculations and gets the same authoritative progress from the API.
+- Customer regular-ticket checkout displays server progress independent of the selected purchase quantity. The progress panel refreshes on focus/tab visibility and on a different authenticated account, and shows no stale guessed values while loading/errors occur.
+- Signed-in buyers see their own account's count only when the purchase phone matches; a guest is invited to use OTP sign-in for a verified read rather than an unauthenticated phone-based purchase-history lookup.
+- Customer landing/draws/FAQ/explainer/lookup and agent sales/receipt text were updated to describe a separate OPTIONAL NGN 500 jackpot ticket purchase, never a free or automatically issued jackpot entry.
+- Agent sale completion no longer uses sale.quantity % 10 to assert customer eligibility.
+- Removed unused exported frontend helper functions that calculated free jackpot entries from an arbitrary selected quantity.
+- No Phase 8 schema migration, ledger change or change to eligibility/redemption logic is needed.
+- New backend unit tests cover pre-threshold progress, milestone boundaries, active-cycle reset, offer state counting, and absence of an open jackpot.
+- Browser/provider acceptance and production rollout remain separate explicit approval gates.
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
@@ -101,13 +103,13 @@ Current engineering increment:
 
 ## Next Tasks
 
-1. Pull main and run the Phase 7 jackpot_offer_unlock_purchase_origin Prisma migration on a local/dev database.
-2. Regenerate the Prisma Client.
-3. Run jackpot-accumulation, purchase-status-promotion and guest-decline tests; rerun the Phase 6 purchase/offer/financial tests.
-4. Run API, packages, customer web type-check/build, whole monorepo checks and rollout:check --strict-review.
-5. Manually test Paystack guest 9+1 / 10-at-once; confirmed payment must show a popup exactly once for that purchase. Test No thank you, expired offers and OTP Claim now.
-6. Manually test signed-in wallet 5+5, then claim through both wallet and Paystack sandbox using local test setup. Verify exactly one NGN 500 ticket per offer.
-7. Keep production deployment gated on Phase 7 acceptance, live provider approval and the existing production rollout runbook.
+1. Pull latest main and run pnpm install --frozen-lockfile; there is no Phase 8 Prisma migration.
+2. Run the new jackpot-offers-progress Jest suite, then all existing promotion/financial tests.
+3. Run @surewina/types, @surewina/api-client, API, web-customer and web-agent type-check/build checks; validate full monorepo.
+4. Run rollout:check --strict-review; promotion integrity and other financial checks must remain green.
+5. In a local authenticated browser, verify 7/10, 8/10, 10/10 and 28/30 display exactly what GET /jackpot-offers/progress returns.
+6. Verify dashboard and pre-purchase widget agree, guest view offers sign-in rather than leaking phone purchase data, different buyer-phone hides account progress, and new jackpot cycle resets progress.
+7. Complete provider sandbox and production rollout approval separately before deploying.
 
 ## Known Issues
 
@@ -177,7 +179,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`feat: show unlocked jackpot offer after purchase` (this development cycle)
+`feat: show authoritative weekly jackpot progress` (this development cycle)
 
 ## Latest Acceptance Evidence
 

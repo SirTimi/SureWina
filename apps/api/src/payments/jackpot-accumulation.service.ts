@@ -7,7 +7,7 @@ import {
 } from '@prisma/client';
 import type { JackpotOfferUnlockResult } from '@surewina/types';
 
-const TICKETS_PER_DISCOUNT_OFFER = 10;
+export const TICKETS_PER_DISCOUNT_OFFER = 10;
 const JACKPOT_DISCOUNT_PRICE_NGN = 500;
 
 function ticketsToNextOffer(weeklyTicketCount: number): number {

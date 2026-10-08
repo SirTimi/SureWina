@@ -26,6 +26,7 @@ import type { WalletView } from '@surewina/api-client';
 
 import { api } from '@/lib/api';
 import { appendPromotionParams } from '@/lib/jackpot-promotion';
+import { JackpotWeeklyProgressCard } from '@/components/jackpot-weekly-progress-card';
 import { isSignedIn } from '@/lib/auth';
 
 import {
@@ -148,6 +149,7 @@ export function BuyForm({
 
   const quantity =
     watch('quantity');
+  const enteredPhone = watch('phone');
 
   const totalAmountNgn =
     (quantity ?? 1) *
@@ -500,6 +502,14 @@ export function BuyForm({
       )}
       className="space-y-5"
     >
+      {!isJackpotPurchase && (
+        <JackpotWeeklyProgressCard
+          signedIn={signedIn}
+          accountPhone={accountPhone}
+          purchasePhone={enteredPhone ?? ''}
+          signInReturnPath={`/draws/${draw.drawCode}/buy`}
+        />
+      )}
       <Card
         variant="default"
         className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"

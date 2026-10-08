@@ -17,11 +17,13 @@ import {
 import type {
   CurrentJackpotOffersResponse,
   JackpotOfferView,
+  JackpotWeeklyProgress,
 } from '@surewina/types';
 
 import { AuditService } from '../audit/audit.service';
 import type { CustomerJwtPayload } from '../auth/auth.types';
 import { PrismaService } from '../database/prisma.service';
+import { TICKETS_PER_DISCOUNT_OFFER } from './jackpot-accumulation.service';
 
 const CLAIM_RESERVATION_MS = 15 * 60 * 1000;
 
@@ -83,6 +85,85 @@ export class JackpotOffersService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
   ) {}
+
+  /**
+   * Read-only and authenticated. The ACTIVE jackpot draw is the cycle key;
+   * counts from a previous Saturday must never appear in the current week.
+   * Query all three records in a repeatable-read snapshot so a purchase
+   * committing concurrently cannot produce a half-old/half-new response.
+   */
+  async progress(user: CustomerJwtPayload): Promise<JackpotWeeklyProgress> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const now = new Date();
+        const draw = await tx.draw.findFirst({
+          where: {
+            drawType: DrawType.SATURDAY_JACKPOT,
+            status: DrawStatus.ACTIVE,
+            cutoffAt: { gt: now },
+          },
+          orderBy: { scheduledAt: 'asc' },
+          select: {
+            drawId: true,
+            drawCode: true,
+            scheduledAt: true,
+          },
+        });
+
+        if (!draw) {
+          return {
+            promotionActive: false,
+            jackpotDrawCode: null,
+            jackpotScheduledAt: null,
+            weeklyTicketCount: 0,
+            completedThresholds: 0,
+            ticketsToNextOffer: TICKETS_PER_DISCOUNT_OFFER,
+            availableOfferCount: 0,
+          };
+        }
+
+        const [accum, availableOfferCount] = await Promise.all([
+          tx.jackpotAccumulation.findUnique({
+            where: { buyerPhone: user.phoneNumber },
+            select: {
+              cycleDrawId: true,
+              cumulativeCount: true,
+            },
+          }),
+          tx.jackpotDiscountOffer.count({
+            where: {
+              buyerPhone: user.phoneNumber,
+              jackpotDrawId: draw.drawId,
+              status: JackpotDiscountOfferStatus.AVAILABLE,
+              expiresAt: { gt: now },
+            },
+          }),
+        ]);
+
+        const weeklyTicketCount =
+          accum?.cycleDrawId === draw.drawId
+            ? accum.cumulativeCount
+            : 0;
+        const remainder =
+          weeklyTicketCount % TICKETS_PER_DISCOUNT_OFFER;
+
+        return {
+          promotionActive: true,
+          jackpotDrawCode: draw.drawCode,
+          jackpotScheduledAt: draw.scheduledAt.toISOString(),
+          weeklyTicketCount,
+          completedThresholds: Math.floor(
+            weeklyTicketCount / TICKETS_PER_DISCOUNT_OFFER,
+          ),
+          ticketsToNextOffer: remainder === 0
+            ? TICKETS_PER_DISCOUNT_OFFER
+            : TICKETS_PER_DISCOUNT_OFFER - remainder,
+          availableOfferCount,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
 
   async current(
     user: CustomerJwtPayload,

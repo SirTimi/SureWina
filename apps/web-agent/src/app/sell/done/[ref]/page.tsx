@@ -329,11 +329,10 @@ function getJackpotMessage(sale: DoneSale) {
     return 'Customer bought a direct Sure Jackpot ticket for the coming Saturday draw.';
   }
 
-  const remaining = 10 - (sale.quantity % 10 || 10);
-  if (remaining === 0) {
-    return `Customer qualified for a free Sure Jackpot entry with ${sale.quantity} regular tickets.`;
+  if (!sale.customerPhone) {
+    return 'A customer phone number is needed to track weekly jackpot discounts.';
   }
-  return `${remaining} more regular ticket${remaining === 1 ? '' : 's'} needed to qualify for 1 free Sure Jackpot entry.`;
+  return 'Regular tickets count toward the customer’s weekly ₦500 jackpot offer. The customer can sign in to view their verified progress.';
 }
 
 function formatTicketType(kind: 'DAILY' | 'JACKPOT') {

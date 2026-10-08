@@ -44,14 +44,14 @@ export function JackpotExplainer() {
               </div>
 
               <h2 className="font-display text-4xl font-black leading-[1.05] tracking-[-0.04em] text-white sm:text-5xl">
-                Every 10 daily tickets earns you{' '}
-                <span className="text-amber-400">1 free</span> Saturday jackpot entry.
+                Every 10 regular tickets unlocks{' '}
+                <span className="text-amber-400">a ₦500</span> Saturday jackpot ticket offer.
               </h2>
 
               <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/75">
-                Buy daily tickets, win daily prizes, and quietly stack entries into the
-                Sure Jackpot draw. No subscription, no hidden math — the count is on
-                your dashboard, always.
+                Buy regular tickets during the active jackpot week to build your
+                verified progress. Once you reach 10, you can choose a discounted
+                jackpot purchase. The count is shown on your dashboard.
               </p>
 
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -100,7 +100,7 @@ export function JackpotExplainer() {
                   Reward
                 </p>
                 <p className="mt-1 font-display text-2xl font-black tracking-[-0.04em]">
-                  1 Free Jackpot Entry
+                  1 Jackpot Ticket for ₦500
                 </p>
                 <p className="mt-1 text-sm font-bold text-navy-900/70">
                   Sure Jackpot draw

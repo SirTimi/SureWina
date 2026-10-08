@@ -185,8 +185,8 @@ export default async function DrawsPage() {
               </h2>
 
               <p className="mt-2 max-w-xl text-base leading-relaxed text-slate-600">
-                A new product prize every day. Tickets are ₦500 each. Buy 10 and earn
-                one free jackpot entry on us.
+                A new product prize every day. Tickets are ₦500 each. Every 10 regular
+                tickets in an active weekly cycle unlocks an optional ₦500 jackpot ticket offer.
               </p>
             </div>
           </div>
@@ -221,13 +221,13 @@ export default async function DrawsPage() {
               </div>
 
               <h2 className="mt-4 font-display text-3xl font-black leading-tight tracking-[-0.03em] text-white sm:text-4xl">
-                Stack 10 daily tickets, earn a free Saturday entry.
+                Buy 10 regular tickets, unlock a ₦500 jackpot offer.
               </h2>
 
               <p className="mt-3 max-w-md text-sm leading-relaxed text-white/75">
-                Every 10 daily tickets you buy automatically earns one free entry into
-                the next Saturday jackpot. No subscription, no hidden math — your tally
-                is on your dashboard.
+                Every 10 regular tickets in the active weekly cycle unlocks one
+                discounted Saturday jackpot ticket offer for ₦500. The ticket is not
+                issued until you choose to purchase it.
               </p>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -261,9 +261,9 @@ export default async function DrawsPage() {
 
               <ul className="mt-4 space-y-3 text-sm leading-relaxed text-white/80">
                 <MathItem>1 daily ticket = ₦500</MathItem>
-                <MathItem>10 daily tickets = ₦5,000 + 1 free jackpot entry</MathItem>
+                <MathItem>10 daily tickets = eligibility for 1 ₦500 jackpot ticket</MathItem>
                 <MathItem>1 Saturday jackpot ticket alone = ₦5,000</MathItem>
-                <MathItem>Same price either way — but daily gives 10 chances first</MathItem>
+                <MathItem>The discounted jackpot ticket is a separate optional purchase</MathItem>
               </ul>
             </div>
           </div>

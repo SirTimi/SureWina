@@ -33,7 +33,7 @@ const categories = [
       },
       {
         q: 'How much does a ticket cost?',
-        a: 'Daily draw tickets are ₦500 each. Saturday jackpot tickets are ₦5,000 each. Or you can earn one free Saturday jackpot entry by buying 10 daily tickets — no extra cost.',
+        a: 'Daily draw tickets are ₦500 each. Saturday jackpot tickets are ₦5,000 each. After buying 10 regular tickets in the active jackpot week, you can choose to buy one Saturday jackpot ticket for ₦500 instead of the standard ₦5,000.',
       },
       {
         q: 'When are the draws?',

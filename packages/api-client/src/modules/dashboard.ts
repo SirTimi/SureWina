@@ -25,17 +25,18 @@ export class DashboardModule {
 
   async getSummary(): Promise<DashboardSummary> {
     // Composed from real endpoints; no dedicated summary API needed.
-    const [user, mine, claims] = await Promise.all([
+    const [user, mine, claims, jackpot] = await Promise.all([
       this.client.get<UserMe>('/auth/me'),
       this.client.get<ListMyTicketsResponse>('/tickets/mine', {
         query: { filter: 'all', pageSize: 100 },
       }),
       this.fetchClaims(),
+      // Always the server's current jackpot cycle, not the last 100 tickets.
+      this.client.get<DashboardSummary['jackpot']>('/jackpot-offers/progress'),
     ]);
 
     const tickets = mine.tickets;
     const activeTickets = tickets.filter((t) => t.awaitingDraw);
-    const dailyStandardCount = tickets.filter((t) => t.ticketType === 'STANDARD').length;
 
     const byDraw = new Map<string, typeof activeTickets>();
     for (const t of activeTickets) {
@@ -55,11 +56,6 @@ export class DashboardModule {
       }))
       .sort((a, b) => a.drawScheduledAt.localeCompare(b.drawScheduledAt));
 
-    // Mirrors the backend 10-for-1 rule over lifetime daily tickets.
-    const cumulativeCount = dailyStandardCount;
-    const freeEntries = Math.floor(cumulativeCount / 10);
-    const ticketsToNextEntry = cumulativeCount % 10 === 0 ? 10 : 10 - (cumulativeCount % 10);
-
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
@@ -75,7 +71,7 @@ export class DashboardModule {
       user,
       activeTicketCount: activeTickets.length,
       activeDrawGroups,
-      jackpot: { freeEntries, cumulativeCount, ticketsToNextEntry },
+      jackpot,
       totalSpentMonthlyNgn,
       monthlyLimitNgn: user.spendLimit?.capNgn ?? null,
       lifetimeWinningsNgn,

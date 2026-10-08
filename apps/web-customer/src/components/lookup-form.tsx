@@ -260,9 +260,9 @@ function ResultPanel({ data }: { data: LookupTicketResponse }) {
         {!isAwaitingDraw && (
           <div className="border-t border-slate-100 pt-4">
             <p className="text-sm leading-relaxed text-slate-600">
-              This ticket didn&apos;t win, but if it was a daily standard ticket it still
-              counts toward your next Saturday jackpot entry: every 10 daily tickets = 1
-              free entry.
+              If this was a regular ticket purchased in an active jackpot cycle, it
+              contributes toward a discounted ₦500 Saturday jackpot ticket offer.
+              Sign in to see your verified weekly progress.
             </p>
           </div>
         )}

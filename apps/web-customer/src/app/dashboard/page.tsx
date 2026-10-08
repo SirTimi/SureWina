@@ -215,15 +215,11 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
 
           <DashboardMetric
             icon={<Sparkles className="h-5 w-5" />}
-            label="Saturday jackpot entries"
-            value={jackpot.freeEntries.toLocaleString()}
-            hint={
-              jackpot.ticketsToNextEntry === 10
-                ? `${jackpot.cumulativeCount} daily tickets earned`
-                : `${jackpot.ticketsToNextEntry} more daily ticket${
-                    jackpot.ticketsToNextEntry === 1 ? '' : 's'
-                  } for next free entry`
-            }
+            label="Available ₦500 jackpot offers"
+            value={jackpot.availableOfferCount.toLocaleString()}
+            hint={jackpot.promotionActive
+              ? `${jackpot.weeklyTicketCount} regular ticket(s) this week · ${jackpot.ticketsToNextOffer} to next offer`
+              : 'No active Saturday jackpot cycle'}
             highlighted
           />
 
@@ -352,21 +348,26 @@ export default function DashboardPage({ searchParams }: DashboardPageProps) {
             >
               <div className="inline-flex items-center gap-2 rounded-sm bg-amber-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-navy-950">
                 <Gift className="h-4 w-4" />
-                10-for-1 progress
+                Weekly jackpot progress
               </div>
 
               <h3 className="mt-5 font-display text-3xl font-black tracking-[-0.04em] text-white">
-                {jackpot.freeEntries} free jackpot{' '}
-                {jackpot.freeEntries === 1 ? 'entry' : 'entries'}
+                {jackpot.weeklyTicketCount} regular tickets this week
               </h3>
 
               <p className="mt-3 text-sm leading-relaxed text-white/75">
-                {jackpot.ticketsToNextEntry === 10
-                  ? `${jackpot.cumulativeCount} daily tickets counted so far.`
-                  : `${jackpot.ticketsToNextEntry} more daily ticket${
-                      jackpot.ticketsToNextEntry === 1 ? '' : 's'
-                    } unlocks the next free Saturday jackpot entry.`}
+                {jackpot.promotionActive
+                  ? `Buy ${jackpot.ticketsToNextOffer} more regular ticket${
+                      jackpot.ticketsToNextOffer === 1 ? '' : 's'
+                    } to unlock a Sure Jackpot ticket for ₦500.`
+                  : 'Weekly progress resumes when the next Saturday jackpot draw opens.'}
               </p>
+              {jackpot.promotionActive && (
+                <p className="mt-2 text-xs text-white/70">
+                  {jackpot.completedThresholds} milestone(s) reached ·{' '}
+                  {jackpot.availableOfferCount} discounted offer(s) available
+                </p>
+              )}
 
               <Link href="/draws" className="mt-6 inline-block">
                 <Button

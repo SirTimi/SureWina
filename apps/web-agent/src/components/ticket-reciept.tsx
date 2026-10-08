@@ -105,7 +105,7 @@ export function TicketReceipt({
       <div className="promo">
         {isJackpot
           ? 'Sure Jackpot draws every Saturday'
-          : 'Any 10 weekday tickets = 1 free Jackpot entry'}
+          : '10 regular tickets can unlock a ₦500 Jackpot offer'}
       </div>
 
       {/* Pushed to the foot of the sheet by margin-top:auto. The B7 sheet is

@@ -2,6 +2,7 @@ import type { DrawPublic, DrawResultPublic, DrawType } from './draws.js';
 import type { TicketPublic, TicketStatus, TicketType } from './tickets.js';
 import type { UserMe, UserPublic } from './identity.js';
 import type { ClaimType, PrizeClaimStatus } from './prizes.js';
+import type { JackpotWeeklyProgress } from './jackpot-promotions.js';
 
 export interface ListActiveDrawsResponse {
   draws: DrawPublic[];
@@ -157,11 +158,7 @@ export interface DashboardSummary {
   user: UserMe;
   activeTicketCount: number;
   activeDrawGroups: DashboardDrawGroup[];
-  jackpot: {
-    freeEntries: number;
-    cumulativeCount: number;
-    ticketsToNextEntry: number;
-  };
+  jackpot: JackpotWeeklyProgress;
   totalSpentMonthlyNgn: number;
   monthlyLimitNgn: number | null;
   lifetimeWinningsNgn: number;

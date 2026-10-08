@@ -76,8 +76,8 @@ export default async function BuyTicketChoicePage() {
         </div>
 
         <p className="mx-auto mt-6 max-w-2xl text-center text-xs leading-relaxed text-slate-500">
-          Regular ₦500 tickets enter the day’s draw. Every 10 regular tickets also
-          earns 1 free entry into the coming Saturday jackpot draw. Direct jackpot
+          Regular ₦500 tickets enter the day’s draw. Every 10 regular tickets
+          within the active jackpot cycle unlock an optional ₦500 jackpot ticket offer. Direct jackpot
           tickets go straight into the Saturday jackpot bucket.
         </p>
       </Container>

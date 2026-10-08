@@ -127,8 +127,9 @@ function TicketOptionBody({ agent }: { agent: AgentMe }) {
       )}
 
       <div className="mt-4 rounded-2xl border border-navy-100 bg-navy-50 p-4 text-sm leading-relaxed text-slate-600">
-        Regular tickets enter today’s named draw. Every 10 regular tickets also earns 1
-        free entry into the coming Saturday jackpot draw.
+        Regular tickets enter today’s named draw. Each 10 regular tickets in the
+        active jackpot cycle may unlock an optional ₦500 jackpot ticket offer
+        for an identified customer phone number.
       </div>
     </main>
   );

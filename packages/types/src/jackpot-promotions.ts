@@ -55,3 +55,18 @@ export interface PromotionalJackpotWalletPurchaseInput {
   stateOfPlayCode: string;
   idempotencyKey: string;
 }
+
+/**
+ * Authoritative, customer-authenticated progress for the current ACTIVE
+ * Saturday jackpot cycle. No active cycle means all counts are zero.
+ * The purchase form must never infer these from the selected quantity.
+ */
+export interface JackpotWeeklyProgress {
+  promotionActive: boolean;
+  jackpotDrawCode: string | null;
+  jackpotScheduledAt: string | null;
+  weeklyTicketCount: number;
+  completedThresholds: number;
+  ticketsToNextOffer: number;
+  availableOfferCount: number;
+}

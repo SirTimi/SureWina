@@ -1,6 +1,7 @@
 import type {
   CurrentJackpotOffersResponse,
   JackpotOfferView,
+  JackpotWeeklyProgress,
   PromotionalJackpotPaystackPurchaseInput,
   PromotionalJackpotWalletPurchaseInput,
 } from '@surewina/types';
@@ -16,6 +17,12 @@ export interface PromotionalJackpotPaystackPurchaseResponse {
 
 export class JackpotOffersModule {
   constructor(private readonly client: ApiClient) {}
+
+  progress(): Promise<JackpotWeeklyProgress> {
+    return this.client.get<JackpotWeeklyProgress>(
+      '/jackpot-offers/progress',
+    );
+  }
 
   current(): Promise<CurrentJackpotOffersResponse> {
     return this.client.get<CurrentJackpotOffersResponse>(

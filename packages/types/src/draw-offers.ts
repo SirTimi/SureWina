@@ -75,11 +75,3 @@ export function buildMockTicketOffers(date = new Date()): SurewinaTicketOffer[] 
   ];
 }
 
-export function getFreeJackpotEntriesFromRegularTickets(quantity: number): number {
-  return Math.floor(Math.max(0, quantity) / 10);
-}
-
-export function getTicketsToNextFreeJackpotEntry(quantity: number): number {
-  const remainder = Math.max(0, quantity) % 10;
-  return remainder === 0 ? 0 : 10 - remainder;
-}
