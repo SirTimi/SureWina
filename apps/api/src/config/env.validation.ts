@@ -92,6 +92,15 @@ export const envValidationSchema = Joi.object({
   TREASURY_BANK_ACCOUNT_LAST4: Joi.string().allow('').pattern(/^\d{4}$/).default(''),
   FINANCIAL_LEDGER_CUTOVER_AT: Joi.string().allow('').default(''),
 
+  // WITMANGO is an external Fineract wallet/CBA, not a card/bank PSP.
+  // Off by default: do not affect existing ledger/funding behavior.
+  WITMANGO_ENABLED: Joi.boolean().default(false),
+  WITMANGO_BASE_URL: Joi.string().allow('').default(''),
+  WITMANGO_TENANT_ID: Joi.string().allow('').default(''),
+  WITMANGO_USERNAME: Joi.string().allow('').default(''),
+  WITMANGO_PASSWORD: Joi.string().allow('').default(''),
+  WITMANGO_TIMEOUT_MS: Joi.number().integer().min(1000).max(30000).default(10000),
+
   WALLET_FUNDING_MIN_NGN: Joi.number().integer().min(1).default(100),
   WALLET_FUNDING_MAX_NGN: Joi.number().integer().min(100).default(500000),
 });

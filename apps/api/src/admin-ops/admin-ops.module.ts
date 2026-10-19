@@ -22,8 +22,10 @@ import { ClaimsModule } from '../claims/claims.module'
 import { PaymentRefundService } from './payment-refund.service';
 import { LedgerModule } from '../ledger/ledger.module';
 import { MonnifyModule } from '../integrations/monnify/monnify.module';
+import { WitmangoModule } from '../integrations/witmango/witmango.module';
+import { WitmangoFinanceController } from './witmango-finance.controller';
 @Module({
-  imports: [JwtModule.register({}), AuditModule, ClaimsModule, LedgerModule, MonnifyModule],
+  imports: [JwtModule.register({}), AuditModule, ClaimsModule, LedgerModule, MonnifyModule, WitmangoModule],
   controllers: [
     AdminOpsController, 
     AgentAdminController, 
@@ -34,7 +36,8 @@ import { MonnifyModule } from '../integrations/monnify/monnify.module';
     TicketAdminController, 
     SettingsAdminController,
     UserAdminController,
-    CollectionPointAdminController
+    CollectionPointAdminController,
+    WitmangoFinanceController
   ],
   providers: [AdminDashboardService, CustomerAdminService, AgentAdminService, FinanceAdminService, ComplianceAdminService, AdminNotificationsService, PaymentRefundService],
   exports: [CustomerAdminService]
