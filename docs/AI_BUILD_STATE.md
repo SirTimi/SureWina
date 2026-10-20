@@ -1,31 +1,31 @@
 # AI Build State
 
-Updated: 2026-10-08
+Updated: 2026-10-19
 
 ## Current Goal
 
-Phase 12–14 preproduction acceptance: prove equal RNG eligibility for mixed-price jackpot tickets using the actual engine, document every promotion flow to test, and prepare a gated migration/deployment/rollback sequence without touching production.
+Integrate Witmango/CBA external Fineract savings-account wallets safely with SureWina's existing immutable financial ledger; initial increment establishes read-only, disabled-by-default authenticated connectivity and Finance probe.
 
 ## Current Status
 
-AWAITING USER TEST — new actual-engine mixed-price execution regression and a 20-scenario promotion acceptance/rollout runbook are staged. GitHub environment cannot execute pnpm/Jest, provider sandboxes, real database concurrency or Windows production operations; no production deployment performed.
+CBA PHASE 1 AWAITING USER TEST. Provider requests use Basic Auth + tenant header against explicitly configured Fineract API. No external customer wallets provisioned, no money moved, no wallet/provider switch or schema migration.
 
 ## Last Accepted Task
 
-Phase 12 mixed-price draw-engine regression plus Phase 13 acceptance matrix and Phase 14 controlled deployment runbook; code implementation limited to new tests and documentation, no modifications to draw engine logic, financial ledger, historical JackpotEntry rows or database schema.
+Witmango CBA developer guide and original Postman collection reviewed. Implemented backend read-only Witmango client and Finance-only diagnostic endpoint; added tests, sample disabled environment settings and the staged integration architecture/runbook.
 
 ## Current Implementation
 
-Latest jackpot-promotion increment:
-- Added apps/api/test/jackpot-mixed-price-engine.spec.ts, importing the actual apps/engine/src/execution.service.ts and draw-math.utils.ts, with an isolated mocked Prisma draw and deterministic seed.
-- The regression executes a Saturday jackpot with 8 NGN 5,000 ACTIVE tickets and 2 NGN 500 ACTIVE promotional tickets; expects ten eligible slots, one signed result and the matching WINNING ticket.
-- Swapping which tickets have promotional prices/offer references must not alter the Merkle root or the chosen winner; ticket face value is intentionally not part of engine ticket selection or deterministicWinnerIndex.
-- Preserved historical JackpotEntry draw eligibility in a second case (10 tickets plus one historical ACTIVE entry means 11 pool positions).
-- Added a seeded RNG sanity check that each of ten pool slots can be selected; this does not substitute for a formal independent RNG assessment.
-- Added docs/JACKPOT_PROMOTION_ACCEPTANCE_AND_ROLLOUT.md mapping all 20 required scenarios to existing regression coverage and manual/sandbox gaps, including the missing exact 5+3+2 case.
-- The runbook inventories existing 2026-10 jackpot offer migrations, requires database backups and recovery rehearsal, and sequences a coordinated cutover with no misleading assumption of independent promotion feature flags.
-- Phase 14: no new schema migration and no changes to historical JackpotEntry data. Production Windows services, providers and money are untouched.
-- Acceptance requires running local tests/builds and controlled sandbox + concurrency + operator-reviewed rollout gates before production.
+Latest CBA integration increment:
+- Original source documents describe Apache Fineract savings products/accounts under /fineract-provider/api/v1, using HTTP Basic authentication with Fineract-Platform-TenantId.
+- Added apps/api/src/integrations/witmango/witmango-client.service.ts and witmango.module.ts for read-only GL/savings-product discovery and savings-account snapshot/inline transaction reads.
+- Added finance-only, JWT-guarded GET /admin/finance/witmango/probe, returning connectivity booleans only.
+- Added env schema keys and apps/api/.env.example placeholders. WITMANGO_ENABLED=false by default; no demo credentials bundled.
+- Added mocked request tests for disabled mode, header correctness, NGN wallet parsing, secure URL policy, sanitized upstream failures and finance probe.
+- Existing ledger-backed SureWina wallet, holds, agent sale accounting, provider fundings, payouts and Paystack remain unchanged.
+- No financial writer, provider fallback, account provisioning, webhook or bank payout is enabled. API documentation does not prove idempotent financial semantics, verified bank funding or outbound bank payouts.
+- Added docs/WITMANGO_CBA_INTEGRATION.md describing current/target ledger-of-record choices, safe sandbox connection, phases and CBA data contract blockers.
+- This is a source-only change pending local Jest/build/rollout verification. No production access or CBA credentials have been used.
 
 - Direct web ticket purchases use Paystack.
 - Customer wallet funding uses Monnify or Flutterwave.
@@ -97,13 +97,13 @@ Current engineering increment:
 
 ## Next Tasks
 
-1. Pull latest main; no new Prisma migration for the Phase 12–14 test/documentation increment.
-2. Execute the mixed-price engine regression and all Phase 13 promotion unit suites listed in docs/JACKPOT_PROMOTION_ACCEPTANCE_AND_ROLLOUT.md.
-3. Verify package type-check and builds plus rollout:check --strict-review. Fix any reported local compile/test failures.
-4. Record PASS/FAIL/NOT RUN evidence for all 20 acceptance cases, including exact 1 and 5+3+2 sequences, provider/wallet retries and provider failure cleanup.
-5. In a disposable DB, execute a controlled real engine draw with 8 full-price plus 2 discounted tickets (and separately verify any historical jackpot entry rows).
-6. Complete sandbox PSP/worker SMS and real PostgreSQL concurrent-redemption checks. Unperformed manual gates remain NOT RUN even if Jest passes.
-7. Only after signed-off compliance/finance/ops gates, follow the controlled Windows release runbook. Do not deploy production automatically.
+1. Pull latest main; Phase CBA-1 has no Prisma migration.
+2. Run test/witmango-client.spec.ts, API type-check and build, and financial rollout:check --strict-review.
+3. Verify GET /v1/admin/finance/witmango/probe returns disabled=false/connected=false while WITMANGO_ENABLED=false.
+4. Ask the CBA for authorized sandbox API root, tenant credentials, existing GL/savings-product/office IDs and paymentTypeIds, without putting credentials into Git or chat.
+5. Enable the connector only in an isolated sandbox, confirm Finance-only probe connectivity, then disable again.
+6. Confirm CBA versus SureWina ledger-of-record ownership, balance and hold semantics before account provisioning or monetary events.
+7. Preserve existing funding/payout providers until the CBA supplies verified bank collection/payout capabilities and reconciliation/idempotency guarantees.
 
 ## Known Issues
 
@@ -173,7 +173,7 @@ Runtime/type/build validation:
 
 ## Last Commit
 
-`test: verify mixed-price jackpot draw fairness and rollout gates` (this development cycle)
+`feat: add disabled Witmango CBA wallet connector` (current source increment)
 
 ## Latest Acceptance Evidence
 
