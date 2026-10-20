@@ -11,6 +11,12 @@ import type {
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
 
+
+export type NigerianBankOption = {
+  code: string;
+  name: string;
+};
+
 const BREAK_DAYS: Record<string, number> = {
   '7d': 7,
   '30d': 30,
@@ -72,5 +78,11 @@ export class AccountModule {
       days: BREAK_DAYS[req.duration] ?? 30,
     });
     return { selfExclusionUntil: me.selfExclusionUntil };
+  }
+
+  async listNigerianBanks(): Promise<{
+    banks: NigerianBankOption[];
+  }> {
+    return this.client.get('/account/banks');
   }
 }

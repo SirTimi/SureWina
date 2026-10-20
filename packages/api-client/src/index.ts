@@ -64,3 +64,4 @@ export type { WalletView, WalletStatus, WalletOwnerType, WalletFundingGateway, W
 export type { CurrentJackpotOffersResponse, JackpotOfferView } from '@surewina/types';
 export type { PromotionalJackpotPaystackPurchaseResponse } from './modules/jackpot-offers.js';
 export type { PromotionalJackpotPaystackPurchaseInput, PromotionalJackpotWalletPurchaseInput, PurchasePricingContext } from '@surewina/types';
+export type { NigerianBankOption } from './modules/account.js'

@@ -9,11 +9,15 @@ import {
   SetBankDto, SetSpendLimitDto, TakeBreakDto,
   UpdateNotificationsDto, UpdateProfileDto,
 } from './dto/account.dto';
+import { BankResolveService } from '../claims/kyc/bank-resolve.service'
 
 @Controller('account')
 @UseGuards(CustomerJwtGuard)
 export class AccountController {
-  constructor(private readonly account: AccountService) {}
+  constructor(
+    private readonly account: AccountService,
+    private readonly bankResolve: BankResolveService
+  ) {}
 
   @Get('me')
   me(@CurrentUser() u: CustomerJwtPayload) {
@@ -48,5 +52,10 @@ export class AccountController {
   @Put('bank')
   setBank(@CurrentUser() u: CustomerJwtPayload, @Body() dto: SetBankDto) {
     return this.account.setBank(u.sub, dto.accountNumber, dto.bankCode);
+  }
+
+  @Get('banks')
+  listBanks() {
+    return this.bankResolve.listBanks();
   }
 }

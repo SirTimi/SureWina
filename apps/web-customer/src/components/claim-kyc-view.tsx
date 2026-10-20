@@ -16,6 +16,7 @@ import {
 import { Button, Card, Container } from '@surewina/ui';
 import type { ClaimKycStatus } from '@surewina/types';
 import { api } from '@/lib/api';
+import { useNigerianBanks } from '@/hooks/use-nigerian-banks'
 
 type SubStep = 'docs' | 'bvn' | 'bank';
 
@@ -24,21 +25,7 @@ interface ClaimKycViewProps {
   initialStep: SubStep;
 }
 
-const NIGERIAN_BANKS = [
-  { code: '044', name: 'Access Bank' },
-  { code: '058', name: 'Guaranty Trust Bank' },
-  { code: '011', name: 'First Bank of Nigeria' },
-  { code: '033', name: 'United Bank for Africa' },
-  { code: '232', name: 'Sterling Bank' },
-  { code: '057', name: 'Zenith Bank' },
-  { code: '070', name: 'Fidelity Bank' },
-  { code: '076', name: 'Polaris Bank' },
-  { code: '050', name: 'Ecobank Nigeria' },
-  { code: '030', name: 'Heritage Bank' },
-  { code: '999992', name: 'OPay' },
-  { code: '999991', name: 'PalmPay' },
-  { code: '50211', name: 'Kuda' },
-];
+
 
 const ID_TYPES = [
   { value: 'NIN', label: 'National Identity Number (NIN)' },
@@ -642,7 +629,7 @@ function BankForm({
   const [accountNumber, setAccountNumber] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const { banks, loading: banksLoading, error: banksError} = useNigerianBanks();
   const handleSubmit = async () => {
     if (!bankCode) {
       setError('Pick your bank.');
@@ -679,14 +666,21 @@ function BankForm({
           value={bankCode}
           onChange={(e) => setBankCode(e.target.value)}
           className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
+          disabled={banksLoading || !!banksError}
         >
-          <option value="">Select your bank…</option>
-          {NIGERIAN_BANKS.map((bank) => (
+          <option value="">{banksLoading ? 'Loading banks...' : banksError ? 'Banks unavailable' : 'Select your bank...'}</option>
+          {banks.map((bank) => (
             <option key={bank.code} value={bank.code}>
               {bank.name}
             </option>
           ))}
         </select>
+
+        {banksError && (
+  <p role="alert" className="mt-2 text-sm text-red-600">
+    {banksError}
+  </p>
+)}
       </div>
 
       <div className="mt-5">
@@ -729,7 +723,7 @@ function BankForm({
       <Button
         onClick={handleSubmit}
         isLoading={submitting}
-        disabled={submitting || !bankCode || accountNumber.length !== 10}
+        disabled={submitting || !bankCode || accountNumber.length !== 10 || banksLoading || !!banksError}
         variant="accent"
         size="lg"
         className="mt-6 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
