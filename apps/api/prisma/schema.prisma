@@ -1454,6 +1454,8 @@ model PrizeClaim {
   redeemedByAdminId      String?   @map("redeemed_by_admin_id")
   redeemedAtPointId      String?   @map("redeemed_at_point_id")
 
+  identityChecks KycIdentityCheck[]
+
   // How many times a fresh code has been minted for this claim. One is
   // normal. Four is either a customer with a broken phone or someone testing
   // the process, and neither is visible without counting.
@@ -1897,4 +1899,40 @@ model DisputeEvent {
 
   @@index([disputeId, createdAt])
   @@map("dispute_events")
+}
+
+
+enum KycIdentityCheckStatus {
+  PREPARING
+  SUBMITTED
+  VERIFIED
+  FAILED
+  UNKNOWN
+}
+
+model KycIdentityCheck {
+  checkId                 String   @id @default(uuid()) @map("check_id")
+  claimId                 String   @map("claim_id")
+  attemptNumber           Int      @map("attempt_number")
+  provider                String   @default("PAYSTACK")
+  status                  KycIdentityCheckStatus @default(PREPARING)
+
+  paystackCustomerCode    String?  @unique @map("paystack_customer_code")
+  bankCode                String   @map("bank_code")
+  bankAccountLast4        String   @map("bank_account_last4")
+  bankAccountFingerprint  String   @map("bank_account_fingerprint")
+
+  submittedAt             DateTime? @map("submitted_at")
+  verifiedAt              DateTime? @map("verified_at")
+  failedAt                DateTime? @map("failed_at")
+  failureCode             String?   @map("failure_code")
+
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  claim PrizeClaim @relation(fields: [claimId], references: [claimId], onDelete: Restrict)
+
+  @@unique([claimId, attemptNumber])
+  @@index([claimId, status])
+  @@map("kyc_identity_checks")
 }

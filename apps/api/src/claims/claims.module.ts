@@ -38,6 +38,11 @@ import { MonnifyPayoutSyncService } from './payout/monnify-payout-sync.service';
 import { MonnifyWebhookSignatureGuard } from './payout/monnify-webhook-signature.guard';
 
 import { MonnifyPayoutWebhookController } from './payout/monnify-payout-webhook.controller';
+import { PaystackIdentityClient } from './kyc/paystack-identity.client';
+import {
+  PaystackIdentityWebhookService,
+} from './kyc/paystack-identity-webhook.service';
+
 
 @Module({
   imports: [
@@ -76,6 +81,8 @@ import { MonnifyPayoutWebhookController } from './payout/monnify-payout-webhook.
 
     MonnifyPayoutSyncService,
     MonnifyWebhookSignatureGuard,
+    PaystackIdentityClient,
+    PaystackIdentityWebhookService,
   ],
 
   exports: [
@@ -88,6 +95,7 @@ import { MonnifyPayoutWebhookController } from './payout/monnify-payout-webhook.
     PrizePayoutEngineService,
     PrizePayoutSyncService,
     MonnifyWebhookSignatureGuard,
+    PaystackIdentityWebhookService,
   ],
 })
 export class ClaimsModule {}
