@@ -47,10 +47,12 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
       .catch((err) => setError(err.message ?? 'Could not load KYC status.'));
   }, [claimId]);
 
+  const currentIdentityStatus = kyc?.identityStatus;
+
   // Paystack identification is asynchronous. Poll the server's latest
   // persisted result; never infer success from submission alone.
   useEffect(() => {
-    if (!kyc || !['PREPARING', 'SUBMITTED', 'UNKNOWN'].includes(kyc.identityStatus)) {
+    if (!currentIdentityStatus || !['PREPARING', 'SUBMITTED', 'UNKNOWN'].includes(currentIdentityStatus)) {
       return;
     }
 
@@ -63,7 +65,7 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [claimId, kyc?.identityStatus]);
+  }, [claimId, currentIdentityStatus]);
 
   const goToNextStep = (currentKyc: ClaimKycStatus) => {
     setKyc(currentKyc);
