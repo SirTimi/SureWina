@@ -466,6 +466,22 @@ export interface SubmitKycBankResponse {
   kyc: ClaimKycStatus;
 }
 
+/** Start one combined Paystack BVN and bank ownership check. */
+export interface StartKycIdentityRequest {
+  claimId: string;
+  bvn: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  bankCode: string;
+  accountNumber: string;
+}
+
+export interface StartKycIdentityResponse {
+  kyc: ClaimKycStatus;
+}
+
+
 // === Claim status (timeline) ===
 
 export interface ClaimStatusEvent {

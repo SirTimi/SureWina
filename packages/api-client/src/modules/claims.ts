@@ -6,6 +6,7 @@ import type {
   SubmitKycBankRequest, SubmitKycBankResponse, SubmitKycBvnRequest,
   SubmitKycBvnResponse, SubmitKycDocumentRequest, SubmitKycDocumentResponse,
   ClaimKycStatus, ClaimPath,
+  StartKycIdentityRequest, StartKycIdentityResponse,
   ListCustomerDisputesResponse, RaiseDisputeRequest, RaiseDisputeResponse,
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
@@ -18,6 +19,7 @@ type BackendClaim = {
   selectionDeadlineAt: string; claimDeadlineAt: string; createdAt: string;
   claimTypeSelectedAt?: string | null;
   kycBvnVerified?: boolean; kycHasDocs?: boolean;
+  kycIdentityStatus?: ClaimKycStatus['identityStatus'];
   kycBank?: { bankCode: string | null; accountLast4: string | null; accountName: string } | null;
 };
 
@@ -40,29 +42,37 @@ function toClaimPath(c: BackendClaim): ClaimPath {
 }
 
 function toKycStatus(c: BackendClaim): ClaimKycStatus {
+  const identity = c.kycIdentityStatus ?? 'NOT_STARTED';
+  // A legacy cleared claim does not imply a genuine Paystack identity check.
+  const fullyCleared = ['KYC_CLEARED', 'CASH_PAID', 'DELIVERED', 'PRODUCT_BOOKED'].includes(c.status);
+  const verified = identity === 'VERIFIED';
+  const awaitingProvider = identity === 'PREPARING' || identity === 'SUBMITTED' || identity === 'UNKNOWN';
+
   const status: ClaimKycStatus['status'] =
-    c.status === 'KYC_CLEARED' || c.status === 'CASH_PAID' || c.status === 'DELIVERED' || c.status === 'PRODUCT_BOOKED'
-      ? 'COMPLETE'
-      : c.kycBank
-        ? 'BANK_VERIFIED'
-        : c.kycHasDocs
-          ? 'DOCS_UPLOADED'
-          : c.kycBvnVerified
-            ? 'BVN_VERIFIED'
-            : 'NOT_STARTED';
+    fullyCleared && verified ? 'COMPLETE'
+    : verified ? 'BANK_VERIFIED'
+    : identity === 'FAILED' ? 'REJECTED'
+    : awaitingProvider ? 'BVN_PENDING'
+    : c.kycHasDocs ? 'DOCS_UPLOADED'
+    : 'NOT_STARTED';
 
   return {
     claimId: c.claimId,
     status,
+    identityStatus: identity,
     rejectionReason: null,
     documentUploaded: !!c.kycHasDocs,
-    selfieUploaded: !!c.kycHasDocs, // stored together; one flag serves both
+    selfieUploaded: !!c.kycHasDocs,
     kycDeadlineAt: c.claimDeadlineAt,
-    bvnLast4: c.kycBvnVerified ? '••••' : null,
-    bankAccount: c.kycBank
-      ? { bankName: c.kycBank.bankCode ?? '', accountLast4: c.kycBank.accountLast4 ?? '', accountName: c.kycBank.accountName }
+    bvnLast4: verified ? '••••' : null,
+    bankAccount: verified && c.kycBank
+      ? {
+          bankName: c.kycBank.bankCode ?? '',
+          accountNumber: c.kycBank.accountLast4 ?? '',
+          accountName: c.kycBank.accountName,
+        }
       : null,
-  } as ClaimKycStatus;
+  };
 }
 
 // Accepts raw base64 or a full data URL; returns a Blob with the right type.

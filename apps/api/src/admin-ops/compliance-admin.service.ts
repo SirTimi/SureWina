@@ -96,6 +96,23 @@ export class ComplianceAdminService {
       },
     });
     if (!claim) throw new NotFoundException('Claim not found');
+    // Never present legacy auto-verified BVNs as successful KYC evidence.
+    const latestIdentity = await this.prisma.kycIdentityCheck.findFirst({
+      where: { claimId },
+      orderBy: { attemptNumber: 'desc' },
+    });
+    const identityVerified =
+      latestIdentity?.provider === 'PAYSTACK' &&
+      latestIdentity.status === 'VERIFIED' &&
+      !!latestIdentity.verifiedAt &&
+      !!latestIdentity.paystackCustomerCode &&
+      /^[a-f0-9]{64}$/i.test(latestIdentity.bankAccountFingerprint) &&
+      (claim.claimType !== 'CASH' || (
+        !!claim.kycBankAccountName &&
+        latestIdentity.bankCode === claim.kycBankCode &&
+        latestIdentity.bankAccountLast4 === claim.kycBankAccountLast4
+      ));
+
 
     return {
       claimId: claim.claimId,
@@ -119,12 +136,18 @@ export class ComplianceAdminService {
         executedAt: claim.drawResult.executedAt.toISOString(),
       },
       kyc: {
-        bvnVerified: !!claim.kycBvnVerifiedAt,
-        bvnVerifiedAt: claim.kycBvnVerifiedAt?.toISOString() ?? null,
+        bvnVerified: identityVerified,
+        bvnVerifiedAt: identityVerified
+          ? latestIdentity?.verifiedAt?.toISOString() ?? null
+          : null,
+        identityProvider: identityVerified ? 'PAYSTACK' : null,
+        identityStatus: identityVerified
+          ? 'VERIFIED'
+          : latestIdentity?.status ?? 'NOT_STARTED',
         bvnLast4: null, // hash only is stored — the raw BVN is never retained
         hasIdDoc: !!claim.kycIdDocPath,
         hasSelfie: !!claim.kycSelfiePath,
-        bank: claim.kycBankAccountName
+        bank: identityVerified && claim.kycBankAccountName
           ? {
               bankCode: claim.kycBankCode,
               accountLast4: claim.kycBankAccountLast4,

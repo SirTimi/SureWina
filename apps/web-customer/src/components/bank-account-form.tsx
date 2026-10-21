@@ -207,7 +207,7 @@ export function BankAccountForm({
         )}
 
         <p className="mt-1.5 text-xs text-ink-500">
-          We'll resolve your account name through Paystack.
+          We&apos;ll resolve your account name through Paystack.
           Account ownership verification happens separately.
         </p>
       </div>
