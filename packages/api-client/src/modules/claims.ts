@@ -261,4 +261,26 @@ export class ClaimsModule {
   async raiseDispute(req: RaiseDisputeRequest): Promise<RaiseDisputeResponse> {
     return this.client.post<RaiseDisputeResponse>('/disputes', req);
   }
+
+  
+  async startKycIdentity(
+    req: StartKycIdentityRequest,
+  ): Promise<StartKycIdentityResponse> {
+    await this.client.post(
+      `/claims/${encodeURIComponent(req.claimId)}/kyc/identity/start`,
+      {
+        bvn: req.bvn,
+        firstName: req.firstName,
+        lastName: req.lastName,
+        email: req.email,
+        bankCode: req.bankCode,
+        accountNumber: req.accountNumber,
+      },
+    );
+
+    return {
+      kyc: toKycStatus(await this.getClaim(req.claimId)),
+    };
+  }
+
 }

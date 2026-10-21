@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-
+import { KycIdentityEvidenceService } from '../kyc/kyc-identity-evidence.service';
 import {
   AuditActorType,
   AuditSeverity,
@@ -66,6 +66,9 @@ export class PrizePayoutEngineService {
 
     private readonly finalizer:
       PrizePayoutAttemptFinalizationService,
+
+    private readonly identityEvidence:
+      KycIdentityEvidenceService,
   ) {}
 
   async initiate(
@@ -463,6 +466,9 @@ export class PrizePayoutEngineService {
 
               kycBankAccountName:
                 true,
+
+              kycBankAccountLast4:
+                true,
             },
           });
 
@@ -499,6 +505,34 @@ export class PrizePayoutEngineService {
             'Winner has not confirmed a payout account',
           );
         }
+
+        /*
+         * PHASE 2E — BANK PAYOUT ELIGIBILITY.
+         *
+         * The old kycBvnVerifiedAt timestamp, bank-name resolution,
+         * and KYC_CLEARED status alone do not establish ownership.
+         *
+         * The helper rejects missing, pending, failed, UNKNOWN, or
+         * stale Paystack verification attempts. It binds the latest
+         * successful check to the bank details approved for this claim.
+         *
+         * The fingerprint check compares the ENTIRE destination account
+         * (bank code + ten-digit account number), not only the last four.
+         *
+         * Both checks happen inside the existing serializable transaction,
+         * before any payout attempt or ledger activity is reserved.
+         */
+        const identityCheck =
+          await this.identityEvidence.requireVerified(
+            tx,
+            claim,
+          );
+
+        this.identityEvidence.assertDestinationMatches(
+          identityCheck,
+          claim.kycBankCode,
+          claim.payoutAccountNumber,
+        );
 
         const latest =
           await tx.prizePayoutAttempt.findFirst({

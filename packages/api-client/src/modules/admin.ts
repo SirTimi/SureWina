@@ -159,7 +159,15 @@ export interface AdminClaimRow {
   hasIdDoc: boolean;
   hasSelfie: boolean;
   bankResolved: boolean;
-}
+  identityVerified: boolean;
+  identityStatus:
+    | 'NOT_STARTED'
+    | 'PREPARING'
+    | 'SUBMITTED'
+    | 'VERIFIED'
+    | 'FAILED'
+    | 'UNKNOWN';
+  }
 
 export interface AdminReconciliation {
   from: string;

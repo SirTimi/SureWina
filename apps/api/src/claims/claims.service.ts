@@ -12,18 +12,18 @@ import {
   PrizeClaim,
   PrizeClaimStatus,
   PrizePayoutStatus,
+  Prisma,
+  KycIdentityCheck,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { createHash } from 'crypto';
-import { BvnVerificationService } from './kyc/bvn-verification.service';
 import { BankResolveService } from './kyc/bank-resolve.service';
 import { StorageService } from '../storage/storage.service';
 import { WhtDeductionService } from './wht-deduction.service';
 import { SettingsService } from '../config/settings.service';
 import { RedemptionService } from './redemption.service';
 import { NotificationQueueService } from '../queue/notification-queue.service';
-
+import { KycIdentityEvidenceService } from './kyc/kyc-identity-evidence.service';
 
 export type ClaimViewDto = {
   claimId: string;
@@ -47,6 +47,23 @@ export type ClaimViewDto = {
     accountName: string;
   } | null;
   payoutStatus: PrizePayoutStatus | null;
+  kycIdentityStatus:
+    | 'NOT_STARTED'
+    | 'PREPARING'
+    | 'SUBMITTED'
+    | 'VERIFIED'
+    | 'FAILED'
+    | 'UNKNOWN';
+};
+
+type ClaimWithViewData = PrizeClaim & {
+  drawResult: {
+    draw: {
+      drawCode: string;
+      prizeDescription: string;
+    };
+  };
+  identityChecks: KycIdentityCheck[];
 };
 
 // Statuses in which the winner may still (re)choose product vs cash.
@@ -62,23 +79,19 @@ export class ClaimsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly bvnVerification: BvnVerificationService,
     private readonly bankResolve: BankResolveService,
     private readonly storage: StorageService,
     private readonly whtDeductions: WhtDeductionService,
     private readonly settings: SettingsService,
     private readonly redemption: RedemptionService,
     private readonly notificationQueue: NotificationQueueService,
+    private readonly identityEvidence: KycIdentityEvidenceService,
   ) {}
 
   async listMine(phoneNumber: string): Promise<{ claims: ClaimViewDto[] }> {
     const claims = await this.prisma.prizeClaim.findMany({
       where: { winnerPhone: phoneNumber },
-      include: {
-        drawResult: {
-          select: { draw: { select: { drawCode: true, prizeDescription: true } } },
-        },
-      },
+      include: this.viewInclude(),
       orderBy: { createdAt: 'desc' },
     });
 
@@ -140,15 +153,28 @@ export class ClaimsService {
       include: this.viewInclude(),
       orderBy: { createdAt: 'asc' },
     });
+
     return {
-      claims: claims.map((c) => ({
-        ...this.toView(c),
-        winnerPhone: c.winnerPhone,
-        kycBvnVerifiedAt: c.kycBvnVerifiedAt?.toISOString() ?? null,
-        hasIdDoc: !!c.kycIdDocPath,
-        hasSelfie: !!c.kycSelfiePath,
-        bankResolved: !!c.kycBankAccountName,
-      })),
+      claims: claims.map((claim) => {
+        const view = this.toView(claim);
+        const latest = claim.identityChecks[0];
+        const identityVerified = view.kycBvnVerified;
+
+        return {
+          ...view,
+          winnerPhone: claim.winnerPhone,
+          // Compatibility for the current admin UI, but do not expose
+          // legacy unverified kycBvnVerifiedAt timestamps.
+          kycBvnVerifiedAt: identityVerified
+            ? latest?.verifiedAt?.toISOString() ?? null
+            : null,
+          identityVerified,
+          identityStatus: view.kycIdentityStatus,
+          hasIdDoc: !!claim.kycIdDocPath,
+          hasSelfie: !!claim.kycSelfiePath,
+          bankResolved: !!claim.kycBankAccountName,
+        };
+      }),
     };
   }
 
@@ -158,78 +184,125 @@ export class ClaimsService {
     decision: 'APPROVE' | 'REJECT',
     note?: string,
   ) {
-    const claim = await this.prisma.prizeClaim.findUnique({
-      where: { claimId },
-      include: this.viewInclude(),
-    });
-    if (!claim) throw new NotFoundException('Claim not found');
-    if (claim.status !== PrizeClaimStatus.KYC_PENDING) {
-      throw new ConflictException(`Claim is not awaiting review (status: ${claim.status})`);
-    }
-
-    if (decision === 'APPROVE') {
-      // The evidence gate: nothing clears without the full set.
-      const missing: string[] = [];
-      if (!claim.kycBvnVerifiedAt) missing.push('verified BVN');
-      if (!claim.kycIdDocPath) missing.push('ID document');
-      if (!claim.kycSelfiePath) missing.push('selfie');
-      if (claim.claimType === ClaimType.CASH && !claim.kycBankAccountName) {
-        missing.push('resolved bank account');
-      }
-      if (missing.length > 0) {
-        throw new ConflictException(`Cannot approve — missing: ${missing.join(', ')}`);
-      }
-
-      const wht = await this.computeWht(claim.grossPrizeValueNgn, claim.claimType!);
-
-      const updated = await this.prisma.prizeClaim.update({
+    if (decision === 'REJECT') {
+      const claim = await this.prisma.prizeClaim.findUnique({
         where: { claimId },
-        data: {
-          status: PrizeClaimStatus.KYC_CLEARED,
-          kycReviewedBy: adminId,
-          kycReviewedAt: new Date(),
-          // Finalize WHT at certification time (backfills pre-WHT claims).
-          ...wht,
-        },
         include: this.viewInclude(),
       });
 
+      if (!claim) {
+        throw new NotFoundException('Claim not found');
+      }
+
+      if (claim.status !== PrizeClaimStatus.KYC_PENDING) {
+        throw new ConflictException(
+          'Claim is not awaiting KYC review',
+        );
+      }
+
       await this.audit.write({
-        severity: AuditSeverity.INFO,
+        severity: AuditSeverity.WARNING,
         actor: { type: AuditActorType.ADMIN, id: adminId },
-        action: 'CLAIM_KYC_APPROVED',
+        action: 'CLAIM_KYC_REJECTED',
         resource: { type: 'PrizeClaim', id: claimId },
-        metadata: { whtAmountNgn: updated.whtAmountNgn, netPrizeValueNgn: updated.netPrizeValueNgn },
+        metadata: { note: note ?? null },
       });
 
-      // Clearance is the moment the winner becomes entitled, so it is the
-      // moment the collection code exists. Issued for every claim type: a
-      // cash winner may still collect in person from an agent rather than
-      // take a transfer, and they need the code either way.
-      //
-      // Non-blocking. The claim is already cleared and the code is stored —
-      // a failed SMS must not roll that back, and the code can be resent.
-      void this.issueRedemptionCode(updated).catch((e) =>
-        this.logger.error(
-          `Redemption code issue failed for ${claimId}: ${
-            e instanceof Error ? e.message : 'unknown'
-          }`,
-        ),
-      );
-
-      return this.toView(updated);
+      return this.toView(claim);
     }
 
-    // REJECT: stays KYC_PENDING so the winner can fix and resubmit.
+    const updated = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`
+          SELECT "claim_id"
+          FROM "prize_claims"
+          WHERE "claim_id" = ${claimId}
+          FOR UPDATE
+        `;
+
+        const claim = await tx.prizeClaim.findUnique({
+          where: { claimId },
+          include: this.viewInclude(),
+        });
+
+        if (!claim) {
+          throw new NotFoundException('Claim not found');
+        }
+
+        if (claim.status !== PrizeClaimStatus.KYC_PENDING) {
+          throw new ConflictException(
+            'Claim is not awaiting KYC review',
+          );
+        }
+
+        if (!claim.claimType) {
+          throw new ConflictException(
+            'Prize option must be selected before KYC approval',
+          );
+        }
+
+        if (!claim.kycIdDocPath || !claim.kycSelfiePath) {
+          throw new ConflictException(
+            'ID document and selfie are required',
+          );
+        }
+
+        // Never trust a legacy kycBvnVerifiedAt timestamp.
+        const identityCheck = await this.identityEvidence.requireVerified(
+          tx,
+          claim,
+        );
+
+        if (!/^[a-f0-9]{64}$/i.test(identityCheck.bankAccountFingerprint)) {
+          throw new ConflictException(
+            'Complete Paystack bank ownership evidence is required',
+          );
+        }
+
+        const wht = await this.computeWht(
+          claim.grossPrizeValueNgn,
+          claim.claimType,
+        );
+
+        return tx.prizeClaim.update({
+          where: { claimId },
+          data: {
+            status: PrizeClaimStatus.KYC_CLEARED,
+            kycReviewedBy: adminId,
+            kycReviewedAt: new Date(),
+            ...wht,
+          },
+          include: this.viewInclude(),
+        });
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
+
     await this.audit.write({
-      severity: AuditSeverity.WARNING,
+      severity: AuditSeverity.INFO,
       actor: { type: AuditActorType.ADMIN, id: adminId },
-      action: 'CLAIM_KYC_REJECTED',
+      action: 'CLAIM_KYC_APPROVED',
       resource: { type: 'PrizeClaim', id: claimId },
-      metadata: { note: note ?? null },
+      metadata: {
+        identityProvider: 'PAYSTACK',
+        netPrizeValueNgn: updated.netPrizeValueNgn,
+        whtAmountNgn: updated.whtAmountNgn,
+      },
     });
-    return this.toView(claim);
+
+    void this.issueRedemptionCode(updated).catch((error) => {
+      this.logger.error(
+        `Redemption code issue failed for claim ${claimId}: ${
+          error instanceof Error ? error.message : 'unknown'
+        }`,
+      );
+    });
+
+    return this.toView(updated);
   }
+
 
   async listCollectionPoints(stateCode?: string) {
     const points = await this.prisma.collectionPoint.findMany({
@@ -286,71 +359,114 @@ export class ClaimsService {
     accountNumber: string,
     bankCode: string,
   ) {
-    const claim = await this.findOwned(claimId, phoneNumber);
-    if (claim.claimType !== ClaimType.CASH) {
+    // Verify ownership before contacting the bank-resolution provider.
+    const owned = await this.findOwned(claimId, phoneNumber);
+    if (owned.claimType !== ClaimType.CASH) {
       throw new ConflictException('Payout account applies to cash claims only');
     }
-    if (claim.status !== PrizeClaimStatus.KYC_CLEARED) {
-      throw new ConflictException(`Claim is not cleared for payout (status: ${claim.status})`);
-    }
-    if (
-      claim.payoutStatus &&
-      claim.payoutStatus !== PrizePayoutStatus.FAILED &&
-      claim.payoutStatus !== PrizePayoutStatus.REVERSED
-    ) {
+    if (owned.status !== PrizeClaimStatus.KYC_CLEARED) {
       throw new ConflictException(
-        `Payout details cannot be changed while payout is ${claim.payoutStatus}`,
+        `Claim is not cleared for payout (status: ${owned.status})`,
       );
     }
-    // Must match what compliance approved: same bank, same last4, and the
-    // freshly-resolved name must equal the stored one.
-    if (bankCode !== claim.kycBankCode || accountNumber.slice(-4) !== claim.kycBankAccountLast4) {
-      throw new ConflictException('Account does not match the KYC-verified details');
+
+    if (!/^\d{10}$/.test(accountNumber) || !/^\d{3,6}$/.test(bankCode)) {
+      throw new BadRequestException('Invalid bank account details');
     }
-    const resolved = await this.bankResolve.resolve(
-  accountNumber,
-  bankCode,
-);
 
-if (!claim.kycBankAccountName) {
-  throw new ConflictException(
-    'KYC-verified account name is missing',
-  );
-}
+    // This confirms only the account's current name, not BVN ownership.
+    const resolved = await this.bankResolve.resolve(accountNumber, bankCode);
+    const normalizeAccountName = (value: string) =>
+      value.trim().replace(/\s+/g, ' ').toUpperCase();
 
-const normalizeAccountName = (
-  value: string,
-) =>
-  value
-    .trim()
-    .replace(/\s+/g, ' ')
-    .toUpperCase();
+    // Recheck all mutable claim and verification state under the same lock
+    // before persisting a payout destination.
+    const updated = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`
+          SELECT "claim_id"
+          FROM "prize_claims"
+          WHERE "claim_id" = ${claimId}
+          FOR UPDATE
+        `;
 
-if (
-  normalizeAccountName(
-    resolved.accountName,
-  ) !==
-  normalizeAccountName(
-    claim.kycBankAccountName,
-  )
-) {
-  throw new ConflictException(
-    'Account name mismatch with KYC-verified details',
-  );
-}
+        const claim = await tx.prizeClaim.findUnique({
+          where: { claimId },
+          include: this.viewInclude(),
+        });
 
-    const updated = await this.prisma.prizeClaim.update({
-      where: { claimId: claim.claimId },
-      data: { payoutAccountNumber: accountNumber },
-      include: this.viewInclude(),
-    });
+        if (!claim || claim.winnerPhone !== phoneNumber) {
+          throw new NotFoundException('Claim not found');
+        }
+        if (claim.claimType !== ClaimType.CASH) {
+          throw new ConflictException('Payout account applies to cash claims only');
+        }
+        if (claim.status !== PrizeClaimStatus.KYC_CLEARED) {
+          throw new ConflictException(
+            `Claim is not cleared for payout (status: ${claim.status})`,
+          );
+        }
+        if (
+          claim.payoutStatus &&
+          claim.payoutStatus !== PrizePayoutStatus.FAILED &&
+          claim.payoutStatus !== PrizePayoutStatus.REVERSED
+        ) {
+          throw new ConflictException(
+            `Payout details cannot be changed while payout is ${claim.payoutStatus}`,
+          );
+        }
+        if (
+          bankCode !== claim.kycBankCode ||
+          accountNumber.slice(-4) !== claim.kycBankAccountLast4 ||
+          !claim.kycBankAccountName
+        ) {
+          throw new ConflictException(
+            'Account does not match the KYC-verified details',
+          );
+        }
+
+        // The latest successful Paystack identification must be bound to
+        // this exact FULL account and bank code, not just its last 4 digits.
+        const identityCheck = await this.identityEvidence.requireVerified(
+          this.prisma,
+          claim,
+        );
+        this.identityEvidence.assertDestinationMatches(
+          identityCheck,
+          bankCode,
+          accountNumber,
+        );
+
+        if (
+          normalizeAccountName(resolved.accountName) !==
+          normalizeAccountName(claim.kycBankAccountName)
+        ) {
+          throw new ConflictException(
+            'Account name mismatch with KYC-verified details',
+          );
+        }
+
+        return tx.prizeClaim.update({
+          where: { claimId },
+          data: { payoutAccountNumber: accountNumber },
+          include: this.viewInclude(),
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
     await this.audit.write({
       severity: AuditSeverity.INFO,
       actor: { type: AuditActorType.CUSTOMER, id: phoneNumber },
       action: 'CLAIM_PAYOUT_ACCOUNT_CONFIRMED',
-      resource: { type: 'PrizeClaim', id: claim.claimId },
-      metadata: { accountLast4: accountNumber.slice(-4) },
+      resource: { type: 'PrizeClaim', id: claimId },
+      metadata: {
+        bankCode,
+        accountLast4: accountNumber.slice(-4),
+        identityProvider: 'PAYSTACK',
+      },
     });
+
     return { ...this.toView(updated), payoutAccountConfirmed: true };
   }
 
@@ -400,13 +516,28 @@ if (
     });
   }
 
+  
   private viewInclude() {
     return {
       drawResult: {
-        select: { draw: { select: { drawCode: true, prizeDescription: true } } },
+        select: {
+          draw: {
+            select: {
+              drawCode: true,
+              prizeDescription: true,
+            },
+          },
+        },
+      },
+      identityChecks: {
+        orderBy: {
+          attemptNumber: 'desc' as const,
+        },
+        take: 1,
       },
     } as const;
   }
+
 
   // Ownership check folded into the fetch. Not-yours returns 404, not 403:
   // a 403 would confirm the claimId exists to whoever is probing.
@@ -421,11 +552,30 @@ if (
     return claim;
   }
 
-  private toView(
-    c: PrizeClaim & {
-      drawResult: { draw: { drawCode: string; prizeDescription: string } };
-    },
-  ): ClaimViewDto {
+  private toView(c: ClaimWithViewData): ClaimViewDto {
+    const latest = c.identityChecks[0];
+
+    // Never use the legacy kycBvnVerifiedAt field for authentication.
+    // The latest attempt must have an actual Paystack success outcome.
+    const identityVerified =
+      latest?.provider === 'PAYSTACK' &&
+      latest.status === 'VERIFIED' &&
+      !!latest.verifiedAt &&
+      !!latest.paystackCustomerCode &&
+      /^[a-f0-9]{64}$/i.test(latest.bankAccountFingerprint) &&
+      (c.claimType !== ClaimType.CASH || (
+        !!c.kycBankAccountName &&
+        latest.bankCode === c.kycBankCode &&
+        latest.bankAccountLast4 === c.kycBankAccountLast4
+      ));
+
+    const identityStatus: ClaimViewDto['kycIdentityStatus'] =
+      identityVerified
+        ? 'VERIFIED'
+        : latest?.status === 'VERIFIED'
+          ? 'UNKNOWN' // Provider success is not sufficient if bank binding fails.
+          : latest?.status ?? 'NOT_STARTED';
+
     return {
       claimId: c.claimId,
       winnerTicketRef: c.winnerTicketRef,
@@ -440,10 +590,17 @@ if (
       claimDeadlineAt: c.claimDeadlineAt.toISOString(),
       createdAt: c.createdAt.toISOString(),
       payoutStatus: c.payoutStatus,
-      kycBvnVerified: !!c.kycBvnVerifiedAt,
+      kycIdentityStatus: identityStatus,
+      kycBvnVerified: identityVerified,
       kycHasDocs: !!(c.kycIdDocPath && c.kycSelfiePath),
-      kycBank: c.kycBankAccountName
-        ? { bankCode: c.kycBankCode, accountLast4: c.kycBankAccountLast4, accountName: c.kycBankAccountName }
+      // Show nominated bank details only when identity and bank binding
+      // have completed successfully; merely resolving a name is not KYC.
+      kycBank: identityVerified && c.kycBankAccountName
+        ? {
+            bankCode: c.kycBankCode,
+            accountLast4: c.kycBankAccountLast4,
+            accountName: c.kycBankAccountName,
+          }
         : null,
     };
   }
@@ -451,107 +608,27 @@ if (
   async submitBvn(
     claimId: string,
     phoneNumber: string,
-    bvn: string,
-  ): Promise<ClaimViewDto> {
-    const claim = await this.findOwned(claimId, phoneNumber);
+    _bvn: string,
+  ): Promise<never> {
+    await this.findOwned(claimId, phoneNumber);
 
-    const kycOpen: PrizeClaimStatus[] = [
-      PrizeClaimStatus.SELECTION_MADE,
-      PrizeClaimStatus.KYC_PENDING,
-    ];
-    if (!kycOpen.includes(claim.status)) {
-      throw new ConflictException(
-        claim.status === PrizeClaimStatus.NOTIFIED
-          ? 'Choose your prize option before starting KYC'
-          : `KYC is not open on this claim (status: ${claim.status})`,
-      );
-    }
-    if (claim.claimDeadlineAt.getTime() <= Date.now()) {
-      throw new ConflictException('The claim window has closed');
-    }
-
-    const check = await this.bvnVerification.verify(bvn, phoneNumber);
-    if (!check.verified) {
-      throw new ConflictException('BVN verification failed');
-    }
-
-    const bvnHash = createHash('sha256').update(bvn).digest('hex');
-
-    const updated = await this.prisma.prizeClaim.update({
-      where: { claimId: claim.claimId },
-      data: {
-        kycBvnHash: bvnHash,
-        kycBvnVerifiedAt: new Date(),
-        status: PrizeClaimStatus.KYC_PENDING, // locks the flip window
-      },
-      include: this.viewInclude(),
-    });
-
-    await this.audit.write({
-      severity: AuditSeverity.INFO,
-      actor: { type: AuditActorType.CUSTOMER, id: phoneNumber },
-      action: 'CLAIM_KYC_BVN_SUBMITTED',
-      resource: { type: 'PrizeClaim', id: claim.claimId },
-      metadata: { devMode: check.devMode, bvnLast4: bvn.slice(-4) },
-    });
-
-    return this.toView(updated);
+    throw new ConflictException(
+      'Use the combined Paystack identity verification process',
+    );
   }
 
   async submitBank(
     claimId: string,
     phoneNumber: string,
-    accountNumber: string,
-    bankCode: string,
-  ): Promise<ClaimViewDto & { resolvedAccountName: string }> {
-    const claim = await this.findOwned(claimId, phoneNumber);
+    _accountNumber: string,
+    _bankCode: string,
+  ): Promise<never> {
+    await this.findOwned(claimId, phoneNumber);
 
-    if (claim.claimType !== ClaimType.CASH) {
-      throw new ConflictException(
-        'Bank details are only required for cash claims',
-      );
-    }
-    const docsOpen: PrizeClaimStatus[] = [
-      PrizeClaimStatus.SELECTION_MADE,
-      PrizeClaimStatus.KYC_PENDING,
-    ];
-    if (!docsOpen.includes(claim.status)) {
-      throw new ConflictException(
-        claim.status === PrizeClaimStatus.NOTIFIED
-          ? 'Choose your prize option before uploading documents'
-          : `Documents cannot be submitted on this claim (status: ${claim.status})`,
-      );
-    }
-    if (claim.claimDeadlineAt.getTime() <= Date.now()) {
-      throw new ConflictException('The claim window has closed');
-    }
-
-    const resolved = await this.bankResolve.resolve(accountNumber, bankCode);
-
-    const updated = await this.prisma.prizeClaim.update({
-      where: { claimId: claim.claimId },
-      data: {
-        kycBankCode: bankCode,
-        kycBankAccountLast4: accountNumber.slice(-4),
-        kycBankAccountName: resolved.accountName,
-      },
-      include: this.viewInclude(),
-    });
-
-    await this.audit.write({
-      severity: AuditSeverity.INFO,
-      actor: { type: AuditActorType.CUSTOMER, id: phoneNumber },
-      action: 'CLAIM_KYC_BANK_RESOLVED',
-      resource: { type: 'PrizeClaim', id: claim.claimId },
-      metadata: {
-        bankCode,
-        accountLast4: accountNumber.slice(-4),
-        accountName: resolved.accountName,
-      },
-    });
-
-    return { ...this.toView(updated), resolvedAccountName: resolved.accountName };
-  }
+    throw new ConflictException(
+      'Use the combined Paystack identity verification process',
+    );
+  } 
 
   async submitDocuments(
     claimId: string,

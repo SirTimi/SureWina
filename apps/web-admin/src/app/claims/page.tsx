@@ -109,7 +109,7 @@ function Body({ session }: { session: AdminSession }) {
           <div className="space-y-3">
             {rows.map((c) => {
               const evidenceComplete =
-                !!c.kycBvnVerifiedAt &&
+                c.identityVerified &&
                 c.hasIdDoc &&
                 c.hasSelfie &&
                 (c.claimType !== 'CASH' || c.bankResolved);
@@ -140,7 +140,7 @@ function Body({ session }: { session: AdminSession }) {
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Evidence ok={!!c.kycBvnVerifiedAt} label="BVN verified" />
+                    <Evidence ok={!!c.identityVerified} label="Identity verified" />
                     <Evidence ok={c.hasIdDoc} label="ID document" />
                     <Evidence ok={c.hasSelfie} label="Selfie" />
                     {c.claimType === 'CASH' && <Evidence ok={c.bankResolved} label="Bank resolved" />}

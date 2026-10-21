@@ -422,6 +422,13 @@ export interface ClaimKycStatus {
   selfieUploaded: boolean;
   /** Hard deadline — claim forfeits if KYC not complete. */
   kycDeadlineAt: string;
+  identityStatus:
+  | 'NOT_STARTED'
+  | 'PREPARING'
+  | 'SUBMITTED'
+  | 'VERIFIED'
+  | 'FAILED'
+  | 'UNKNOWN';
 }
 
 export interface GetClaimKycStatusResponse {
@@ -538,4 +545,20 @@ export interface VerifyAgentOtpResponse {
   /** True on the agent's very first sign-in. UI shows agent code prominently. */
   isFirstSignIn: boolean;
 }
+
+
+export interface StartKycIdentityRequest {
+  claimId: string;
+  bvn: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  bankCode: string;
+  accountNumber: string;
+}
+
+export interface StartKycIdentityResponse {
+  kyc: ClaimKycStatus;
+}
+
 

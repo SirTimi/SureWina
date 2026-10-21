@@ -43,6 +43,9 @@ import {
   PaystackIdentityWebhookService,
 } from './kyc/paystack-identity-webhook.service';
 
+import {
+  KycIdentityEvidenceService,
+} from './kyc/kyc-identity-evidence.service';
 
 @Module({
   imports: [
@@ -83,6 +86,7 @@ import {
     MonnifyWebhookSignatureGuard,
     PaystackIdentityClient,
     PaystackIdentityWebhookService,
+    KycIdentityEvidenceService
   ],
 
   exports: [
@@ -96,6 +100,7 @@ import {
     PrizePayoutSyncService,
     MonnifyWebhookSignatureGuard,
     PaystackIdentityWebhookService,
+    KycIdentityEvidenceService
   ],
 })
 export class ClaimsModule {}
