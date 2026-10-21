@@ -6,6 +6,7 @@ import type {
   SubmitKycBankRequest, SubmitKycBankResponse, SubmitKycBvnRequest,
   SubmitKycBvnResponse, SubmitKycDocumentRequest, SubmitKycDocumentResponse,
   ClaimKycStatus, ClaimPath,
+  StartKycIdentityRequest, StartKycIdentityResponse,
   ListCustomerDisputesResponse, RaiseDisputeRequest, RaiseDisputeResponse,
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
