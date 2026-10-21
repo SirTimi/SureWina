@@ -16,7 +16,7 @@ import {
 import { Button, Card, Container } from '@surewina/ui';
 import type { ClaimKycStatus } from '@surewina/types';
 import { api } from '@/lib/api';
-import { useNigerianBanks } from '@/hooks/use-nigerian-banks'
+import { PaystackIdentityForm } from './paystack-identity-form';
 
 type SubStep = 'docs' | 'bvn' | 'bank';
 
@@ -37,7 +37,7 @@ const ID_TYPES = [
 export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
   const router = useRouter();
   const [kyc, setKyc] = useState<ClaimKycStatus | null>(null);
-  const [step, setStep] = useState<SubStep>(initialStep);
+  const [step, setStep] = useState<SubStep>(initialStep === 'bank' ? 'bvn' : initialStep);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,6 +47,24 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
       .catch((err) => setError(err.message ?? 'Could not load KYC status.'));
   }, [claimId]);
 
+  // Paystack identification is asynchronous. Poll the server's latest
+  // persisted result; never infer success from submission alone.
+  useEffect(() => {
+    if (!kyc || !['PREPARING', 'SUBMITTED', 'UNKNOWN'].includes(kyc.identityStatus)) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      api.claims.getClaimKycStatus(claimId)
+        .then((response) => setKyc(response.kyc))
+        .catch(() => {
+          // Keep the last known server result and retry on the next poll.
+        });
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [claimId, kyc?.identityStatus]);
+
   const goToNextStep = (currentKyc: ClaimKycStatus) => {
     setKyc(currentKyc);
 
@@ -55,15 +73,12 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
       return;
     }
 
-    if (step === 'docs' && currentKyc.documentUploaded) {
+    if (step === 'docs' && currentKyc.documentUploaded && currentKyc.selfieUploaded) {
       setStep('bvn');
       router.replace(`/claim/${claimId}/cash/kyc?step=bvn`, { scroll: false });
-    } else if (step === 'bvn' && currentKyc.bvnLast4) {
-      setStep('bank');
-      router.replace(`/claim/${claimId}/cash/kyc?step=bank`, { scroll: false });
-    } else if (step === 'bank' && currentKyc.bankAccount) {
-      router.push(`/claim/${claimId}/cash`);
     }
+    // Do not redirect merely because Paystack accepted an identity request.
+    // The verified/pending state remains visible on this screen.
   };
 
   if (error && !kyc) {
@@ -138,17 +153,16 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
 
                   <h1 className="mt-2 font-display text-3xl font-black leading-tight tracking-[-0.03em] text-navy-950 sm:text-4xl">
                     {step === 'docs' && 'Upload your ID and selfie.'}
-                    {step === 'bvn' && 'Verify your BVN.'}
-                    {step === 'bank' && 'Link your bank account.'}
+                    {(step === 'bvn' || step === 'bank') && 'Verify your identity and bank account.'}
+                    
                   </h1>
 
                   <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-500">
                     {step === 'docs' &&
                       'We need a clear ID image and a selfie so the payout cannot be claimed by the wrong person.'}
                     {step === 'bvn' &&
-                      'Your BVN helps confirm the identity behind the cash payout. We do not store it in plaintext.'}
-                    {step === 'bank' &&
-                      'Add the Nigerian bank account where the verified cash prize should be paid.'}
+                      'Provide your legal name, BVN and your own bank account for verification through Paystack.'}
+                    
                   </p>
                 </div>
 
@@ -160,12 +174,12 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
                   <DocsForm claimId={claimId} onSuccess={goToNextStep} />
                 )}
 
-                {step === 'bvn' && (
-                  <BvnForm claimId={claimId} onSuccess={goToNextStep} />
-                )}
-
-                {step === 'bank' && (
-                  <BankForm claimId={claimId} onSuccess={goToNextStep} />
+                {(step === 'bvn' || step === 'bank') && (
+                  <PaystackIdentityForm
+                    claimId={claimId}
+                    identityStatus={kyc.identityStatus}
+                    onSuccess={goToNextStep}
+                  />
                 )}
               </div>
             </Card>
@@ -189,17 +203,17 @@ export function ClaimKycView({ claimId, initialStep }: ClaimKycViewProps) {
                 />
 
                 <StatusItem
-                  done={!!kyc.bvnLast4}
-                  active={step === 'bvn'}
-                  title="BVN"
-                  body="Confirm identity before payout."
+                  done={kyc.identityStatus === 'VERIFIED'}
+                  active={step !== 'docs' && kyc.identityStatus !== 'VERIFIED'}
+                  title="BVN and bank account"
+                  body="Paystack confirms identity and account ownership."
                 />
 
                 <StatusItem
-                  done={!!kyc.bankAccount}
-                  active={step === 'bank'}
-                  title="Bank account"
-                  body="Confirm where the cash should be paid."
+                  done={kyc.status === 'COMPLETE'}
+                  active={kyc.identityStatus === 'VERIFIED' && kyc.status !== 'COMPLETE'}
+                  title="Compliance review"
+                  body="An authorized officer reviews completed evidence."
                 />
               </div>
             </Card>
@@ -261,14 +275,14 @@ function KycProgress({ kyc, step }: { kyc: ClaimKycStatus; step: SubStep }) {
       current: step === 'docs',
     },
     {
-      label: 'BVN',
-      done: !!kyc.bvnLast4,
-      current: step === 'bvn',
+      label: 'Identity + bank',
+      done: kyc.identityStatus === 'VERIFIED',
+      current: step !== 'docs' && kyc.identityStatus !== 'VERIFIED',
     },
     {
-      label: 'Bank',
-      done: !!kyc.bankAccount,
-      current: step === 'bank',
+      label: 'Compliance',
+      done: kyc.status === 'COMPLETE',
+      current: kyc.identityStatus === 'VERIFIED' && kyc.status !== 'COMPLETE',
     },
   ];
 
@@ -531,209 +545,7 @@ function FileSlot({
   );
 }
 
-// === BVN STEP ===
-
-function BvnForm({
-  claimId,
-  onSuccess,
-}: {
-  claimId: string;
-  onSuccess: (k: ClaimKycStatus) => void;
-}) {
-  const [bvn, setBvn] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async () => {
-    if (!/^\d{11}$/.test(bvn)) {
-      setError('BVN must be exactly 11 digits.');
-      return;
-    }
-
-    setError(null);
-    setSubmitting(true);
-
-    try {
-      const res = await api.claims.submitKycBvn({ claimId, bvn });
-      onSuccess(res.kyc);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'BVN check failed. Try again');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="max-w-xl">
-      <label htmlFor="bvn" className="mb-2 block text-sm font-bold text-navy-950">
-        BVN number
-      </label>
-
-      <input
-        id="bvn"
-        type="text"
-        inputMode="numeric"
-        autoComplete="off"
-        maxLength={11}
-        value={bvn}
-        onChange={(e) => setBvn(e.target.value.replace(/\D/g, ''))}
-        placeholder="22123456789"
-        className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 font-mono text-xl tracking-wider text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
-      />
-
-      <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-        <span>{bvn.length} / 11 digits</span>
-        <span>Dial *565*0# to retrieve it</span>
-      </div>
-
-      {error && (
-        <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-4">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-          <p className="text-sm leading-relaxed text-red-700">{error}</p>
-        </div>
-      )}
-
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-        <p className="text-xs leading-relaxed text-slate-600">
-          <span className="font-bold text-navy-950">Why we need this:</span> BVN helps
-          verify that the payout account belongs to the same person claiming the prize.
-          Only verification details should be stored, not the full BVN in plaintext.
-        </p>
-      </div>
-
-      <Button
-        onClick={handleSubmit}
-        isLoading={submitting}
-        disabled={submitting || bvn.length !== 11}
-        variant="accent"
-        size="lg"
-        className="mt-6 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
-      >
-        Verify BVN
-        <ArrowRight className="h-4 w-4" />
-      </Button>
-    </div>
-  );
-}
-
-// === BANK STEP ===
-
-function BankForm({
-  claimId,
-  onSuccess,
-}: {
-  claimId: string;
-  onSuccess: (k: ClaimKycStatus) => void;
-}) {
-  const [bankCode, setBankCode] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { banks, loading: banksLoading, error: banksError} = useNigerianBanks();
-  const handleSubmit = async () => {
-    if (!bankCode) {
-      setError('Pick your bank.');
-      return;
-    }
-
-    if (!/^\d{10}$/.test(accountNumber)) {
-      setError('Account number must be exactly 10 digits.');
-      return;
-    }
-
-    setError(null);
-    setSubmitting(true);
-
-    try {
-      const res = await api.claims.submitKycBank({ claimId, bankCode, accountNumber });
-      onSuccess(res.kyc);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bank verification failed. Try again');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="max-w-xl">
-      <div>
-        <label htmlFor="bankCode" className="mb-2 block text-sm font-bold text-navy-950">
-          Bank
-        </label>
-
-        <select
-          id="bankCode"
-          value={bankCode}
-          onChange={(e) => setBankCode(e.target.value)}
-          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
-          disabled={banksLoading || !!banksError}
-        >
-          <option value="">{banksLoading ? 'Loading banks...' : banksError ? 'Banks unavailable' : 'Select your bank...'}</option>
-          {banks.map((bank) => (
-            <option key={bank.code} value={bank.code}>
-              {bank.name}
-            </option>
-          ))}
-        </select>
-
-        {banksError && (
-  <p role="alert" className="mt-2 text-sm text-red-600">
-    {banksError}
-  </p>
-)}
-      </div>
-
-      <div className="mt-5">
-        <label
-          htmlFor="accountNumber"
-          className="mb-2 block text-sm font-bold text-navy-950"
-        >
-          Account number
-        </label>
-
-        <input
-          id="accountNumber"
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          maxLength={10}
-          value={accountNumber}
-          onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
-          placeholder="0123456789"
-          className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 font-mono text-xl tracking-wider text-navy-950 outline-none transition focus:border-navy-700 focus:ring-2 focus:ring-amber-400/25"
-        />
-
-        <p className="mt-2 text-xs text-slate-500">{accountNumber.length} / 10 digits</p>
-      </div>
-
-      {error && (
-        <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 p-4">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-          <p className="text-sm leading-relaxed text-red-700">{error}</p>
-        </div>
-      )}
-
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-        <p className="text-xs leading-relaxed text-slate-600">
-          The bank account should belong to the verified winner. We may reject mismatched
-          account details.
-        </p>
-      </div>
-
-      <Button
-        onClick={handleSubmit}
-        isLoading={submitting}
-        disabled={submitting || !bankCode || accountNumber.length !== 10 || banksLoading || !!banksError}
-        variant="accent"
-        size="lg"
-        className="mt-6 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
-      >
-        Confirm bank and complete KYC
-        <ArrowRight className="h-4 w-4" />
-      </Button>
-    </div>
-  );
-}
+// Phase 2E uses one combined Paystack identity form above.
 
 function StatusItem({
   done,
