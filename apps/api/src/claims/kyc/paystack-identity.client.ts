@@ -1,10 +1,15 @@
-
 import {
   BadRequestException,
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
+type PaystackResponse = {
+  status?: boolean;
+  message?: string;
+  data?: { customer_code?: string };
+};
 
 export type PaystackIdentityInput = {
   customerCode: string;
@@ -15,117 +20,97 @@ export type PaystackIdentityInput = {
   lastName: string;
 };
 
+export type CreatePaystackCustomerInput = {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+};
+
 @Injectable()
 export class PaystackIdentityClient {
   constructor(private readonly config: ConfigService) {}
 
-  async submit(input: PaystackIdentityInput): Promise<{
-    status: 'SUBMITTED';
-  }> {
-    if (!/^CUS_[A-Za-z0-9]+$/.test(input.customerCode)) {
-      throw new BadRequestException(
-        'Invalid Paystack customer reference',
-      );
-    }
-
-    if (!/^\d{11}$/.test(input.bvn)) {
-      throw new BadRequestException(
-        'BVN must be exactly 11 digits',
-      );
-    }
-
-    if (!/^\d{10}$/.test(input.accountNumber)) {
-      throw new BadRequestException(
-        'Account number must be exactly 10 digits',
-      );
-    }
-
-    if (!/^\d{3,6}$/.test(input.bankCode)) {
-      throw new BadRequestException('Invalid bank code');
-    }
-
-    if (!input.firstName.trim() || !input.lastName.trim()) {
-      throw new BadRequestException(
-        'Legal first and last names are required',
-      );
-    }
-
-    const secret = this.config
-      .get<string>('PAYSTACK_SECRET_KEY')
-      ?.trim();
-
+  private async post(path: string, body: Record<string, unknown>): Promise<PaystackResponse> {
+    const secret = this.config.get<string>('PAYSTACK_SECRET_KEY')?.trim();
     if (!secret) {
-      throw new ServiceUnavailableException(
-        'Identity verification is not configured',
-      );
+      throw new ServiceUnavailableException('Paystack identity verification is not configured');
     }
-
-    const base = (
-      this.config.get<string>('PAYSTACK_BASE_URL') ||
-      'https://api.paystack.co'
-    ).replace(/\/+$/, '');
-
+    const base = (this.config.get<string>('PAYSTACK_BASE_URL') ||
+      'https://api.paystack.co').replace(/\/+$/, '');
     let response: Response;
-
     try {
-      response = await fetch(
-        `${base}/customer/${encodeURIComponent(
-          input.customerCode,
-        )}/identification`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${secret}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-          body: JSON.stringify({
-            country: 'NG',
-            type: 'bank_account',
-            account_number: input.accountNumber,
-            bvn: input.bvn,
-            bank_code: input.bankCode,
-            first_name: input.firstName.trim(),
-            last_name: input.lastName.trim(),
-          }),
-          redirect: 'error',
-          signal: AbortSignal.timeout(10000),
+      response = await fetch(`${base}${path}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
-      );
+        body: JSON.stringify(body),
+        redirect: 'error',
+        signal: AbortSignal.timeout(10000),
+      });
     } catch {
-      throw new ServiceUnavailableException(
-        'Identity verification outcome is unknown',
-      );
+      // The upstream request may have succeeded before a timeout. Caller
+      // must mark the attempt UNKNOWN, never retry automatically.
+      throw new ServiceUnavailableException('Paystack identity outcome is uncertain');
     }
-
     if (!response.ok) {
-      throw new ServiceUnavailableException(
-        'Paystack could not accept identity verification',
-      );
+      // A 403 often means this Paystack merchant lacks feature access.
+      // Never expose provider response bodies, BVN, or the secret key.
+      throw new ServiceUnavailableException('Paystack could not accept identity verification');
     }
-
-    let payload: unknown;
-
     try {
-      payload = await response.json();
+      const payload = (await response.json()) as PaystackResponse;
+      if (!payload || payload.status !== true) {
+        throw new Error('Invalid response');
+      }
+      return payload;
     } catch {
-      throw new ServiceUnavailableException(
-        'Identity verification outcome is unknown',
-      );
+      throw new ServiceUnavailableException('Paystack identity response is inconclusive');
     }
+  }
 
-    if (
-      typeof payload !== 'object' ||
-      payload === null ||
-      !('status' in payload) ||
-      payload.status !== true
-    ) {
-      throw new ServiceUnavailableException(
-        'Paystack did not confirm request acceptance',
-      );
+  async createCustomer(input: CreatePaystackCustomerInput): Promise<string> {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email) ||
+        !input.firstName.trim() || !input.lastName.trim()) {
+      throw new BadRequestException('Valid customer legal name and email are required');
     }
+    const response = await this.post('/customer', {
+      email: input.email.trim().toLowerCase(),
+      first_name: input.firstName.trim(),
+      last_name: input.lastName.trim(),
+      phone: input.phone,
+    });
+    const code = response.data?.customer_code;
+    if (!code || !/^CUS_[A-Za-z0-9]+$/.test(code)) {
+      throw new ServiceUnavailableException('Paystack returned no valid customer reference');
+    }
+    return code;
+  }
 
-    // This is NOT evidence of successful BVN verification.
+  async submit(input: PaystackIdentityInput): Promise<{ status: 'SUBMITTED' }> {
+    if (!/^CUS_[A-Za-z0-9]+$/.test(input.customerCode)) {
+      throw new BadRequestException('Invalid Paystack customer reference');
+    }
+    if (!/^\d{11}$/.test(input.bvn) || !/^\d{10}$/.test(input.accountNumber) ||
+        !/^\d{3,6}$/.test(input.bankCode)) {
+      throw new BadRequestException('Invalid BVN or bank account information');
+    }
+    if (!input.firstName.trim() || !input.lastName.trim()) {
+      throw new BadRequestException('Legal names are required');
+    }
+    await this.post(`/customer/${encodeURIComponent(input.customerCode)}/identification`, {
+      country: 'NG',
+      type: 'bank_account',
+      account_number: input.accountNumber,
+      bvn: input.bvn,
+      bank_code: input.bankCode,
+      first_name: input.firstName.trim(),
+      last_name: input.lastName.trim(),
+    });
+    // Only acceptance: actual success must arrive via the authenticated webhook.
     return { status: 'SUBMITTED' };
   }
 }
