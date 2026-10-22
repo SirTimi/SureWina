@@ -103,5 +103,9 @@ export const envValidationSchema = Joi.object({
 
   WALLET_FUNDING_MIN_NGN: Joi.number().integer().min(1).default(100),
   WALLET_FUNDING_MAX_NGN: Joi.number().integer().min(100).default(500000),
-  KYC_BANK_FINGERPRINT_KEY: Joi.string().min(32).allow('').default('')
+  KYC_BANK_FINGERPRINT_KEY: Joi.string().min(32).allow('').default(''),
+  PAYOUT_ACCOUNT_ENCRYPTION_KEY: Joi.string()
+  .pattern(/^[A-Za-z0-9+/]{43}=$/)
+  .allow('')
+  .default(''),
 });

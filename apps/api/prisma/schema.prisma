@@ -29,14 +29,15 @@ model User {
   bankAccountLast4    String? @map("bank_account_last4")
   bankAccountNameHash String? @map("bank_account_name_hash")
 
-  createdAt            DateTime              @default(now()) @map("created_at")
-  updatedAt            DateTime              @updatedAt @map("updated_at")
-  tickets              Ticket[]
-  paymentTransactions  PaymentTransaction[]
-  jackpotAccumulations  JackpotAccumulation[]
-  jackpotDiscountOffers JackpotDiscountOffer[]
-  wallet                Wallet?               @relation("CustomerWallet")
-  walletPurchases      WalletPurchase[]
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+  tickets                Ticket[]
+  paymentTransactions    PaymentTransaction[]
+  jackpotAccumulations   JackpotAccumulation[]
+  jackpotDiscountOffers  JackpotDiscountOffer[]
+  wallet                 Wallet?                 @relation("CustomerWallet")
+  walletPurchases        WalletPurchase[]
+  verifiedPayoutAccounts VerifiedPayoutAccount[]
 
   @@index([phoneNumber])
   @@index([selfExclusionUntil])
@@ -248,12 +249,12 @@ model Draw {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  tickets              Ticket[]
-  result               DrawResult?
-  seedCommit           DrawSeedCommit?
+  tickets               Ticket[]
+  result                DrawResult?
+  seedCommit            DrawSeedCommit?
   jackpotEntries        JackpotEntry[]
   jackpotDiscountOffers JackpotDiscountOffer[]
-  purchaseTransactions  PaymentTransaction[] @relation("PaymentPurchaseDraw")
+  purchaseTransactions  PaymentTransaction[]   @relation("PaymentPurchaseDraw")
 
   @@index([drawType, status])
   @@index([scheduledAt])
@@ -305,8 +306,8 @@ model PaymentTransaction {
   channel PurchaseChannel
   agentId String?         @map("agent_id")
 
-  pricingContext PurchasePricingContext @default(NORMAL) @map("pricing_context")
-  jackpotDiscountOfferId String? @map("jackpot_discount_offer_id")
+  pricingContext         PurchasePricingContext @default(NORMAL) @map("pricing_context")
+  jackpotDiscountOfferId String?                @map("jackpot_discount_offer_id")
 
   ticketCount Int           @map("ticket_count")
   status      PaymentStatus @default(PENDING)
@@ -329,9 +330,9 @@ model PaymentTransaction {
   // Provider/webhook metadata must never decide which draw receives tickets.
   purchaseDrawId String? @map("purchase_draw_id")
 
-  purchaseDraw   Draw?     @relation("PaymentPurchaseDraw", fields: [purchaseDrawId], references: [drawId])
+  purchaseDraw         Draw?                 @relation("PaymentPurchaseDraw", fields: [purchaseDrawId], references: [drawId])
   jackpotDiscountOffer JackpotDiscountOffer? @relation("PaymentJackpotDiscountOffer", fields: [jackpotDiscountOfferId], references: [offerId], onDelete: Restrict)
-  providerPaidAt DateTime? @map("provider_paid_at")
+  providerPaidAt       DateTime?             @map("provider_paid_at")
 
   providerTransactionId String? @map("provider_transaction_id")
 
@@ -1086,11 +1087,11 @@ model Ticket {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  draw           Draw                @relation(fields: [drawId], references: [drawId])
-  buyer          User?               @relation(fields: [buyerUserId], references: [userId])
-  agent          Agent?              @relation(fields: [agentId], references: [agentId])
-  payment        PaymentTransaction? @relation(fields: [paymentTxnId], references: [txnId])
-  walletPurchase WalletPurchase?     @relation(fields: [walletPurchaseId], references: [purchaseId])
+  draw                 Draw                  @relation(fields: [drawId], references: [drawId])
+  buyer                User?                 @relation(fields: [buyerUserId], references: [userId])
+  agent                Agent?                @relation(fields: [agentId], references: [agentId])
+  payment              PaymentTransaction?   @relation(fields: [paymentTxnId], references: [txnId])
+  walletPurchase       WalletPurchase?       @relation(fields: [walletPurchaseId], references: [purchaseId])
   jackpotDiscountOffer JackpotDiscountOffer? @relation("TicketJackpotDiscountOffer", fields: [jackpotDiscountOfferId], references: [offerId], onDelete: Restrict)
 
   @@index([buyerPhone, drawId])
@@ -1203,8 +1204,8 @@ model WalletPurchase {
   ticketCount Int @map("ticket_count")
   amountNgn   Int @map("amount_ngn")
 
-  pricingContext PurchasePricingContext @default(NORMAL) @map("pricing_context")
-  jackpotDiscountOfferId String? @map("jackpot_discount_offer_id")
+  pricingContext         PurchasePricingContext @default(NORMAL) @map("pricing_context")
+  jackpotDiscountOfferId String?                @map("jackpot_discount_offer_id")
 
   status WalletPurchaseStatus @default(PENDING)
 
@@ -1215,9 +1216,9 @@ model WalletPurchase {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  wallet Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
-  buyer  User   @relation(fields: [buyerUserId], references: [userId], onDelete: Restrict)
-  draw   Draw   @relation(fields: [drawId], references: [drawId], onDelete: Restrict)
+  wallet               Wallet                @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+  buyer                User                  @relation(fields: [buyerUserId], references: [userId], onDelete: Restrict)
+  draw                 Draw                  @relation(fields: [drawId], references: [drawId], onDelete: Restrict)
   jackpotDiscountOffer JackpotDiscountOffer? @relation("WalletPurchaseJackpotDiscountOffer", fields: [jackpotDiscountOfferId], references: [offerId], onDelete: Restrict)
 
   hold WalletHold? @relation("WalletPurchaseHold", fields: [holdId], references: [holdId], onDelete: Restrict)
@@ -1290,7 +1291,6 @@ model JackpotAccumulation {
   @@map("jackpot_accumulations")
 }
 
-
 model JackpotDiscountOffer {
   offerId String @id @default(uuid()) @map("offer_id")
 
@@ -1301,7 +1301,7 @@ model JackpotDiscountOffer {
 
   // Tracks the actual qualifying purchase. It lets a delayed Paystack
   // callback display only offers unlocked by THAT confirmed payment.
-  unlockedByPaymentTxnId String? @map("unlocked_by_payment_txn_id")
+  unlockedByPaymentTxnId     String? @map("unlocked_by_payment_txn_id")
   unlockedByWalletPurchaseId String? @map("unlocked_by_wallet_purchase_id")
 
   // 1 = first 10 regular tickets, 2 = first 20, 3 = first 30, and so on.
@@ -1316,25 +1316,24 @@ model JackpotDiscountOffer {
 
   status JackpotDiscountOfferStatus @default(AVAILABLE)
 
-  issuedAt   DateTime  @default(now()) @map("issued_at")
-  expiresAt  DateTime  @map("expires_at")
-  claimingAt DateTime? @map("claiming_at")
-  claimedAt  DateTime? @map("claimed_at")
-  declinedAt DateTime? @map("declined_at")
+  issuedAt       DateTime  @default(now()) @map("issued_at")
+  expiresAt      DateTime  @map("expires_at")
+  claimingAt     DateTime? @map("claiming_at")
+  claimedAt      DateTime? @map("claimed_at")
+  declinedAt     DateTime? @map("declined_at")
   offerSmsSentAt DateTime? @map("offer_sms_sent_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user        User? @relation(fields: [buyerUserId], references: [userId], onDelete: SetNull)
-  jackpotDraw Draw  @relation(fields: [jackpotDrawId], references: [drawId], onDelete: Restrict)
+  user                User?                @relation(fields: [buyerUserId], references: [userId], onDelete: SetNull)
+  jackpotDraw         Draw                 @relation(fields: [jackpotDrawId], references: [drawId], onDelete: Restrict)
   paymentTransactions PaymentTransaction[] @relation("PaymentJackpotDiscountOffer")
-  walletPurchases WalletPurchase[] @relation("WalletPurchaseJackpotDiscountOffer")
-  redeemedTicket Ticket? @relation("TicketJackpotDiscountOffer")
+  walletPurchases     WalletPurchase[]     @relation("WalletPurchaseJackpotDiscountOffer")
+  redeemedTicket      Ticket?              @relation("TicketJackpotDiscountOffer")
 
   // Persistence-level idempotency boundary for retries and concurrent confirms.
   @@unique([buyerPhone, jackpotDrawId, thresholdNumber])
-
   @@index([buyerPhone, status])
   @@index([buyerUserId])
   @@index([unlockedByPaymentTxnId])
@@ -1901,7 +1900,6 @@ model DisputeEvent {
   @@map("dispute_events")
 }
 
-
 enum KycIdentityCheckStatus {
   PREPARING
   SUBMITTED
@@ -1911,28 +1909,70 @@ enum KycIdentityCheckStatus {
 }
 
 model KycIdentityCheck {
-  checkId                 String   @id @default(uuid()) @map("check_id")
-  claimId                 String   @map("claim_id")
-  attemptNumber           Int      @map("attempt_number")
-  provider                String   @default("PAYSTACK")
-  status                  KycIdentityCheckStatus @default(PREPARING)
+  checkId       String                 @id @default(uuid()) @map("check_id")
+  claimId       String                 @map("claim_id")
+  attemptNumber Int                    @map("attempt_number")
+  provider      String                 @default("PAYSTACK")
+  status        KycIdentityCheckStatus @default(PREPARING)
 
-  paystackCustomerCode    String?  @unique @map("paystack_customer_code")
-  bankCode                String   @map("bank_code")
-  bankAccountLast4        String   @map("bank_account_last4")
-  bankAccountFingerprint  String   @map("bank_account_fingerprint")
+  paystackCustomerCode   String? @unique @map("paystack_customer_code")
+  bankCode               String  @map("bank_code")
+  bankAccountLast4       String  @map("bank_account_last4")
+  bankAccountFingerprint String  @map("bank_account_fingerprint")
 
-  submittedAt             DateTime? @map("submitted_at")
-  verifiedAt              DateTime? @map("verified_at")
-  failedAt                DateTime? @map("failed_at")
-  failureCode             String?   @map("failure_code")
+  submittedAt DateTime? @map("submitted_at")
+  verifiedAt  DateTime? @map("verified_at")
+  failedAt    DateTime? @map("failed_at")
+  failureCode String?   @map("failure_code")
 
-  createdAt               DateTime @default(now()) @map("created_at")
-  updatedAt               DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  claim PrizeClaim @relation(fields: [claimId], references: [claimId], onDelete: Restrict)
+  claim                 PrizeClaim             @relation(fields: [claimId], references: [claimId], onDelete: Restrict)
+  verifiedPayoutAccount VerifiedPayoutAccount? @relation("VerifiedPayoutAccountIdentity")
 
   @@unique([claimId, attemptNumber])
   @@index([claimId, status])
   @@map("kyc_identity_checks")
+}
+
+enum VerifiedPayoutAccountStatus {
+  PENDING
+  VERIFIED
+  LOCKED
+  REVOKED
+}
+
+model VerifiedPayoutAccount {
+  payoutAccountId String @id @default(uuid()) @map("payout_account_id")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [userId], onDelete: Restrict)
+
+  currency String @default("NGN") @db.VarChar(3)
+
+  bankCode String @map("bank_code") @db.VarChar(6)
+  bankName String @map("bank_name") @db.VarChar(140)
+
+  accountCiphertext  String @map("account_ciphertext") @db.Text
+  accountLast4       String @map("account_last4") @db.VarChar(4)
+  accountFingerprint String @map("account_fingerprint") @db.VarChar(64)
+
+  resolvedAccountName String @map("resolved_account_name") @db.VarChar(200)
+
+  status VerifiedPayoutAccountStatus @default(PENDING)
+
+  identityCheckId String?           @unique @map("identity_check_id")
+  identityCheck   KycIdentityCheck? @relation("VerifiedPayoutAccountIdentity", fields: [identityCheckId], references: [checkId], onDelete: Restrict)
+
+  verifiedAt DateTime? @map("verified_at")
+  lockedAt   DateTime? @map("locked_at")
+  revokedAt  DateTime? @map("revoked_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([createdAt])
+  @@map("verified_payout_accounts")
 }
