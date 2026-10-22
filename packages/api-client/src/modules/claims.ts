@@ -285,6 +285,7 @@ export class ClaimsModule {
         email: req.email,
         bankCode: req.bankCode,
         accountNumber: req.accountNumber,
+        consent: req.consent
       },
     );
 

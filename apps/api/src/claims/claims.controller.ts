@@ -17,10 +17,15 @@ import { ChooseClaimDto } from './dto/choose-claim.dto';
 import { SubmitBankDto, SubmitBvnDto } from './dto/kyc.dto';
 import { BookCollectionDto } from './dto/fulfillment.dto';
 import type { FastifyRequest } from 'fastify';
+import { StartKycIdentityDto } from './dto/start-kyc-identity.dto'
+import { PaystackIdentityCoordinatorService } from './kyc/paystack-identity-coordinator.service'
 @Controller('claims')
 @UseGuards(CustomerJwtGuard)
 export class ClaimsController {
-  constructor(private readonly claimsService: ClaimsService) {}
+  constructor(
+    private readonly claimsService: ClaimsService,
+    private readonly identityCoordinator: PaystackIdentityCoordinatorService,
+  ) {}
 
   @Get()
   listMine(@CurrentUser() user: CustomerJwtPayload) {
@@ -47,6 +52,19 @@ export class ClaimsController {
     @CurrentUser() user: CustomerJwtPayload,
   ) {
     return this.claimsService.choose(claimId, user.phoneNumber, dto.path);
+  }
+
+  @Post(':claimId/kyc/identity/start')
+  startKycIdentity(
+    @Param('claimId') claimId: string,
+    @Body() dto: StartKycIdentityDto,
+    @CurrentUser() user: CustomerJwtPayload,
+  ) {
+    return this.identityCoordinator.start(
+      claimId,
+      user.phoneNumber,
+      dto,
+    );
   }
 
   @Post(':claimId/kyc/bvn')

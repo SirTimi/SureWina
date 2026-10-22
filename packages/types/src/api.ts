@@ -571,6 +571,7 @@ export interface StartKycIdentityRequest {
   email: string;
   bankCode: string;
   accountNumber: string;
+  consent: boolean;
 }
 
 export interface StartKycIdentityResponse {

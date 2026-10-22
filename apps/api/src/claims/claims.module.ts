@@ -46,7 +46,7 @@ import {
 import {
   KycIdentityEvidenceService,
 } from './kyc/kyc-identity-evidence.service';
-
+import { PaystackIdentityCoordinatorService } from './kyc/paystack-identity-coordinator.service'
 @Module({
   imports: [
     ConfigModule,
@@ -86,7 +86,8 @@ import {
     MonnifyWebhookSignatureGuard,
     PaystackIdentityClient,
     PaystackIdentityWebhookService,
-    KycIdentityEvidenceService
+    KycIdentityEvidenceService,
+    PaystackIdentityCoordinatorService
   ],
 
   exports: [

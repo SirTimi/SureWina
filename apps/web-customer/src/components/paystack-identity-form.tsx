@@ -91,6 +91,7 @@ export function PaystackIdentityForm({ claimId, identityStatus, onSuccess }: Pro
         email: email.trim(),
         bankCode,
         accountNumber,
+        consent
       });
 
       // Never retain full BVN or bank account details after submission.
