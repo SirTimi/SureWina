@@ -14,6 +14,8 @@ import {
   PrizePayoutStatus,
   Prisma,
   KycIdentityCheck,
+  KycIdentityCheckStatus,
+  VerifiedPayoutAccountStatus
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -24,7 +26,7 @@ import { SettingsService } from '../config/settings.service';
 import { RedemptionService } from './redemption.service';
 import { NotificationQueueService } from '../queue/notification-queue.service';
 import { KycIdentityEvidenceService } from './kyc/kyc-identity-evidence.service';
-
+import { PayoutAccountCipherService } from '../payout-accounts/payout-account-cipher.service'
 export type ClaimViewDto = {
   claimId: string;
   winnerTicketRef: string;
@@ -86,6 +88,7 @@ export class ClaimsService {
     private readonly redemption: RedemptionService,
     private readonly notificationQueue: NotificationQueueService,
     private readonly identityEvidence: KycIdentityEvidenceService,
+    private readonly payoutAccountCipher: PayoutAccountCipherService
   ) {}
 
   async listMine(phoneNumber: string): Promise<{ claims: ClaimViewDto[] }> {
@@ -178,14 +181,63 @@ export class ClaimsService {
     };
   }
 
-  async reviewKyc(
-    claimId: string,
-    adminId: string,
-    decision: 'APPROVE' | 'REJECT',
-    note?: string,
-  ) {
-    if (decision === 'REJECT') {
-      const claim = await this.prisma.prizeClaim.findUnique({
+  
+async reviewKyc(
+  claimId: string,
+  adminId: string,
+  decision: 'APPROVE' | 'REJECT',
+  note?: string,
+) {
+  // Preserve the existing rejection behavior.
+  if (decision === 'REJECT') {
+    const claim = await this.prisma.prizeClaim.findUnique({
+      where: { claimId },
+      include: this.viewInclude(),
+    });
+
+    if (!claim) {
+      throw new NotFoundException('Claim not found');
+    }
+
+    if (claim.status !== PrizeClaimStatus.KYC_PENDING) {
+      throw new ConflictException(
+        'Claim is not awaiting KYC review',
+      );
+    }
+
+    await this.audit.write({
+      severity: AuditSeverity.WARNING,
+      actor: {
+        type: AuditActorType.ADMIN,
+        id: adminId,
+      },
+      action: 'CLAIM_KYC_REJECTED',
+      resource: {
+        type: 'PrizeClaim',
+        id: claimId,
+      },
+      metadata: {
+        note: note ?? null,
+      },
+    });
+
+    return this.toView(claim);
+  }
+
+  // Approval and beneficiary locking must succeed
+  // together or neither change should be committed.
+  const updated = await this.prisma.$transaction(
+    async (tx) => {
+      // Serialize approval with other operations on
+      // the same prize claim.
+      await tx.$queryRaw`
+        SELECT "claim_id"
+        FROM "prize_claims"
+        WHERE "claim_id" = ${claimId}
+        FOR UPDATE
+      `;
+
+      const claim = await tx.prizeClaim.findUnique({
         where: { claimId },
         include: this.viewInclude(),
       });
@@ -200,108 +252,321 @@ export class ClaimsService {
         );
       }
 
-      await this.audit.write({
-        severity: AuditSeverity.WARNING,
-        actor: { type: AuditActorType.ADMIN, id: adminId },
-        action: 'CLAIM_KYC_REJECTED',
-        resource: { type: 'PrizeClaim', id: claimId },
-        metadata: { note: note ?? null },
-      });
+      if (!claim.claimType) {
+        throw new ConflictException(
+          'Prize option must be selected before KYC approval',
+        );
+      }
 
-      return this.toView(claim);
-    }
+      if (!claim.kycIdDocPath || !claim.kycSelfiePath) {
+        throw new ConflictException(
+          'ID document and selfie are required',
+        );
+      }
 
-    const updated = await this.prisma.$transaction(
-      async (tx) => {
-        await tx.$queryRaw`
-          SELECT "claim_id"
-          FROM "prize_claims"
-          WHERE "claim_id" = ${claimId}
-          FOR UPDATE
-        `;
-
-        const claim = await tx.prizeClaim.findUnique({
-          where: { claimId },
-          include: this.viewInclude(),
-        });
-
-        if (!claim) {
-          throw new NotFoundException('Claim not found');
-        }
-
-        if (claim.status !== PrizeClaimStatus.KYC_PENDING) {
-          throw new ConflictException(
-            'Claim is not awaiting KYC review',
-          );
-        }
-
-        if (!claim.claimType) {
-          throw new ConflictException(
-            'Prize option must be selected before KYC approval',
-          );
-        }
-
-        if (!claim.kycIdDocPath || !claim.kycSelfiePath) {
-          throw new ConflictException(
-            'ID document and selfie are required',
-          );
-        }
-
-        // Never trust a legacy kycBvnVerifiedAt timestamp.
-        const identityCheck = await this.identityEvidence.requireVerified(
+      // The latest Paystack identity attempt must
+      // have completed successfully.
+      //
+      // Never trust the old kycBvnVerifiedAt field.
+      const identityCheck =
+        await this.identityEvidence.requireVerified(
           tx,
           claim,
         );
 
-        if (!/^[a-f0-9]{64}$/i.test(identityCheck.bankAccountFingerprint)) {
+      if (
+        !/^[a-f0-9]{64}$/i.test(
+          identityCheck.bankAccountFingerprint,
+        )
+      ) {
+        throw new ConflictException(
+          'Complete Paystack bank ownership evidence is required',
+        );
+      }
+
+      // Only cash claims require a locked bank beneficiary.
+      // Preserve the existing product-claim approval path.
+      if (claim.claimType === ClaimType.CASH) {
+        // Identify the customer through the verified
+        // phone number already associated with the claim.
+        const user = await tx.user.findUnique({
+          where: {
+            phoneNumber: claim.winnerPhone,
+          },
+          select: {
+            userId: true,
+          },
+        });
+
+        if (
+          !user ||
+          (
+            claim.winnerUserId &&
+            claim.winnerUserId !== user.userId
+          )
+        ) {
           throw new ConflictException(
-            'Complete Paystack bank ownership evidence is required',
+            'Claim and customer ownership mismatch',
           );
         }
 
-        const wht = await this.computeWht(
-          claim.grossPrizeValueNgn,
-          claim.claimType,
+        // Use the same claim -> customer lock order
+        // as the identity coordinator and webhook.
+        await tx.$queryRaw`
+          SELECT "user_id"
+          FROM "users"
+          WHERE "user_id" = ${user.userId}
+          FOR UPDATE
+        `;
+
+        // Only a previously verified or already locked
+        // account can qualify for compliance approval.
+        //
+        // PENDING and REVOKED are never eligible.
+        const account =
+          await tx.verifiedPayoutAccount.findFirst({
+            where: {
+              userId: user.userId,
+              status: {
+                in: [
+                  VerifiedPayoutAccountStatus.VERIFIED,
+                  VerifiedPayoutAccountStatus.LOCKED,
+                ],
+              },
+            },
+            include: {
+              identityCheck: {
+                include: {
+                  claim: {
+                    select: {
+                      winnerPhone: true,
+                      winnerUserId: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+        if (!account) {
+          throw new ConflictException(
+            'A verified payout account is required before cash claim approval',
+          );
+        }
+
+        // Ensure the beneficiary has authentic,
+        // successful Paystack verification evidence.
+        const sourceCheck = account.identityCheck;
+
+        if (
+          !sourceCheck ||
+          sourceCheck.provider !== 'PAYSTACK' ||
+          sourceCheck.status !==
+            KycIdentityCheckStatus.VERIFIED ||
+          !sourceCheck.verifiedAt ||
+          !sourceCheck.paystackCustomerCode ||
+          !account.verifiedAt ||
+          account.revokedAt
+        ) {
+          throw new ConflictException(
+            'Payout account ownership has not been verified',
+          );
+        }
+
+        // Check the original verification also belonged
+        // to this SureWina customer.
+        if (
+          sourceCheck.claim.winnerPhone !== claim.winnerPhone ||
+          (
+            sourceCheck.claim.winnerUserId &&
+            sourceCheck.claim.winnerUserId !== user.userId
+          )
+        ) {
+          throw new ConflictException(
+            'Payout account verification ownership mismatch',
+          );
+        }
+
+        // Enforce the expected account lifecycle.
+        if (
+          account.status ===
+            VerifiedPayoutAccountStatus.VERIFIED &&
+          account.lockedAt !== null
+        ) {
+          throw new ConflictException(
+            'Invalid verified payout account state',
+          );
+        }
+
+        if (
+          account.status ===
+            VerifiedPayoutAccountStatus.LOCKED &&
+          !account.lockedAt
+        ) {
+          throw new ConflictException(
+            'Invalid locked payout account state',
+          );
+        }
+
+        if (
+          account.currency !== 'NGN' ||
+          account.bankCode !== identityCheck.bankCode ||
+          account.accountLast4 !==
+            identityCheck.bankAccountLast4 ||
+          account.accountFingerprint !==
+            identityCheck.bankAccountFingerprint ||
+          sourceCheck.bankCode !== account.bankCode ||
+          sourceCheck.bankAccountLast4 !==
+            account.accountLast4 ||
+          sourceCheck.bankAccountFingerprint !==
+            account.accountFingerprint
+        ) {
+          throw new ConflictException(
+            'Payout account does not match verified identity evidence',
+          );
+        }
+
+        // The verified account name must also match
+        // the bank details nominated for this claim.
+        const normalizeName = (value: string) =>
+          value.trim().replace(/\s+/g, ' ').toUpperCase();
+
+        if (
+          !claim.kycBankAccountName ||
+          !account.resolvedAccountName ||
+          normalizeName(account.resolvedAccountName) !==
+            normalizeName(claim.kycBankAccountName)
+        ) {
+          throw new ConflictException(
+            'Payout account holder name does not match KYC',
+          );
+        }
+
+        // Decrypt only inside this trusted server operation.
+        // Do not log or return the decrypted account number.
+        const accountNumber =
+          this.payoutAccountCipher.decrypt(
+            user.userId,
+            account.bankCode,
+            account.accountCiphertext,
+          );
+
+        if (
+          account.accountLast4 !==
+          accountNumber.slice(-4)
+        ) {
+          throw new ConflictException(
+            'Stored payout account metadata mismatch',
+          );
+        }
+
+        // Validate the FULL ten-digit NUBAN against
+        // the latest Paystack verification for this claim.
+        this.identityEvidence.assertDestinationMatches(
+          identityCheck,
+          account.bankCode,
+          accountNumber,
         );
 
-        return tx.prizeClaim.update({
-          where: { claimId },
-          data: {
-            status: PrizeClaimStatus.KYC_CLEARED,
-            kycReviewedBy: adminId,
-            kycReviewedAt: new Date(),
-            ...wht,
-          },
-          include: this.viewInclude(),
-        });
-      },
-      {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      },
-    );
+        // Also verify the original Paystack identity
+        // evidence associated with the beneficiary.
+        this.identityEvidence.assertDestinationMatches(
+          sourceCheck,
+          account.bankCode,
+          accountNumber,
+        );
 
-    await this.audit.write({
-      severity: AuditSeverity.INFO,
-      actor: { type: AuditActorType.ADMIN, id: adminId },
-      action: 'CLAIM_KYC_APPROVED',
-      resource: { type: 'PrizeClaim', id: claimId },
-      metadata: {
-        identityProvider: 'PAYSTACK',
-        netPrizeValueNgn: updated.netPrizeValueNgn,
-        whtAmountNgn: updated.whtAmountNgn,
-      },
-    });
+        // Transition VERIFIED -> LOCKED.
+        //
+        // An already LOCKED account can be reused for
+        // another properly verified claim with the same
+        // bank details.
+        if (
+          account.status ===
+          VerifiedPayoutAccountStatus.VERIFIED
+        ) {
+          const locked =
+            await tx.verifiedPayoutAccount.updateMany({
+              where: {
+                payoutAccountId:
+                  account.payoutAccountId,
+                userId: user.userId,
+                status:
+                  VerifiedPayoutAccountStatus.VERIFIED,
+                revokedAt: null,
+              },
+              data: {
+                status:
+                  VerifiedPayoutAccountStatus.LOCKED,
+                lockedAt: new Date(),
+              },
+            });
 
-    void this.issueRedemptionCode(updated).catch((error) => {
-      this.logger.error(
-        `Redemption code issue failed for claim ${claimId}: ${
-          error instanceof Error ? error.message : 'unknown'
-        }`,
+          if (locked.count !== 1) {
+            throw new ConflictException(
+              'Payout account could not be locked',
+            );
+          }
+        }
+      }
+
+      // Preserve the existing financial calculations.
+      const wht = await this.computeWht(
+        claim.grossPrizeValueNgn,
+        claim.claimType,
       );
-    });
 
-    return this.toView(updated);
-  }
+      // Commit claim approval in the same transaction
+      // as the payout-account lock.
+      return tx.prizeClaim.update({
+        where: { claimId },
+        data: {
+          status: PrizeClaimStatus.KYC_CLEARED,
+          kycReviewedBy: adminId,
+          kycReviewedAt: new Date(),
+          ...wht,
+        },
+        include: this.viewInclude(),
+      });
+    },
+    {
+      isolationLevel:
+        Prisma.TransactionIsolationLevel.Serializable,
+    },
+  );
+
+  await this.audit.write({
+    severity: AuditSeverity.INFO,
+    actor: {
+      type: AuditActorType.ADMIN,
+      id: adminId,
+    },
+    action: 'CLAIM_KYC_APPROVED',
+    resource: {
+      type: 'PrizeClaim',
+      id: claimId,
+    },
+    metadata: {
+      identityProvider: 'PAYSTACK',
+      netPrizeValueNgn: updated.netPrizeValueNgn,
+      whtAmountNgn: updated.whtAmountNgn,
+    },
+  });
+
+  // Preserve redemption-code generation.
+  void this.issueRedemptionCode(updated).catch((error) => {
+    this.logger.error(
+      `Redemption code issue failed for claim ${claimId}: ${
+        error instanceof Error
+          ? error.message
+          : 'unknown'
+      }`,
+    );
+  });
+
+  return this.toView(updated);
+}
+
 
 
   async listCollectionPoints(stateCode?: string) {
