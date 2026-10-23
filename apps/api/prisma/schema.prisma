@@ -1934,8 +1934,9 @@ model KycIdentityCheck {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  claim                 PrizeClaim             @relation(fields: [claimId], references: [claimId], onDelete: Restrict)
-  verifiedPayoutAccount VerifiedPayoutAccount? @relation("VerifiedPayoutAccountIdentity")
+  claim                  PrizeClaim             @relation(fields: [claimId], references: [claimId], onDelete: Restrict)
+  verifiedPayoutAccount  VerifiedPayoutAccount? @relation("VerifiedPayoutAccountIdentity")
+  bankChangeAuthorizedAt DateTime?              @map("bank_change_authorized_at")
 
   @@unique([claimId, attemptNumber])
   @@index([claimId, status])

@@ -13,6 +13,7 @@ import {
   Prisma,
   PrizeClaimStatus,
   VerifiedPayoutAccountStatus,
+  PrizePayoutStatus
 } from '@prisma/client';
 
 import { PrismaService } from '../../database/prisma.service';
@@ -21,7 +22,7 @@ import { StartKycIdentityDto } from '../dto/start-kyc-identity.dto';
 import { BankResolveService } from './bank-resolve.service';
 import { KycIdentityEvidenceService } from './kyc-identity-evidence.service';
 import { PaystackIdentityClient } from './paystack-identity.client';
-
+import { BankChangeStepUpService } from '../../payout-accounts/bank-change-step-up.service'
 @Injectable()
 export class PaystackIdentityCoordinatorService {
   constructor(
@@ -30,6 +31,7 @@ export class PaystackIdentityCoordinatorService {
     private readonly evidence: KycIdentityEvidenceService,
     private readonly paystack: PaystackIdentityClient,
     private readonly cipher: PayoutAccountCipherService,
+    private readonly bankChange: BankChangeStepUpService
   ) {}
 
   async start(
@@ -100,6 +102,7 @@ export class PaystackIdentityCoordinatorService {
         const kycOpen: PrizeClaimStatus[] = [
           PrizeClaimStatus.SELECTION_MADE,
           PrizeClaimStatus.KYC_PENDING,
+          PrizeClaimStatus.KYC_CLEARED
         ];
 
         if (
@@ -150,22 +153,69 @@ export class PaystackIdentityCoordinatorService {
         `;
 
         // Find the most recent identity attempt for this claim.
+        
         const existing = await tx.kycIdentityCheck.findFirst({
           where: { claimId },
           orderBy: { attemptNumber: 'desc' },
         });
 
-        // A new attempt is allowed only after a definitive
-        // failed verification. UNKNOWN remains blocked
-        // until reviewed and reconciled.
+        const approved = await tx.verifiedPayoutAccount.findFirst({
+          where: {
+            userId: user.userId,
+            status: {
+              in: [
+                VerifiedPayoutAccountStatus.VERIFIED,
+                VerifiedPayoutAccountStatus.LOCKED,
+              ],
+            },
+          },
+        });
+
+        const replacing = Boolean(
+          approved &&
+            (
+              approved.bankCode !== input.bankCode ||
+              approved.accountFingerprint !== fingerprint
+            ),
+        );
+
+        // KYC_CLEARED claims are not open for another ordinary
+        // identity submission. An authorized bank change
+        // is the only exception.
         if (
-          existing &&
-          existing.status !== KycIdentityCheckStatus.FAILED
+          claim.status === PrizeClaimStatus.KYC_CLEARED &&
+          !replacing
         ) {
           throw new ConflictException(
-            'Identity verification is pending, inconclusive, or already verified',
+            'This claim has already completed KYC',
           );
         }
+
+        // A previous VERIFIED check may only be superseded
+        // through authorized bank replacement.
+        //
+        // A failed replacement may be retried with fresh
+        // step-up authorization.
+        const replacingPreviouslyVerified =
+          replacing &&
+          claim.status === PrizeClaimStatus.KYC_CLEARED &&
+          existing?.status === KycIdentityCheckStatus.VERIFIED;
+
+        const retryingFailedChange =
+          replacing &&
+          claim.status === PrizeClaimStatus.KYC_PENDING &&
+          existing?.status === KycIdentityCheckStatus.FAILED &&
+          !!existing.bankChangeAuthorizedAt;
+
+        if (
+          existing &&
+          existing.status !== KycIdentityCheckStatus.FAILED &&
+          !replacingPreviouslyVerified
+        ) {
+            throw new ConflictException(
+              'Identity verification is pending, inconclusive, or already verified',
+            );
+          }
 
         if (existing && existing.attemptNumber >= 3) {
           throw new ConflictException(
@@ -182,36 +232,84 @@ export class PaystackIdentityCoordinatorService {
           );
         }
 
-        // Check whether this customer already has an
-        // approved payout destination.
-        const approved = await tx.verifiedPayoutAccount.findFirst({
-          where: {
-            userId: user.userId,
-            status: {
-              in: [
-                VerifiedPayoutAccountStatus.VERIFIED,
-                VerifiedPayoutAccountStatus.LOCKED,
-              ],
-            },
-          },
-        });
+        if (replacing) {
+          if (
+            !replacingPreviouslyVerified &&
+            !retryingFailedChange
+          ) {
+            throw new ConflictException(
+              'Bank replacement is not permitted in the current KYC state',
+            );
+          }
 
-        // Never allow a new verification request to silently
-        // replace an already approved bank destination.
-        //
-        // Matching is based on the full account fingerprint,
-        // not only the last four digits.
-        if (
-          approved &&
-          (
-            approved.bankCode !== input.bankCode ||
-            approved.accountFingerprint !== fingerprint
-          )
-        ) {
-          throw new ConflictException(
-            'A different payout account is already approved. Account changes require a separate verification process.',
-          );
-        }
+          if (
+            claim.payoutStatus ||
+            claim.payoutReference ||
+            claim.paidByAgentId
+          ) {
+            throw new ConflictException(
+              'Payout history must be reconciled before changing banks',
+            );
+          }
+
+          const previousAttempt =
+            await tx.prizePayoutAttempt.findFirst({
+      where: { claimId },
+      select: { attemptId: true },
+    });
+
+  if (previousAttempt) {
+    throw new ConflictException(
+      'Bank cannot be changed after a payout attempt',
+    );
+  }
+
+  const inFlightStatuses: PrizePayoutStatus[] = [
+    PrizePayoutStatus.REQUESTED,
+    PrizePayoutStatus.SUBMITTED,
+    PrizePayoutStatus.PROCESSING,
+    PrizePayoutStatus.UNKNOWN,
+  ];
+
+  const unresolved =
+    await tx.prizePayoutAttempt.findFirst({
+      where: {
+        claim: {
+          winnerPhone: phoneNumber,
+        },
+        status: {
+          in: inFlightStatuses,
+        },
+      },
+      select: { attemptId: true },
+    });
+
+  const unresolvedLegacy = await tx.prizeClaim.findFirst({
+    where: {
+      winnerPhone: phoneNumber,
+      payoutStatus: {
+        in: inFlightStatuses,
+      },
+    },
+    select: { claimId: true },
+  });
+
+  if (unresolved || unresolvedLegacy) {
+    throw new ConflictException(
+      'Unresolved payouts prevent bank replacement',
+    );
+  }
+
+  // Consume the single-use authorization.
+  // A failed database transaction requires fresh OTP.
+  await this.bankChange.consume(
+    user.userId,
+    claimId,
+    fingerprint,
+    input.bankChangeGrant,
+  );
+}
+
 
         // Find any existing pending payout account.
         const pending = await tx.verifiedPayoutAccount.findFirst({
@@ -261,6 +359,7 @@ export class PaystackIdentityCoordinatorService {
             bankAccountLast4:
               input.accountNumber.slice(-4),
             bankAccountFingerprint: fingerprint,
+            bankChangeAuthorizedAt: replacing ? new Date() : null,
           },
         });
 
@@ -268,7 +367,7 @@ export class PaystackIdentityCoordinatorService {
         // receives a new PENDING payout-account record.
         //
         // No payout is permitted while the row is PENDING.
-        if (!approved) {
+        if (!approved || replacing) {
           const encryptedAccountNumber =
             this.cipher.encrypt(
               user.userId,

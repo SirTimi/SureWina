@@ -1,4 +1,4 @@
-import { Equals, IsBoolean, IsEmail, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { Equals, IsBoolean, IsEmail, IsString, Matches, MaxLength, MinLength, IsOptional } from 'class-validator';
 
 export class StartKycIdentityDto {
   @IsBoolean()
@@ -30,4 +30,9 @@ export class StartKycIdentityDto {
   @IsString()
   @Matches(/^\d{10}$/)
   accountNumber!: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/)
+  bankChangeGrant?: string;
 }

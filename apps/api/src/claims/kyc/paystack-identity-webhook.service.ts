@@ -12,8 +12,12 @@ import {
   Prisma,
   PrizeClaimStatus,
   VerifiedPayoutAccountStatus,
+  PrizePayoutStatus
 } from '@prisma/client';
-
+import {
+  AuditActorType,
+  AuditSeverity
+} from '@prisma/client'
 import { PrismaService } from '../../database/prisma.service';
 import { PayoutAccountCipherService } from '../../payout-accounts/payout-account-cipher.service';
 import type { PaystackEvent } from '../../payments/webhook/paystack-webhook.service';
@@ -302,28 +306,113 @@ export class PaystackIdentityWebhookService {
           accountNumber,
         );
 
-        // A newly verified account must not replace an
-        // existing approved destination.
-        if (pendingAccount && isSuccess) {
-          const existingApproved =
-            await tx.verifiedPayoutAccount.findFirst({
-              where: {
-                userId: user.userId,
-                status: {
-                  in: [
-                    VerifiedPayoutAccountStatus.VERIFIED,
-                    VerifiedPayoutAccountStatus.LOCKED,
-                  ],
-                },
-              },
-            });
+        
+// Only a beneficiary registered against the exact
+// identity check may be used for replacement.
+if (latest.bankChangeAuthorizedAt && !pendingAccount) {
+  throw new ConflictException(
+    'Authorized bank replacement has no matching pending account',
+  );
+}
 
-          if (existingApproved) {
-            throw new ConflictException(
-              'Another payout account is already approved',
-            );
-          }
-        }
+if (pendingAccount && isSuccess) {
+  const existingApproved =
+    await tx.verifiedPayoutAccount.findFirst({
+      where: {
+        userId: user.userId,
+        status: {
+          in: [
+            VerifiedPayoutAccountStatus.VERIFIED,
+            VerifiedPayoutAccountStatus.LOCKED,
+          ],
+        },
+      },
+    });
+
+  if (latest.bankChangeAuthorizedAt && !existingApproved) {
+    throw new ConflictException(
+      'Original approved bank account is missing; reconciliation required',
+    );
+  }
+
+  if (existingApproved) {
+    // Ordinary Paystack identity verification can
+    // never replace an already approved beneficiary.
+    if (!latest.bankChangeAuthorizedAt) {
+      throw new ConflictException(
+        'Another payout account is already approved',
+      );
+    }
+
+    if (
+      existingApproved.userId !== user.userId ||
+      existingApproved.accountFingerprint ===
+        pendingAccount.accountFingerprint
+    ) {
+      throw new ConflictException(
+        'Invalid bank replacement',
+      );
+    }
+
+    // The same user-row lock held by the coordinator
+    // and payout engine serializes beneficiary changes
+    // against new payout reservations.
+    const inFlightStatuses: PrizePayoutStatus[] = [
+      PrizePayoutStatus.REQUESTED,
+      PrizePayoutStatus.SUBMITTED,
+      PrizePayoutStatus.PROCESSING,
+      PrizePayoutStatus.UNKNOWN,
+    ];
+
+    const activeAttempt =
+      await tx.prizePayoutAttempt.findFirst({
+        where: {
+          claim: {
+            winnerPhone: claim.winnerPhone,
+          },
+          status: {
+            in: inFlightStatuses,
+          },
+        },
+        select: { attemptId: true },
+      });
+
+    const activeLegacy =
+      await tx.prizeClaim.findFirst({
+        where: {
+          winnerPhone: claim.winnerPhone,
+          payoutStatus: {
+            in: inFlightStatuses,
+          },
+        },
+        select: { claimId: true },
+      });
+
+    if (activeAttempt || activeLegacy) {
+      throw new ConflictException(
+        'An unresolved payout prevents bank replacement',
+      );
+    }
+
+    // Revoke the previous beneficiary BEFORE promoting
+    // the new one, inside the same transaction.
+    //
+    // The partial unique index permits only one
+    // VERIFIED/LOCKED account per customer.
+    await tx.verifiedPayoutAccount.update({
+      where: {
+        payoutAccountId:
+          existingApproved.payoutAccountId,
+      },
+      data: {
+        status:
+          VerifiedPayoutAccountStatus.REVOKED,
+        revokedAt: new Date(),
+      },
+    });
+  }
+}
+
 
         const now = new Date();
 
@@ -362,6 +451,29 @@ export class PaystackIdentityWebhookService {
                 },
           });
         }
+
+        if (pendingAccount && latest.bankChangeAuthorizedAt) {
+  await tx.auditLog.create({
+    data: {
+      severity: isSuccess
+        ? AuditSeverity.INFO
+        : AuditSeverity.WARNING,
+      actorType: AuditActorType.SYSTEM,
+      action: isSuccess
+        ? 'PAYOUT_BANK_CHANGE_VERIFIED'
+        : 'PAYOUT_BANK_CHANGE_FAILED',
+      resourceType: 'VerifiedPayoutAccount',
+      resourceId: pendingAccount.payoutAccountId,
+      metadata: {
+        userId: user.userId,
+        claimId: claim.claimId,
+        identityCheckId: latest.checkId,
+        bankCode: pendingAccount.bankCode,
+        accountLast4: pendingAccount.accountLast4,
+      },
+    },
+  });
+}
 
         // An existing approved beneficiary remains
         // unchanged. A new failed claim verification

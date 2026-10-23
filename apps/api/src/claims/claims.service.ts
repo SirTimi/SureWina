@@ -313,6 +313,23 @@ async reviewKyc(
           );
         }
 
+        if (
+          claim.claimType === ClaimType.CASH &&
+            identityCheck.bankChangeAuthorizedAt
+        ) {
+            const coolingOffMs = 24 * 60 * 60 * 1000;
+
+              if (
+                  Date.now() -
+                  identityCheck.bankChangeAuthorizedAt.getTime() <
+                  coolingOffMs
+                ) {
+                  throw new ConflictException(
+                    'Bank account changes require a 24-hour security cooling-off period before compliance approval',
+                  );
+                }
+              }
+
         // Use the same claim -> customer lock order
         // as the identity coordinator and webhook.
         await tx.$queryRaw`
@@ -321,6 +338,8 @@ async reviewKyc(
           WHERE "user_id" = ${user.userId}
           FOR UPDATE
         `;
+
+
 
         // Only a previously verified or already locked
         // account can qualify for compliance approval.

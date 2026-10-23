@@ -50,6 +50,7 @@ describe('Phase 2C: Paystack identity start', () => {
     const controller = new ClaimsController(
       {} as never,
       coordinator as never,
+      {} as never,
     );
 
     const dto = Object.assign(

@@ -48,6 +48,7 @@ import {
 } from './kyc/kyc-identity-evidence.service';
 import { PaystackIdentityCoordinatorService } from './kyc/paystack-identity-coordinator.service'
 import { LockedPayoutDestinationService } from '../payout-accounts/locked-payout-destination.service'
+import { BankChangeStepUpService } from '../payout-accounts/bank-change-step-up.service'
 @Module({
   imports: [
     ConfigModule,
@@ -90,7 +91,8 @@ import { LockedPayoutDestinationService } from '../payout-accounts/locked-payout
     KycIdentityEvidenceService,
     PaystackIdentityCoordinatorService,
     PayoutAccountCipherService,
-    LockedPayoutDestinationService
+    LockedPayoutDestinationService,
+    BankChangeStepUpService
   ],
 
   exports: [

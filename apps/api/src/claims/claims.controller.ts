@@ -19,12 +19,19 @@ import { BookCollectionDto } from './dto/fulfillment.dto';
 import type { FastifyRequest } from 'fastify';
 import { StartKycIdentityDto } from './dto/start-kyc-identity.dto'
 import { PaystackIdentityCoordinatorService } from './kyc/paystack-identity-coordinator.service'
+import { 
+  RequestBankChangeDto,
+  VerifyBankChangeDto
+} from './dto/bank-change.dto'
+
+import { BankChangeStepUpService } from '../payout-accounts/bank-change-step-up.service'
 @Controller('claims')
 @UseGuards(CustomerJwtGuard)
 export class ClaimsController {
   constructor(
     private readonly claimsService: ClaimsService,
     private readonly identityCoordinator: PaystackIdentityCoordinatorService,
+    private readonly bankChange: BankChangeStepUpService
   ) {}
 
   @Get()
@@ -153,4 +160,35 @@ export class ClaimsController {
       user.phoneNumber
     )
   }
+
+  
+  @Post(':claimId/payout/change/request')
+  requestBankChange(
+    @Param('claimId') claimId: string,
+    @Body() dto: RequestBankChangeDto,
+    @CurrentUser() user: CustomerJwtPayload,
+  ) {
+    return this.bankChange.request(
+      claimId,
+      user.sub,
+      user.phoneNumber,
+      dto.bankCode,
+      dto.accountNumber,
+    );
+  }
+
+  @Post(':claimId/payout/change/verify')
+  verifyBankChange(
+    @Param('claimId') claimId: string,
+    @Body() dto: VerifyBankChangeDto,
+    @CurrentUser() user: CustomerJwtPayload,
+  ) {
+    return this.bankChange.verify(
+      claimId,
+      user.sub,
+      dto.challengeId,
+      dto.otp,
+    );
+  }
+
 }
