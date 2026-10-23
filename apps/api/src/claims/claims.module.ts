@@ -42,7 +42,7 @@ import { PaystackIdentityClient } from './kyc/paystack-identity.client';
 import {
   PaystackIdentityWebhookService,
 } from './kyc/paystack-identity-webhook.service';
-
+import { PayoutAccountCipherService } from '../payout-accounts/payout-account-cipher.service'
 import {
   KycIdentityEvidenceService,
 } from './kyc/kyc-identity-evidence.service';
@@ -87,7 +87,8 @@ import { PaystackIdentityCoordinatorService } from './kyc/paystack-identity-coor
     PaystackIdentityClient,
     PaystackIdentityWebhookService,
     KycIdentityEvidenceService,
-    PaystackIdentityCoordinatorService
+    PaystackIdentityCoordinatorService,
+    PayoutAccountCipherService
   ],
 
   exports: [
