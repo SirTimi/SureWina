@@ -1569,6 +1569,12 @@ model PrizePayoutAttempt {
 
   reversalLedgerTxn LedgerTransaction? @relation("PrizePayoutReversalLedger", fields: [reversalLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
+  verifiedPayoutAccountId       String? @map("verified_payout_account_id")
+  destinationAccountFingerprint String? @map("destination_account_fingerprint") @db.VarChar(64)
+  destinationAccountCiphertext  String? @map("destination_account_ciphertext") @db.Text
+
+  verifiedPayoutAccount VerifiedPayoutAccount? @relation("PrizePayoutBeneficiary", fields: [verifiedPayoutAccountId], references: [payoutAccountId], onDelete: Restrict)
+
   @@unique([claimId, attemptNumber])
   @@unique([provider, providerReference])
   @@index([claimId, createdAt])
@@ -1969,8 +1975,9 @@ model VerifiedPayoutAccount {
   lockedAt   DateTime? @map("locked_at")
   revokedAt  DateTime? @map("revoked_at")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  payoutAttempts PrizePayoutAttempt[] @relation("PrizePayoutBeneficiary")
 
   @@index([userId, status])
   @@index([createdAt])

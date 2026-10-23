@@ -1,9 +1,10 @@
+
 import {
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { KycIdentityEvidenceService } from '../kyc/kyc-identity-evidence.service';
+
 import {
   AuditActorType,
   AuditSeverity,
@@ -20,62 +21,43 @@ import {
   randomUUID,
 } from 'crypto';
 
-import {
-  PrismaService,
-} from '../../database/prisma.service';
+import { PrismaService } from '../../database/prisma.service';
+import { AuditService } from '../../audit/audit.service';
+import { LedgerService } from '../../ledger/ledger.service';
+import { SYSTEM_LEDGER_ACCOUNT_CODES } from '../../ledger/ledger.constants';
 
-import {
-  AuditService,
-} from '../../audit/audit.service';
-
-import {
-  LedgerService,
-} from '../../ledger/ledger.service';
-
-import {
-  SYSTEM_LEDGER_ACCOUNT_CODES,
-} from '../../ledger/ledger.constants';
+import { LockedPayoutDestinationService } from '../../payout-accounts/locked-payout-destination.service';
+import { PayoutAccountCipherService } from '../../payout-accounts/payout-account-cipher.service';
 
 import {
   PrizePayoutProviderCode,
   PrizePayoutProviderResult,
 } from './prize-payout.provider';
 
-import {
-  PrizePayoutProviderRegistry,
-} from './prize-payout-provider.registry';
+import { PrizePayoutProviderRegistry } from './prize-payout-provider.registry';
 
-import {
-  PrizePayoutAttemptFinalizationService,
-} from './prize-payout-attempt-finalization.service';
+import { PrizePayoutAttemptFinalizationService } from './prize-payout-attempt-finalization.service';
 
 @Injectable()
 export class PrizePayoutEngineService {
   constructor(
-    private readonly prisma:
-      PrismaService,
-
-    private readonly ledger:
-      LedgerService,
-
-    private readonly audit:
-      AuditService,
-
-    private readonly providers:
-      PrizePayoutProviderRegistry,
-
-    private readonly finalizer:
-      PrizePayoutAttemptFinalizationService,
-
-    private readonly identityEvidence:
-      KycIdentityEvidenceService,
+    private readonly prisma: PrismaService,
+    private readonly ledger: LedgerService,
+    private readonly audit: AuditService,
+    private readonly providers: PrizePayoutProviderRegistry,
+    private readonly finalizer: PrizePayoutAttemptFinalizationService,
+    private readonly lockedDestination: LockedPayoutDestinationService,
+    private readonly payoutCipher: PayoutAccountCipherService,
   ) {}
+
+  // -------------------------------------------------------
+  // INITIAL PAYOUT
+  // -------------------------------------------------------
 
   async initiate(
     claimId: string,
     adminId: string,
-    providerCode:
-      PrizePayoutProviderCode,
+    providerCode: PrizePayoutProviderCode,
   ) {
     return this.startAttempt(
       claimId,
@@ -85,11 +67,14 @@ export class PrizePayoutEngineService {
     );
   }
 
+  // -------------------------------------------------------
+  // FAILED / REVERSED PAYOUT RETRY
+  // -------------------------------------------------------
+
   async retry(
     claimId: string,
     adminId: string,
-    providerCode:
-      PrizePayoutProviderCode,
+    providerCode: PrizePayoutProviderCode,
   ) {
     return this.startAttempt(
       claimId,
@@ -99,19 +84,19 @@ export class PrizePayoutEngineService {
     );
   }
 
+  // -------------------------------------------------------
+  // REFRESH CURRENT PROVIDER STATUS
+  // -------------------------------------------------------
+
   async refreshCurrent(
     claimId: string,
     adminId: string,
   ) {
     const attempt =
       await this.prisma.prizePayoutAttempt.findFirst({
-        where: {
-          claimId,
-        },
-
+        where: { claimId },
         orderBy: {
-          attemptNumber:
-            'desc',
+          attemptNumber: 'desc',
         },
       });
 
@@ -121,105 +106,77 @@ export class PrizePayoutEngineService {
       );
     }
 
+    // Terminal results must not be submitted again
+    // merely because an admin requests a refresh.
     if (
-      attempt.status ===
-        PrizePayoutStatus.SUCCEEDED ||
-      attempt.status ===
-        PrizePayoutStatus.FAILED ||
-      attempt.status ===
-        PrizePayoutStatus.REVERSED
+      attempt.status === PrizePayoutStatus.SUCCEEDED ||
+      attempt.status === PrizePayoutStatus.FAILED ||
+      attempt.status === PrizePayoutStatus.REVERSED
     ) {
-      return this.getAttempt(
-        attempt.attemptId,
-      );
+      return this.getAttempt(attempt.attemptId);
     }
 
-    const provider =
-      this.providers.get(
-        attempt.provider,
-      );
+    const provider = this.providers.get(
+      attempt.provider,
+    );
 
     const reference =
       attempt.providerReference ??
       attempt.idempotencyKey;
 
-    let result:
-      PrizePayoutProviderResult;
+    let result: PrizePayoutProviderResult;
 
     try {
-      result =
-        await provider.getStatus(
-          reference,
-        );
-    } catch (error) {
+      result = await provider.getStatus(reference);
+    } catch {
+      // Provider exceptions may contain sensitive
+      // destination details. Do not store raw messages.
       await this.audit.write({
-        severity:
-          AuditSeverity.WARNING,
-
+        severity: AuditSeverity.WARNING,
         actor: {
-          type:
-            AuditActorType.ADMIN,
-          id:
-            adminId,
+          type: AuditActorType.ADMIN,
+          id: adminId,
         },
-
-        action:
-          'PRIZE_PAYOUT_ATTEMPT_REFRESH_FAILED',
-
+        action: 'PRIZE_PAYOUT_ATTEMPT_REFRESH_FAILED',
         resource: {
-          type:
-            'PrizePayoutAttempt',
-          id:
-            attempt.attemptId,
+          type: 'PrizePayoutAttempt',
+          id: attempt.attemptId,
         },
-
         metadata: {
-          provider:
-            attempt.provider,
-
+          provider: attempt.provider,
           reference,
-
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Unknown refresh error',
+          error: 'PROVIDER_STATUS_REFRESH_FAILED',
         },
       });
 
-      throw error;
+      throw new ConflictException(
+        'Payout status could not be refreshed. Reconcile the existing attempt before retrying.',
+      );
     }
 
     await this.finalizer.applyForAttempt(
       attempt.attemptId,
       result,
       {
-        type:
-          AuditActorType.ADMIN,
-        id:
-          adminId,
+        type: AuditActorType.ADMIN,
+        id: adminId,
       },
     );
 
-    return this.getAttempt(
-      attempt.attemptId,
-    );
+    return this.getAttempt(attempt.attemptId);
   }
 
-  async listAttempts(
-    claimId: string,
-  ) {
+  // -------------------------------------------------------
+  // LIST ALL ATTEMPTS FOR A CLAIM
+  // -------------------------------------------------------
+
+  async listAttempts(claimId: string) {
     const claim =
       await this.prisma.prizeClaim.findUnique({
-        where: {
-          claimId,
-        },
-
+        where: { claimId },
         select: {
-          claimId:
-            true,
-
-          winnerTicketRef:
-            true,
+          claimId: true,
+          winnerTicketRef: true,
         },
       });
 
@@ -231,41 +188,29 @@ export class PrizePayoutEngineService {
 
     const attempts =
       await this.prisma.prizePayoutAttempt.findMany({
-        where: {
-          claimId,
-        },
-
+        where: { claimId },
         orderBy: {
-          attemptNumber:
-            'asc',
+          attemptNumber: 'asc',
         },
       });
 
     return {
-      claimId:
-        claim.claimId,
-
-      winnerTicketRef:
-        claim.winnerTicketRef,
-
-      attempts:
-        attempts.map(
-          (attempt) =>
-            this.toView(
-              attempt,
-            ),
-        ),
+      claimId: claim.claimId,
+      winnerTicketRef: claim.winnerTicketRef,
+      attempts: attempts.map((attempt) =>
+        this.toView(attempt),
+      ),
     };
   }
 
-  async getAttempt(
-    attemptId: string,
-  ) {
+  // -------------------------------------------------------
+  // FETCH ONE PAYOUT ATTEMPT
+  // -------------------------------------------------------
+
+  async getAttempt(attemptId: string) {
     const attempt =
       await this.prisma.prizePayoutAttempt.findUnique({
-        where: {
-          attemptId,
-        },
+        where: { attemptId },
       });
 
     if (!attempt) {
@@ -274,124 +219,90 @@ export class PrizePayoutEngineService {
       );
     }
 
-    return this.toView(
-      attempt,
-    );
+    return this.toView(attempt);
   }
+
+  // -------------------------------------------------------
+  // PROVIDER EXECUTION
+  // -------------------------------------------------------
 
   private async startAttempt(
     claimId: string,
     adminId: string,
-    providerCode:
-      PrizePayoutProviderCode,
+    providerCode: PrizePayoutProviderCode,
     retry: boolean,
   ) {
-    const provider =
-      this.providers.get(
-        providerCode,
-      );
+    const provider = this.providers.get(
+      providerCode,
+    );
 
-    const reserved =
-      await this.reserveAttempt(
-        claimId,
-        adminId,
-        provider.providerCode,
-        retry,
-      );
+    // All authorization, destination verification,
+    // financial checks, and reservation happen here.
+    const reserved = await this.reserveAttempt(
+      claimId,
+      adminId,
+      provider.providerCode,
+      retry,
+    );
 
+    // Audit only masked destination information.
     await this.audit.write({
-      severity:
-        AuditSeverity.INFO,
-
+      severity: AuditSeverity.INFO,
       actor: {
-        type:
-          AuditActorType.ADMIN,
-        id:
-          adminId,
+        type: AuditActorType.ADMIN,
+        id: adminId,
       },
-
-      action:
-        retry
-          ? 'PRIZE_PAYOUT_RETRY_REQUESTED'
-          : 'PRIZE_PAYOUT_ATTEMPT_REQUESTED',
-
+      action: retry
+        ? 'PRIZE_PAYOUT_RETRY_REQUESTED'
+        : 'PRIZE_PAYOUT_ATTEMPT_REQUESTED',
       resource: {
-        type:
-          'PrizePayoutAttempt',
-        id:
-          reserved.attemptId,
+        type: 'PrizePayoutAttempt',
+        id: reserved.attemptId,
       },
-
       metadata: {
         claimId,
-
-        attemptNumber:
-          reserved.attemptNumber,
-
-        provider:
-          provider.providerCode,
-
-        amountNgn:
-          reserved.amountNgn,
-
-        accountLast4:
-          reserved.accountNumber.slice(
-            -4,
-          ),
+        attemptNumber: reserved.attemptNumber,
+        provider: provider.providerCode,
+        amountNgn: reserved.amountNgn,
+        accountLast4: reserved.accountLast4,
       },
     });
 
-    let result:
-      PrizePayoutProviderResult;
+    let result: PrizePayoutProviderResult;
 
     try {
-      result =
-        await provider.initiate({
-          idempotencyKey:
-            reserved.idempotencyKey,
-
-          accountNumber:
-            reserved.accountNumber,
-
-          bankCode:
-            reserved.bankCode,
-
-          accountName:
-            reserved.accountName,
-
-          amountNgn:
-            reserved.amountNgn,
-
-          reason:
-            `SureWina prize ${reserved.winnerTicketRef}`,
-        });
-    } catch (error) {
-      /*
-       * An exception after entering the provider adapter does not
-       * prove no external transfer exists.
-       *
-       * UNKNOWN blocks automatic retry/provider switching.
-       */
+      // IMPORTANT:
+      // The provider receives the account number
+      // decrypted from the LOCKED beneficiary.
+      //
+      // This must never come from a request body or
+      // PrizeClaim.payoutAccountNumber.
+      result = await provider.initiate({
+        idempotencyKey: reserved.idempotencyKey,
+        accountNumber: reserved.accountNumber,
+        bankCode: reserved.bankCode,
+        accountName: reserved.accountName,
+        amountNgn: reserved.amountNgn,
+        reason: `SureWina prize ${reserved.winnerTicketRef}`,
+      });
+    } catch {
+      // Once provider initiation has been attempted,
+      // an exception does not establish that money
+      // was never transferred.
+      //
+      // UNKNOWN prevents automatic resubmission and
+      // requires reconciliation.
+      //
+      // Do not persist unfiltered provider exceptions
+      // because they may contain bank account details.
       result = {
-        provider:
-          provider.providerCode,
-
-        reference:
-          reserved.idempotencyKey,
-
-        providerTransactionId:
-          null,
-
-        status:
-          PrizePayoutStatus.UNKNOWN,
-
-        rawStatus:
-          'PROVIDER_EXCEPTION',
-
+        provider: provider.providerCode,
+        reference: reserved.idempotencyKey,
+        providerTransactionId: null,
+        status: PrizePayoutStatus.UNKNOWN,
+        rawStatus: 'PROVIDER_EXCEPTION',
         failureReason:
-          error instanceof Error
-            ? error.message
-            : 'Unknown payout provider error',
+          'Provider initiation outcome is uncertain; reconciliation required',
       };
     }
 
@@ -399,27 +310,27 @@ export class PrizePayoutEngineService {
       reserved.attemptId,
       result,
       {
-        type:
-          AuditActorType.ADMIN,
-        id:
-          adminId,
+        type: AuditActorType.ADMIN,
+        id: adminId,
       },
     );
 
-    return this.getAttempt(
-      reserved.attemptId,
-    );
+    return this.getAttempt(reserved.attemptId);
   }
+
+  // -------------------------------------------------------
+  // PHASE 3D: SECURE PAYOUT RESERVATION
+  // -------------------------------------------------------
 
   private async reserveAttempt(
     claimId: string,
     adminId: string,
-    providerCode:
-      PrizePayoutProviderCode,
+    providerCode: PrizePayoutProviderCode,
     retry: boolean,
   ) {
     return this.prisma.$transaction(
       async (tx) => {
+        // Serialize payout requests for the same claim.
         await tx.$queryRaw`
           SELECT "claim_id"
           FROM "prize_claims"
@@ -429,46 +340,29 @@ export class PrizePayoutEngineService {
 
         const claim =
           await tx.prizeClaim.findUnique({
-            where: {
-              claimId,
-            },
-
+            where: { claimId },
             select: {
-              claimId:
-                true,
+              claimId: true,
+              winnerTicketRef: true,
+              winnerPhone: true,
+              winnerUserId: true,
 
-              winnerTicketRef:
-                true,
+              claimType: true,
+              status: true,
 
-              claimType:
-                true,
+              grossPrizeValueNgn: true,
+              whtAmountNgn: true,
+              netPrizeValueNgn: true,
 
-              status:
-                true,
+              prizeAccrualLedgerTxnId: true,
 
-              grossPrizeValueNgn:
-                true,
+              kycBankCode: true,
+              kycBankAccountLast4: true,
+              kycBankAccountName: true,
 
-              whtAmountNgn:
-                true,
-
-              netPrizeValueNgn:
-                true,
-
-              prizeAccrualLedgerTxnId:
-                true,
-
-              payoutAccountNumber:
-                true,
-
-              kycBankCode:
-                true,
-
-              kycBankAccountName:
-                true,
-
-              kycBankAccountLast4:
-                true,
+              payoutStatus: true,
+              payoutReference: true,
+              paidByAgentId: true,
             },
           });
 
@@ -478,12 +372,9 @@ export class PrizePayoutEngineService {
           );
         }
 
-        if (
-          claim.claimType !==
-          ClaimType.CASH
-        ) {
+        if (claim.claimType !== ClaimType.CASH) {
           throw new ConflictException(
-            'Only cash claims can use bank payout',
+            'Only cash claims can use bank payouts',
           );
         }
 
@@ -496,55 +387,48 @@ export class PrizePayoutEngineService {
           );
         }
 
-        if (
-          !claim.payoutAccountNumber ||
-          !claim.kycBankCode ||
-          !claim.kycBankAccountName
-        ) {
+        // Find historical attempts BEFORE reserving
+        // any new financial work.
+        const latest =
+          await tx.prizePayoutAttempt.findFirst({
+            where: { claimId },
+            orderBy: {
+              attemptNumber: 'desc',
+            },
+          });
+
+        // ---------------------------------------------------
+        // HISTORICAL PAYOUT PROTECTION
+        // ---------------------------------------------------
+
+        // Agent cash settlement can never be followed
+        // by a new bank payout.
+        if (claim.paidByAgentId) {
           throw new ConflictException(
-            'Winner has not confirmed a payout account',
+            'Claim already has an agent payout record',
           );
         }
 
-        /*
-         * PHASE 2E — BANK PAYOUT ELIGIBILITY.
-         *
-         * The old kycBvnVerifiedAt timestamp, bank-name resolution,
-         * and KYC_CLEARED status alone do not establish ownership.
-         *
-         * The helper rejects missing, pending, failed, UNKNOWN, or
-         * stale Paystack verification attempts. It binds the latest
-         * successful check to the bank details approved for this claim.
-         *
-         * The fingerprint check compares the ENTIRE destination account
-         * (bank code + ten-digit account number), not only the last four.
-         *
-         * Both checks happen inside the existing serializable transaction,
-         * before any payout attempt or ledger activity is reserved.
-         */
-        const identityCheck =
-          await this.identityEvidence.requireVerified(
-            tx,
-            claim,
+        // Legacy claims may have been paid before the
+        // PrizePayoutAttempt table became authoritative.
+        //
+        // A previous payout record without attempt
+        // history requires manual reconciliation.
+        if (
+          !latest &&
+          (
+            claim.payoutStatus !== null ||
+            claim.payoutReference !== null
+          )
+        ) {
+          throw new ConflictException(
+            'Historical payout state requires reconciliation before bank payout',
           );
+        }
 
-        this.identityEvidence.assertDestinationMatches(
-          identityCheck,
-          claim.kycBankCode,
-          claim.payoutAccountNumber,
-        );
-
-        const latest =
-          await tx.prizePayoutAttempt.findFirst({
-            where: {
-              claimId,
-            },
-
-            orderBy: {
-              attemptNumber:
-                'desc',
-            },
-          });
+        // ---------------------------------------------------
+        // INITIAL ATTEMPT / RETRY VALIDATION
+        // ---------------------------------------------------
 
         if (!retry) {
           if (latest) {
@@ -560,114 +444,190 @@ export class PrizePayoutEngineService {
           }
 
           if (
-            latest.status !==
-              PrizePayoutStatus.FAILED &&
-            latest.status !==
-              PrizePayoutStatus.REVERSED
+            latest.status !== PrizePayoutStatus.FAILED &&
+            latest.status !== PrizePayoutStatus.REVERSED
           ) {
             throw new ConflictException(
               `Payout cannot be retried while latest attempt is ${latest.status}`,
             );
           }
+
+          // A mismatch between the compatibility
+          // claim status and attempt history requires
+          // reconciliation, not another transfer.
+          if (
+            claim.payoutStatus !== latest.status
+          ) {
+            throw new ConflictException(
+              'Claim payout status and attempt history are inconsistent',
+            );
+          }
         }
 
-        await this.ensurePrizeAccrual(
-          tx,
-          claim,
-        );
+        // ---------------------------------------------------
+        // LOCKED BENEFICIARY AUTHORIZATION
+        // ---------------------------------------------------
 
-        const attemptNumber =
-          (
-            latest?.attemptNumber ??
-            0
-          ) + 1;
-
-        /*
-         * 45 characters:
-         *
-         * sw-prize- + UUID
-         *
-         * Fits the payout reference constraint and remains
-         * provider-neutral.
-         */
-        const idempotencyKey =
-          `sw-prize-${randomUUID()}`;
+        // This service:
+        // - Finds the actual winning customer.
+        // - Requires a LOCKED beneficiary.
+        // - Checks Paystack ownership evidence.
+        // - Verifies the FULL ten-digit NUBAN.
+        // - Decrypts the approved destination.
+        //
+        // It also takes the customer row lock, using
+        // the same claim -> customer ordering used
+        // by the verification and compliance flows.
+        const destination =
+          await this.lockedDestination.requireLocked(
+            tx,
+            claim,
+          );
 
         const normalizedName =
-          claim.kycBankAccountName
+          destination.accountName
             .trim()
-            .replace(
-              /\s+/g,
-              ' ',
-            )
+            .replace(/\s+/g, ' ')
             .toUpperCase();
 
         const accountNameHash =
-          createHash(
-            'sha256',
-          )
-            .update(
-              normalizedName,
-            )
-            .digest(
-              'hex',
+          createHash('sha256')
+            .update(normalizedName)
+            .digest('hex');
+
+        // ---------------------------------------------------
+        // RETRY DESTINATION INTEGRITY
+        // ---------------------------------------------------
+
+        if (retry && latest) {
+          // Previous legacy attempts without a complete
+          // destination snapshot cannot be retried
+          // automatically.
+          if (
+            !latest.verifiedPayoutAccountId ||
+            !latest.destinationAccountFingerprint ||
+            !latest.destinationAccountCiphertext
+          ) {
+            throw new ConflictException(
+              'Previous payout destination requires manual reconciliation',
+            );
+          }
+
+          // Compare beneficiary identity, bank code,
+          // fingerprint, masked account number and name.
+          if (
+            latest.verifiedPayoutAccountId !==
+              destination.payoutAccountId ||
+            latest.destinationAccountFingerprint !==
+              destination.fingerprint ||
+            latest.destinationBankCode !==
+              destination.bankCode ||
+            latest.destinationAccountLast4 !==
+              destination.accountLast4 ||
+            latest.destinationAccountNameHash !==
+              accountNameHash
+          ) {
+            throw new ConflictException(
+              'Payout retry destination does not match the previous attempt',
+            );
+          }
+
+          // Decrypt the historical encrypted snapshot.
+          //
+          // This detects tampered ciphertext and
+          // compares the ENTIRE original account number
+          // against the currently locked beneficiary.
+          //
+          // No plaintext account is logged or returned.
+          const previousAccountNumber =
+            this.payoutCipher.decrypt(
+              destination.userId,
+              latest.destinationBankCode,
+              latest.destinationAccountCiphertext,
             );
 
-        const now =
-          new Date();
+          if (
+            previousAccountNumber !==
+            destination.accountNumber
+          ) {
+            throw new ConflictException(
+              'Payout retry cannot change the destination account',
+            );
+          }
+        }
+
+        // ---------------------------------------------------
+        // FINANCIAL ACCOUNTING
+        // ---------------------------------------------------
+
+        // Existing double-entry prize accounting
+        // must remain unchanged.
+        await this.ensurePrizeAccrual(tx, claim);
+
+        const attemptNumber =
+          (latest?.attemptNumber ?? 0) + 1;
+
+        // Each new attempt gets a fresh reference.
+        //
+        // A provider-uncertain attempt is never
+        // automatically retried with a new reference.
+        const idempotencyKey =
+          `sw-prize-${randomUUID()}`;
+
+        const now = new Date();
+
+        // ---------------------------------------------------
+        // IMMUTABLE ENCRYPTED DESTINATION SNAPSHOT
+        // ---------------------------------------------------
 
         const attempt =
           await tx.prizePayoutAttempt.create({
             data: {
               claimId,
-
               attemptNumber,
 
-              provider:
-                providerCode,
-
+              provider: providerCode,
               idempotencyKey,
 
-              amountNgn:
-                claim.netPrizeValueNgn,
+              amountNgn: claim.netPrizeValueNgn,
+              currency: 'NGN',
 
-              currency:
-                'NGN',
+              status: PrizePayoutStatus.REQUESTED,
 
-              status:
-                PrizePayoutStatus.REQUESTED,
+              verifiedPayoutAccountId:
+                destination.payoutAccountId,
+
+              destinationAccountFingerprint:
+                destination.fingerprint,
+
+              destinationAccountCiphertext:
+                destination.snapshotCiphertext,
 
               destinationBankCode:
-                claim.kycBankCode,
+                destination.bankCode,
 
               destinationAccountLast4:
-                claim.payoutAccountNumber.slice(
-                  -4,
-                ),
+                destination.accountLast4,
 
               destinationAccountNameHash:
                 accountNameHash,
 
-              initiatedByAdminId:
-                adminId,
-
-              initiatedAt:
-                now,
+              initiatedByAdminId: adminId,
+              initiatedAt: now,
             },
           });
 
-        /*
-         * Compatibility summary.
-         *
-         * PrizePayoutAttempt is now the real history.
-         * These fields remain useful for existing UI/code until
-         * Phase 6 migration is fully completed.
-         */
-        await tx.prizeClaim.update({
-          where: {
-            claimId,
-          },
+        // ---------------------------------------------------
+        // UPDATE COMPATIBILITY PAYOUT SUMMARY
+        // ---------------------------------------------------
 
+        // Preserve existing financial dashboard and
+        // payout recovery compatibility fields.
+        //
+        // Do NOT store any plaintext bank account
+        // number on PrizeClaim.
+        await tx.prizeClaim.update({
+          where: { claimId },
           data: {
             payoutStatus:
               PrizePayoutStatus.REQUESTED,
@@ -695,12 +655,11 @@ export class PrizePayoutEngineService {
           },
         });
 
+        // Sensitive destination information exists
+        // only inside this server-side execution path.
         return {
-          attemptId:
-            attempt.attemptId,
-
+          attemptId: attempt.attemptId,
           attemptNumber,
-
           idempotencyKey,
 
           winnerTicketRef:
@@ -709,14 +668,20 @@ export class PrizePayoutEngineService {
           amountNgn:
             claim.netPrizeValueNgn,
 
+          payoutAccountId:
+            destination.payoutAccountId,
+
           accountNumber:
-            claim.payoutAccountNumber,
+            destination.accountNumber,
+
+          accountLast4:
+            destination.accountLast4,
 
           bankCode:
-            claim.kycBankCode,
+            destination.bankCode,
 
           accountName:
-            claim.kycBankAccountName,
+            destination.accountName,
         };
       },
       {
@@ -726,43 +691,29 @@ export class PrizePayoutEngineService {
     );
   }
 
+  // -------------------------------------------------------
+  // PRIZE ACCRUAL ACCOUNTING
+  // -------------------------------------------------------
+
   private async ensurePrizeAccrual(
-    tx:
-      Prisma.TransactionClient,
-
+    tx: Prisma.TransactionClient,
     claim: {
-      claimId:
-        string;
-
-      winnerTicketRef:
-        string;
-
-      grossPrizeValueNgn:
-        number;
-
-      whtAmountNgn:
-        number;
-
-      netPrizeValueNgn:
-        number;
-
-      prizeAccrualLedgerTxnId:
-        string | null;
+      claimId: string;
+      winnerTicketRef: string;
+      grossPrizeValueNgn: number;
+      whtAmountNgn: number;
+      netPrizeValueNgn: number;
+      prizeAccrualLedgerTxnId: string | null;
     },
   ) {
-    if (
-      claim.prizeAccrualLedgerTxnId
-    ) {
+    if (claim.prizeAccrualLedgerTxnId) {
       return;
     }
 
     if (
-      claim.grossPrizeValueNgn <=
-        0 ||
-      claim.netPrizeValueNgn <=
-        0 ||
-      claim.whtAmountNgn <
-        0
+      claim.grossPrizeValueNgn <= 0 ||
+      claim.netPrizeValueNgn <= 0 ||
+      claim.whtAmountNgn < 0
     ) {
       throw new ConflictException(
         'Prize financial values are invalid',
@@ -771,78 +722,49 @@ export class PrizePayoutEngineService {
 
     if (
       claim.grossPrizeValueNgn !==
-      claim.netPrizeValueNgn +
-        claim.whtAmountNgn
+      claim.netPrizeValueNgn + claim.whtAmountNgn
     ) {
       throw new ConflictException(
         'Prize gross/net/WHT values do not balance',
       );
     }
 
-    const expense =
-      await this.requireAccount(
-        tx,
-        SYSTEM_LEDGER_ACCOUNT_CODES.PRIZE_EXPENSE,
-      );
+    const expense = await this.requireAccount(
+      tx,
+      SYSTEM_LEDGER_ACCOUNT_CODES.PRIZE_EXPENSE,
+    );
 
-    const payable =
-      await this.requireAccount(
-        tx,
-        SYSTEM_LEDGER_ACCOUNT_CODES.PRIZE_PAYABLE,
-      );
+    const payable = await this.requireAccount(
+      tx,
+      SYSTEM_LEDGER_ACCOUNT_CODES.PRIZE_PAYABLE,
+    );
 
     const lines = [
       {
-        accountId:
-          expense.accountId,
-
-        side:
-          LedgerEntrySide.DEBIT,
-
-        amountNgn:
-          claim.grossPrizeValueNgn,
-
-        memo:
-          'Recognise prize expense',
+        accountId: expense.accountId,
+        side: LedgerEntrySide.DEBIT,
+        amountNgn: claim.grossPrizeValueNgn,
+        memo: 'Recognise prize expense',
       },
-
       {
-        accountId:
-          payable.accountId,
-
-        side:
-          LedgerEntrySide.CREDIT,
-
-        amountNgn:
-          claim.netPrizeValueNgn,
-
-        memo:
-          'Winner prize payable',
+        accountId: payable.accountId,
+        side: LedgerEntrySide.CREDIT,
+        amountNgn: claim.netPrizeValueNgn,
+        memo: 'Winner prize payable',
       },
     ];
 
-    if (
-      claim.whtAmountNgn >
-      0
-    ) {
-      const wht =
-        await this.requireAccount(
-          tx,
-          SYSTEM_LEDGER_ACCOUNT_CODES.WHT_PAYABLE,
-        );
+    if (claim.whtAmountNgn > 0) {
+      const wht = await this.requireAccount(
+        tx,
+        SYSTEM_LEDGER_ACCOUNT_CODES.WHT_PAYABLE,
+      );
 
       lines.push({
-        accountId:
-          wht.accountId,
-
-        side:
-          LedgerEntrySide.CREDIT,
-
-        amountNgn:
-          claim.whtAmountNgn,
-
-        memo:
-          'Withholding tax payable',
+        accountId: wht.accountId,
+        side: LedgerEntrySide.CREDIT,
+        amountNgn: claim.whtAmountNgn,
+        memo: 'Withholding tax payable',
       });
     }
 
@@ -866,18 +788,13 @@ export class PrizePayoutEngineService {
             `Prize accrual for ${claim.winnerTicketRef}`,
 
           metadata: {
-            claimId:
-              claim.claimId,
-
+            claimId: claim.claimId,
             winnerTicketRef:
               claim.winnerTicketRef,
-
             grossPrizeValueNgn:
               claim.grossPrizeValueNgn,
-
             whtAmountNgn:
               claim.whtAmountNgn,
-
             netPrizeValueNgn:
               claim.netPrizeValueNgn,
           },
@@ -888,10 +805,8 @@ export class PrizePayoutEngineService {
 
     await tx.prizeClaim.update({
       where: {
-        claimId:
-          claim.claimId,
+        claimId: claim.claimId,
       },
-
       data: {
         prizeAccrualLedgerTxnId:
           journal.ledgerTxnId,
@@ -899,19 +814,17 @@ export class PrizePayoutEngineService {
     });
   }
 
-  private async requireAccount(
-    tx:
-      Prisma.TransactionClient,
+  // -------------------------------------------------------
+  // LEDGER ACCOUNT LOOKUP
+  // -------------------------------------------------------
 
-    code:
-      string,
+  private async requireAccount(
+    tx: Prisma.TransactionClient,
+    code: string,
   ) {
-    const account =
-      await tx.ledgerAccount.findUnique({
-        where: {
-          code,
-        },
-      });
+    const account = await tx.ledgerAccount.findUnique({
+      where: { code },
+    });
 
     if (!account) {
       throw new ConflictException(
@@ -921,6 +834,10 @@ export class PrizePayoutEngineService {
 
     return account;
   }
+
+  // -------------------------------------------------------
+  // SAFE API REPRESENTATION
+  // -------------------------------------------------------
 
   private toView(
     attempt: {
@@ -948,27 +865,24 @@ export class PrizePayoutEngineService {
       updatedAt: Date;
     },
   ) {
+    // Never expose:
+    // - Full bank account number
+    // - Encrypted beneficiary account
+    // - Encrypted payout snapshot
+    // - Account fingerprint
+    // - Encryption keys
+
     return {
-      attemptId:
-        attempt.attemptId,
+      attemptId: attempt.attemptId,
+      claimId: attempt.claimId,
+      attemptNumber: attempt.attemptNumber,
 
-      claimId:
-        attempt.claimId,
+      provider: attempt.provider,
 
-      attemptNumber:
-        attempt.attemptNumber,
+      amountNgn: attempt.amountNgn,
+      currency: attempt.currency,
 
-      provider:
-        attempt.provider,
-
-      amountNgn:
-        attempt.amountNgn,
-
-      currency:
-        attempt.currency,
-
-      status:
-        attempt.status,
+      status: attempt.status,
 
       providerReference:
         attempt.providerReference,
@@ -994,13 +908,11 @@ export class PrizePayoutEngineService {
         attempt.initiatedAt.toISOString(),
 
       lastCheckedAt:
-        attempt.lastCheckedAt
-          ?.toISOString() ??
+        attempt.lastCheckedAt?.toISOString() ??
         null,
 
       completedAt:
-        attempt.completedAt
-          ?.toISOString() ??
+        attempt.completedAt?.toISOString() ??
         null,
 
       payoutLedgerTxnId:

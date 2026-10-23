@@ -101,6 +101,11 @@ export class ComplianceAdminService {
       where: { claimId },
       orderBy: { attemptNumber: 'desc' },
     });
+    const latestPAyoutAttempt = await this.prisma.prizePayoutAttempt.findFirst({
+      where: { claimId },
+      orderBy: { attemptNumber: 'desc' },
+      select: { destinationAccountLast4: true}
+    });
     const identityVerified =
       latestIdentity?.provider === 'PAYSTACK' &&
       latestIdentity.status === 'VERIFIED' &&
@@ -161,7 +166,10 @@ export class ComplianceAdminService {
         ? {
             reference: claim.payoutReference,
             initiatedAt: claim.payoutInitiatedAt?.toISOString() ?? null,
-            accountLast4: claim.payoutAccountNumber?.slice(-4) ?? null,
+            accountLast4:
+              latestPAyoutAttempt?.destinationAccountLast4 ??
+              claim.payoutAccountNumber?.slice(-4) ??
+              null,
           }
         : null,
         collection: claim.collectionPoint

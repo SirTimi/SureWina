@@ -146,9 +146,11 @@ export class ClaimsController {
   @Post(':claimId/payout/account')
   confirmPayoutAccount(
     @Param('claimId') claimId: string,
-    @Body() dto: SubmitBankDto, // reuse from 8.3
     @CurrentUser() user: CustomerJwtPayload,
   ) {
-    return this.claimsService.confirmPayoutAccount(claimId, user.phoneNumber, dto.accountNumber, dto.bankCode);
+    return this.claimsService.confirmPayoutAccount(
+      claimId, 
+      user.phoneNumber
+    )
   }
 }

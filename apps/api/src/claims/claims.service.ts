@@ -27,6 +27,8 @@ import { RedemptionService } from './redemption.service';
 import { NotificationQueueService } from '../queue/notification-queue.service';
 import { KycIdentityEvidenceService } from './kyc/kyc-identity-evidence.service';
 import { PayoutAccountCipherService } from '../payout-accounts/payout-account-cipher.service'
+import { LockedPayoutDestinationService } from '../payout-accounts/locked-payout-destination.service'
+
 export type ClaimViewDto = {
   claimId: string;
   winnerTicketRef: string;
@@ -88,7 +90,8 @@ export class ClaimsService {
     private readonly redemption: RedemptionService,
     private readonly notificationQueue: NotificationQueueService,
     private readonly identityEvidence: KycIdentityEvidenceService,
-    private readonly payoutAccountCipher: PayoutAccountCipherService
+    private readonly payoutAccountCipher: PayoutAccountCipherService,
+    private readonly lockedDestination: LockedPayoutDestinationService
   ) {}
 
   async listMine(phoneNumber: string): Promise<{ claims: ClaimViewDto[] }> {
@@ -618,35 +621,12 @@ async reviewKyc(
     return this.toView(updated);
   }
 
+  
   async confirmPayoutAccount(
     claimId: string,
     phoneNumber: string,
-    accountNumber: string,
-    bankCode: string,
   ) {
-    // Verify ownership before contacting the bank-resolution provider.
-    const owned = await this.findOwned(claimId, phoneNumber);
-    if (owned.claimType !== ClaimType.CASH) {
-      throw new ConflictException('Payout account applies to cash claims only');
-    }
-    if (owned.status !== PrizeClaimStatus.KYC_CLEARED) {
-      throw new ConflictException(
-        `Claim is not cleared for payout (status: ${owned.status})`,
-      );
-    }
-
-    if (!/^\d{10}$/.test(accountNumber) || !/^\d{3,6}$/.test(bankCode)) {
-      throw new BadRequestException('Invalid bank account details');
-    }
-
-    // This confirms only the account's current name, not BVN ownership.
-    const resolved = await this.bankResolve.resolve(accountNumber, bankCode);
-    const normalizeAccountName = (value: string) =>
-      value.trim().replace(/\s+/g, ' ').toUpperCase();
-
-    // Recheck all mutable claim and verification state under the same lock
-    // before persisting a payout destination.
-    const updated = await this.prisma.$transaction(
+    const destination = await this.prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`
           SELECT "claim_id"
@@ -657,83 +637,56 @@ async reviewKyc(
 
         const claim = await tx.prizeClaim.findUnique({
           where: { claimId },
-          include: this.viewInclude(),
         });
 
         if (!claim || claim.winnerPhone !== phoneNumber) {
           throw new NotFoundException('Claim not found');
         }
-        if (claim.claimType !== ClaimType.CASH) {
-          throw new ConflictException('Payout account applies to cash claims only');
-        }
-        if (claim.status !== PrizeClaimStatus.KYC_CLEARED) {
-          throw new ConflictException(
-            `Claim is not cleared for payout (status: ${claim.status})`,
-          );
-        }
+
         if (
-          claim.payoutStatus &&
-          claim.payoutStatus !== PrizePayoutStatus.FAILED &&
-          claim.payoutStatus !== PrizePayoutStatus.REVERSED
+          claim.claimType !== ClaimType.CASH ||
+          claim.status !== PrizeClaimStatus.KYC_CLEARED
         ) {
           throw new ConflictException(
-            `Payout details cannot be changed while payout is ${claim.payoutStatus}`,
-          );
-        }
-        if (
-          bankCode !== claim.kycBankCode ||
-          accountNumber.slice(-4) !== claim.kycBankAccountLast4 ||
-          !claim.kycBankAccountName
-        ) {
-          throw new ConflictException(
-            'Account does not match the KYC-verified details',
+            'Cash claim is not cleared for payout',
           );
         }
 
-        // The latest successful Paystack identification must be bound to
-        // this exact FULL account and bank code, not just its last 4 digits.
-        const identityCheck = await this.identityEvidence.requireVerified(
-          this.prisma,
-          claim,
-        );
-        this.identityEvidence.assertDestinationMatches(
-          identityCheck,
-          bankCode,
-          accountNumber,
-        );
-
-        if (
-          normalizeAccountName(resolved.accountName) !==
-          normalizeAccountName(claim.kycBankAccountName)
-        ) {
-          throw new ConflictException(
-            'Account name mismatch with KYC-verified details',
-          );
-        }
-
-        return tx.prizeClaim.update({
-          where: { claimId },
-          data: { payoutAccountNumber: accountNumber },
-          include: this.viewInclude(),
-        });
+        // No account number is accepted from the client.
+        // Only the stored LOCKED beneficiary is authoritative.
+        return this.lockedDestination.requireLocked(tx, claim);
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
     );
 
     await this.audit.write({
       severity: AuditSeverity.INFO,
-      actor: { type: AuditActorType.CUSTOMER, id: phoneNumber },
+      actor: {
+        type: AuditActorType.CUSTOMER,
+        id: phoneNumber,
+      },
       action: 'CLAIM_PAYOUT_ACCOUNT_CONFIRMED',
-      resource: { type: 'PrizeClaim', id: claimId },
+      resource: {
+        type: 'PrizeClaim',
+        id: claimId,
+      },
       metadata: {
-        bankCode,
-        accountLast4: accountNumber.slice(-4),
-        identityProvider: 'PAYSTACK',
+        payoutAccountId: destination.payoutAccountId,
+        bankCode: destination.bankCode,
+        accountLast4: destination.accountLast4,
       },
     });
 
-    return { ...this.toView(updated), payoutAccountConfirmed: true };
+    const view = await this.getMine(claimId, phoneNumber);
+
+    return {
+      ...view,
+      payoutAccountConfirmed: true,
+    };
   }
+
 
   async markDelivered(claimId: string, adminId: string): Promise<ClaimViewDto> {
     const claim = await this.prisma.prizeClaim.findUnique({

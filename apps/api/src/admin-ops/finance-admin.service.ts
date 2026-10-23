@@ -141,13 +141,10 @@ export class FinanceAdminService {
            * needs to initiate.
            */
           {
-            status:
-              PrizeClaimStatus.KYC_CLEARED,
-
-            payoutAccountNumber: {
-              not: null,
-            },
+          
+            status: PrizeClaimStatus.KYC_CLEARED,
           },
+          
         ],
       },
     ];
@@ -241,9 +238,6 @@ export class FinanceAdminService {
         payoutFailureReason:
           true,
 
-        payoutAccountNumber:
-          true,
-
         paidByAgentId:
           true,
 
@@ -252,6 +246,25 @@ export class FinanceAdminService {
 
         createdAt:
           true,
+        
+        winnerUserId: true,
+        kycBankCode: true,
+        kycBankAccountLast4: true,
+        kycBankAccountName: true,
+
+        identityChecks: {
+          orderBy: { attemptNumber: 'desc' },
+          take: 1,
+          select: {
+            provider: true,
+            status: true,
+            verifiedAt: true,
+            paystackCustomerCode: true,
+            bankCode: true,
+            bankAccountLast4: true,
+            bankAccountFingerprint: true,
+          },
+        },
 
         payoutAttempts: {
           orderBy: {
@@ -319,6 +332,8 @@ export class FinanceAdminService {
 
             createdAt:
               true,
+            verifiedPayoutAccountId: true,
+            destinationAccountFingerprint: true
           },
         },
 
@@ -330,6 +345,57 @@ export class FinanceAdminService {
         },
       },
     });
+
+    
+    const lockedAccounts = await this.prisma.verifiedPayoutAccount.findMany({
+      where: {
+        status: 'LOCKED',
+        user: {
+          phoneNumber: {
+            in: rows.map((row) => row.winnerPhone),
+          },
+        },
+      },
+      select: {
+        payoutAccountId: true,
+        userId: true,
+        bankCode: true,
+        accountLast4: true,
+        accountFingerprint: true,
+        resolvedAccountName: true,
+        verifiedAt: true,
+        lockedAt: true,
+        revokedAt: true,
+        user: {
+          select: {
+            userId: true,
+            phoneNumber: true,
+          },
+        },
+        identityCheck: {
+          select: {
+            provider: true,
+            status: true,
+            verifiedAt: true,
+            paystackCustomerCode: true,
+            claim: {
+              select: {
+                winnerPhone: true,
+                winnerUserId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const lockedByPhone = new Map(
+      lockedAccounts.map((account) => [
+        account.user.phoneNumber,
+        account,
+      ]),
+    );
+
 
   const nonTerminal:
     PrizePayoutStatus[] = [
@@ -346,6 +412,43 @@ export class FinanceAdminService {
           const latest =
             r.payoutAttempts[0] ??
             null;
+          
+            
+          const beneficiary = lockedByPhone.get(r.winnerPhone);
+          const currentIdentity = r.identityChecks[0];
+          const source = beneficiary?.identityCheck;
+
+          const normalizedName = (value: string) =>
+            value.trim().replace(/\s+/g, ' ').toUpperCase();
+
+          const beneficiaryReady = Boolean(
+            beneficiary &&
+            beneficiary.verifiedAt &&
+            beneficiary.lockedAt &&
+            !beneficiary.revokedAt &&
+            (!r.winnerUserId || r.winnerUserId === beneficiary.userId) &&
+            beneficiary.bankCode === r.kycBankCode &&
+            beneficiary.accountLast4 === r.kycBankAccountLast4 &&
+            beneficiary.accountFingerprint ===
+            currentIdentity?.bankAccountFingerprint &&
+              !!r.kycBankAccountName &&
+            normalizedName(beneficiary.resolvedAccountName) ===
+            normalizedName(r.kycBankAccountName) &&
+            currentIdentity?.provider === 'PAYSTACK' &&
+            currentIdentity.status === 'VERIFIED' &&
+            !!currentIdentity.verifiedAt &&
+            !!currentIdentity.paystackCustomerCode &&
+            currentIdentity.bankCode === beneficiary.bankCode &&
+            currentIdentity.bankAccountLast4 === beneficiary.accountLast4 &&
+            source?.provider === 'PAYSTACK' &&
+            source.status === 'VERIFIED' &&
+            !!source.verifiedAt &&
+            !!source.paystackCustomerCode &&
+            source.claim.winnerPhone === r.winnerPhone &&
+            (!source.claim.winnerUserId ||
+            source.claim.winnerUserId === beneficiary.userId)
+          );
+
 
           const payoutStatus =
             latest?.status ??
@@ -367,28 +470,31 @@ export class FinanceAdminService {
               ? 'AGENT_CASH'
               : 'BANK_TRANSFER';
 
+          
           const canInitiate =
-            channel ===
-              'BANK_TRANSFER' &&
+            channel === 'BANK_TRANSFER' &&
             !latest &&
-            r.status ===
-              PrizeClaimStatus.KYC_CLEARED &&
-            Boolean(
-              r.payoutAccountNumber,
-            );
+            !r.payoutStatus &&
+            !r.payoutReference &&
+            !r.paidByAgentId &&
+            r.status === PrizeClaimStatus.KYC_CLEARED &&
+            beneficiaryReady;
 
-          const retryAllowed =
-            Boolean(
-              latest &&
-                (
-                  latest.status ===
-                    PrizePayoutStatus.FAILED ||
-                  latest.status ===
-                    PrizePayoutStatus.REVERSED
-                ) &&
-                r.status ===
-                  PrizeClaimStatus.KYC_CLEARED,
-            );
+          const retryAllowed = Boolean(
+            channel === 'BANK_TRANSFER' &&
+            latest &&
+            (
+              latest.status === PrizePayoutStatus.FAILED ||
+              latest.status === PrizePayoutStatus.REVERSED
+            ) &&
+            r.status === PrizeClaimStatus.KYC_CLEARED &&
+            beneficiaryReady &&
+            latest.verifiedPayoutAccountId ===
+            beneficiary?.payoutAccountId &&
+            latest.destinationAccountFingerprint ===
+            beneficiary?.accountFingerprint
+          );
+
 
           const refreshAllowed =
             Boolean(
@@ -456,10 +562,8 @@ export class FinanceAdminService {
               null,
 
             accountLast4:
-              latest
-                ?.destinationAccountLast4 ??
-              r.payoutAccountNumber
-                ?.slice(-4) ??
+              latest?.destinationAccountLast4 ??
+              (beneficiaryReady ? beneficiary?.accountLast4 : null) ??
               null,
 
             fulfilledAt:

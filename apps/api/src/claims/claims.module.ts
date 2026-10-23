@@ -47,6 +47,7 @@ import {
   KycIdentityEvidenceService,
 } from './kyc/kyc-identity-evidence.service';
 import { PaystackIdentityCoordinatorService } from './kyc/paystack-identity-coordinator.service'
+import { LockedPayoutDestinationService } from '../payout-accounts/locked-payout-destination.service'
 @Module({
   imports: [
     ConfigModule,
@@ -88,7 +89,8 @@ import { PaystackIdentityCoordinatorService } from './kyc/paystack-identity-coor
     PaystackIdentityWebhookService,
     KycIdentityEvidenceService,
     PaystackIdentityCoordinatorService,
-    PayoutAccountCipherService
+    PayoutAccountCipherService,
+    LockedPayoutDestinationService
   ],
 
   exports: [
