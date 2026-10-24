@@ -108,4 +108,10 @@ export const envValidationSchema = Joi.object({
   .pattern(/^[A-Za-z0-9+/]{43}=$/)
   .allow('')
   .default(''),
+
+  PAYSTACK_TRANSFERS_ENABLED:
+    Joi.boolean().default(false),
+
+  PAYSTACK_TRANSFER_FEE_BUFFER_KOBO:
+    Joi.number().integer().min(0).default(100000),
 });

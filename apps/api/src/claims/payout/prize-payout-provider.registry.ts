@@ -7,6 +7,7 @@ import {
   DevPrizePayoutProvider,
 } from './dev-prize-payout.provider';
 
+import { PaystackPrizePayoutProvider } from './paystack-prize-payout.provider'
 import {
   FlutterwavePrizePayoutProvider,
 } from './flutterwave-prize-payout.provider';
@@ -37,11 +38,13 @@ export class PrizePayoutProviderRegistry {
 
     flutterwave:
       FlutterwavePrizePayoutProvider,
+    paystack: PaystackPrizePayoutProvider
   ) {
     this.providers =
       new Map<
         PrizePayoutProviderCode,
         PrizePayoutProvider
+      
       >([
         [
           dev.providerCode,
@@ -55,6 +58,10 @@ export class PrizePayoutProviderRegistry {
           flutterwave.providerCode,
           flutterwave,
         ],
+        [
+          paystack.providerCode,
+          paystack,
+        ]
       ]);
   }
 

@@ -25,6 +25,7 @@ import {
   PaystackIdentityWebhookService,
 } from '../../claims/kyc/paystack-identity-webhook.service';
 
+import { PrizePayoutSyncService } from '../../claims/payout/prize-payout-sync.service'
 /**
  * Paystack webhook event payload.
  *
@@ -77,6 +78,8 @@ export class PaystackWebhookService {
 
     private readonly identityVerification:
       PaystackIdentityWebhookService,
+    
+    private readonly payoutSync: PrizePayoutSyncService
   ) {}
 
   async handle(event: PaystackEvent): Promise<void> {
@@ -110,6 +113,46 @@ export class PaystackWebhookService {
       event.event === 'customeridentification.failed'
     ) {
       await this.handleIdentityEvent(event);
+      return;
+    }
+
+
+    
+    if (
+      event.event === 'transfer.success' ||
+      event.event === 'transfer.failed' ||
+      event.event === 'transfer.reversed'
+    ) {
+      const reference = event.data?.reference;
+
+        if (
+          typeof reference !== 'string' ||
+            !/^[a-z0-9_-]{16,50}$/.test(reference)
+        ) {
+          throw new BadRequestException(
+            'Invalid Paystack transfer reference',
+          );
+        }
+
+      // A signed webhook is only a notification.
+      // The existing synchronization service independently
+      // calls the provider's authenticated verification API.
+      //
+      // Never finalize from event.data.status.
+      const result = await this.payoutSync.syncReference(
+        'PAYSTACK',
+        reference,
+        'paystack-transfer-webhook',
+      );
+
+      if (!result.found) {
+        // Do not invent a payout attempt from a webhook.
+        // Log a reference only, never bank details.
+        this.logger.warn(
+          `Unmatched Paystack payout webhook: ${reference}`,
+        );
+      }
+
       return;
     }
 

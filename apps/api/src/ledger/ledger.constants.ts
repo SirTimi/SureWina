@@ -8,6 +8,9 @@ export const SYSTEM_LEDGER_ACCOUNT_CODES = {
   PAYSTACK_CLEARING:
     'SYS:PSP:PAYSTACK',
 
+  PAYSTACK_PAYOUT_CLEARING:
+  'SYS:PAYOUT:PAYSTACK',
+
   MONNIFY_COLLECTION_CLEARING:
     'SYS:PSP:MONNIFY',
 
@@ -245,5 +248,14 @@ export const SYSTEM_LEDGER_ACCOUNTS = [
       LedgerAccountPurpose.SUSPENSE,
     ownerType:
       LedgerOwnerType.SYSTEM,
+  },
+
+  {
+    code:
+      SYSTEM_LEDGER_ACCOUNT_CODES.PAYSTACK_PAYOUT_CLEARING,
+    name: 'Paystack Payout Clearing',
+    accountType: LedgerAccountType.ASSET,
+    purpose: LedgerAccountPurpose.PAYOUT_CLEARING,
+    ownerType: LedgerOwnerType.SYSTEM,
   },
 ] as const;

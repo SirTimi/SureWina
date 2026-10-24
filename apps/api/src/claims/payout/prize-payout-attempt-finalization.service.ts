@@ -999,9 +999,30 @@ export class PrizePayoutAttemptFinalizationService {
       currency: string;
       destinationBankCode: string;
       destinationAccountLast4: string;
+      destinationAccountFingerprint: string | null;
     },
     result: PrizePayoutProviderResult,
   ): string | null {
+
+    
+    if (result.provider === 'PAYSTACK') {
+      if (
+        !attempt.destinationAccountFingerprint ||
+        !/^[a-f0-9]{64}$/.test(
+          attempt.destinationAccountFingerprint,
+        ) ||
+        !result.destinationAccountFingerprint ||
+        result.destinationAccountFingerprint !==
+          attempt.destinationAccountFingerprint ||
+        result.amountNgn == null ||
+        result.currency == null ||
+        result.destinationBankCode == null ||
+        result.destinationAccountLast4 == null
+      ) {
+        return 'Paystack payout verification is incomplete or does not match the approved destination';
+      }
+    }
+
     if (
       result.amountNgn !==
         undefined &&
@@ -1112,6 +1133,10 @@ export class PrizePayoutAttemptFinalizationService {
       case 'DEV':
         return SYSTEM_LEDGER_ACCOUNT_CODES
           .BANK_CASH;
+
+      case 'PAYSTACK':
+        return SYSTEM_LEDGER_ACCOUNT_CODES
+          .PAYSTACK_PAYOUT_CLEARING;
 
       default:
         throw new Error(

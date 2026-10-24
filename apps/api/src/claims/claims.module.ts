@@ -49,6 +49,7 @@ import {
 import { PaystackIdentityCoordinatorService } from './kyc/paystack-identity-coordinator.service'
 import { LockedPayoutDestinationService } from '../payout-accounts/locked-payout-destination.service'
 import { BankChangeStepUpService } from '../payout-accounts/bank-change-step-up.service'
+import { PaystackPrizePayoutProvider } from './payout/paystack-prize-payout.provider';
 @Module({
   imports: [
     ConfigModule,
@@ -92,7 +93,8 @@ import { BankChangeStepUpService } from '../payout-accounts/bank-change-step-up.
     PaystackIdentityCoordinatorService,
     PayoutAccountCipherService,
     LockedPayoutDestinationService,
-    BankChangeStepUpService
+    BankChangeStepUpService,
+    PaystackPrizePayoutProvider
   ],
 
   exports: [

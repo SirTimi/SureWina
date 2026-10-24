@@ -1,51 +1,37 @@
+
 import { PrizePayoutStatus } from '@prisma/client';
 
 export type PrizePayoutProviderCode =
   | 'DEV'
   | 'MONNIFY'
-  | 'FLUTTERWAVE';
+  | 'FLUTTERWAVE'
+  | 'PAYSTACK';
 
 export type InitiatePrizePayoutInput = {
   idempotencyKey: string;
-
   accountNumber: string;
   bankCode: string;
   accountName: string;
-
   amountNgn: number;
   reason: string;
 };
 
 export type PrizePayoutProviderResult = {
   provider: PrizePayoutProviderCode;
-
-  /**
-   * SureWina's/provider merchant reference used to locate
-   * this exact payout again.
-   */
   reference: string;
-
-  /**
-   * Provider's own transfer/transaction identifier where available.
-   */
   providerTransactionId?: string | null;
-
   status: PrizePayoutStatus;
-
   rawStatus?: string;
-
   failureReason?: string;
 
-  /**
-   * Financial identity returned by the provider when available.
-   *
-   * Phase 6 finalization will compare these against the immutable
-   * PrizePayoutAttempt before allowing SUCCEEDED.
-   */
   amountNgn?: number | null;
   currency?: string | null;
   destinationBankCode?: string | null;
   destinationAccountLast4?: string | null;
+
+  // HMAC of the FULL bank code and NUBAN.
+  // Never the raw account number.
+  destinationAccountFingerprint?: string | null;
 };
 
 export interface PrizePayoutProvider {
