@@ -38,6 +38,7 @@ model User {
   wallet                 Wallet?                 @relation("CustomerWallet")
   walletPurchases        WalletPurchase[]
   verifiedPayoutAccounts VerifiedPayoutAccount[]
+  walletWithdrawals      WalletWithdrawal[]
 
   @@index([phoneNumber])
   @@index([selfExclusionUntil])
@@ -1147,6 +1148,7 @@ model Wallet {
   walletPurchases WalletPurchase[]
 
   witmangoLink WitmangoWalletLink?
+  withdrawals  WalletWithdrawal[]
 
   @@index([ownerType, status])
   @@index([createdAt])
@@ -1184,6 +1186,7 @@ model WalletHold {
   releaseLedgerTxn LedgerTransaction? @relation("WalletHoldReleased", fields: [releaseLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
   captureLedgerTxn LedgerTransaction? @relation("WalletHoldCaptured", fields: [captureLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
   purchases        WalletPurchase[]
+  walletWithdrawal WalletWithdrawal?
 
   @@index([walletId, status])
   @@index([referenceType, referenceId])
@@ -1974,9 +1977,10 @@ model VerifiedPayoutAccount {
   identityCheckId String?           @unique @map("identity_check_id")
   identityCheck   KycIdentityCheck? @relation("VerifiedPayoutAccountIdentity", fields: [identityCheckId], references: [checkId], onDelete: Restrict)
 
-  verifiedAt DateTime? @map("verified_at")
-  lockedAt   DateTime? @map("locked_at")
-  revokedAt  DateTime? @map("revoked_at")
+  verifiedAt        DateTime?          @map("verified_at")
+  lockedAt          DateTime?          @map("locked_at")
+  revokedAt         DateTime?          @map("revoked_at")
+  walletWithdrawals WalletWithdrawal[]
 
   createdAt      DateTime             @default(now()) @map("created_at")
   updatedAt      DateTime             @updatedAt @map("updated_at")
@@ -1986,7 +1990,6 @@ model VerifiedPayoutAccount {
   @@index([createdAt])
   @@map("verified_payout_accounts")
 }
-
 
 enum WitmangoWalletLinkStatus {
   PROVISIONING
@@ -2018,4 +2021,67 @@ model WitmangoWalletLink {
   @@unique([tenantId, savingsAccountId])
   @@index([status, updatedAt])
   @@map("witmango_wallet_links")
+}
+
+enum WalletWithdrawalStatus {
+  RESERVED
+  CBA_DEBIT_UNKNOWN
+  CBA_DEBIT_CONFIRMED
+  BANK_TRANSFER_PENDING
+  BANK_TRANSFER_UNKNOWN
+  SUCCEEDED
+  RESTORE_REQUIRED
+  RESTORED
+  REVIEW_REQUIRED
+  CANCELLED
+}
+
+model WalletWithdrawal {
+  withdrawalId String @id @default(uuid()) @map("withdrawal_id")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [userId], onDelete: Restrict)
+
+  walletId String @map("wallet_id")
+  wallet   Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+
+  payoutAccountId String                @map("payout_account_id")
+  payoutAccount   VerifiedPayoutAccount @relation(fields: [payoutAccountId], references: [payoutAccountId], onDelete: Restrict)
+
+  holdId String     @unique @map("hold_id")
+  hold   WalletHold @relation(fields: [holdId], references: [holdId], onDelete: Restrict)
+
+  requestId String @map("request_id") @db.VarChar(64)
+
+  tenantId         String @map("tenant_id") @db.VarChar(100)
+  savingsAccountId Int    @map("savings_account_id")
+
+  amountNgn Int    @map("amount_ngn")
+  currency  String @default("NGN") @db.VarChar(3)
+
+  bankCode         String @map("bank_code") @db.VarChar(6)
+  bankAccountLast4 String @map("bank_account_last4") @db.VarChar(4)
+  bankFingerprint  String @map("bank_fingerprint") @db.VarChar(64)
+  bankCiphertext   String @map("bank_ciphertext") @db.Text
+
+  cbaReference                String    @unique @map("cba_reference") @db.VarChar(50)
+  cbaTransactionId            String?   @map("cba_transaction_id") @db.VarChar(120)
+  cbaSubmissionStartedAt      DateTime? @map("cba_submission_started_at")
+  paystackSubmissionStartedAt DateTime? @map("paystack_submission_started_at")
+
+  paystackReference     String  @unique @map("paystack_reference") @db.VarChar(50)
+  paystackTransactionId String? @map("paystack_transaction_id") @db.VarChar(120)
+
+  status      WalletWithdrawalStatus @default(RESERVED)
+  failureCode String?                @map("failure_code") @db.VarChar(120)
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  @@unique([userId, requestId])
+  @@unique([tenantId, cbaTransactionId])
+  @@index([walletId, status])
+  @@index([status, updatedAt])
+  @@map("wallet_withdrawals")
 }

@@ -155,6 +155,36 @@ export class BankChangeStepUpService {
       }),
     ]);
 
+    const pendingWithdrawal =
+      await this.prisma.walletWithdrawal.findFirst({
+        where: {
+          userId: (
+            await this.prisma.user.findUniqueOrThrow({
+              where: { phoneNumber },
+              select: { userId: true },
+            })
+          ).userId,
+          status: {
+            in: [
+              'RESERVED',
+              'CBA_DEBIT_UNKNOWN',
+              'CBA_DEBIT_CONFIRMED',
+              'BANK_TRANSFER_PENDING',
+              'BANK_TRANSFER_UNKNOWN',
+              'RESTORE_REQUIRED',
+              'REVIEW_REQUIRED',
+            ],
+          },
+        },
+        select: { withdrawalId: true },
+      });
+
+    if (pendingWithdrawal) {
+      throw new ConflictException(
+        'An outstanding wallet withdrawal prevents bank-account changes',
+      );
+    }
+
     if (attempt || legacy) {
       throw new ConflictException(
         'An unresolved payout must be reconciled before changing bank accounts',

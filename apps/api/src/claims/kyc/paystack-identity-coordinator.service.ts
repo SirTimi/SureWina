@@ -13,7 +13,8 @@ import {
   Prisma,
   PrizeClaimStatus,
   VerifiedPayoutAccountStatus,
-  PrizePayoutStatus
+  PrizePayoutStatus,
+  WalletWithdrawalStatus,
 } from '@prisma/client';
 
 import { PrismaService } from '../../database/prisma.service';
@@ -297,6 +298,33 @@ export class PaystackIdentityCoordinatorService {
   if (unresolved || unresolvedLegacy) {
     throw new ConflictException(
       'Unresolved payouts prevent bank replacement',
+    );
+  }
+
+  // The user row was locked above, and the withdrawal reservation
+  // also locks that row. This prevents a bank change racing with
+  // a newly created wallet withdrawal.
+  const outstandingWithdrawal = await tx.walletWithdrawal.findFirst({
+    where: {
+      userId: user.userId,
+      status: {
+        in: [
+          WalletWithdrawalStatus.RESERVED,
+          WalletWithdrawalStatus.CBA_DEBIT_UNKNOWN,
+          WalletWithdrawalStatus.CBA_DEBIT_CONFIRMED,
+          WalletWithdrawalStatus.BANK_TRANSFER_PENDING,
+          WalletWithdrawalStatus.BANK_TRANSFER_UNKNOWN,
+          WalletWithdrawalStatus.RESTORE_REQUIRED,
+          WalletWithdrawalStatus.REVIEW_REQUIRED,
+        ],
+      },
+    },
+    select: { withdrawalId: true },
+  });
+
+  if (outstandingWithdrawal) {
+    throw new ConflictException(
+      'Bank beneficiary cannot be changed while a wallet withdrawal is unresolved',
     );
   }
 

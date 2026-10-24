@@ -108,7 +108,8 @@ import { PaystackPrizePayoutProvider } from './payout/paystack-prize-payout.prov
     PrizePayoutSyncService,
     MonnifyWebhookSignatureGuard,
     PaystackIdentityWebhookService,
-    KycIdentityEvidenceService
+    KycIdentityEvidenceService,
+    PayoutAccountCipherService
   ],
 })
 export class ClaimsModule {}

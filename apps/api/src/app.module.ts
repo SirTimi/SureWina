@@ -31,6 +31,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LedgerModule } from './ledger/ledger.module';
 import { WalletModule } from './wallet/wallet.module';
 import { TreasuryModule } from './treasury/treasury.module';
+import { WitmangoWithdrawalModule } from './integrations/witmango/witmango-withdrawal.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { TreasuryModule } from './treasury/treasury.module';
     LedgerModule,
     WalletModule,
     TreasuryModule,
+    WitmangoWithdrawalModule,
     ThrottlerModule.forRoot([
       {
         name: 'default',

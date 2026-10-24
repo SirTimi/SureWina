@@ -126,4 +126,10 @@ export const envValidationSchema = Joi.object({
 
   WITMANGO_SAVINGS_PRODUCT_ID:
     Joi.number().integer().min(1).optional(),
+
+  WITMANGO_WITHDRAWAL_RESERVATIONS_ENABLED:
+    Joi.boolean().default(false),
+
+  WITMANGO_MONETARY_ENABLED:
+    Joi.boolean().default(false),
 });
