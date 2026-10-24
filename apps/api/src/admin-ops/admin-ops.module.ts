@@ -24,6 +24,7 @@ import { LedgerModule } from '../ledger/ledger.module';
 import { MonnifyModule } from '../integrations/monnify/monnify.module';
 import { WitmangoModule } from '../integrations/witmango/witmango.module';
 import { WitmangoFinanceController } from './witmango-finance.controller';
+import { WitmangoWalletFinanceController} from '../integrations/witmango/witmango-wallet-finance.controller'
 @Module({
   imports: [JwtModule.register({}), AuditModule, ClaimsModule, LedgerModule, MonnifyModule, WitmangoModule],
   controllers: [
@@ -37,7 +38,8 @@ import { WitmangoFinanceController } from './witmango-finance.controller';
     SettingsAdminController,
     UserAdminController,
     CollectionPointAdminController,
-    WitmangoFinanceController
+    WitmangoFinanceController,
+    WitmangoWalletFinanceController
   ],
   providers: [AdminDashboardService, CustomerAdminService, AgentAdminService, FinanceAdminService, ComplianceAdminService, AdminNotificationsService, PaymentRefundService],
   exports: [CustomerAdminService]

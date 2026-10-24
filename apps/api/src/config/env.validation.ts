@@ -114,4 +114,16 @@ export const envValidationSchema = Joi.object({
 
   PAYSTACK_TRANSFER_FEE_BUFFER_KOBO:
     Joi.number().integer().min(0).default(100000),
+
+  WITMANGO_PROVISIONING_ENABLED:
+  Joi.boolean().default(false),
+
+  WITMANGO_OFFICE_ID:
+    Joi.number().integer().min(1).optional(),
+
+  WITMANGO_LEGAL_FORM_ID:
+    Joi.number().integer().min(1).optional(),
+
+  WITMANGO_SAVINGS_PRODUCT_ID:
+    Joi.number().integer().min(1).optional(),
 });

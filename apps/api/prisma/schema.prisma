@@ -1146,6 +1146,8 @@ model Wallet {
   holds           WalletHold[]
   walletPurchases WalletPurchase[]
 
+  witmangoLink WitmangoWalletLink?
+
   @@index([ownerType, status])
   @@index([createdAt])
   @@map("wallets")
@@ -1983,4 +1985,37 @@ model VerifiedPayoutAccount {
   @@index([userId, status])
   @@index([createdAt])
   @@map("verified_payout_accounts")
+}
+
+
+enum WitmangoWalletLinkStatus {
+  PROVISIONING
+  ACTIVE
+  REVIEW_REQUIRED
+}
+
+model WitmangoWalletLink {
+  linkId String @id @default(uuid()) @map("link_id")
+
+  walletId String @unique @map("wallet_id")
+  wallet   Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+
+  tenantId String @map("tenant_id") @db.VarChar(100)
+
+  clientExternalId String @map("client_external_id") @db.VarChar(100)
+
+  clientId         Int? @map("client_id")
+  savingsAccountId Int? @map("savings_account_id")
+
+  status WitmangoWalletLinkStatus @default(PROVISIONING)
+
+  lastReconciledAt DateTime? @map("last_reconciled_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, clientExternalId])
+  @@unique([tenantId, savingsAccountId])
+  @@index([status, updatedAt])
+  @@map("witmango_wallet_links")
 }
