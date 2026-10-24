@@ -209,6 +209,8 @@ export class WitmangoWithdrawalService {
       );
     }
 
+    const savingsAccountId: number = link.savingsAccountId
+
     // Read-only preflight. No CBA debit is made.
     const external = await this.witmango.getSavingsAccount(
       link.savingsAccountId,
@@ -391,7 +393,7 @@ export class WitmangoWithdrawalService {
             requestId,
 
             tenantId: link.tenantId,
-            savingsAccountId: link.savingsAccountId,
+            savingsAccountId,
 
             amountNgn,
             currency: 'NGN',
@@ -467,7 +469,7 @@ export class WitmangoWithdrawalService {
       row.status !== WalletWithdrawalStatus.RESERVED ||
       row.cbaTransactionId ||
       row.paystackTransactionId || row.cbaSubmissionStartedAt ||
-      row.paysrackSubmissionStartedAt
+      row.paystackSubmissionStartedAt
     ) {
       throw new ConflictException(
         'Withdrawal is not safe to cancel automatically',
