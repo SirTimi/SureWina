@@ -657,7 +657,8 @@ export interface AdminPayoutAttempt {
   provider:
     | 'DEV'
     | 'MONNIFY'
-    | 'FLUTTERWAVE';
+    | 'FLUTTERWAVE'
+    | 'PAYSTACK';
 
   amountNgn: number;
   currency: string;
@@ -758,6 +759,13 @@ export interface AdminPayoutRow {
 
   currentAttempt:
     AdminPayoutAttempt | null;
+}
+
+export interface AdminPayoutRails {
+  paystack: {
+    enabled: boolean;
+    reason: 'TRANSFERS_DISABLED' | 'CONFIGURATION_INCOMPLETE' | null;
+  };
 }
 
 export interface AdminPayoutList {
@@ -1441,11 +1449,16 @@ export class AdminModule {
     return this.client.get('/admin/finance/payouts', { query: { ...params } });
   }
 
+  async prizePayoutRails(): Promise<AdminPayoutRails> {
+    return this.client.get('/admin/finance/payout-rails');
+  }
+
   async initiatePrizePayout(
     claimId: string,
     provider:
       | 'MONNIFY'
-      | 'FLUTTERWAVE',
+      | 'FLUTTERWAVE'
+      | 'PAYSTACK',
   ): Promise<AdminPayoutAttempt> {
     return this.client.post(
       `/admin/finance/payouts/${encodeURIComponent(
@@ -1472,7 +1485,8 @@ export class AdminModule {
     claimId: string,
     provider:
       | 'MONNIFY'
-      | 'FLUTTERWAVE',
+      | 'FLUTTERWAVE'
+      | 'PAYSTACK',
   ): Promise<AdminPayoutAttempt> {
     return this.client.post(
       `/admin/finance/payouts/${encodeURIComponent(

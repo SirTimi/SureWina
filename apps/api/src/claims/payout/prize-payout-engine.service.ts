@@ -15,6 +15,7 @@ import {
   PrizeClaimStatus,
   PrizePayoutStatus,
 } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 import {
   createHash,
@@ -35,6 +36,7 @@ import {
 } from './prize-payout.provider';
 
 import { PrizePayoutProviderRegistry } from './prize-payout-provider.registry';
+import { requirePaystackPrizePayoutReadiness } from './paystack-prize-payout-readiness';
 
 import { PrizePayoutAttemptFinalizationService } from './prize-payout-attempt-finalization.service';
 
@@ -48,6 +50,7 @@ export class PrizePayoutEngineService {
     private readonly finalizer: PrizePayoutAttemptFinalizationService,
     private readonly lockedDestination: LockedPayoutDestinationService,
     private readonly payoutCipher: PayoutAccountCipherService,
+    private readonly config: ConfigService,
   ) {}
 
   // -------------------------------------------------------
@@ -235,6 +238,12 @@ export class PrizePayoutEngineService {
     const provider = this.providers.get(
       providerCode,
     );
+
+    // Block disabled/misconfigured Paystack BEFORE reserving a payout,
+    // posting a prize accrual, or calling the external provider.
+    if (provider.providerCode === 'PAYSTACK') {
+      requirePaystackPrizePayoutReadiness(this.config);
+    }
 
     // All authorization, destination verification,
     // financial checks, and reservation happen here.

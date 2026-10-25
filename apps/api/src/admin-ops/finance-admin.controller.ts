@@ -23,6 +23,8 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
+import { ConfigService } from '@nestjs/config';
+import { getPaystackPrizePayoutReadiness } from '../claims/payout/paystack-prize-payout-readiness';
 
 import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
 import { AdminRoleGuard } from '../admin-auth/guards/admin-role.guard';
@@ -66,14 +68,9 @@ class ListPayoutsQueryDto {
   toDate?: string;
 }
 
-class PrizePayoutProviderDto {
-  @IsIn([
-    'MONNIFY',
-    'FLUTTERWAVE',
-  ])
-  provider!:
-    | 'MONNIFY'
-    | 'FLUTTERWAVE';
+export class PrizePayoutProviderDto {
+  @IsIn(['MONNIFY', 'FLUTTERWAVE', 'PAYSTACK'])
+  provider!: 'MONNIFY' | 'FLUTTERWAVE' | 'PAYSTACK';
 }
 
 @Controller('admin/finance')
@@ -94,6 +91,7 @@ export class FinanceAdminController {
 
     private readonly prizePayouts:
       PrizePayoutEngineService,
+    private readonly config: ConfigService,
   ) {}
 
   @Get('reconciliation')
@@ -177,6 +175,15 @@ export class FinanceAdminController {
     return this.financeAdmin.listPayouts(
       q,
     );
+  }
+
+  /**
+   * Finance-only, non-sensitive rail readiness. This never contacts Paystack
+   * or approves any payment.
+   */
+  @Get('payout-rails')
+  payoutRails() {
+    return { paystack: getPaystackPrizePayoutReadiness(this.config) };
   }
 
   /*
