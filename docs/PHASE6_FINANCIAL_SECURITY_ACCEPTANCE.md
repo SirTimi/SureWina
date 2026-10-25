@@ -28,11 +28,11 @@
 | Pending Paystack transfer | No new transfer, no payout finalization | Provider tests and Phase 6 synchronization tests; sandbox pending |
 | Reversed Paystack transfer | Reversal journal and safe CBA restoration | Prize-payout code exists; CBA compensation blocked |
 | Worker/API crash after external request | Restore the exact attempt by immutable reference, never blind resubmit | Prize recovery code exists; CBA sandbox simulation pending |
-| Two withdrawals simultaneously | DB constraint + wallet-level locks, no overspend | DB partial unique index; concurrent database test pending |
+| Two withdrawals simultaneously | DB constraint + wallet-level locks, no overspend | DB partial unique index and read-only rollout checks; concurrent database test pending |
 | Signed webhook security | Exact raw request HMAC, reject missing/invalid signature | Phase 6 security test coverage; deployed ingress test pending |
 | CBA-to-Paystack funding | Matched custodial movement and actual available transfer balance | Not provided by the available CBA contract |
 
-Passing tests does not mark unchecked rows PASS. Track sandbox evidence for each scenario (date, sanitized references, expected/actual balance, ledger, provider statuses, reconciliation, Finance reviewer).
+The rollout checker now reports a separate read-only CBA withdrawal hold invariant, including unresolved holds, duplicate wallet requests, submission markers and transaction-ID mismatches. Strict review stays blocked if unresolved CBA withdrawals require Finance investigation. Passing tests does not mark unchecked rows PASS. Track sandbox evidence for each scenario (date, sanitized references, expected/actual balance, ledger, provider statuses, reconciliation, Finance reviewer).
 
 ## Commands
 

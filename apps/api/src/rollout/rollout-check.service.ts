@@ -23,6 +23,7 @@ import {
   WalletFundingStatus,
   WalletHoldStatus,
   WalletPurchaseStatus,
+  WalletWithdrawalStatus,
 } from '@prisma/client';
 
 import { PrismaService } from '../database/prisma.service';
@@ -92,6 +93,7 @@ export class RolloutCheckService {
       await this.checkAgentSales(),
       await this.checkAgentPrizeReimbursements(),
       await this.checkBankPrizePayouts(),
+      await this.checkCbaWithdrawalHolds(),
       await this.checkRetiredDebtSuspensions(),
       await this.checkReconciliation(),
       await this.checkSuspenseBalance(options.production),
@@ -2161,6 +2163,115 @@ export class RolloutCheckService {
         );
   }
 
+  /**
+   * Phase 6 financial safety gate. This check is read-only and does not
+   * assume that a CBA debit means a beneficiary received bank funds.
+   */
+  private async checkCbaWithdrawalHolds(): Promise<CheckResult> {
+    const unresolvedStatuses: WalletWithdrawalStatus[] = [
+      WalletWithdrawalStatus.RESERVED,
+      WalletWithdrawalStatus.CBA_DEBIT_UNKNOWN,
+      WalletWithdrawalStatus.CBA_DEBIT_CONFIRMED,
+      WalletWithdrawalStatus.BANK_TRANSFER_PENDING,
+      WalletWithdrawalStatus.BANK_TRANSFER_UNKNOWN,
+      WalletWithdrawalStatus.RESTORE_REQUIRED,
+      WalletWithdrawalStatus.REVIEW_REQUIRED,
+    ];
+
+    // A bounded scan fails closed if too many requests exist to verify.
+    const withdrawals = await this.prisma.walletWithdrawal.findMany({
+      where: { status: { in: unresolvedStatuses } },
+      select: {
+        withdrawalId: true,
+        walletId: true,
+        amountNgn: true,
+        status: true,
+        cbaTransactionId: true,
+        cbaSubmissionStartedAt: true,
+        paystackTransactionId: true,
+        paystackSubmissionStartedAt: true,
+        hold: {
+          select: {
+            walletId: true,
+            amountNgn: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: [{ updatedAt: 'asc' }, { withdrawalId: 'asc' }],
+      take: 1001,
+    });
+
+    if (withdrawals.length > 1000) {
+      return this.blocker(
+        'cba.withdrawal-holds',
+        'CBA withdrawal reservation safety',
+        'More than 1000 unresolved CBA withdrawals; a complete review cannot be guaranteed.',
+      );
+    }
+
+    const seenWallets = new Set<string>();
+    const problems: string[] = [];
+
+    for (const row of withdrawals) {
+      if (seenWallets.has(row.walletId)) {
+        problems.push(row.withdrawalId + ': duplicate unresolved withdrawal for wallet');
+      }
+      seenWallets.add(row.walletId);
+
+      if (
+        !row.hold ||
+        row.hold.walletId !== row.walletId ||
+        row.hold.amountNgn !== row.amountNgn ||
+        row.hold.status !== WalletHoldStatus.HELD
+      ) {
+        problems.push(row.withdrawalId + ': unresolved withdrawal lacks matching held liability');
+      }
+
+      if (
+        row.status === WalletWithdrawalStatus.RESERVED &&
+        (
+          row.cbaTransactionId !== null ||
+          row.cbaSubmissionStartedAt !== null ||
+          row.paystackTransactionId !== null ||
+          row.paystackSubmissionStartedAt !== null
+        )
+      ) {
+        problems.push(row.withdrawalId + ': reserved withdrawal has external submission markers');
+      }
+
+      if (
+        row.status === WalletWithdrawalStatus.CBA_DEBIT_CONFIRMED &&
+        !row.cbaTransactionId
+      ) {
+        problems.push(row.withdrawalId + ': CBA debit confirmed without external transaction ID');
+      }
+    }
+
+    if (problems.length > 0) {
+      return this.blocker(
+        'cba.withdrawal-holds',
+        'CBA withdrawal reservation safety',
+        problems.length + ' CBA withdrawal invariant issue(s) found.',
+        problems.slice(0, 100),
+      );
+    }
+
+    if (withdrawals.length > 0) {
+      return this.review(
+        'cba.withdrawal-holds',
+        'CBA withdrawal reservation safety',
+        withdrawals.length + ' unresolved CBA withdrawal(s) retain matching holds and require Finance reconciliation.',
+      );
+    }
+
+    return this.pass(
+      'cba.withdrawal-holds',
+      'CBA withdrawal reservation safety',
+      'No unresolved CBA withdrawals or stranded active holds were found in the active withdrawal queue.',
+    );
+  }
+
   private async checkRetiredDebtSuspensions(): Promise<CheckResult> {
     const count =
       await this.prisma.agent.count({
@@ -2801,6 +2912,9 @@ export class RolloutCheckService {
         : null,
       unsignedSandbox
         ? 'MONNIFY_ALLOW_UNSIGNED_SANDBOX_WEBHOOKS: must be false'
+        : null,
+      this.config.get<boolean>('WITMANGO_MONETARY_ENABLED') === true
+        ? 'WITMANGO_MONETARY_ENABLED: unapproved external debit/settlement contract'
         : null,
     ].filter(
       (
