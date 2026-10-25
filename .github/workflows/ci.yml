@@ -55,6 +55,9 @@ jobs:
       - name: Validate Prisma migrations
         run: pnpm --filter @surewina/api prisma:migrate:deploy
 
+      - name: Assert deployed database matches Prisma schema
+        run: pnpm --filter @surewina/api exec prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+
       - name: Bootstrap system chart twice (idempotency)
         run: |
           pnpm --filter @surewina/api ledger:bootstrap
