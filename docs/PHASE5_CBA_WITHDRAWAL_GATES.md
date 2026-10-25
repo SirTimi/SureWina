@@ -55,3 +55,11 @@ PAYSTACK_TRANSFERS_ENABLED=false
 ```
 
 The deployment and runtime configuration must keep these settings in their intended state even if an environment variable has been accidentally added elsewhere. Live prize payouts are a separate controlled rollout.
+
+## Phase 5 follow-up controls (October 25, 2026)
+- WalletService.releaseHoldInTransaction() posts the release journal and updates the wallet hold inside a caller-owned PostgreSQL transaction.
+- The customer cancellation flow uses one serializable transaction for the user and wallet locks, withdrawal-row lock, hold release, and CANCELLED transition. Submission markers or any non-RESERVED state prevent release.
+- Finance has a tenant-scoped read-only queue at GET /v1/admin/finance/witmango/withdrawals/queue. It returns safe references, masked destination and a suggested review step. This is triage, not settlement authorization.
+- Additional regression tests cover concurrent-state guards, replay and a simulated hold-release failure; they do not substitute for live CBA sandbox recovery tests.
+
+**External blocker remains:** The provided Witmango PDF and Postman collection contain no documented idempotent savings withdrawal reference, external wallet hold, guaranteed debit lookup after a lost POST response, or authenticated CBA-to-Paystack settlement funding path. Withholding automatic debit, restoration and Paystack initiation is intentional. Software-only completion cannot be claimed until Witmango and Finance supply and test those guarantees.
