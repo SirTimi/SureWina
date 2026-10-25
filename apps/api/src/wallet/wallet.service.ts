@@ -1016,165 +1016,100 @@ export class WalletService {
   // ─────────────────────────────────────────────────────────
 
   async releaseHold(input: ResolveHoldInput) {
-    const locator =
-      await this.prisma.walletHold.findUnique({
-        where: {
-          holdId: input.holdId,
-        },
-        select: {
-          walletId: true,
-        },
-      });
-
-    if (!locator) {
-      throw new NotFoundException(
-        'Wallet hold not found',
-      );
-    }
-
-    const idempotencyKey =
-      this.normalizeIdempotencyKey(
-        input.idempotencyKey,
-      );
-
     await this.prisma.$transaction(
-      async (tx) => {
-        const wallet =
-          await this.lockWallet(
-            tx,
-            locator.walletId,
-          );
-
-        this.assertNotClosed(
-          wallet.status,
-        );
-
-        await tx.$queryRaw`
-          SELECT hold_id
-          FROM wallet_holds
-          WHERE hold_id = ${input.holdId}
-          FOR UPDATE
-        `;
-
-        const hold =
-          await tx.walletHold.findUniqueOrThrow({
-            where: {
-              holdId:
-                input.holdId,
-            },
-          });
-
-        if (
-          hold.status ===
-          WalletHoldStatus.RELEASED
-        ) {
-          if (
-            hold.releaseIdempotencyKey ===
-            idempotencyKey
-          ) {
-            return;
-          }
-
-          throw new ConflictException(
-            'Wallet hold has already been released',
-          );
-        }
-
-        if (
-          hold.status ===
-          WalletHoldStatus.CAPTURED
-        ) {
-          throw new ConflictException(
-            'Captured wallet hold cannot be released',
-          );
-        }
-
-        const description =
-          input.description ??
-          'Release wallet hold';
-
-        const journal =
-          await this.ledger.postInTransaction(
-            tx,
-            {
-              idempotencyKey,
-
-              kind:
-                LedgerTransactionKind.WALLET_RELEASE,
-
-              referenceType:
-                hold.referenceType,
-
-              referenceId:
-                hold.referenceId,
-
-              description,
-
-              metadata:
-                input.metadata,
-
-              lines: [
-                {
-                  accountId:
-                    wallet.heldAccountId,
-
-                  side:
-                    LedgerEntrySide.DEBIT,
-
-                  amountNgn:
-                    hold.amountNgn,
-
-                  memo:
-                    input.description ??
-                    'Release held funds',
-                },
-                {
-                  accountId:
-                    wallet.availableAccountId,
-
-                  side:
-                    LedgerEntrySide.CREDIT,
-
-                  amountNgn:
-                    hold.amountNgn,
-
-                  memo:
-                    input.description ??
-                    'Return funds to available balance',
-                },
-              ],
-            },
-          );
-
-        await tx.walletHold.update({
-          where: {
-            holdId:
-              hold.holdId,
-          },
-          data: {
-            status:
-              WalletHoldStatus.RELEASED,
-
-            releaseLedgerTxnId:
-              journal.ledgerTxnId,
-
-            releaseIdempotencyKey:
-              idempotencyKey,
-
-            resolvedAt:
-              new Date(),
-          },
-        });
-      },
+      (tx) => this.releaseHoldInTransaction(tx, input),
       {
         isolationLevel:
           Prisma.TransactionIsolationLevel.Serializable,
       },
     );
 
-    return this.getHold(
-      input.holdId,
-    );
+    return this.getHold(input.holdId);
+  }
+
+  /**
+   * Release a held wallet balance inside the caller's transaction.
+   * The withdrawal cancellation uses this to commit the release
+   * journal, hold state and withdrawal state as one atomic unit.
+   */
+  async releaseHoldInTransaction(
+    tx: Prisma.TransactionClient,
+    input: ResolveHoldInput,
+  ) {
+    const locator = await tx.walletHold.findUnique({
+      where: { holdId: input.holdId },
+      select: { walletId: true },
+    });
+
+    if (!locator) {
+      throw new NotFoundException('Wallet hold not found');
+    }
+
+    const idempotencyKey =
+      this.normalizeIdempotencyKey(input.idempotencyKey);
+
+    const wallet = await this.lockWallet(tx, locator.walletId);
+    this.assertNotClosed(wallet.status);
+
+    await tx.$queryRaw`
+      SELECT hold_id
+      FROM wallet_holds
+      WHERE hold_id = ${input.holdId}
+      FOR UPDATE
+    `;
+
+    const hold = await tx.walletHold.findUniqueOrThrow({
+      where: { holdId: input.holdId },
+    });
+
+    if (hold.status === WalletHoldStatus.RELEASED) {
+      if (hold.releaseIdempotencyKey === idempotencyKey) {
+        return hold;
+      }
+      throw new ConflictException(
+        'Wallet hold has already been released',
+      );
+    }
+
+    if (hold.status === WalletHoldStatus.CAPTURED) {
+      throw new ConflictException(
+        'Captured wallet hold cannot be released',
+      );
+    }
+
+    const description = input.description ?? 'Release wallet hold';
+    const journal = await this.ledger.postInTransaction(tx, {
+      idempotencyKey,
+      kind: LedgerTransactionKind.WALLET_RELEASE,
+      referenceType: hold.referenceType,
+      referenceId: hold.referenceId,
+      description,
+      metadata: input.metadata,
+      lines: [
+        {
+          accountId: wallet.heldAccountId,
+          side: LedgerEntrySide.DEBIT,
+          amountNgn: hold.amountNgn,
+          memo: input.description ?? 'Release held funds',
+        },
+        {
+          accountId: wallet.availableAccountId,
+          side: LedgerEntrySide.CREDIT,
+          amountNgn: hold.amountNgn,
+          memo: input.description ?? 'Return funds to available balance',
+        },
+      ],
+    });
+
+    return tx.walletHold.update({
+      where: { holdId: hold.holdId },
+      data: {
+        status: WalletHoldStatus.RELEASED,
+        releaseLedgerTxnId: journal.ledgerTxnId,
+        releaseIdempotencyKey: idempotencyKey,
+        resolvedAt: new Date(),
+      },
+    });
   }
 
   // ─────────────────────────────────────────────────────────
