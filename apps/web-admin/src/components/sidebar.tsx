@@ -180,6 +180,15 @@ const navGroups: Array<{
         roles: ['FINANCE_OFFICER'],
       },
       {
+        label: 'CBA withdrawals',
+        href: '/wallets/withdrawals',
+        icon: Banknote,
+        help: 'Read-only queue and independent evidence review for CBA cash-outs',
+        permission: 'VIEW_FINANCE',
+        roles: ['FINANCE_OFFICER'],
+        departmentOnly: true,
+      },
+      {
         label: 'Legacy remittance',
         href: '/remittance',
         icon: ReceiptText,

@@ -402,6 +402,37 @@ describe('WitmangoWithdrawalService', () => {
     expect(h.tx.walletWithdrawal.update).not.toHaveBeenCalled();
   });
 
+  it('refuses to release a reserved hold if submission was already marked', async () => {
+    const h = setup();
+    h.prisma.walletWithdrawal.findFirst.mockResolvedValue(withdrawal);
+    h.tx.walletWithdrawal.findUnique.mockResolvedValue({
+      ...withdrawal,
+      cbaSubmissionStartedAt: new Date(),
+      status: WalletWithdrawalStatus.RESERVED,
+    });
+
+    await expect(
+      h.service.cancelUnsubmitted(userId, withdrawalId),
+    ).rejects.toThrow(ConflictException);
+
+    expect(h.wallets.releaseHoldInTransaction).not.toHaveBeenCalled();
+    expect(h.tx.walletWithdrawal.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses cancellation while monetary execution is enabled', async () => {
+    const h = setup();
+    h.config.get.mockImplementation((key: string) =>
+      key === 'WITMANGO_MONETARY_ENABLED' ? true : undefined,
+    );
+
+    await expect(
+      h.service.cancelUnsubmitted(userId, withdrawalId),
+    ).rejects.toThrow(ConflictException);
+
+    expect(h.prisma.$transaction).not.toHaveBeenCalled();
+    expect(h.wallets.releaseHoldInTransaction).not.toHaveBeenCalled();
+  });
+
   it('rolls back cancellation if the journal/hold release fails', async () => {
     const h = setup();
     h.prisma.walletWithdrawal.findFirst.mockResolvedValue(withdrawal);

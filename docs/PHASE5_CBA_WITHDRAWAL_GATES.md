@@ -33,6 +33,15 @@ For uncertain CBA debit, no second debit is allowed: retain the hold and require
 
 No `WalletWithdrawal` should be set to `SUCCEEDED` merely because Paystack returns success: the CBA debit, external settlement funding and SureWina journal must also be verified.
 
+## Operational software acceptance (October 25, 2026)
+
+- A partial PostgreSQL unique index prevents any wallet from having two concurrent unresolved withdrawals, regardless of which application path writes to the table.
+- Finance has a read-only \`/wallets/withdrawals\` admin page that lists unresolved withdrawals and invokes the existing Finance-only verification endpoint without finalizing transfers, releasing holds, or initiating debits.
+- GitHub Actions now runs the API Jest regression suite in addition to type-checking and building.
+- The existing approved-bank-account workflow is **prize-claim-linked**. A customer who has never made a prize claim has no standalone verified beneficiary onboarding path. This is **not** solved by accepting a bank-name match or bypassing claim-linked identity checks. Until a separate customer identity workflow is designed, reviewed and tested, cash-out must remain disabled.
+- Do not turn on customer cash-out in the public UI or activate an automatic monetary path solely because these software checks pass. A non-claim-linked, verified and authorized beneficiary lifecycle is still necessary for broad customer cash-out eligibility.
+- The database index is introduced by the \`20261025123000_guard_unresolved_wallet_withdrawals\` migration; deploy migrations before enabling reservation testing against the target database.
+
 ## Safe local validation
 From the repository root:
 

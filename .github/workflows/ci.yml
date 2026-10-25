@@ -39,3 +39,6 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: API regression tests
+        run: pnpm --filter @surewina/api exec jest --runInBand

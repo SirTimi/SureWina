@@ -274,6 +274,64 @@ export interface AdminReconciliationIssue {
 }
 
 
+
+export type AdminCbaWithdrawalStatus =
+  | 'RESERVED'
+  | 'CBA_DEBIT_UNKNOWN'
+  | 'CBA_DEBIT_CONFIRMED'
+  | 'BANK_TRANSFER_PENDING'
+  | 'BANK_TRANSFER_UNKNOWN'
+  | 'RESTORE_REQUIRED'
+  | 'REVIEW_REQUIRED'
+  | 'SUCCEEDED'
+  | 'RESTORED'
+  | 'CANCELLED';
+
+export interface AdminCbaWithdrawalQueueRow {
+  withdrawalId: string;
+  walletId: string;
+  amountNgn: number;
+  currency: 'NGN';
+  destination: { bankCode: string; accountLast4: string };
+  status: AdminCbaWithdrawalStatus;
+  cba: { reference: string; transactionId: string | null; submitted: boolean };
+  paystack: { reference: string; transactionId: string | null; submitted: boolean };
+  nextReviewStep: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminCbaWithdrawalQueue {
+  count: number;
+  hasMore: boolean;
+  withdrawals: AdminCbaWithdrawalQueueRow[];
+}
+
+export interface AdminCbaWithdrawalVerification {
+  withdrawalId: string;
+  walletId: string;
+  status: AdminCbaWithdrawalStatus;
+  amountNgn: number;
+  currency: string;
+  destination: { bankCode: string; accountLast4: string };
+  internalHold: { status: string | null; amountNgn: number | null };
+  cba: {
+    savingsAccountId: number;
+    reference: string;
+    transactionId: string | null;
+    evidence: 'NOT_SUBMITTED' | 'CONFIRMED' | 'UNKNOWN' | 'MISMATCH';
+  };
+  paystack: {
+    reference: string;
+    transactionId: string | null;
+    status: string | null;
+    evidence: 'NOT_SUBMITTED' | 'CONFIRMED' | 'UNKNOWN' | 'MISMATCH';
+  };
+  readyForManualSettlementReview: boolean;
+  autoFinalizePermitted: false;
+  problems: string[];
+}
+
 export interface AdminFinanceWalletOwner {
   type: 'CUSTOMER' | 'AGENT';
   id: string | null;
@@ -1178,6 +1236,19 @@ export class AdminModule {
     return this.client.post(
       '/admin/finance/treasury/reconciliation/run',
       { provider, fromDate, toDate },
+    );
+  }
+
+  async cbaWithdrawalQueue(limit = 50): Promise<AdminCbaWithdrawalQueue> {
+    return this.client.get('/admin/finance/witmango/withdrawals/queue', {
+      query: { limit },
+    });
+  }
+
+  async verifyCbaWithdrawal(withdrawalId: string): Promise<AdminCbaWithdrawalVerification> {
+    return this.client.get(
+      '/admin/finance/witmango/withdrawals/' +
+        encodeURIComponent(withdrawalId) + '/verify',
     );
   }
 
