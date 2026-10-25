@@ -764,7 +764,8 @@ export interface AdminPayoutRow {
 export interface AdminPayoutRails {
   paystack: {
     enabled: boolean;
-    reason: 'TRANSFERS_DISABLED' | 'CONFIGURATION_INCOMPLETE' | null;
+    reason: 'TRANSFERS_DISABLED' | 'CONFIGURATION_INCOMPLETE' |
+      'PRODUCTION_ACCEPTANCE_PENDING' | 'SANDBOX_KEY_REQUIRED' | null;
   };
 }
 

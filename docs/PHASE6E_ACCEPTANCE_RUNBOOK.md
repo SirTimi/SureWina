@@ -74,6 +74,22 @@ pnpm --filter @surewina/api acceptance:check -- --file="C:\secure\phase6e-eviden
 `releaseAuthorized` value is **always false** even if all claimed PASS rows
 are complete. Exit 0 only means evidence metadata is complete, not approved.
 
+## Runtime lock pending external acceptance
+
+Paystack prize payout **initiation** has an additional fail-closed source-code
+gate: the production provider will not initiate payments even if
+`PAYSTACK_TRANSFERS_ENABLED=true` and live credentials are configured. In
+staging/development, only `sk_test_` credentials can initiate sandbox test
+transfers. The guard exists both at the Finance payout engine and within
+Paystack's provider adapter. Read-only verification of existing transfers
+is not disabled.
+
+**After external approval:** authorization requires a separately reviewed
+production code change to lift this gate, in addition to an explicit launch
+window, release plan, monitoring and sign-off; editing environment flags or
+acceptance-register rows alone never lifts it. The CBA withdrawal processor
+is still absent pending its independent provider contract.
+
 ## Provider and custody sign-off (CBA: NOT YET SUPPORTED)
 
 Get contractual documentation and an authorized sandbox with the CBA provider

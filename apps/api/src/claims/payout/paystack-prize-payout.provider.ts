@@ -12,6 +12,7 @@ import {
   PrizePayoutProviderResult,
 } from './prize-payout.provider';
 import { createHmac } from 'node:crypto'
+import { getPaystackPrizePayoutReadiness } from './paystack-prize-payout-readiness';
 
 type PaystackRecipient = {
   recipient_code?: string;
@@ -47,9 +48,9 @@ export class PaystackPrizePayoutProvider
   constructor(private readonly config: ConfigService) {}
 
   private get enabled(): boolean {
-    return this.config.get<boolean>(
-        'PAYSTACK_TRANSFERS_ENABLED',
-    ) === true;
+    // Defense in depth: a direct provider invocation cannot bypass the
+    // engine's pre-reservation release gate. Status lookups remain available.
+    return getPaystackPrizePayoutReadiness(this.config).enabled;
   }
 
   private async request<T>(

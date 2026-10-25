@@ -56,6 +56,40 @@ describe('Phase 6B: Finance Paystack prize payout entrypoints', () => {
     }) as never)).toEqual({ enabled: true, reason: null });
   });
 
+  it('hard-blocks production prize transfers even with an enabled flag and a live key', async () => {
+    const values = config({
+      NODE_ENV: 'production',
+      PAYSTACK_TRANSFERS_ENABLED: true,
+      PAYSTACK_SECRET_KEY: 'sk_live_mock_not_real',
+    });
+    expect(getPaystackPrizePayoutReadiness(values as never)).toEqual({
+      enabled: false,
+      reason: 'PRODUCTION_ACCEPTANCE_PENDING',
+    });
+    const prisma = { $transaction: jest.fn() };
+    const provider = { providerCode: 'PAYSTACK', initiate: jest.fn() };
+    const registry = { get: jest.fn().mockReturnValue(provider) };
+    const engine = new PrizePayoutEngineService(
+      prisma as never, {} as never, {} as never, registry as never,
+      {} as never, {} as never, {} as never, values as never,
+    );
+    await expect(engine.initiate('claim-id', 'finance-officer', 'PAYSTACK'))
+      .rejects.toThrow(ServiceUnavailableException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(provider.initiate).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-production transfer initiation with live keys', () => {
+    expect(getPaystackPrizePayoutReadiness(config({
+      NODE_ENV: 'staging',
+      PAYSTACK_TRANSFERS_ENABLED: true,
+      PAYSTACK_SECRET_KEY: 'sk_live_mock_not_real',
+    }) as never)).toEqual({
+      enabled: false,
+      reason: 'SANDBOX_KEY_REQUIRED',
+    });
+  });
+
   it.each(['initiate', 'retry'] as const)(
     'blocks Paystack %s before creating any database payout when transfers are disabled',
     async (action) => {

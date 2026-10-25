@@ -115,6 +115,13 @@ scenario environment, timestamps and separate test/review identities without
 querying provider systems or financial databases. Missing, failed or blocked
 cases are visible independently by rail.
 
+The Paystack transfer provider additionally blocks initiation in production
+at runtime regardless of enabled flags until a separately reviewed source-code
+release after external acceptance; staging/development require Paystack
+`sk_test_` keys for any test initiation. The Finance engine checks the same
+readiness before reservation, and direct provider calls are guarded as well.
+Existing transfer lookups remain available for reconciliation.
+
 The register is deliberately **not** a compliance certificate: hashes are
 not dereferenced or authenticated, reviewers are not cryptographically
 authenticated, and even a completed register always states

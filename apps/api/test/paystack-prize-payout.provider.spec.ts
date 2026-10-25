@@ -39,7 +39,7 @@ describe('PaystackPrizePayoutProvider', () => {
     recipient,
   };
 
-  function setup(enabled = true) {
+  function setup(enabled = true, overrides: Record<string, unknown> = {}) {
     const config = {
       get: jest.fn((key: string) => {
         const values: Record<string, unknown> = {
@@ -48,6 +48,7 @@ describe('PaystackPrizePayoutProvider', () => {
           PAYSTACK_BASE_URL: 'https://api.paystack.co',
           PAYSTACK_TRANSFER_FEE_BUFFER_KOBO: 100000,
           KYC_BANK_FINGERPRINT_KEY: fingerprintKey,
+          ...overrides,
         };
 
         return values[key];
@@ -129,6 +130,24 @@ describe('PaystackPrizePayoutProvider', () => {
       ServiceUnavailableException,
     );
 
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('never initiates directly against production Paystack before acceptance', async () => {
+    const { provider, fetchMock } = setup(true, {
+      NODE_ENV: 'production',
+      PAYSTACK_SECRET_KEY: 'sk_live_mock_not_real',
+    });
+    await expect(provider.initiate(input)).rejects.toThrow(ServiceUnavailableException);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not send real transfers using a live key from staging', async () => {
+    const { provider, fetchMock } = setup(true, {
+      NODE_ENV: 'staging',
+      PAYSTACK_SECRET_KEY: 'sk_live_mock_not_real',
+    });
+    await expect(provider.initiate(input)).rejects.toThrow(ServiceUnavailableException);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

@@ -156,7 +156,12 @@ function Body({ finance }: { finance: boolean }) {
         {finance && rails && !ready && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             Paystack payout initiation is unavailable: {rails.paystack.reason === 'TRANSFERS_DISABLED'
-              ? 'transfers are disabled' : 'configuration is incomplete'}.
+              ? 'transfers are disabled'
+              : rails.paystack.reason === 'PRODUCTION_ACCEPTANCE_PENDING'
+                ? 'production payouts await independent Phase 6E acceptance and Finance approval'
+                : rails.paystack.reason === 'SANDBOX_KEY_REQUIRED'
+                  ? 'only sandbox test credentials may initiate before approval'
+                  : 'configuration is incomplete'}.
             Existing transfer status may still be checked.
           </div>
         )}
