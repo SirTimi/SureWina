@@ -55,6 +55,11 @@ jobs:
       - name: Validate Prisma migrations
         run: pnpm --filter @surewina/api prisma:migrate:deploy
 
+      - name: Bootstrap system chart twice (idempotency)
+        run: |
+          pnpm --filter @surewina/api ledger:bootstrap
+          pnpm --filter @surewina/api ledger:bootstrap
+
       - name: Type-check
         run: pnpm type-check
 
