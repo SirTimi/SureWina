@@ -443,8 +443,9 @@ export class WitmangoWithdrawalService {
   }
 
   async cancelUnsubmitted(userId: string, withdrawalId: string) {
-    // This cancellation path is permitted ONLY while
-    // external money movement is globally disabled.
+    // Do not release a local hold after any external submission.
+    // The setting prevents this endpoint from bypassing financial
+    // restoration when monetary operations are activated.
     if (
       this.config.get<boolean>('WITMANGO_MONETARY_ENABLED') === true
     ) {
@@ -453,44 +454,90 @@ export class WitmangoWithdrawalService {
       );
     }
 
-    const row = await this.prisma.walletWithdrawal.findFirst({
+    const locator = await this.prisma.walletWithdrawal.findFirst({
       where: { withdrawalId, userId },
+      select: { walletId: true },
     });
 
-    if (!row) {
+    if (!locator) {
       throw new NotFoundException('Withdrawal not found');
     }
 
-    if (row.status === WalletWithdrawalStatus.CANCELLED) {
-      return this.view(row);
-    }
+    const updated = await this.prisma.$transaction(
+      async (tx) => {
+        // Follow the same user -> wallet lock order as reservation
+        // and beneficiary replacement. The withdrawal row is then
+        // locked so cancellation cannot race a future CBA worker.
+        await tx.$queryRaw`
+          SELECT "user_id"
+          FROM "users"
+          WHERE "user_id" = ${userId}
+          FOR UPDATE
+        `;
 
-    if (
-      row.status !== WalletWithdrawalStatus.RESERVED ||
-      row.cbaTransactionId ||
-      row.paystackTransactionId || row.cbaSubmissionStartedAt ||
-      row.paystackSubmissionStartedAt
-    ) {
-      throw new ConflictException(
-        'Withdrawal is not safe to cancel automatically',
-      );
-    }
+        await tx.$queryRaw`
+          SELECT "wallet_id"
+          FROM "wallets"
+          WHERE "wallet_id" = ${locator.walletId}
+          FOR UPDATE
+        `;
 
-    // The only workflow implemented here creates local
-    // holds, never external CBA debits or bank transfers.
-    await this.wallets.releaseHold({
-      holdId: row.holdId,
-      idempotencyKey: `wallet-withdrawal:release:${withdrawalId}`,
-      description: 'Cancel unsubmitted bank withdrawal',
-    });
+        await tx.$queryRaw`
+          SELECT "withdrawal_id"
+          FROM "wallet_withdrawals"
+          WHERE "withdrawal_id" = ${withdrawalId}
+          FOR UPDATE
+        `;
 
-    const updated = await this.prisma.walletWithdrawal.update({
-      where: { withdrawalId },
-      data: {
-        status: WalletWithdrawalStatus.CANCELLED,
-        resolvedAt: new Date(),
+        const row = await tx.walletWithdrawal.findUnique({
+          where: { withdrawalId },
+        });
+
+        if (
+          !row ||
+          row.userId !== userId ||
+          row.walletId !== locator.walletId
+        ) {
+          throw new NotFoundException('Withdrawal not found');
+        }
+
+        if (row.status === WalletWithdrawalStatus.CANCELLED) {
+          return row;
+        }
+
+        if (
+          row.status !== WalletWithdrawalStatus.RESERVED ||
+          row.cbaTransactionId ||
+          row.paystackTransactionId ||
+          row.cbaSubmissionStartedAt ||
+          row.paystackSubmissionStartedAt
+        ) {
+          throw new ConflictException(
+            'Withdrawal is not safe to cancel automatically',
+          );
+        }
+
+        // All three mutations are atomic: ledger journal, wallet hold,
+        // and withdrawal status. A failed update rolls back the release.
+        await this.wallets.releaseHoldInTransaction(tx, {
+          holdId: row.holdId,
+          idempotencyKey:
+            `wallet-withdrawal:release:${withdrawalId}`,
+          description: 'Cancel unsubmitted bank withdrawal',
+        });
+
+        return tx.walletWithdrawal.update({
+          where: { withdrawalId },
+          data: {
+            status: WalletWithdrawalStatus.CANCELLED,
+            resolvedAt: new Date(),
+          },
+        });
       },
-    });
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
 
     return this.view(updated);
   }
