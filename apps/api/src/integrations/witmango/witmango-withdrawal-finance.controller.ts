@@ -12,6 +12,7 @@ import { AdminJwtGuard } from '../../admin-auth/guards/admin-jwt.guard';
 import { AdminRoleGuard } from '../../admin-auth/guards/admin-role.guard';
 import { AdminRoles } from '../../admin-auth/decorators/admin-roles.decorator';
 
+import { WitmangoWithdrawalVerificationService } from './witmango-withdrawal-verification.service';
 import { WitmangoWithdrawalService } from './witmango-withdrawal.service';
 
 @Controller('admin/finance/witmango/withdrawals')
@@ -20,7 +21,13 @@ import { WitmangoWithdrawalService } from './witmango-withdrawal.service';
 export class WitmangoWithdrawalFinanceController {
   constructor(
     private readonly withdrawals: WitmangoWithdrawalService,
+    private readonly verification: WitmangoWithdrawalVerificationService,
   ) {}
+
+  @Get(':withdrawalId/verify')
+  verify(@Param('withdrawalId') withdrawalId: string) {
+    return this.verification.inspect(withdrawalId);
+  }
 
   @Get(':withdrawalId')
   inspect(
