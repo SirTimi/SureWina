@@ -12,6 +12,28 @@
 6. CBA withdrawal/deposit/compensation submission requires provider-supported reference/idempotency, loss-of-response recovery, external hold control and a reconciled path from CBA funds to Paystack transfer balance. These guarantees are **not established by the currently supplied Witmango guide**.
 7. Production rollout checks must reflect the rails that are *actually live*. Do not remove Monnify and Flutterwave checks while the existing code still uses them for wallet funding and other payout flows. A Paystack/CBA-only production profile requires a verified migration and deactivation of the legacy money routes, not just new environment flags.
 
+## Phase 6B — Finance-facing Paystack prize payouts
+
+Finance-only initiate and retry endpoints now accept PAYSTACK. The typed client
+and Finance payout page expose explicit confirmation before initiation, masked
+destinations, independent provider status refresh and retry only for a verified
+FAILED/REVERSED Paystack attempt. The request DTO allows no free-text account
+number. The existing locked Paystack-verified payout beneficiary remains the
+only permitted transfer destination.
+
+GET /v1/admin/finance/payout-rails reports non-sensitive Paystack readiness.
+The payout engine checks PAYSTACK_TRANSFERS_ENABLED, PAYSTACK_SECRET_KEY and
+KYC_BANK_FINGERPRINT_KEY before reserving a new Paystack payout or accruing a
+prize. With Paystack disabled/misconfigured, no new attempt, journal or bank
+transfer is created. Status refresh for an already submitted payout is
+independent of the initiation gate.
+
+**No activation:** PAYSTACK_TRANSFERS_ENABLED is still false by default. Even
+when the rail is configured, sandbox acceptance, merchant authorization,
+funded Paystack balance, independent status verification and Finance sign-off
+must precede production activation. None of the new UI operations affect
+Witmango CBA customer-wallet cashouts.
+
 ## Phase 6 automated matrix
 
 | Scenario | Acceptance evidence | Current state |
