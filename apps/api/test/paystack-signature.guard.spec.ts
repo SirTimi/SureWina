@@ -8,7 +8,7 @@ describe('Phase 6: signed Paystack webhook boundary', () => {
   const rawBody = Buffer.from('{"event":"transfer.success","data":{"reference":"sw-test-1234567890"}}');
 
   function harness(
-    body: Buffer | undefined = rawBody,
+    body: Buffer | null = rawBody,
     signature?: string,
     configuredSecret: string | undefined = secret,
   ) {
@@ -20,7 +20,7 @@ describe('Phase 6: signed Paystack webhook boundary', () => {
       switchToHttp: () => ({
         getRequest: () => ({
           headers: signature === undefined ? {} : { 'x-paystack-signature': signature },
-          rawBody: body,
+          rawBody: body ?? undefined,
         }),
       }),
     };
@@ -41,7 +41,7 @@ describe('Phase 6: signed Paystack webhook boundary', () => {
     expect(() => missingSignature.guard.canActivate(missingSignature.context as never))
       .toThrow(UnauthorizedException);
 
-    const missingBody = harness(undefined, sign(rawBody));
+    const missingBody = harness(null, sign(rawBody));
     expect(() => missingBody.guard.canActivate(missingBody.context as never))
       .toThrow(UnauthorizedException);
   });
