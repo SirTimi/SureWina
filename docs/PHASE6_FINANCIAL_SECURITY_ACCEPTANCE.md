@@ -23,7 +23,7 @@
 | Tampered payout destination | Locked beneficiary/snapshot comparison rejected | Unit coverage exists; full payout E2E pending |
 | Replace approved bank | Step-up authorization and fresh verification; unresolved payout locks replacement | Logic exists; E2E pending |
 | Duplicate CBA reservation | Same reference replays; different reference cannot open second unresolved withdrawal | Unit tests and DB partial unique index; concurrent DB test pending |
-| Duplicate signed Paystack transfer webhook | Independent verification; one payout and journal only | Phase 6 dispatch tests; transaction-level finalizer integration pending |
+| Duplicate signed Paystack transfer webhook | Independent verification; one payout and journal only | Phase 6 dispatch and mocked finalizer idempotency tests; database concurrency integration pending |
 | CBA debit succeeded; Paystack failed | Unresolved hold maintained until provider-proof-backed one-time restoration | Blocked on Witmango contract |
 | Pending Paystack transfer | No new transfer, no payout finalization | Provider tests and Phase 6 synchronization tests; sandbox pending |
 | Reversed Paystack transfer | Reversal journal and safe CBA restoration | Prize-payout code exists; CBA compensation blocked |
