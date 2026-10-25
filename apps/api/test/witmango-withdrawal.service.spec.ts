@@ -55,6 +55,11 @@ describe('WitmangoWithdrawalService', () => {
         findUnique: jest.fn().mockResolvedValue(null),
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue(withdrawal),
+        update: jest.fn().mockResolvedValue({
+          ...withdrawal,
+          status: WalletWithdrawalStatus.CANCELLED,
+          resolvedAt: new Date(),
+        }),
       },
       verifiedPayoutAccount: {
         findFirst: jest.fn().mockResolvedValue({
@@ -134,6 +139,7 @@ describe('WitmangoWithdrawalService', () => {
         holdId: 'hold-1',
       }),
       releaseHold: jest.fn().mockResolvedValue({}),
+      releaseHoldInTransaction: jest.fn().mockResolvedValue({}),
     };
 
     const witmango = {
@@ -334,20 +340,78 @@ describe('WitmangoWithdrawalService', () => {
 
     h.prisma.walletWithdrawal.findFirst
       .mockResolvedValue(withdrawal);
+    h.tx.walletWithdrawal.findUnique.mockResolvedValue(withdrawal);
 
     const result = await h.service.cancelUnsubmitted(
       userId,
       withdrawalId,
     );
 
-    expect(h.wallets.releaseHold)
-      .toHaveBeenCalledWith({
-        holdId: 'hold-1',
-        idempotencyKey:
-          `wallet-withdrawal:release:${withdrawalId}`,
-        description: 'Cancel unsubmitted bank withdrawal',
-      });
+    expect(h.wallets.releaseHoldInTransaction)
+      .toHaveBeenCalledWith(
+        h.tx,
+        {
+          holdId: 'hold-1',
+          idempotencyKey:
+            `wallet-withdrawal:release:${withdrawalId}`,
+          description: 'Cancel unsubmitted bank withdrawal',
+        },
+      );
 
+    expect(h.tx.walletWithdrawal.update).toHaveBeenCalledWith({
+      where: { withdrawalId },
+      data: {
+        status: WalletWithdrawalStatus.CANCELLED,
+        resolvedAt: expect.any(Date),
+      },
+    });
+    expect(h.wallets.releaseHold).not.toHaveBeenCalled();
     expect(result.status).toBe(WalletWithdrawalStatus.CANCELLED);
+  });
+
+  it('does not release a hold after a CBA request may have started', async () => {
+    const h = setup();
+    h.prisma.walletWithdrawal.findFirst.mockResolvedValue(withdrawal);
+    h.tx.walletWithdrawal.findUnique.mockResolvedValue({
+      ...withdrawal,
+      cbaSubmissionStartedAt: new Date(),
+      status: WalletWithdrawalStatus.CBA_DEBIT_UNKNOWN,
+    });
+
+    await expect(
+      h.service.cancelUnsubmitted(userId, withdrawalId),
+    ).rejects.toThrow(ConflictException);
+
+    expect(h.wallets.releaseHoldInTransaction).not.toHaveBeenCalled();
+    expect(h.tx.walletWithdrawal.update).not.toHaveBeenCalled();
+  });
+
+  it('is idempotent when cancelling an already-cancelled withdrawal', async () => {
+    const h = setup();
+    h.prisma.walletWithdrawal.findFirst.mockResolvedValue(withdrawal);
+    h.tx.walletWithdrawal.findUnique.mockResolvedValue({
+      ...withdrawal,
+      status: WalletWithdrawalStatus.CANCELLED,
+    });
+
+    const result = await h.service.cancelUnsubmitted(
+      userId, withdrawalId,
+    );
+    expect(result.status).toBe(WalletWithdrawalStatus.CANCELLED);
+    expect(h.wallets.releaseHoldInTransaction).not.toHaveBeenCalled();
+    expect(h.tx.walletWithdrawal.update).not.toHaveBeenCalled();
+  });
+
+  it('rolls back cancellation if the journal/hold release fails', async () => {
+    const h = setup();
+    h.prisma.walletWithdrawal.findFirst.mockResolvedValue(withdrawal);
+    h.tx.walletWithdrawal.findUnique.mockResolvedValue(withdrawal);
+    h.wallets.releaseHoldInTransaction.mockRejectedValue(
+      new Error('Ledger posting unavailable'),
+    );
+    await expect(
+      h.service.cancelUnsubmitted(userId, withdrawalId),
+    ).rejects.toThrow('Ledger posting unavailable');
+    expect(h.tx.walletWithdrawal.update).not.toHaveBeenCalled();
   });
 });
