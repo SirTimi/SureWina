@@ -78,6 +78,9 @@ export class RolloutCheckService {
   ) {}
 
   async run(options: RolloutOptions) {
+    // Production readiness must never ignore REVIEW results just because
+    // the caller omitted --strict-review.
+    const strictReview = options.production || options.strictReview;
     const checks: CheckResult[] = [];
 
     checks.push(
@@ -136,11 +139,10 @@ export class RolloutCheckService {
         options.production
           ? 'production'
           : 'prelive',
-      strictReview:
-        options.strictReview,
+      strictReview,
       ready:
         blockers === 0 &&
-        (!options.strictReview ||
+        (!strictReview ||
           reviews === 0),
       summary: {
         blockers,
@@ -2867,6 +2869,40 @@ export class RolloutCheckService {
   }
 
   private checkProductionConfiguration(): CheckResult {
+    // The runtime API parses these as Joi booleans. Keep the direct service
+    // invocation fail-closed too, including tests using raw environment strings.
+    const enabled = (name: string): boolean => {
+      const raw = this.config.get<unknown>(name);
+      return raw === true ||
+        (typeof raw === 'string' && raw.trim().toLowerCase() === 'true');
+    };
+
+    const value = (name: string): string =>
+      String(this.config.get(name) ?? '').trim();
+
+    // Provider keys are sensitive: problems name the setting but never
+    // echo its value. A secure URL is not evidence of upstream settlement.
+    const providerUrlProblem = (name: string): string | null => {
+      const raw = value(name);
+      if (!raw) return name + ': missing';
+      try {
+        const parsed = new URL(raw);
+        const hostname = parsed.hostname.toLowerCase();
+        if (
+          parsed.protocol !== 'https:' ||
+          parsed.username || parsed.password ||
+          parsed.search || parsed.hash ||
+          hostname.includes('sandbox') ||
+          ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname)
+        ) {
+          return name + ': unsafe or non-production provider endpoint';
+        }
+        return null;
+      } catch {
+        return name + ': invalid provider URL';
+      }
+    };
+
     const required = [
       'PAYSTACK_SECRET_KEY',
       'MONNIFY_API_KEY',
@@ -2966,6 +3002,14 @@ export class RolloutCheckService {
       ).toLowerCase() ===
         'true';
 
+    const paystackTransfers = enabled('PAYSTACK_TRANSFERS_ENABLED');
+    const witmangoEnabled = enabled('WITMANGO_ENABLED');
+    const witmangoProvisioning = enabled('WITMANGO_PROVISIONING_ENABLED');
+
+    const paystackKey = value('PAYSTACK_SECRET_KEY');
+    const fingerprintKey = value('KYC_BANK_FINGERPRINT_KEY');
+    const encryptionKey = value('PAYOUT_ACCOUNT_ENCRYPTION_KEY');
+
     const problems = [
       ...missing.map(
         (key) =>
@@ -2996,8 +3040,47 @@ export class RolloutCheckService {
       unsignedSandbox
         ? 'MONNIFY_ALLOW_UNSIGNED_SANDBOX_WEBHOOKS: must be false'
         : null,
-      this.config.get<boolean>('WITMANGO_MONETARY_ENABLED') === true
+      // The old collection, refund and payout routes are still callable.
+      // Do not drop Monnify / Flutterwave requirements until code cutover.
+      providerUrlProblem('MONNIFY_BASE_URL'),
+      providerUrlProblem('FLUTTERWAVE_BASE_URL'),
+      providerUrlProblem('PAYSTACK_BASE_URL'),
+      !paystackKey.startsWith('sk_live_')
+        ? 'PAYSTACK_SECRET_KEY: live Paystack credential required for production collections'
+        : null,
+      paystackTransfers &&
+      (fingerprintKey.length < 32 || !/^[A-Za-z0-9+/]{43}=$/.test(encryptionKey))
+        ? 'PAYSTACK_TRANSFERS_ENABLED: locked beneficiary fingerprint and encryption configuration required'
+        : null,
+      paystackTransfers &&
+      value('PAYSTACK_BASE_URL').replace(/\/+$/, '') !== 'https://api.paystack.co'
+        ? 'PAYSTACK_BASE_URL: official Paystack API origin required for enabled transfers'
+        : null,
+      enabled('WITMANGO_MONETARY_ENABLED')
         ? 'WITMANGO_MONETARY_ENABLED: unapproved external debit/settlement contract'
+        : null,
+      enabled('WITMANGO_WITHDRAWAL_RESERVATIONS_ENABLED')
+        ? 'WITMANGO_WITHDRAWAL_RESERVATIONS_ENABLED: wallet cash-out is not cleared for production'
+        : null,
+      witmangoProvisioning && !witmangoEnabled
+        ? 'WITMANGO_PROVISIONING_ENABLED: requires WITMANGO_ENABLED'
+        : null,
+      witmangoEnabled &&
+      ['WITMANGO_BASE_URL', 'WITMANGO_TENANT_ID', 'WITMANGO_USERNAME', 'WITMANGO_PASSWORD']
+        .some((key) => !value(key))
+        ? 'WITMANGO_ENABLED: read-only CBA connector credentials incomplete'
+        : null,
+      witmangoEnabled ? providerUrlProblem('WITMANGO_BASE_URL') : null,
+      witmangoEnabled &&
+      (() => {
+        try {
+          return new URL(value('WITMANGO_BASE_URL')).pathname.replace(/\/+$/, '') !==
+            '/fineract-provider/api';
+        } catch {
+          return false; // Already blocked by the URL check.
+        }
+      })()
+        ? 'WITMANGO_BASE_URL: expected Fineract API base path'
         : null,
     ].filter(
       (
@@ -3045,7 +3128,7 @@ export class RolloutCheckService {
     return this.pass(
       'config.production',
       'Production financial configuration',
-      'Required provider, callback, treasury, cutover, and webhook configuration is populated for production.',
+      'Configured legacy collection, payout, treasury, callback and safety gates passed. External provider settlement acceptance requires separate Finance evidence.',
     );
   }
 
