@@ -3004,6 +3004,7 @@ export class RolloutCheckService {
       ).toLowerCase() ===
         'true';
 
+    const paystackTransfers = enabled('PAYSTACK_TRANSFERS_ENABLED');
     const witmangoEnabled = enabled('WITMANGO_ENABLED');
     const witmangoProvisioning = enabled('WITMANGO_PROVISIONING_ENABLED');
 
@@ -3112,6 +3113,17 @@ export class RolloutCheckService {
         ) ??
           'dev',
       );
+
+    // The repository has not yet recorded independently approved sandbox
+    // transfer evidence or Finance production sign-off. Configuration alone
+    // must not mark a newly activated real-money Paystack rail as ready.
+    if (paystackTransfers) {
+      return this.review(
+        'config.production',
+        'Production financial configuration',
+        'Paystack prize transfers are enabled but controlled-live settlement evidence and Finance sign-off are still pending.',
+      );
+    }
 
     if (
       refundsMode !==
