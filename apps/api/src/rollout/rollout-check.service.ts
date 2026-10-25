@@ -2905,6 +2905,8 @@ export class RolloutCheckService {
 
     const required = [
       'PAYSTACK_SECRET_KEY',
+      'KYC_BANK_FINGERPRINT_KEY',
+      'PAYOUT_ACCOUNT_ENCRYPTION_KEY',
       'MONNIFY_API_KEY',
       'MONNIFY_SECRET_KEY',
       'MONNIFY_CONTRACT_CODE',
@@ -3002,7 +3004,6 @@ export class RolloutCheckService {
       ).toLowerCase() ===
         'true';
 
-    const paystackTransfers = enabled('PAYSTACK_TRANSFERS_ENABLED');
     const witmangoEnabled = enabled('WITMANGO_ENABLED');
     const witmangoProvisioning = enabled('WITMANGO_PROVISIONING_ENABLED');
 
@@ -3048,13 +3049,14 @@ export class RolloutCheckService {
       !paystackKey.startsWith('sk_live_')
         ? 'PAYSTACK_SECRET_KEY: live Paystack credential required for production collections'
         : null,
-      paystackTransfers &&
-      (fingerprintKey.length < 32 || !/^[A-Za-z0-9+/]{43}=$/.test(encryptionKey))
-        ? 'PAYSTACK_TRANSFERS_ENABLED: locked beneficiary fingerprint and encryption configuration required'
+      fingerprintKey.length < 32
+        ? 'KYC_BANK_FINGERPRINT_KEY: bank identity HMAC key must be at least 32 characters'
         : null,
-      paystackTransfers &&
+      !/^[A-Za-z0-9+/]{43}=$/.test(encryptionKey)
+        ? 'PAYOUT_ACCOUNT_ENCRYPTION_KEY: locked bank destination encryption key is invalid'
+        : null,
       value('PAYSTACK_BASE_URL').replace(/\/+$/, '') !== 'https://api.paystack.co'
-        ? 'PAYSTACK_BASE_URL: official Paystack API origin required for enabled transfers'
+        ? 'PAYSTACK_BASE_URL: official Paystack API origin required for production collection and transfers'
         : null,
       enabled('WITMANGO_MONETARY_ENABLED')
         ? 'WITMANGO_MONETARY_ENABLED: unapproved external debit/settlement contract'
