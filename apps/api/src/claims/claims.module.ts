@@ -98,6 +98,7 @@ import { PaystackPrizePayoutProvider } from './payout/paystack-prize-payout.prov
   ],
 
   exports: [
+    PaystackPrizePayoutProvider,
     ClaimsService,
     BankResolveService,
     WhtDeductionService,
