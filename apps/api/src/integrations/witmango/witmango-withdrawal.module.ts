@@ -8,6 +8,7 @@ import { ClaimsModule } from '../../claims/claims.module';
 
 import { WitmangoModule } from './witmango.module';
 import { WitmangoWithdrawalService } from './witmango-withdrawal.service';
+import { WitmangoWithdrawalVerificationService } from './witmango-withdrawal-verification.service';
 import { WitmangoWithdrawalController } from './witmango-withdrawal.controller';
 import { WitmangoWithdrawalFinanceController } from './witmango-withdrawal-finance.controller';
 
@@ -27,6 +28,7 @@ import { CustomerJwtGuard } from '../../auth/guards/customer-jwt.guard';
   ],
   providers: [
     WitmangoWithdrawalService,
+    WitmangoWithdrawalVerificationService,
     CustomerJwtGuard,
   ],
 })
