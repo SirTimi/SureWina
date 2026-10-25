@@ -79,11 +79,9 @@ export class WitmangoWithdrawalVerificationService {
       problems.push('INTERNAL_HOLD_MISMATCH');
     } else if (
       hold.status !== 'HELD' &&
-      ![
-        WalletWithdrawalStatus.SUCCEEDED,
-        WalletWithdrawalStatus.RESTORED,
-        WalletWithdrawalStatus.CANCELLED,
-      ].includes(withdrawal.status)
+      withdrawal.status !== WalletWithdrawalStatus.SUCCEEDED &&
+      withdrawal.status !== WalletWithdrawalStatus.RESTORED &&
+      withdrawal.status !== WalletWithdrawalStatus.CANCELLED
     ) {
       problems.push('UNRESOLVED_WITHDRAWAL_HOLD_NOT_HELD');
     }
@@ -170,11 +168,9 @@ export class WitmangoWithdrawalVerificationService {
           paystackState = 'MISMATCH';
           problems.push('PAYSTACK_TRANSFER_IDENTITY_MISMATCH');
         } else if (
-          [
-            PrizePayoutStatus.SUCCEEDED,
-            PrizePayoutStatus.FAILED,
-            PrizePayoutStatus.REVERSED,
-          ].includes(verified.status)
+          verified.status === PrizePayoutStatus.SUCCEEDED ||
+          verified.status === PrizePayoutStatus.FAILED ||
+          verified.status === PrizePayoutStatus.REVERSED
         ) {
           paystackState = 'CONFIRMED';
         } else {
