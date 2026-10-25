@@ -3,8 +3,24 @@ import { WalletHoldStatus, WalletWithdrawalStatus } from '@prisma/client';
 import { RolloutCheckService } from '../src/rollout/rollout-check.service';
 
 describe('Phase 6: read-only CBA withdrawal rollout invariant', () => {
+  type CbaRow = {
+    withdrawalId: string;
+    walletId: string;
+    amountNgn: number;
+    status: WalletWithdrawalStatus;
+    cbaTransactionId: string | null;
+    cbaSubmissionStartedAt: Date | null;
+    paystackTransactionId: string | null;
+    paystackSubmissionStartedAt: Date | null;
+    hold: {
+      walletId: string;
+      amountNgn: number;
+      status: WalletHoldStatus;
+    };
+  };
+
   const walletId = 'wallet-1';
-  const row = {
+  const row: CbaRow = {
     withdrawalId: 'withdrawal-1',
     walletId,
     amountNgn: 1000,
@@ -20,7 +36,7 @@ describe('Phase 6: read-only CBA withdrawal rollout invariant', () => {
     },
   };
 
-  function setup(withdrawals: Array<typeof row> = []) {
+  function setup(withdrawals: CbaRow[] = []) {
     const prisma = {
       walletWithdrawal: {
         findMany: jest.fn().mockResolvedValue(withdrawals),
