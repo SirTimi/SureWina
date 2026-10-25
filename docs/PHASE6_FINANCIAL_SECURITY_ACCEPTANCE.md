@@ -34,6 +34,33 @@ funded Paystack balance, independent status verification and Finance sign-off
 must precede production activation. None of the new UI operations affect
 Witmango CBA customer-wallet cashouts.
 
+## Phase 6C — PostgreSQL concurrency and recovery acceptance
+
+- The financial rollout audit now checks both directions of the local CBA
+  hold relationship. It blocks orphaned HELD withdrawal holds, references
+  belonging to another withdrawal, missing initial hold journals, active
+  holds that were prematurely released or captured, and terminal withdrawals
+  with the wrong held-balance disposition. The query bounds active records and
+  searches for anomalous terminal records without scanning every historical
+  payout.
+- The PostgreSQL integration test issues **two simultaneous wallet withdrawal
+  inserts** against the actual partial unique index and proves exactly one
+  succeeds (the other gets Prisma P2002). After the first request is resolved,
+  it verifies a new reservation is allowed. These records are test-only
+  fixtures and are deleted after the test.
+- The database test is deliberately SKIPPED unless DATABASE_URL points to the
+  **surewina_ci** database and CI=true or
+  SUREWINA_FINANCIAL_DB_TESTS=1. This is to avoid inserting synthetic
+  financial records into customer databases when running the usual Jest suite.
+- Mocked read-only forensic tests simulate provider timeout, lost CBA response
+  with no transaction ID, duplicate external transaction evidence, pending
+  Paystack transfer, completed bank transfer without proven CBA debit, and
+  bank failure after a confirmed CBA debit. None authorizes a second debit,
+  transfer, wallet credit, hold release, or status finalization.
+- These are **software invariants**, not proof of a provider-side idempotency
+  guarantee, held external funds, or settlement movement from CBA into
+  Paystack. Even perfect green tests do not close the Witmango contract gap.
+
 ## Phase 6 automated matrix
 
 | Scenario | Acceptance evidence | Current state |
@@ -44,13 +71,13 @@ Witmango CBA customer-wallet cashouts.
 | Bank resolved, ownership failed | Beneficiary remains unapproved/revoked | Unit coverage exists; sandbox pending |
 | Tampered payout destination | Locked beneficiary/snapshot comparison rejected | Unit coverage exists; full payout E2E pending |
 | Replace approved bank | Step-up authorization and fresh verification; unresolved payout locks replacement | Logic exists; E2E pending |
-| Duplicate CBA reservation | Same reference replays; different reference cannot open second unresolved withdrawal | Unit tests and DB partial unique index; concurrent DB test pending |
+| Duplicate CBA reservation | Same reference replays; different reference cannot open second unresolved withdrawal | Unit tests and actual CI PostgreSQL concurrent-write test |
 | Duplicate signed Paystack transfer webhook | Independent verification; one payout and journal only | Phase 6 dispatch and mocked finalizer idempotency tests; database concurrency integration pending |
 | CBA debit succeeded; Paystack failed | Unresolved hold maintained until provider-proof-backed one-time restoration | Blocked on Witmango contract |
 | Pending Paystack transfer | No new transfer, no payout finalization | Provider tests and Phase 6 synchronization tests; sandbox pending |
 | Reversed Paystack transfer | Reversal journal and safe CBA restoration | Prize-payout code exists; CBA compensation blocked |
-| Worker/API crash after external request | Restore the exact attempt by immutable reference, never blind resubmit | Prize recovery code exists; CBA sandbox simulation pending |
-| Two withdrawals simultaneously | DB constraint + wallet-level locks, no overspend | DB partial unique index and read-only rollout checks; concurrent database test pending |
+| Worker/API crash after external request | Restore the exact attempt by immutable reference, never blind resubmit | Read-only lost-response simulations pass; upstream CBA recovery guarantee and sandbox still pending |
+| Two withdrawals simultaneously | DB constraint + wallet-level locks, no overspend | Concurrent database insert guarded; full multi-system CBA overspending remains untested externally |
 | Signed webhook security | Exact raw request HMAC, reject missing/invalid signature | Phase 6 security test coverage; deployed ingress test pending |
 | CBA-to-Paystack funding | Matched custodial movement and actual available transfer balance | Not provided by the available CBA contract |
 
