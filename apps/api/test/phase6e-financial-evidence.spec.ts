@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   assessPhase6eEvidence, phase6eTemplate, PHASE6E_CASES,
 } from '../src/rollout/phase6e-acceptance';
@@ -11,6 +13,12 @@ describe('Phase 6E: evidence-based acceptance remains fail-closed', () => {
     reviewedAt: '2026-10-21T12:00:00.000Z',
     reviewedBy: 'finance-reviewer-02',
     outcome: 'PASS' as const,
+  });
+
+  it('keeps the committed JSON template identical to the mandatory registry', () => {
+    const path = resolve(__dirname, '../../../docs/phase6e-acceptance.template.json');
+    const saved = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    expect(saved).toEqual(phase6eTemplate());
   });
 
   it('committed template has every mandatory case pending; no money release', () => {
