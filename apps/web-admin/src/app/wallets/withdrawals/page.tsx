@@ -60,6 +60,7 @@ export default function CbaWithdrawalQueuePage() {
 
 function QueueBody() {
   const [queue, setQueue] = useState<AdminCbaWithdrawalQueue | null>(null);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -71,14 +72,14 @@ function QueueBody() {
     setLoading(true);
     setError(null);
     try {
-      setQueue(await api.admin.cbaWithdrawalQueue(100));
+      setQueue(await api.admin.cbaWithdrawalQueue(50, page));
     } catch (err) {
       setQueue(null);
       setError(err instanceof Error ? err.message : 'Could not load withdrawal queue.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -133,10 +134,10 @@ function QueueBody() {
 
         <SectionCard
           title="Unresolved requests"
-          description="Oldest updated requests first. Up to 100 records are displayed; use Refresh to recheck."
+          description="Oldest updated requests first. Review the next page to inspect additional records."
           rightSlot={
             <span className="text-xs font-bold text-slate-500">
-              {queue ? String(queue.count) + (queue.hasMore ? '+' : '') : '—'} shown
+              {queue ? String(queue.count) : '—'} on page {page}
             </span>
           }
           padded={false}
@@ -192,11 +193,25 @@ function QueueBody() {
                   ))}
                 </tbody>
               </table>
-              {queue.hasMore && (
-                <p className="border-t border-slate-100 px-4 py-3 text-xs text-amber-700">
-                  Additional unresolved requests exist. This view is capped at 100; no records have been finalized.
-                </p>
-              )}
+              <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+                <button
+                  type="button"
+                  disabled={page === 1 || loading}
+                  onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  className="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-navy-700 disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-slate-500">Page {page}</span>
+                <button
+                  type="button"
+                  disabled={!queue.hasMore || loading}
+                  onClick={() => setPage((value) => value + 1)}
+                  className="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-navy-700 disabled:opacity-40"
+                >
+                  Next page
+                </button>
+              </div>
             </div>
           )}
         </SectionCard>

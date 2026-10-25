@@ -223,6 +223,7 @@ describe('WitmangoWithdrawalVerificationService', () => {
       expect.objectContaining({
         where: expect.objectContaining({ tenantId: 'sandbox' }),
         take: 101,
+        skip: 0,
       }),
     );
     expect(result.count).toBe(1);
@@ -231,6 +232,23 @@ describe('WitmangoWithdrawalVerificationService', () => {
     expect(JSON.stringify(result)).not.toContain('bankCiphertext');
     expect(h.witmango.getSavingsAccountWithTransactions).not.toHaveBeenCalled();
     expect(h.paystack.getStatus).not.toHaveBeenCalled();
+  });
+
+  it('paginates by update time and immutable id within the configured tenant', async () => {
+    const h = setup();
+    await h.service.listUnresolved(20, 3);
+
+    expect(h.prisma.walletWithdrawal.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 'sandbox' }),
+        skip: 40,
+        take: 21,
+        orderBy: [
+          { updatedAt: 'asc' },
+          { withdrawalId: 'asc' },
+        ],
+      }),
+    );
   });
 
   it('fails closed for a missing configured tenant in the finance queue', async () => {

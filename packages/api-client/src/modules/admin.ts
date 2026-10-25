@@ -302,6 +302,7 @@ export interface AdminCbaWithdrawalQueueRow {
 }
 
 export interface AdminCbaWithdrawalQueue {
+  page: number;
   count: number;
   hasMore: boolean;
   withdrawals: AdminCbaWithdrawalQueueRow[];
@@ -1239,9 +1240,9 @@ export class AdminModule {
     );
   }
 
-  async cbaWithdrawalQueue(limit = 50): Promise<AdminCbaWithdrawalQueue> {
+  async cbaWithdrawalQueue(limit = 50, page = 1): Promise<AdminCbaWithdrawalQueue> {
     return this.client.get('/admin/finance/witmango/withdrawals/queue', {
-      query: { limit },
+      query: { limit, page },
     });
   }
 

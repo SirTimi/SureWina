@@ -13,6 +13,24 @@ jobs:
     name: Type-check and build
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: surewina_ci
+          POSTGRES_USER: surewina_ci
+          POSTGRES_PASSWORD: surewina_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U surewina_ci -d surewina_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://surewina_ci:surewina_ci_password@localhost:5432/surewina_ci?schema=public
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,6 +51,9 @@ jobs:
 
       - name: Generate Prisma client
         run: pnpm --filter @surewina/api prisma:generate
+
+      - name: Validate Prisma migrations
+        run: pnpm --filter @surewina/api prisma:migrate:deploy
 
       - name: Type-check
         run: pnpm type-check

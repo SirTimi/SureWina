@@ -26,9 +26,10 @@ export class WitmangoWithdrawalFinanceController {
   ) {}
 
   @Get('queue')
-  queue(@Query('limit') limit?: string) {
+  queue(@Query('limit') limit?: string, @Query('page') page?: string) {
     const parsed = limit === undefined ? 50 : Number(limit);
-    return this.verification.listUnresolved(parsed);
+    const parsedPage = page === undefined ? 1 : Number(page);
+    return this.verification.listUnresolved(parsed, parsedPage);
   }
 
   @Get(':withdrawalId/verify')

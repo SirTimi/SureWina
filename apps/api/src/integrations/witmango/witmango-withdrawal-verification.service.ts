@@ -52,7 +52,7 @@ export class WitmangoWithdrawalVerificationService {
    * Finance triage queue: never returns decrypted NUBANs or customer PII
    * and never mutates balances or external financial state.
    */
-  async listUnresolved(limit = 50) {
+  async listUnresolved(limit = 50, page = 1) {
     const tenantId = this.config
       .get<string>('WITMANGO_TENANT_ID')?.trim();
 
@@ -63,6 +63,9 @@ export class WitmangoWithdrawalVerificationService {
     const take = Number.isSafeInteger(limit)
       ? Math.max(1, Math.min(100, limit))
       : 50;
+
+    const safePage =
+      Number.isSafeInteger(page) ? Math.max(1, Math.min(10000, page)) : 1;
 
     const status = [
       WalletWithdrawalStatus.RESERVED,
@@ -93,7 +96,8 @@ export class WitmangoWithdrawalVerificationService {
         createdAt: true,
         updatedAt: true,
       },
-      orderBy: { updatedAt: 'asc' },
+      orderBy: [{ updatedAt: 'asc' }, { withdrawalId: 'asc' }],
+      skip: (safePage - 1) * take,
       take: take + 1,
     });
 
@@ -116,6 +120,7 @@ export class WitmangoWithdrawalVerificationService {
     };
 
     return {
+      page: safePage,
       count: Math.min(take, withdrawals.length),
       hasMore: withdrawals.length > take,
       withdrawals: withdrawals.slice(0, take).map((row) => ({
