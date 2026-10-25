@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 
@@ -23,6 +24,12 @@ export class WitmangoWithdrawalFinanceController {
     private readonly withdrawals: WitmangoWithdrawalService,
     private readonly verification: WitmangoWithdrawalVerificationService,
   ) {}
+
+  @Get('queue')
+  queue(@Query('limit') limit?: string) {
+    const parsed = limit === undefined ? 50 : Number(limit);
+    return this.verification.listUnresolved(parsed);
+  }
 
   @Get(':withdrawalId/verify')
   verify(@Param('withdrawalId') withdrawalId: string) {
