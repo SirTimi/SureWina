@@ -42,6 +42,7 @@ describeDatabase('Phase 6C: PostgreSQL CBA withdrawal concurrency', () => {
   const attemptIds = [randomUUID(), randomUUID()];
   const holdIds = [randomUUID(), randomUUID()];
   const holdLedgerIds = [randomUUID(), randomUUID()];
+  const releaseLedgerId = randomUUID();
 
   beforeAll(async () => {
     await prisma.$transaction(async (tx) => {
@@ -129,7 +130,7 @@ describeDatabase('Phase 6C: PostgreSQL CBA withdrawal concurrency', () => {
       await prisma.walletWithdrawal.deleteMany({ where: { walletId } });
       await prisma.walletHold.deleteMany({ where: { walletId } });
       await prisma.ledgerTransaction.deleteMany({
-        where: { ledgerTxnId: { in: holdLedgerIds } },
+        where: { ledgerTxnId: { in: [...holdLedgerIds, releaseLedgerId] } },
       });
       await prisma.verifiedPayoutAccount.deleteMany({ where: { userId } });
       await prisma.wallet.deleteMany({ where: { walletId } });
@@ -182,9 +183,30 @@ describeDatabase('Phase 6C: PostgreSQL CBA withdrawal concurrency', () => {
 
     // Resolve the first reservation atomically with its hold disposition.
     await prisma.$transaction(async (tx) => {
+      // The production PostgreSQL constraint requires the entire release
+      // disposition. Model that integrity rule even in temporary CI fixtures.
+      await tx.ledgerTransaction.create({
+        data: {
+          ledgerTxnId: releaseLedgerId,
+          idempotencyKey: 'CI:release-journal:' + id,
+          kind: LedgerTransactionKind.WALLET_RELEASE,
+          referenceType: 'WalletWithdrawal',
+          referenceId: active[0].withdrawalId,
+          description: 'CI release fixture, removed after test',
+          totalAmountNgn: 1000,
+          entryCount: 2,
+          fingerprint: 'c'.repeat(64),
+          occurredAt: new Date(),
+        },
+      });
       await tx.walletHold.update({
         where: { holdId: active[0].holdId },
-        data: { status: WalletHoldStatus.RELEASED },
+        data: {
+          status: WalletHoldStatus.RELEASED,
+          releaseLedgerTxnId: releaseLedgerId,
+          releaseIdempotencyKey: 'CI:release:' + id,
+          resolvedAt: new Date(),
+        },
       });
       await tx.walletWithdrawal.update({
         where: { withdrawalId: active[0].withdrawalId },
