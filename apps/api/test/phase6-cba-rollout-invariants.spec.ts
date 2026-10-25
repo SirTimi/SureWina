@@ -16,6 +16,11 @@ describe('Phase 6: read-only CBA withdrawal rollout invariant', () => {
       walletId: string;
       amountNgn: number;
       status: WalletHoldStatus;
+      referenceType: string;
+      referenceId: string;
+      holdLedgerTxnId: string | null;
+      releaseLedgerTxnId: string | null;
+      captureLedgerTxnId: string | null;
     };
   };
 
@@ -33,13 +38,23 @@ describe('Phase 6: read-only CBA withdrawal rollout invariant', () => {
       walletId,
       amountNgn: 1000,
       status: WalletHoldStatus.HELD,
+      referenceType: 'WalletWithdrawal',
+      referenceId: 'withdrawal-1',
+      holdLedgerTxnId: 'ledger-hold-1',
+      releaseLedgerTxnId: null,
+      captureLedgerTxnId: null,
     },
   };
 
   function setup(withdrawals: CbaRow[] = []) {
     const prisma = {
       walletWithdrawal: {
-        findMany: jest.fn().mockResolvedValue(withdrawals),
+        findMany: jest.fn().mockImplementation(
+          ({ take }: { take: number }) => Promise.resolve(take === 1001 ? withdrawals : []),
+        ),
+      },
+      walletHold: {
+        findMany: jest.fn().mockResolvedValue([]),
       },
     };
     const config = {
@@ -96,12 +111,54 @@ describe('Phase 6: read-only CBA withdrawal rollout invariant', () => {
     expect(result.status).toBe('BLOCKER');
   });
 
+  it('blocks an orphaned active withdrawal hold without a withdrawal row', async () => {
+    const h = setup();
+    h.prisma.walletHold.findMany.mockResolvedValue([{ holdId: 'orphan-hold' }]);
+    const result = await h.check();
+    expect(result.status).toBe('BLOCKER');
+    expect(result.details).toEqual(expect.arrayContaining([
+      expect.stringContaining('orphaned or terminal withdrawal hold'),
+    ]));
+  });
+
+  it('blocks an already cancelled withdrawal whose held balance was not released', async () => {
+    const h = setup();
+    h.prisma.walletWithdrawal.findMany.mockImplementation(
+      ({ take }: { take: number }) => Promise.resolve(
+        take === 1001 ? [] : [{ withdrawalId: 'cancelled-withheld' }],
+      ),
+    );
+    const result = await h.check();
+    expect(result.status).toBe('BLOCKER');
+    expect(result.details).toEqual(expect.arrayContaining([
+      expect.stringContaining('invalid hold disposition'),
+    ]));
+  });
+
+  it('blocks an unresolved withdrawal with a mismatched hold owner reference', async () => {
+    const h = setup([{ ...row, hold: { ...row.hold, referenceId: 'other' } }]);
+    const result = await h.check();
+    expect(result.status).toBe('BLOCKER');
+  });
+
+  it('fails closed when too many terminal anomalies exist to inspect completely', async () => {
+    const h = setup();
+    h.prisma.walletHold.findMany.mockResolvedValue(
+      Array.from({ length: 101 }, (_, i) => ({ holdId: 'hold-' + i })),
+    );
+    const result = await h.check();
+    expect(result.status).toBe('BLOCKER');
+    expect(result.details).toEqual(expect.arrayContaining([
+      expect.stringContaining('exception scan exceeds'),
+    ]));
+  });
+
   it('fails closed rather than silently truncating a large active queue', async () => {
     const h = setup(Array.from({ length: 1001 }, (_, i) => ({
       ...row,
       withdrawalId: 'withdrawal-' + i,
       walletId: 'wallet-' + i,
-      hold: { ...row.hold, walletId: 'wallet-' + i },
+      hold: { ...row.hold, walletId: 'wallet-' + i, referenceId: 'withdrawal-' + i },
     })));
     const result = await h.check();
     expect(result.status).toBe('BLOCKER');
