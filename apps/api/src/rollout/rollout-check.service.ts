@@ -2195,6 +2195,11 @@ export class RolloutCheckService {
             walletId: true,
             amountNgn: true,
             status: true,
+            referenceType: true,
+            referenceId: true,
+            holdLedgerTxnId: true,
+            releaseLedgerTxnId: true,
+            captureLedgerTxnId: true,
           },
         },
       },
@@ -2223,7 +2228,12 @@ export class RolloutCheckService {
         !row.hold ||
         row.hold.walletId !== row.walletId ||
         row.hold.amountNgn !== row.amountNgn ||
-        row.hold.status !== WalletHoldStatus.HELD
+        row.hold.status !== WalletHoldStatus.HELD ||
+        row.hold.referenceType !== 'WalletWithdrawal' ||
+        row.hold.referenceId !== row.withdrawalId ||
+        !row.hold.holdLedgerTxnId ||
+        row.hold.releaseLedgerTxnId !== null ||
+        row.hold.captureLedgerTxnId !== null
       ) {
         problems.push(row.withdrawalId + ': unresolved withdrawal lacks matching held liability');
       }
@@ -2246,6 +2256,79 @@ export class RolloutCheckService {
       ) {
         problems.push(row.withdrawalId + ': CBA debit confirmed without external transaction ID');
       }
+    }
+
+    // Check the OTHER direction too: an orphaned HELD withdrawal hold may
+    // have no WalletWithdrawal row and would be invisible in the scan above.
+    // Resolved withdrawals with the wrong final hold status also block launch.
+    // Query only anomalies rather than scanning all historical withdrawals.
+    const orphanHolds = await this.prisma.walletHold.findMany({
+      where: {
+        referenceType: 'WalletWithdrawal',
+        status: WalletHoldStatus.HELD,
+        OR: [
+          { walletWithdrawal: { is: null } },
+          {
+            walletWithdrawal: {
+              is: {
+                status: {
+                  in: [
+                    WalletWithdrawalStatus.CANCELLED,
+                    WalletWithdrawalStatus.RESTORED,
+                    WalletWithdrawalStatus.SUCCEEDED,
+                  ],
+                },
+              },
+            },
+          },
+        ],
+      },
+      select: { holdId: true },
+      take: 101,
+    });
+
+    const invalidTerminal = await this.prisma.walletWithdrawal.findMany({
+      where: {
+        OR: [
+          {
+            status: {
+              in: [
+                WalletWithdrawalStatus.CANCELLED,
+                WalletWithdrawalStatus.RESTORED,
+              ],
+            },
+            hold: {
+              is: { status: { not: WalletHoldStatus.RELEASED } },
+            },
+          },
+          {
+            status: WalletWithdrawalStatus.SUCCEEDED,
+            hold: {
+              is: { status: { not: WalletHoldStatus.CAPTURED } },
+            },
+          },
+        ],
+      },
+      select: { withdrawalId: true },
+      take: 101,
+    });
+
+    if (orphanHolds.length > 0) {
+      problems.push(
+        orphanHolds.length +
+        ' orphaned or terminal withdrawal hold(s) remain HELD',
+      );
+    }
+
+    if (invalidTerminal.length > 0) {
+      problems.push(
+        invalidTerminal.length +
+        ' terminal withdrawal(s) have an invalid hold disposition',
+      );
+    }
+
+    if (orphanHolds.length > 100 || invalidTerminal.length > 100) {
+      problems.push('CBA withdrawal exception scan exceeds 100 rows');
     }
 
     if (problems.length > 0) {
