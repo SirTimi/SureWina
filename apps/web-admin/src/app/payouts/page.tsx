@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Banknote, Download, HandCoins, Info } from 'lucide-react';
 import { formatNaira } from '@surewina/utils';
-import type { AdminPayoutList } from '@surewina/api-client';
+import type { AdminPayoutList, AdminPayoutRails, AdminPayoutRow } from '@surewina/api-client';
 import { AdminShell } from '@/components/admin-shell';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
@@ -20,15 +20,19 @@ function firstOfMonth() {
 }
 
 export default function PayoutsPage() {
-  return <AdminShell>{() => <Body />}</AdminShell>;
+  return <AdminShell>{(session) => <Body finance={session.role === 'FINANCE_OFFICER'} />}</AdminShell>;
 }
 
-function Body() {
+function Body({ finance }: { finance: boolean }) {
   const [fromDate, setFromDate] = useState(firstOfMonth());
   const [toDate, setToDate] = useState(iso(new Date()));
   const [data, setData] = useState<AdminPayoutList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [rails, setRails] = useState<AdminPayoutRails | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const ready = rails?.paystack.enabled === true;
 
   const load = () => {
     setLoading(true);
@@ -43,7 +47,51 @@ function Body() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [fromDate, toDate]);
+  useEffect(() => {
+    if (finance) void load();
+    else setLoading(false);
+  }, [fromDate, toDate, finance]);
+
+  useEffect(() => {
+    if (!finance) return;
+    api.admin.prizePayoutRails()
+      .then(setRails)
+      .catch(() => setError('Unable to verify Paystack readiness. Initiation is disabled.'));
+  }, [finance]);
+
+  const action = async (
+    payout: AdminPayoutRow,
+    mode: 'initiate' | 'retry' | 'refresh',
+  ) => {
+    if (!finance || busy) return;
+    if (mode === 'initiate' && (!ready || !payout.canInitiate)) return;
+    if (mode === 'retry' && (
+      !ready || !payout.retryAllowed || payout.currentAttempt?.provider !== 'PAYSTACK'
+    )) return;
+    if (mode === 'refresh' && !payout.refreshAllowed) return;
+
+    if (mode !== 'refresh' && !window.confirm(
+      'Confirm ' + mode + ' Paystack prize transfer of ' +
+      formatNaira(payout.netPrizeValueNgn) + ' for ' + payout.winnerTicketRef +
+      ' to verified account ending ' + (payout.accountLast4 ?? 'unknown') +
+      '. If enabled, this can move real money.',
+    )) return;
+
+    setBusy(payout.claimId);
+    setError(null);
+    setMessage(null);
+    try {
+      if (mode === 'initiate') await api.admin.initiatePrizePayout(payout.claimId, 'PAYSTACK');
+      else if (mode === 'retry') await api.admin.retryPrizePayout(payout.claimId, 'PAYSTACK');
+      else await api.admin.refreshPrizePayout(payout.claimId);
+      await load();
+      setMessage('Provider state updated. Processing is not settlement proof.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Payout action failed. Reconcile before retrying.');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const downloadCsv = () => {
     if (!data) return;
@@ -105,13 +153,25 @@ function Body() {
       />
 
       <div className="mx-auto max-w-[1400px] space-y-4 px-6 py-5">
+        {finance && rails && !ready && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            Paystack payout initiation is unavailable: {rails.paystack.reason === 'TRANSFERS_DISABLED'
+              ? 'transfers are disabled' : 'configuration is incomplete'}.
+            Existing transfer status may still be checked.
+          </div>
+        )}
+        {message && <div className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900">{message}</div>}
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
           </div>
         )}
 
-        {loading ? (
+        {!finance ? (
+          <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
+            Payout operations are restricted to Finance officers.
+          </div>
+        ) : loading ? (
           <div className="h-64 animate-pulse rounded-xl bg-white" />
         ) : !data ? null : (
           <>
