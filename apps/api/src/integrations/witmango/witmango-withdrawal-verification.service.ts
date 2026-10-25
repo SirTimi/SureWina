@@ -94,7 +94,7 @@ export class WitmangoWithdrawalVerificationService {
         updatedAt: true,
       },
       orderBy: { updatedAt: 'asc' },
-      take,
+      take: take + 1,
     });
 
     const nextReviewStep = (value: WalletWithdrawalStatus): string => {
@@ -116,9 +116,9 @@ export class WitmangoWithdrawalVerificationService {
     };
 
     return {
-      count: withdrawals.length,
-      hasMore: withdrawals.length === take,
-      withdrawals: withdrawals.map((row) => ({
+      count: Math.min(take, withdrawals.length),
+      hasMore: withdrawals.length > take,
+      withdrawals: withdrawals.slice(0, take).map((row) => ({
         withdrawalId: row.withdrawalId,
         walletId: row.walletId,
         amountNgn: row.amountNgn,
