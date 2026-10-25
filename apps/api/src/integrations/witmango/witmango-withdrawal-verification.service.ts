@@ -48,6 +48,103 @@ export class WitmangoWithdrawalVerificationService {
     private readonly config: ConfigService,
   ) {}
 
+  /**
+   * Finance triage queue: never returns decrypted NUBANs or customer PII
+   * and never mutates balances or external financial state.
+   */
+  async listUnresolved(limit = 50) {
+    const tenantId = this.config
+      .get<string>('WITMANGO_TENANT_ID')?.trim();
+
+    if (!tenantId) {
+      throw new ConflictException('CBA tenant is not configured');
+    }
+
+    const take = Number.isSafeInteger(limit)
+      ? Math.max(1, Math.min(100, limit))
+      : 50;
+
+    const status = [
+      WalletWithdrawalStatus.RESERVED,
+      WalletWithdrawalStatus.CBA_DEBIT_UNKNOWN,
+      WalletWithdrawalStatus.CBA_DEBIT_CONFIRMED,
+      WalletWithdrawalStatus.BANK_TRANSFER_PENDING,
+      WalletWithdrawalStatus.BANK_TRANSFER_UNKNOWN,
+      WalletWithdrawalStatus.RESTORE_REQUIRED,
+      WalletWithdrawalStatus.REVIEW_REQUIRED,
+    ];
+
+    const withdrawals = await this.prisma.walletWithdrawal.findMany({
+      where: { tenantId, status: { in: status } },
+      select: {
+        withdrawalId: true,
+        walletId: true,
+        amountNgn: true,
+        currency: true,
+        bankCode: true,
+        bankAccountLast4: true,
+        status: true,
+        cbaReference: true,
+        cbaTransactionId: true,
+        paystackReference: true,
+        paystackTransactionId: true,
+        cbaSubmissionStartedAt: true,
+        paystackSubmissionStartedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { updatedAt: 'asc' },
+      take,
+    });
+
+    const nextReviewStep = (value: WalletWithdrawalStatus): string => {
+      switch (value) {
+        case WalletWithdrawalStatus.RESERVED:
+          return 'WAIT_FOR_EXTERNAL_CONTRACT_OR_CANCEL_UNSUBMITTED';
+        case WalletWithdrawalStatus.CBA_DEBIT_UNKNOWN:
+          return 'RECONCILE_CBA_TRANSACTION_WITHOUT_RETRY';
+        case WalletWithdrawalStatus.CBA_DEBIT_CONFIRMED:
+          return 'CONFIRM_EXTERNAL_SETTLEMENT_FUNDING';
+        case WalletWithdrawalStatus.BANK_TRANSFER_PENDING:
+        case WalletWithdrawalStatus.BANK_TRANSFER_UNKNOWN:
+          return 'VERIFY_PAYSTACK_REFERENCE_WITHOUT_RETRY';
+        case WalletWithdrawalStatus.RESTORE_REQUIRED:
+          return 'VERIFY_CBA_RESTORATION_BEFORE_RELEASE';
+        default:
+          return 'MANUAL_FINANCE_RECONCILIATION';
+      }
+    };
+
+    return {
+      count: withdrawals.length,
+      hasMore: withdrawals.length === take,
+      withdrawals: withdrawals.map((row) => ({
+        withdrawalId: row.withdrawalId,
+        walletId: row.walletId,
+        amountNgn: row.amountNgn,
+        currency: row.currency,
+        destination: {
+          bankCode: row.bankCode,
+          accountLast4: row.bankAccountLast4,
+        },
+        status: row.status,
+        cba: {
+          reference: row.cbaReference,
+          transactionId: row.cbaTransactionId,
+          submitted: Boolean(row.cbaSubmissionStartedAt),
+        },
+        paystack: {
+          reference: row.paystackReference,
+          transactionId: row.paystackTransactionId,
+          submitted: Boolean(row.paystackSubmissionStartedAt),
+        },
+        nextReviewStep: nextReviewStep(row.status),
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+      })),
+    };
+  }
+
   async inspect(withdrawalId: string) {
     const withdrawal = await this.prisma.walletWithdrawal.findUnique({
       where: { withdrawalId },
