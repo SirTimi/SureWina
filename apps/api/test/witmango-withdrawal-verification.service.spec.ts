@@ -1,0 +1,201 @@
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { PrizePayoutStatus, WalletWithdrawalStatus } from '@prisma/client';
+import { WitmangoWithdrawalVerificationService } from '../src/integrations/witmango/witmango-withdrawal-verification.service';
+
+describe('WitmangoWithdrawalVerificationService', () => {
+  const withdrawalId = '11111111-1111-4111-8111-111111111111';
+  const fingerprint = 'a'.repeat(64);
+  const withdrawal = {
+    withdrawalId,
+    userId: '22222222-2222-4222-8222-222222222222',
+    walletId: '33333333-3333-4333-8333-333333333333',
+    holdId: '44444444-4444-4444-8444-444444444444',
+    amountNgn: 1000,
+    currency: 'NGN',
+    tenantId: 'sandbox',
+    savingsAccountId: 10,
+    bankCode: '058',
+    bankAccountLast4: '6789',
+    bankFingerprint: fingerprint,
+    cbaReference: 'sw-cba-11111111-1111-4111-8111-111111111111',
+    cbaTransactionId: '501',
+    cbaSubmissionStartedAt: new Date(),
+    paystackReference: 'sw-bank-11111111-1111-4111-8111-111111111111',
+    paystackTransactionId: null,
+    paystackSubmissionStartedAt: new Date(),
+    status: WalletWithdrawalStatus.BANK_TRANSFER_UNKNOWN,
+  };
+
+  function setup() {
+    const prisma = {
+      walletWithdrawal: {
+        findUnique: jest.fn().mockResolvedValue({ ...withdrawal }),
+      },
+      walletHold: {
+        findUnique: jest.fn().mockResolvedValue({
+          status: 'HELD',
+          amountNgn: 1000,
+          walletId: withdrawal.walletId,
+        }),
+      },
+    };
+    const witmango = {
+      isEnabled: jest.fn().mockReturnValue(true),
+      getSavingsAccountWithTransactions: jest.fn().mockResolvedValue({
+        id: 10,
+        currency: { code: 'NGN' },
+        transactions: [{
+          id: 501,
+          amount: 1000,
+          reversed: false,
+          transactionType: { withdrawal: true },
+        }],
+      }),
+    };
+    const paystack = {
+      getStatus: jest.fn().mockResolvedValue({
+        provider: 'PAYSTACK',
+        reference: withdrawal.paystackReference,
+        status: PrizePayoutStatus.SUCCEEDED,
+        providerTransactionId: '999',
+        amountNgn: 1000,
+        currency: 'NGN',
+        destinationBankCode: '058',
+        destinationAccountLast4: '6789',
+        destinationAccountFingerprint: fingerprint,
+      }),
+    };
+    const config = {
+      get: jest.fn((key: string) =>
+        key === 'WITMANGO_TENANT_ID' ? 'sandbox' : undefined),
+    };
+    const service = new WitmangoWithdrawalVerificationService(
+      prisma as never,
+      witmango as never,
+      paystack as never,
+      config as never,
+    );
+    return { service, prisma, witmango, paystack, config };
+  }
+
+  it('keeps unsubmitted withdrawals read-only', async () => {
+    const h = setup();
+    h.prisma.walletWithdrawal.findUnique.mockResolvedValue({
+      ...withdrawal,
+      cbaTransactionId: null,
+      cbaSubmissionStartedAt: null,
+      paystackTransactionId: null,
+      paystackSubmissionStartedAt: null,
+      status: WalletWithdrawalStatus.RESERVED,
+    });
+    const result = await h.service.inspect(withdrawalId);
+    expect(result.cba.evidence).toBe('NOT_SUBMITTED');
+    expect(result.paystack.evidence).toBe('NOT_SUBMITTED');
+    expect(result.autoFinalizePermitted).toBe(false);
+    expect(h.witmango.getSavingsAccountWithTransactions).not.toHaveBeenCalled();
+    expect(h.paystack.getStatus).not.toHaveBeenCalled();
+  });
+
+  it('recognizes exact verified debit and transfer evidence but never settles money', async () => {
+    const h = setup();
+    const result = await h.service.inspect(withdrawalId);
+    expect(result.cba.evidence).toBe('CONFIRMED');
+    expect(result.paystack.evidence).toBe('CONFIRMED');
+    expect(result.readyForManualSettlementReview).toBe(true);
+    expect(result.autoFinalizePermitted).toBe(false);
+    expect(h.paystack.getStatus).toHaveBeenCalledWith(withdrawal.paystackReference);
+  });
+
+  it('refuses to accept a CBA amount mismatch', async () => {
+    const h = setup();
+    h.witmango.getSavingsAccountWithTransactions.mockResolvedValue({
+      id: 10,
+      currency: { code: 'NGN' },
+      transactions: [{
+        id: 501,
+        amount: 500,
+        reversed: false,
+        transactionType: { withdrawal: true },
+      }],
+    });
+    const result = await h.service.inspect(withdrawalId);
+    expect(result.cba.evidence).toBe('MISMATCH');
+    expect(result.problems).toContain('CBA_DEBIT_IDENTITY_MISMATCH');
+    expect(result.readyForManualSettlementReview).toBe(false);
+  });
+
+  it('requires explicit evidence that the CBA debit is not reversed', async () => {
+    const h = setup();
+    h.witmango.getSavingsAccountWithTransactions.mockResolvedValue({
+      id: 10,
+      currency: { code: 'NGN' },
+      transactions: [{
+        id: 501,
+        amount: 1000,
+        transactionType: { withdrawal: true },
+      }],
+    });
+    const result = await h.service.inspect(withdrawalId);
+    expect(result.cba.evidence).toBe('UNKNOWN');
+    expect(result.problems).toContain('CBA_REVERSAL_STATUS_UNVERIFIED');
+  });
+
+  it('refuses a Paystack destination fingerprint mismatch', async () => {
+    const h = setup();
+    h.paystack.getStatus.mockResolvedValue({
+      provider: 'PAYSTACK',
+      reference: withdrawal.paystackReference,
+      status: PrizePayoutStatus.SUCCEEDED,
+      amountNgn: 1000,
+      currency: 'NGN',
+      destinationBankCode: '058',
+      destinationAccountLast4: '6789',
+      destinationAccountFingerprint: 'b'.repeat(64),
+    });
+    const result = await h.service.inspect(withdrawalId);
+    expect(result.paystack.evidence).toBe('MISMATCH');
+    expect(result.problems).toContain('PAYSTACK_TRANSFER_IDENTITY_MISMATCH');
+  });
+
+  it('surfaces a confirmed bank reversal requiring controlled restoration', async () => {
+    const h = setup();
+    h.paystack.getStatus.mockResolvedValue({
+      provider: 'PAYSTACK',
+      reference: withdrawal.paystackReference,
+      status: PrizePayoutStatus.REVERSED,
+      amountNgn: 1000,
+      currency: 'NGN',
+      destinationBankCode: '058',
+      destinationAccountLast4: '6789',
+      destinationAccountFingerprint: fingerprint,
+    });
+    const result = await h.service.inspect(withdrawalId);
+    expect(result.problems).toContain('CBA_DEBIT_NEEDS_CONTROLLED_RESTORATION');
+    expect(result.autoFinalizePermitted).toBe(false);
+  });
+
+  it('does not treat Paystack lookup failure as a failed bank transfer', async () => {
+    const h = setup();
+    h.paystack.getStatus.mockRejectedValue(new Error('provider timeout'));
+    const result = await h.service.inspect(withdrawalId);
+    expect(result.paystack.evidence).toBe('UNKNOWN');
+    expect(result.problems).toContain('PAYSTACK_LOOKUP_UNAVAILABLE');
+  });
+
+  it('fails closed for another CBA tenant', async () => {
+    const h = setup();
+    h.config.get.mockReturnValue('other-tenant');
+    await expect(h.service.inspect(withdrawalId)).rejects.toThrow(
+      ConflictException,
+    );
+    expect(h.paystack.getStatus).not.toHaveBeenCalled();
+  });
+
+  it('does not reveal or invent missing withdrawal records', async () => {
+    const h = setup();
+    h.prisma.walletWithdrawal.findUnique.mockResolvedValue(null);
+    await expect(h.service.inspect(withdrawalId)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+});
