@@ -194,12 +194,14 @@ function Body({ finance }: { finance: boolean }) {
                     <th className="px-4 py-2 text-right">WHT</th>
                     <th className="px-4 py-2 text-right">Net paid</th>
                     <th className="px-4 py-2 text-left">Status</th>
+                    <th className="px-4 py-2 text-left">Provider</th>
+                    <th className="px-4 py-2 text-left">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {data.payouts.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-500">
+                      <td colSpan={11} className="px-4 py-8 text-center text-sm text-slate-500">
                         No payouts in this period.
                       </td>
                     </tr>
@@ -247,7 +249,39 @@ function Body({ finance }: { finance: boolean }) {
                           {formatNaira(p.netPrizeValueNgn)}
                         </td>
                         <td className="px-4 py-2">
-                          <StatusPill tone={statusToTone(p.status)}>{p.status}</StatusPill>
+                          <StatusPill tone={statusToTone(p.payoutStatus ?? p.status)}>
+                            {(p.payoutStatus ?? p.status).replaceAll('_', ' ')}
+                          </StatusPill>
+                          {p.needsReview && <p className="mt-1 text-[10px] text-amber-700">Review required</p>}
+                        </td>
+                        <td className="px-4 py-2 text-xs">{p.currentAttempt?.provider ?? p.payoutProvider ?? '—'}</td>
+                        <td className="px-4 py-2">
+                          <div className="flex flex-wrap gap-2">
+                            {p.canInitiate && (
+                              <button type="button"
+                                disabled={!ready || busy !== null}
+                                onClick={() => void action(p, 'initiate')}
+                                className="rounded border border-navy-300 px-2 py-1 text-xs font-bold text-navy-800 disabled:opacity-40">
+                                Initiate Paystack
+                              </button>
+                            )}
+                            {p.retryAllowed && p.currentAttempt?.provider === 'PAYSTACK' && (
+                              <button type="button"
+                                disabled={!ready || busy !== null}
+                                onClick={() => void action(p, 'retry')}
+                                className="rounded border border-amber-300 px-2 py-1 text-xs font-bold text-amber-800 disabled:opacity-40">
+                                Retry failed payout
+                              </button>
+                            )}
+                            {p.refreshAllowed && (
+                              <button type="button"
+                                disabled={busy !== null}
+                                onClick={() => void action(p, 'refresh')}
+                                className="rounded border border-slate-200 px-2 py-1 text-xs font-bold text-slate-700 disabled:opacity-40">
+                                Check status
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -259,9 +293,10 @@ function Body({ finance }: { finance: boolean }) {
             <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-4">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-navy-700" />
               <p className="text-xs leading-relaxed text-slate-600">
-                Read-only record view. Transfers currently run in dev mode; when the production
-                payment rail (Monnify) is integrated, provider status and retry actions will appear
-                here without changing these records.
+                Finance may initiate Paystack prize transfers only for cleared cash claims with
+                a verified, locked Nigerian bank account and explicit server-side transfer approval.
+                No free-text destination is accepted. Pending or unknown transfers are not retried.
+                Refresh independently verifies the existing attempt. Customer CBA withdrawals remain disabled.
               </p>
             </div>
           </>
