@@ -42,3 +42,6 @@ prisma/migrations/dev.db*
 *.tsbuildinfo
 
 /apps/api/storage/*
+# Private Phase 6E sandbox evidence: never commit raw bank/provider artifacts.
+/docs/phase6e-acceptance.local.json
+/docs/phase6e-evidence/

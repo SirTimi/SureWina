@@ -19,6 +19,7 @@
     "seed:admin": "tsx prisma/seed.ts",
     "phase8:migrate": "ts-node src/migration/phase8-migrate.ts",
     "rollout:check": "tsx src/rollout/rollout-check.ts",
+    "acceptance:check": "tsx src/rollout/phase6e-acceptance-cli.ts",
     "ledger:bootstrap": "ts-node src/ledger/ledger-bootstrap.ts",
     "rollout:smoke": "ts-node src/rollout/rollout-smoke.ts"
   },

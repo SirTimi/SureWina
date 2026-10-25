@@ -1,6 +1,6 @@
 # Phase 6 — Paystack / Witmango financial security and acceptance
 
-**Status (25 October 2026): Phase 6 has started. A clean pre-live rollout and mocked tests are not evidence of completed real-money settlement. Customer CBA wallet withdrawals remain intentionally disabled.**
+**Status (25 October 2026): Phase 6E acceptance tooling is implemented, but actual third-party evidence and Finance approval remain outstanding. Mocked tests and a clean prelive rollout are not proof of real-money settlement. CBA wallet cashouts remain disabled.**
 
 ## Non-negotiable release rules
 
@@ -104,6 +104,33 @@ pnpm --filter @surewina/api rollout:check -- --production --strict-review
 The second command is an audit, not an activation command, and it requires
 the actual production environment and a database with reconciled accounts.
 Production runs include one extra configuration gate compared with prelive.
+
+## Phase 6E — External acceptance evidence register (non-authorizing)
+
+Runbook: [Phase 6E acceptance runbook](PHASE6E_ACCEPTANCE_RUNBOOK.md).
+A committed JSON register template contains 23 **PENDING** requirements across
+Paystack prize payouts and Witmango CBA cashouts. The offline
+`acceptance:check` command checks coverage, evidence SHA-256 formatting,
+scenario environment, timestamps and separate test/review identities without
+querying provider systems or financial databases. Missing, failed or blocked
+cases are visible independently by rail.
+
+The register is deliberately **not** a compliance certificate: hashes are
+not dereferenced or authenticated, reviewers are not cryptographically
+authenticated, and even a completed register always states
+`releaseAuthorized: false`. Finance must separately inspect preserved
+artifacts and obtain contractual, security and executive authorization
+through an auditable offline process. No submitted form or environment
+variable can bypass the earlier production REVIEW gates.
+
+```powershell
+pnpm --filter @surewina/api acceptance:check
+pnpm --filter @surewina/api acceptance:check -- --json
+```
+
+The default committed template should exit non-zero: all external evidence
+is still pending. Never alter it to manufacture passing tests or mark Phase
+6E financially complete. Store actual evidence in restricted storage, not Git.
 
 ## Phase 6 automated matrix
 
