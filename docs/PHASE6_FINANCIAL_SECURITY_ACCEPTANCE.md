@@ -61,6 +61,50 @@ Witmango CBA customer-wallet cashouts.
   guarantee, held external funds, or settlement movement from CBA into
   Paystack. Even perfect green tests do not close the Witmango contract gap.
 
+## Phase 6D — Production rail and activation gates
+
+The production checker now uses the same Joi-validated environment schema as
+the running NestJS API. Boolean flags cannot bypass production gating by being
+represented as raw strings. Production also enforces strict review regardless
+of whether the CLI caller supplies `--strict-review`; any REVIEW means
+`Ready: NO` in production mode. Prelive mode keeps its existing behavior.
+
+Production readiness requires the legacy Monnify and Flutterwave configuration
+and registry identities **while their collection, refund and payout code remains
+callable**. PAYSTACK_SECRET_KEY must be a live key for production ticket
+collections, and PAYSTACK_BASE_URL must point at the official API origin.
+Provider endpoints must be HTTPS and cannot be sandbox, local or credential-
+bearing URLs. Verified bank-beneficiary HMAC and encryption keys are required
+for existing prize payout rails, not just newly enabled Paystack transfers.
+
+The Witmango connector may be enabled for read-only operations when tenant
+credentials and an HTTPS Fineract API endpoint are configured. A production
+`WITMANGO_MONETARY_ENABLED=true` or
+`WITMANGO_WITHDRAWAL_RESERVATIONS_ENABLED=true` blocks launch because the
+provider's debit/custody/compensation guarantees and standalone customer KYC
+are unresolved. Enabling provisioning without the Witmango connector is also
+invalid.
+
+`PAYSTACK_TRANSFERS_ENABLED=true` returns REVIEW, hence
+`Ready: NO` in production, until Phase 6E sandbox proof and Finance
+controlled-live sign-off are recorded. Changing the environment alone
+cannot authorize a production payout. The flag remains disabled by default.
+The checker performs configuration and database consistency checks only:
+neither a PASS nor a green CI run confirms external transfer funding,
+live settlement, bank ownership or finance approval.
+
+Run on the intended deployed environment, **not against a customer database
+with generated test records**:
+
+```powershell
+pnpm --filter @surewina/api rollout:check -- --strict-review
+pnpm --filter @surewina/api rollout:check -- --production --strict-review
+```
+
+The second command is an audit, not an activation command, and it requires
+the actual production environment and a database with reconciled accounts.
+Production runs include one extra configuration gate compared with prelive.
+
 ## Phase 6 automated matrix
 
 | Scenario | Acceptance evidence | Current state |
