@@ -29,6 +29,36 @@ Do not continue if type-check or build fails.
 
 ---
 
+## 1.1 Ledger chart bootstrap after adding a system account
+
+System ledger accounts are defined in `apps/api/src/ledger/ledger.constants.ts`, and are
+created by `LedgerBootstrapService` when the API starts. The rollout checker
+does not create them.
+
+After deploying code that adds a ledger account, and **after verifying DATABASE_URL
+points to the intended database and taking an appropriate backup**, run:
+
+```powershell
+pnpm --filter @surewina/api ledger:bootstrap
+pnpm --filter @surewina/api rollout:check -- --strict-review
+```
+
+The bootstrap is idempotent: it creates only missing accounts and checks that
+existing accounts have the expected identity. It **does not** repair mismatched
+accounts, post financial journal entries, move money, or rerun Phase 8. If it
+fails with an identity mismatch, investigate that account rather than changing
+it manually.
+
+As of 25 October 2026 the Paystack payout provider requires the additional
+`SYS:PAYOUT:PAYSTACK` system account. Previously bootstrapped databases may
+have only 15 accounts and therefore fail the updated 16-account rollout check.
+
+For full blocker details, use the machine-readable report:
+
+```powershell
+pnpm --filter @surewina/api rollout:check -- --strict-review --json
+```
+
 ## 2. Read-only financial invariant gate
 
 Run:
