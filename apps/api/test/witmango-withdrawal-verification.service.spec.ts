@@ -30,6 +30,7 @@ describe('WitmangoWithdrawalVerificationService', () => {
     const prisma = {
       walletWithdrawal: {
         findUnique: jest.fn().mockResolvedValue({ ...withdrawal }),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       walletHold: {
         findUnique: jest.fn().mockResolvedValue({
@@ -198,4 +199,47 @@ describe('WitmangoWithdrawalVerificationService', () => {
       NotFoundException,
     );
   });
+  it('lists unresolved withdrawals without exposing bank ciphertext', async () => {
+    const h = setup();
+    h.prisma.walletWithdrawal.findMany.mockResolvedValue([{
+      withdrawalId,
+      walletId: withdrawal.walletId,
+      amountNgn: 1000,
+      currency: 'NGN',
+      bankCode: '058',
+      bankAccountLast4: '6789',
+      status: WalletWithdrawalStatus.CBA_DEBIT_UNKNOWN,
+      cbaReference: withdrawal.cbaReference,
+      cbaTransactionId: null,
+      paystackReference: withdrawal.paystackReference,
+      paystackTransactionId: null,
+      cbaSubmissionStartedAt: new Date(),
+      paystackSubmissionStartedAt: null,
+      createdAt: new Date('2026-10-24T09:00:00Z'),
+      updatedAt: new Date('2026-10-24T10:00:00Z'),
+    }]);
+    const result = await h.service.listUnresolved(250);
+    expect(h.prisma.walletWithdrawal.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 'sandbox' }),
+        take: 100,
+      }),
+    );
+    expect(result.count).toBe(1);
+    expect(result.withdrawals[0].nextReviewStep)
+      .toBe('RECONCILE_CBA_TRANSACTION_WITHOUT_RETRY');
+    expect(JSON.stringify(result)).not.toContain('bankCiphertext');
+    expect(h.witmango.getSavingsAccountWithTransactions).not.toHaveBeenCalled();
+    expect(h.paystack.getStatus).not.toHaveBeenCalled();
+  });
+
+  it('fails closed for a missing configured tenant in the finance queue', async () => {
+    const h = setup();
+    h.config.get.mockReturnValue('');
+    await expect(h.service.listUnresolved()).rejects.toThrow(
+      ConflictException,
+    );
+    expect(h.prisma.walletWithdrawal.findMany).not.toHaveBeenCalled();
+  });
+
 });
