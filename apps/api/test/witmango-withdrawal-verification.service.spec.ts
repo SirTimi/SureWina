@@ -222,7 +222,7 @@ describe('WitmangoWithdrawalVerificationService', () => {
     expect(h.prisma.walletWithdrawal.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ tenantId: 'sandbox' }),
-        take: 100,
+        take: 101,
       }),
     );
     expect(result.count).toBe(1);
