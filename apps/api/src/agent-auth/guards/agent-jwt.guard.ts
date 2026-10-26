@@ -7,13 +7,17 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { FastifyRequest } from 'fastify';
-import { AgentJwtPayload } from '../agent-auth.types';
+import { AgentJwtPayload, AgentRefreshSession } from '../agent-auth.types';
+import { RedisService } from '../../redis/redis.service';
+import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
 export class AgentJwtGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly redis: RedisService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext) {
@@ -38,8 +42,20 @@ export class AgentJwtGuard implements CanActivate {
         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
       });
 
-      if (payload.type !== 'agent') {
+      if (payload.type !== 'agent' || !payload.sessionId) {
         throw new UnauthorizedException('Invalid token type');
+      }
+
+      const [session, agent] = await Promise.all([
+        this.redis.getJson<AgentRefreshSession>(`auth:agent:refresh-session:${payload.sessionId}`),
+        this.prisma.agent.findUnique({
+          where: { agentId: payload.sub },
+          select: { status: true },
+        }),
+      ]);
+      if (!session || session.agentId !== payload.sub ||
+          !agent || agent.status === 'SUSPENDED' || agent.status === 'TERMINATED') {
+        throw new UnauthorizedException('Agent session has been revoked');
       }
 
       request.user = payload;

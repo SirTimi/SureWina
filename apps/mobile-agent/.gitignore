@@ -1,0 +1,8 @@
+.expo/
+.expo-shared/
+android/
+ios/
+*.apk
+*.aab
+.env
+.env.local

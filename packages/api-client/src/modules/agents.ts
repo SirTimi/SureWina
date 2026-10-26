@@ -74,8 +74,14 @@ export class AgentsModule {
     return (res.agent ? res : {agent: res }) as GetAgentMeResponse;
   }
 
-  async signOut(): Promise<void> {
-    await this.client.post('/agents/auth/sign-out', {}).catch(() => undefined);
+  async refresh(refreshToken: string): Promise<VerifyAgentOtpResponse> {
+    return this.client.post<VerifyAgentOtpResponse>(
+      '/agents/auth/refresh', { refreshToken }, { skipAuth: true },
+    );
+  }
+
+  async signOut(refreshToken?: string): Promise<void> {
+    await this.client.post('/agents/auth/sign-out', { refreshToken });
   }
 
   async dashboard(): Promise<{

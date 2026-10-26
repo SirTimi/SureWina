@@ -15,6 +15,8 @@ import { PrismaService } from '../database/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import {
   AgentAuthResponse,
+  AgentRefreshJwtPayload,
+  AgentRefreshSession,
   AgentJwtPayload,
   AgentOtpChallenge,
 } from './agent-auth.types';
@@ -26,6 +28,7 @@ const RETIRED_DEBT_SUSPENSION_REASON = 'UNSETTLED_REMITTANCE';
 @Injectable()
 export class AgentAuthService {
   private readonly otpKeyPrefix = 'auth:agent:otp';
+  private readonly refreshKeyPrefix = 'auth:agent:refresh-session';
   private readonly logger = new Logger(AgentAuthService.name)
 
   constructor(
@@ -127,6 +130,8 @@ export class AgentAuthService {
     return {
       challengeId,
       expiresInSeconds: ttlSeconds,
+      channel: 'SMS' as const,
+      expiresAt: expiresAt.toISOString(),
       debugOtp:
         this.configService.get<string>('NODE_ENV') === 'production'
           ? undefined
@@ -183,12 +188,7 @@ export class AgentAuthService {
       throw new ForbiddenException('Agent account is not allowed to sign in');
     }
 
-    const accessToken = await this.signAgentAccessToken({
-      sub: agent.agentId,
-      agentCode: agent.agentCode,
-      phoneNumber: agent.phoneNumber,
-      type: 'agent',
-    });
+    const tokens = await this.issueAgentTokens(agent);
 
     await this.auditService.write({
       actor: {
@@ -207,7 +207,7 @@ export class AgentAuthService {
     });
 
     return {
-      accessToken,
+      ...tokens,
       tokenType: 'Bearer',
       expiresInSeconds: 15 * 60,
       agent: {
@@ -223,6 +223,147 @@ export class AgentAuthService {
         isSuperAgent: agent.isSuperAgent,
       },
     };
+  }
+
+  async refresh(refreshToken: string): Promise<AgentAuthResponse> {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Missing refresh token');
+    }
+
+    const payload = await this.verifyAgentRefreshToken(refreshToken);
+    const sessionKey = this.getAgentRefreshKey(payload.sessionId);
+    // GETDEL consumes the old session atomically. Two simultaneous refresh
+    // calls cannot both mint new credentials from the same token.
+    const raw = await this.redisService.getClient().getdel(sessionKey);
+    if (!raw) {
+      throw new UnauthorizedException('Refresh session expired or revoked');
+    }
+
+    let session: AgentRefreshSession;
+    try {
+      session = JSON.parse(raw) as AgentRefreshSession;
+    } catch {
+      throw new UnauthorizedException('Invalid refresh session');
+    }
+
+    if (
+      session.agentId !== payload.sub ||
+      session.refreshTokenHash !== this.hashRefreshToken(refreshToken)
+    ) {
+      await this.auditService.write({
+        actor: { type: AuditActorType.AGENT, id: payload.sub },
+        action: 'AGENT_REFRESH_TOKEN_REUSE_DETECTED',
+        resource: { type: 'RefreshSession', id: payload.sessionId },
+        metadata: {},
+      });
+      throw new UnauthorizedException('Invalid refresh session');
+    }
+
+    const agent = await this.prismaService.agent.findUnique({
+      where: { agentId: payload.sub },
+    });
+
+    if (!agent || agent.status === AgentStatus.SUSPENDED || agent.status === AgentStatus.TERMINATED) {
+      throw new UnauthorizedException('Agent is not allowed to sign in');
+    }
+
+    const tokens = await this.issueAgentTokens(agent);
+    await this.auditService.write({
+      actor: { type: AuditActorType.AGENT, id: agent.agentId },
+      action: 'AGENT_REFRESH_TOKEN_ROTATED',
+      resource: { type: 'RefreshSession', id: payload.sessionId },
+      metadata: {},
+    });
+
+    return {
+      ...tokens,
+      tokenType: 'Bearer',
+      expiresInSeconds: 15 * 60,
+      agent: {
+        agentId: agent.agentId,
+        agentCode: agent.agentCode,
+        phoneNumber: agent.phoneNumber,
+        email: agent.email,
+        fullName: agent.fullName,
+        registeredStateCode: agent.registeredStateCode,
+        status: agent.status,
+        tier: agent.tier,
+        commissionRate: agent.commissionRate.toString(),
+        isSuperAgent: agent.isSuperAgent,
+      },
+    };
+  }
+
+  async signOut(agentId: string, refreshToken?: string) {
+    if (refreshToken) {
+      try {
+        const payload = await this.verifyAgentRefreshToken(refreshToken);
+        if (payload.sub === agentId) {
+          await this.redisService.delete(this.getAgentRefreshKey(payload.sessionId));
+        }
+      } catch {
+        // Invalid/expired refresh tokens do not prevent local sign-out.
+      }
+    }
+
+    await this.auditService.write({
+      actor: { type: AuditActorType.AGENT, id: agentId },
+      action: 'AGENT_SIGNED_OUT',
+      resource: { type: 'Agent', id: agentId },
+      metadata: {},
+    });
+    return { success: true };
+  }
+
+  private async issueAgentTokens(agent: { agentId: string; agentCode: string; phoneNumber: string }) {
+    const sessionId = randomUUID();
+    const ttlDays = this.configService.get<number>('REFRESH_TOKEN_TTL_DAYS') ?? 30;
+    const ttlSeconds = ttlDays * 24 * 60 * 60;
+    const [accessToken, refreshToken] = await Promise.all([
+      this.signAgentAccessToken({
+        sub: agent.agentId,
+        agentCode: agent.agentCode,
+        phoneNumber: agent.phoneNumber,
+        type: 'agent',
+        sessionId,
+      }),
+      this.jwtService.signAsync(
+        { sub: agent.agentId, type: 'agent_refresh', sessionId } satisfies AgentRefreshJwtPayload,
+        {
+          secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+          expiresIn: `${ttlDays}d`,
+        },
+      ),
+    ]);
+    await this.redisService.setJson<AgentRefreshSession>(
+      this.getAgentRefreshKey(sessionId),
+      { agentId: agent.agentId, refreshTokenHash: this.hashRefreshToken(refreshToken) },
+      ttlSeconds,
+    );
+    return { accessToken, refreshToken };
+  }
+
+  private async verifyAgentRefreshToken(token: string): Promise<AgentRefreshJwtPayload> {
+    try {
+      const payload = await this.jwtService.verifyAsync<AgentRefreshJwtPayload>(token, {
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      });
+      if (payload.type !== 'agent_refresh' || !payload.sessionId) {
+        throw new UnauthorizedException('Invalid refresh token type');
+      }
+      return payload;
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+  }
+
+  private hashRefreshToken(token: string) {
+    const secret = this.configService.getOrThrow<string>('JWT_REFRESH_SECRET');
+    return createHash('sha256').update(`${token}:${secret}`).digest('hex');
+  }
+
+  private getAgentRefreshKey(sessionId: string) {
+    return `${this.refreshKeyPrefix}:${sessionId}`;
   }
 
   async getMe(agentId: string) {

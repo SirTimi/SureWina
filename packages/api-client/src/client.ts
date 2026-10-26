@@ -59,7 +59,7 @@ export class ApiClient {
     } catch (err) {
       clearTimeout(timeoutId);
       if (err instanceof ApiError) throw err;
-      if (err instanceof DOMException && err.name === 'AbortError') {
+      if (typeof DOMException !== 'undefined' && err instanceof DOMException && err.name === 'AbortError') {
         throw new ApiError({
           message: externalSignal?.aborted ? 'Request was cancelled' : `Request timed out after ${timeoutMs}ms`,
           status: 0,

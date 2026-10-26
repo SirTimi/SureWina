@@ -30,7 +30,7 @@ export default function AgentSignInPage() {
     try {
       const res = await api.agents.requestOtp({ phoneE164: phone.trim() });
       setChallengeId(res.challengeId);
-      setMockOtp(res.mockOtp ?? null);
+      setMockOtp(res.debugOtp ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send OTP.');
     } finally {

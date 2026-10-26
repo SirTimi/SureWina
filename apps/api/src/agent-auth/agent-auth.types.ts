@@ -13,10 +13,23 @@ export type AgentJwtPayload = {
   agentCode: string;
   phoneNumber: string;
   type: 'agent';
+  sessionId: string;
+};
+
+export type AgentRefreshJwtPayload = {
+  sub: string;
+  type: 'agent_refresh';
+  sessionId: string;
+};
+
+export type AgentRefreshSession = {
+  agentId: string;
+  refreshTokenHash: string;
 };
 
 export type AgentAuthResponse = {
   accessToken: string;
+  refreshToken: string;
   tokenType: 'Bearer';
   expiresInSeconds: number;
   agent: {

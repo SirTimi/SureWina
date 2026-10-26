@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "SureWina Agent",
+    "slug": "surewina-agent",
+    "scheme": "surewina-agent",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.surewina.agent",
+      "adaptiveIcon": {
+        "backgroundColor": "#013AA8"
+      }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "extra": {}
+  }
+}

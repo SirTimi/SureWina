@@ -23,6 +23,21 @@ export class AgentAuthController {
     return this.agentAuthService.verifyOtp(dto);
   }
 
+  @Throttle({ default: { limit: 30, ttl: 3_600_000 } })
+  @Post('refresh')
+  refresh(@Body('refreshToken') refreshToken: string) {
+    return this.agentAuthService.refresh(refreshToken);
+  }
+
+  @Post('sign-out')
+  @UseGuards(AgentJwtGuard)
+  signOut(
+    @CurrentAgent() agent: AgentJwtPayload,
+    @Body('refreshToken') refreshToken?: string,
+  ) {
+    return this.agentAuthService.signOut(agent.sub, refreshToken);
+  }
+
   @Get('me')
   @UseGuards(AgentJwtGuard)
   getMe(@CurrentAgent() agent: AgentJwtPayload) {

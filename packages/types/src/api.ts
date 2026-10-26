@@ -546,7 +546,8 @@ export interface RequestAgentOtpResponse {
   challengeId: string;
   channel: 'SMS';
   expiresAt: string;
-  mockOtp?: string;
+  expiresInSeconds: number;
+  debugOtp?: string;
 }
 
 export interface VerifyAgentOtpRequest {
@@ -558,8 +559,8 @@ export interface VerifyAgentOtpResponse {
   agent: AgentMe;
   accessToken: string;
   refreshToken: string;
-  /** True on the agent's very first sign-in. UI shows agent code prominently. */
-  isFirstSignIn: boolean;
+  tokenType: 'Bearer';
+  expiresInSeconds: number;
 }
 
 
