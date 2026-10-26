@@ -10,7 +10,7 @@ Deliver AGENT-MOBILE-01: an Android-first Expo agent application with real agent
 
 AWAITING USER TEST
 
-Engineering increment is staged in a single GitHub main commit. **Not accepted until physical-device/local verification.** The remote coding environment could read/write GitHub but could not clone over the public network, install Expo dependencies or execute pnpm, Metro, Jest or Android builds.
+Engineering increment is pushed to GitHub main, with an additional development-APK configuration adjustment. **Not accepted until physical-device/local verification.** The remote coding environment could read/write GitHub but could not clone over the public network, install Expo dependencies or execute pnpm, Metro, Jest or Android builds.
 
 ## Last Accepted Task
 
@@ -18,6 +18,7 @@ The previously recorded accepted backend finance and agent portal functionality 
 
 ## Current Implementation
 
+- Configured the Expo Android development build profile (`developmentClient: true`, `distribution: internal`) and `expo-dev-client` for device testing with Metro. Added shared package build hooks for the monorepo.
 - Added `apps/mobile-agent`, a separate Expo/React Native workspace using SureWina blue `#013AA8`, yellow `#F9CB0B` and success-only green.
 - Phone-only agent OTP sign-in, secure refresh-token persistence in Expo SecureStore, restored sessions, loading/offline/retry UX, explicit sign-out.
 - Live authenticated agent profile, available ledger-backed wallet balance, today's sales/tickets/commission, selling cutoff status, historical-balance warning and recent confirmed sales.
@@ -35,16 +36,16 @@ The previously recorded accepted backend finance and agent portal functionality 
 
 ## Next Tasks
 
-1. User pulls current `main`, installs deps and updates pnpm lockfile locally with `pnpm install --no-frozen-lockfile`, then builds shared packages.
+1. User pulls current `main`, regenerates pnpm lockfile with `pnpm install --no-frozen-lockfile`, then validates shared packages and mobile TypeScript.
 2. Run API mobile auth Jest test, API type-check/build and web-agent build; report any failures before proceeding.
-3. Start PostgreSQL, Redis and API with a registered test agent. Supply a reachable phone-to-API URL in `apps/mobile-agent/.env`.
-4. Open Expo Go on Android, verify OTP, token restoration/rotation, live dashboard, network loss/retry, logout, suspended agent behavior.
+3. Configure the development API URL and build/install the Android development APK with `npx eas-cli build --platform android --profile development`.
+4. Start Metro (`pnpm --filter @surewina/mobile-agent exec expo start --dev-client --lan`), connect the installed APK; start the local API/PostgreSQL/Redis to verify OTP, session rotation, live dashboard, network recovery, logout and suspended agent behavior.
 5. On user PASS: mark this cycle accepted and begin AGENT-MOBILE-02 (ticket-sale vertical slice). On FAIL: fix only this cycle and return to AWAITING USER TEST.
 
 ## Known Issues
 
 - `pnpm-lock.yaml` has not been regenerated for the new Expo workspace because no npm registry/package-manager network was available. Fresh `--frozen-lockfile` installs will fail until the generated lockfile is committed. Local test must use `--no-frozen-lockfile` and the refreshed lockfile must be included in the next commit.
-- No real APK, Metro bundle, Jest or TypeScript build has been executed in the connected GitHub-only environment; installation and physical Android device testing are still required.
+- No real development APK, Metro bundle, Jest or TypeScript build has been executed in the connected GitHub-only environment; installation and physical Android device testing are still required.
 - The web-agent portal retains browser localStorage refresh-token handling from the existing portal; mobile tokens use SecureStore. Web hardening should be assessed separately.
 - Opening the app offline does not show financial figures from an unverified local cache; the user must retry server verification.
 - Provider payout and CBA financial rails remain disabled until independent acceptance and Finance sign-off.
@@ -63,11 +64,14 @@ Required local validations (not run in this environment):
 - `pnpm --filter @surewina/types build`
 - `pnpm --filter @surewina/api-client build`
 - `pnpm --filter @surewina/mobile-agent type-check`
-- Physical Android phone Expo Go: sign-in, 401 refresh, reconnection and sign-out.
+- Physical Android phone development APK + Metro: sign-in, 401 refresh, reconnection and sign-out.
 
 No provider sandbox payment, CBA debit, ledger write or production test executed.
 
 ## Architecture Decisions
+
+- Development APK is the testing distribution; Metro runs on the development PC. This is distinct from the app's NestJS backend and does not require the production server to deploy.
+- Expo Go is not part of Phase 1 device testing.
 
 - GitHub `main` remains the source of truth and integration branch, with no force-push or new development branch.
 - API remains NestJS; Redis handles agent refresh sessions, PostgreSQL remains the ledger record, mobile is Expo/React Native.
@@ -78,7 +82,7 @@ No provider sandbox payment, CBA debit, ledger write or production test executed
 
 ## Last Commit
 
-`feat(mobile-agent): add Android agent authentication and live dashboard` — parent at implementation start: `24d256b64df34bfde8298bc7aaf008b4cd58e330`. See `git log -1` for pushed commit SHA.
+Previous Phase 1 commit: `1777463470d6c0062826a142968b8b6927aa2fd7`. Current adjustment: `chore(mobile-agent): configure Android development APK workflow` — see `git log -1` for pushed hash.
 
 ## Previous Finance Context
 

@@ -1,25 +1,52 @@
-# SureWina Agent (Android-first)
+# SureWina Agent (Android-first development build)
 
-First mobile development increment: OTP sign-in, session restoration, live agent dashboard, refresh and sign-out. Sales, wallet top-up, prize payment and commissions are **not active** in this mobile increment.
+Phase 1: native Android development APK with OTP sign-in, secure session restoration, live agent dashboard, refresh and sign-out. Mobile ticket selling, wallet top-ups and prize payment are **not enabled yet**.
 
-## Setup (Windows / phone on same Wi-Fi)
+## Build an Android development APK
 
-1. From the repository root run `pnpm install --no-frozen-lockfile` to resolve the new Expo workspace and refresh the lockfile. The GitHub-only coding environment cannot regenerate the dependency lockfile from npm.
-2. Build shared packages: `pnpm --filter @surewina/types build` then `pnpm --filter @surewina/api-client build`.
-3. Copy `apps/mobile-agent/.env.example` to `apps/mobile-agent/.env`. Set `EXPO_PUBLIC_API_URL` to the reachable API URL ending with `/v1` (your PC's LAN IP for a local API). Never use `localhost` for testing on a phone.
-4. Start the existing PostgreSQL, Redis and SureWina API. The agent must already be registered and not suspended.
-5. Run `pnpm --filter @surewina/mobile-agent start`, then open Expo Go on Android and scan the development QR code. Expo Go is suitable for this initial test.
-6. Optional native APK after Expo tooling and credentials are set up: `cd apps/mobile-agent && npx eas-cli build --platform android --profile preview`. This step requires external Expo build services; no APK is generated in this commit.
+From the repository root on Windows:
 
-## Tests
+```powershell
+cd C:\dev\surewina
+git pull origin main
+pnpm install --no-frozen-lockfile
+pnpm --filter @surewina/mobile-agent type-check
+pnpm --filter @surewina/mobile-agent test
+pnpm --filter @surewina/api exec jest --runInBand agent-mobile-auth.spec.ts
+```
 
-- `pnpm --filter @surewina/mobile-agent test`
-- `pnpm --filter @surewina/mobile-agent type-check`
-- `pnpm --filter @surewina/api exec jest --runInBand agent-mobile-auth.spec.ts`
-- `pnpm --filter @surewina/api type-check`
-- `pnpm --filter @surewina/api build`
-- `pnpm --filter web-agent build`
+The app's postinstall hook builds `@surewina/types` and `@surewina/api-client`, which are workspace dependencies required by Metro and EAS. A fresh `pnpm install` generates an updated `pnpm-lock.yaml` for the new mobile dependencies. The repo lockfile still needs to be committed before any frozen-lockfile CI workflow can build reliably.
 
-If you update the lockfile locally after install, commit the generated `pnpm-lock.yaml` in the next accepted increment. Until then, fresh CI installs that use `--frozen-lockfile` will reject the new workspace. No production pipeline should be activated.
+For physical phone testing, create `apps/mobile-agent/.env` from `.env.example` and set `EXPO_PUBLIC_API_URL` to a reachable backend URL ending in `/v1`. For a local API use the PC's LAN address, for example `http://192.168.1.100:4000/v1` (replace the IP). Do **not** use localhost or put secrets in `EXPO_PUBLIC_` variables. **During development, Metro reads this file when serving JavaScript to the installed dev-client APK; the native APK can be built before the API server starts.**
 
-OTP debug codes are only visible in a non-production API configuration. Agent sessions are stored in Expo SecureStore. On connectivity loss, the app shows Retry rather than signing the agent out. The server validates session state for protected agent requests. Nothing here enables payment rails or modifies ticket/ledger operations.
+Then:
+
+```powershell
+cd apps\mobile-agent
+npx eas-cli login
+npx eas-cli build --platform android --profile development
+```
+
+If EAS asks to create/link an Expo project or Android credentials, complete the prompts. Install the resulting `.apk` on your Android phone. It contains **expo-dev-client**, not Expo Go. This is a developer build, not a release-style standalone APK.
+
+## Running it after installation
+
+A development APK needs Metro to load its JavaScript. From the workspace root on your PC:
+
+```powershell
+pnpm --filter @surewina/mobile-agent exec expo start --dev-client --lan
+```
+
+Open the installed SureWina Agent app and connect to the running Metro development server on the same network. If LAN discovery fails, use `--tunnel` instead of `--lan` where supported. Reloads to JS/TS screens do not require rebuilding the APK; adding native dependencies or changing native configuration **does** require a new APK.
+
+To test live auth/dashboard, run the existing SureWina API, PostgreSQL and Redis and use a registered non-suspended test agent. Test OTP, app restart and session recovery, refresh rotation, loading/error states, network interruption, and sign-out. No financial transactions are required for this phase.
+
+## Other useful checks
+
+```powershell
+pnpm --filter @surewina/api type-check
+pnpm --filter @surewina/api build
+pnpm --filter web-agent build
+```
+
+The GitHub integration environment could not perform a full Expo/EAS build or regenerate `pnpm-lock.yaml`; validate install, TypeScript, Metro and native APK on Windows before accepting this phase. Keep the production pipeline disabled and do not activate payment rails.
