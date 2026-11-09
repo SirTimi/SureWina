@@ -365,3 +365,73 @@ describe('Witmango CBA monetary operations', () => {
     });
   });
 });
+
+
+describe('Witmango opening a second wallet', () => {
+  const input = {
+    clientId: 4,
+    savingsProductId: 3,
+    externalId: 'sw-11111111-1111-4111-8111-111111111111-winnings',
+  };
+
+  it('submits, approves by external ID, then activates by numeric ID', async () => {
+    const h = harness({ WITMANGO_PROVISIONING_ENABLED: true });
+    try {
+      h.fetchMock
+        .mockResolvedValueOnce(jsonResponse(200, { clientId: 4, resourceId: 1 }))
+        .mockResolvedValueOnce(jsonResponse(200, { clientId: 4, resourceId: 11 }))
+        .mockResolvedValueOnce(jsonResponse(200, { clientId: 4, resourceId: 11 }));
+
+      await expect(h.client.openSavingsAccount(input)).resolves.toEqual({
+        savingsAccountId: 11,
+      });
+
+      const urls = h.fetchMock.mock.calls.map((c) => c[0]);
+      expect(urls).toEqual([
+        `${BASE}/v1/savingsaccounts`,
+        `${BASE}/v1/savingsaccounts/external-id/${input.externalId}?command=approve`,
+        `${BASE}/v1/savingsaccounts/11?command=activate`,
+      ]);
+      expect(sentBody(h.fetchMock)).toEqual(
+        expect.objectContaining({
+          clientId: 4,
+          productId: 3,
+          externalId: input.externalId,
+        }),
+      );
+    } finally {
+      h.restore();
+    }
+  });
+
+  it('is gated by the provisioning switch, not the monetary one', async () => {
+    const h = harness({
+      WITMANGO_PROVISIONING_ENABLED: false,
+      WITMANGO_MONETARY_ENABLED: true,
+    });
+    try {
+      await expect(h.client.openSavingsAccount(input)).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+      expect(h.fetchMock).not.toHaveBeenCalled();
+    } finally {
+      h.restore();
+    }
+  });
+
+  it('stops before activating when approval names a different client', async () => {
+    const h = harness({ WITMANGO_PROVISIONING_ENABLED: true });
+    try {
+      h.fetchMock
+        .mockResolvedValueOnce(jsonResponse(200, { clientId: 4 }))
+        .mockResolvedValueOnce(jsonResponse(200, { clientId: 9, resourceId: 11 }));
+
+      await expect(h.client.openSavingsAccount(input)).rejects.toBeInstanceOf(
+        BadGatewayException,
+      );
+      expect(h.fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      h.restore();
+    }
+  });
+});

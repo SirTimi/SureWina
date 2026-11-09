@@ -1147,7 +1147,7 @@ model Wallet {
   holds           WalletHold[]
   walletPurchases WalletPurchase[]
 
-  witmangoLink WitmangoWalletLink?
+  witmangoLinks WitmangoWalletLink[]
   withdrawals  WalletWithdrawal[]
 
   @@index([ownerType, status])
@@ -1997,15 +1997,39 @@ enum WitmangoWalletLinkStatus {
   REVIEW_REQUIRED
 }
 
+// Which of a person's two CBA accounts a link points at. Customers hold
+// DEPOSIT and WINNINGS; agents hold FLOAT and EARNINGS. Only WINNINGS and
+// EARNINGS can ever be withdrawn.
+enum WitmangoWalletPurpose {
+  DEPOSIT
+  WINNINGS
+  FLOAT
+  EARNINGS
+}
+
 model WitmangoWalletLink {
   linkId String @id @default(uuid()) @map("link_id")
 
-  walletId String @unique @map("wallet_id")
+  // Two links per wallet now — one per purpose — so walletId alone is no
+  // longer unique. Uniqueness moves to (walletId, purpose) below.
+  walletId String @map("wallet_id")
   wallet   Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+
+  purpose WitmangoWalletPurpose
 
   tenantId String @map("tenant_id") @db.VarChar(100)
 
+  // Shared by both of a person's links: one CBA client, two accounts.
   clientExternalId String @map("client_external_id") @db.VarChar(100)
+
+  // Set only on the second account, which is opened against an existing
+  // client and approved by this ID.
+  accountExternalId String? @map("account_external_id") @db.VarChar(100)
+
+  // The product this account was opened on — kept so a later change of
+  // configured product cannot leave anyone guessing which GL line an
+  // existing account posts to.
+  savingsProductId Int? @map("savings_product_id")
 
   clientId         Int? @map("client_id")
   savingsAccountId Int? @map("savings_account_id")
@@ -2017,7 +2041,9 @@ model WitmangoWalletLink {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([tenantId, clientExternalId])
+  @@unique([walletId, purpose])
+  @@unique([tenantId, clientExternalId, purpose])
+  @@unique([tenantId, accountExternalId])
   @@unique([tenantId, savingsAccountId])
   @@index([status, updatedAt])
   @@map("witmango_wallet_links")

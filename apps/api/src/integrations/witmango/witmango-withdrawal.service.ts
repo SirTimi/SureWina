@@ -19,6 +19,7 @@ import {
   WalletStatus,
   WalletWithdrawalStatus,
   WitmangoWalletLinkStatus,
+  WitmangoWalletPurpose
 } from '@prisma/client';
 
 import { randomUUID } from 'node:crypto';
@@ -195,7 +196,13 @@ export class WitmangoWithdrawalService {
     }
 
     const link = await this.prisma.witmangoWalletLink.findUnique({
-      where: { walletId: internal.walletId },
+      where: {
+        walletId_purpose: {
+          walletId: internal.walletId,
+          // Customers withdraw from winnings only — never from deposits.
+          purpose: WitmangoWalletPurpose.WINNINGS,
+        },
+      },
     });
 
     if (

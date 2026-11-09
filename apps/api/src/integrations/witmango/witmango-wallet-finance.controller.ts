@@ -41,13 +41,15 @@ export class WitmangoWalletFinanceController {
     return this.links.reconcile(walletId);
   }
 
+  // Opens the CBA account pair for a customer or agent wallet. Which pair
+  // depends on who owns the wallet, so one endpoint serves both.
   @Post(':walletId/provision')
   provision(
     @Param('walletId') walletId: string,
     @Body() dto: ProvisionWitmangoWalletDto,
     @CurrentAdmin() admin: AdminJwtPayload,
   ) {
-    return this.links.provisionCustomer(
+    return this.links.provision(
       walletId,
       dto,
       admin.sub,

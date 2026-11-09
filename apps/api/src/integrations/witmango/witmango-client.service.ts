@@ -41,6 +41,15 @@ export type WitmangoCreatedWallet = {
   savingsAccountId: number;
 };
 
+export type OpenWitmangoSavingsAccountInput = {
+  clientId: number;
+  savingsProductId: number;
+  // Account-level external ID. The approve step finds the application by
+  // this, because the submit response does not reliably return the numeric
+  // account ID.
+  externalId: string;
+};
+
 // A deposit or withdrawal against one savings (wallet) account.
 //
 // `reference` is SureWina's own identifier for the movement. The CBA offers
@@ -347,6 +356,101 @@ export class WitmangoClientService {
       clientId: Number(result.clientId),
       savingsAccountId: Number(result.savingsId),
     };
+  }
+
+  // Adds a further wallet to a client who already exists — the second
+  // account each person holds (Winnings, or Earnings for agents).
+  //
+  // Three POSTs: submit the application, approve it by external ID, then
+  // activate it by the numeric ID the approval returns. Any of them can end
+  // in an uncertain outcome, and none is retried here. A failure part-way
+  // leaves an application on the CBA that the provisioning coordinator must
+  // reconcile by its external ID — never by submitting again.
+  async openSavingsAccount(
+    input: OpenWitmangoSavingsAccountInput,
+  ): Promise<{ savingsAccountId: number }> {
+    if (
+      !this.config.get<boolean>(
+        'WITMANGO_PROVISIONING_ENABLED',
+      )
+    ) {
+      throw new ServiceUnavailableException(
+        'Witmango wallet provisioning is disabled',
+      );
+    }
+
+    const clientId = this.requireId(input.clientId);
+    const productId = this.requireId(input.savingsProductId);
+
+    if (!/^[a-zA-Z0-9_-]{8,100}$/.test(input.externalId)) {
+      throw new BadRequestException(
+        'A valid account external ID is required',
+      );
+    }
+
+    const today = this.fineractDate(
+      new Date().toISOString().slice(0, 10),
+    );
+
+    const submitted = await this.request(
+      'POST',
+      '/v1/savingsaccounts',
+      {
+        clientId,
+        productId,
+        externalId: input.externalId,
+        submittedOnDate: today,
+        dateFormat: 'dd MMMM yyyy',
+        locale: 'en',
+      },
+    );
+
+    if (!isRecord(submitted) || submitted.clientId !== clientId) {
+      throw new BadGatewayException(
+        'Witmango savings application returned an unexpected response',
+      );
+    }
+
+    const approved = await this.request(
+      'POST',
+      `/v1/savingsaccounts/external-id/${encodeURIComponent(input.externalId)}?command=approve`,
+      {
+        approvedOnDate: today,
+        dateFormat: 'dd MMMM yyyy',
+        locale: 'en',
+      },
+    );
+
+    if (
+      !isRecord(approved) ||
+      approved.clientId !== clientId ||
+      !Number.isSafeInteger(approved.resourceId) ||
+      Number(approved.resourceId) <= 0
+    ) {
+      throw new BadGatewayException(
+        'Witmango savings approval returned an unexpected response',
+      );
+    }
+
+    const accountId = Number(approved.resourceId);
+
+    const activated = await this.request(
+      'POST',
+      `/v1/savingsaccounts/${accountId}?command=activate`,
+      {
+        activatedOnDate: today,
+        dateFormat: 'dd MMMM yyyy',
+        locale: 'en',
+      },
+    );
+
+    if (!isRecord(activated) || activated.resourceId !== accountId) {
+      throw new BadGatewayException(
+        'Witmango savings activation returned an unexpected response',
+      );
+    }
+
+    return { savingsAccountId: accountId };
   }
 
   // Credits a wallet. Used when real money has already arrived at Monnify

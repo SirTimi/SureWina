@@ -10,12 +10,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 
 import {
+  AgentStatus,
   AuditActorType,
   AuditSeverity,
   KycStatus,
   LedgerOwnerType,
   WalletStatus,
   WitmangoWalletLinkStatus,
+  WitmangoWalletPurpose,
 } from '@prisma/client';
 
 import { PrismaService } from '../../database/prisma.service';
@@ -32,6 +34,35 @@ export type ProvisionWitmangoWalletInput = {
   email: string;
   dateOfBirth: string;
   consent: boolean;
+};
+
+// The CBA accounts each kind of owner holds. The first is opened together
+// with the client; the second is added to that client afterwards.
+//
+// Two accounts rather than one because the withdrawal rule depends on where
+// money came from. A single balance cannot tell deposited naira from won
+// naira, so it cannot enforce "only winnings can be withdrawn".
+const PURPOSES_BY_OWNER: Partial<
+  Record<LedgerOwnerType, readonly [WitmangoWalletPurpose, WitmangoWalletPurpose]>
+> = {
+  [LedgerOwnerType.CUSTOMER]: [
+    WitmangoWalletPurpose.DEPOSIT,
+    WitmangoWalletPurpose.WINNINGS,
+  ],
+  [LedgerOwnerType.AGENT]: [
+    WitmangoWalletPurpose.FLOAT,
+    WitmangoWalletPurpose.EARNINGS,
+  ],
+};
+
+// One CBA savings product per purpose. Separate products carry separate GL
+// mappings, so the books show deposits and winnings as distinct liabilities
+// without anyone tagging individual transactions.
+const PRODUCT_SETTING: Record<WitmangoWalletPurpose, string> = {
+  [WitmangoWalletPurpose.DEPOSIT]: 'WITMANGO_DEPOSIT_PRODUCT_ID',
+  [WitmangoWalletPurpose.WINNINGS]: 'WITMANGO_WINNINGS_PRODUCT_ID',
+  [WitmangoWalletPurpose.FLOAT]: 'WITMANGO_FLOAT_PRODUCT_ID',
+  [WitmangoWalletPurpose.EARNINGS]: 'WITMANGO_EARNINGS_PRODUCT_ID',
 };
 
 @Injectable()
@@ -71,33 +102,73 @@ export class WitmangoWalletLinkService {
   }
 
   async getLink(walletId: string) {
-    const link = await this.prisma.witmangoWalletLink.findUnique({
+    const links = await this.prisma.witmangoWalletLink.findMany({
       where: { walletId },
+      orderBy: { purpose: 'asc' },
     });
 
-    if (!link) {
+    if (links.length === 0) {
       throw new NotFoundException(
         'No Witmango wallet mapping exists',
       );
     }
 
-    if (link.tenantId !== this.tenantId()) {
+    const tenantId = this.tenantId();
+
+    if (links.some((link) => link.tenantId !== tenantId)) {
       throw new ConflictException(
         'Witmango wallet belongs to another configured tenant',
       );
     }
 
     return {
-      walletId: link.walletId,
-      status: link.status,
-      clientId: link.clientId,
-      savingsAccountId: link.savingsAccountId,
-      lastReconciledAt:
-        link.lastReconciledAt?.toISOString() ?? null,
+      walletId,
+      accounts: links.map((link) => ({
+        purpose: link.purpose,
+        status: link.status,
+        clientId: link.clientId,
+        savingsAccountId: link.savingsAccountId,
+        lastReconciledAt:
+          link.lastReconciledAt?.toISOString() ?? null,
+      })),
     };
   }
 
-  async provisionCustomer(
+  // The single way later code should reach a CBA account: by wallet and
+  // purpose, and only once it is fully active. Anything that moves money
+  // must go through this, so a half-provisioned account is never used.
+  async getActiveAccount(
+    walletId: string,
+    purpose: WitmangoWalletPurpose,
+  ): Promise<{ clientId: number; savingsAccountId: number }> {
+    const link = await this.prisma.witmangoWalletLink.findUnique({
+      where: {
+        walletId_purpose: { walletId, purpose },
+      },
+    });
+
+    if (
+      !link ||
+      link.tenantId !== this.tenantId() ||
+      link.status !== WitmangoWalletLinkStatus.ACTIVE ||
+      !link.clientId ||
+      !link.savingsAccountId
+    ) {
+      throw new ConflictException(
+        `The ${purpose.toLowerCase()} CBA account is not ready`,
+      );
+    }
+
+    return {
+      clientId: link.clientId,
+      savingsAccountId: link.savingsAccountId,
+    };
+  }
+
+  // One entry point for both owner types. Each has its own eligibility
+  // rules; once a wallet passes them, both go through the same provisioning
+  // core — a sequence too delicate to keep in two copies that could drift.
+  async provision(
     walletId: string,
     input: ProvisionWitmangoWalletInput,
     adminId: string,
@@ -115,22 +186,24 @@ export class WitmangoWalletLinkService {
 
     if (input.consent !== true) {
       throw new BadRequestException(
-        'Documented customer consent is required',
+        'Documented consent is required',
       );
     }
 
-    // Only controlled first-time customer onboarding
-    // is enabled in this implementation.
     const wallet = await this.wallets.getWallet(walletId);
 
+    const purposes = PURPOSES_BY_OWNER[
+      wallet.ownerType as LedgerOwnerType
+    ];
+
     if (
-      wallet.ownerType !== LedgerOwnerType.CUSTOMER ||
+      !purposes ||
       !wallet.ownerId ||
       wallet.status !== WalletStatus.ACTIVE ||
       wallet.currency !== 'NGN'
     ) {
       throw new ConflictException(
-        'Only active NGN customer wallets can be provisioned',
+        'Only active NGN customer or agent wallets can be provisioned',
       );
     }
 
@@ -147,10 +220,27 @@ export class WitmangoWalletLinkService {
       );
     }
 
+    if (wallet.ownerType === LedgerOwnerType.CUSTOMER) {
+      await this.requireEligibleCustomer(wallet.ownerId, input);
+    } else {
+      await this.requireEligibleAgent(wallet.ownerId, input);
+    }
+
+    return this.provisionPair(
+      walletId,
+      wallet.ownerType as LedgerOwnerType,
+      purposes,
+      input,
+      adminId,
+    );
+  }
+
+  private async requireEligibleCustomer(
+    userId: string,
+    input: ProvisionWitmangoWalletInput,
+  ): Promise<void> {
     const user = await this.prisma.user.findUnique({
-      where: {
-        userId: wallet.ownerId,
-      },
+      where: { userId },
       select: {
         userId: true,
         email: true,
@@ -167,57 +257,149 @@ export class WitmangoWalletLinkService {
       );
     }
 
-    if (
-      !user.email ||
-      user.email.trim().toLowerCase() !==
-        input.email.trim().toLowerCase()
-    ) {
+    this.requireMatchingEmail(user.email, input.email, 'Customer');
+  }
+
+  private async requireEligibleAgent(
+    agentId: string,
+    input: ProvisionWitmangoWalletInput,
+  ): Promise<void> {
+    const agent = await this.prisma.agent.findUnique({
+      where: { agentId },
+      select: {
+        agentId: true,
+        email: true,
+        status: true,
+        walletBalanceNgn: true,
+      },
+    });
+
+    // ACTIVE means compliance has approved the agent. Opening CBA accounts
+    // for someone still in onboarding, or suspended, would put a person on
+    // the books whom the business has not cleared to hold money.
+    if (!agent || agent.status !== AgentStatus.ACTIVE) {
       throw new ConflictException(
-        'Customer email must match the registered account',
+        'Only active, compliance-approved agents can be provisioned',
       );
     }
 
+    // The legacy balance column predates the ledger. Money there would sit
+    // somewhere the CBA never hears about, so it must be migrated first —
+    // never carried across silently.
+    if (agent.walletBalanceNgn !== 0) {
+      throw new ConflictException(
+        'Agent holds a legacy balance that must be migrated before CBA provisioning',
+      );
+    }
+
+    // Email is optional on agents, but the CBA client needs one. Refuse
+    // rather than invent an address on someone's behalf.
+    if (!agent.email) {
+      throw new ConflictException(
+        'Agent has no registered email. Add one before CBA onboarding',
+      );
+    }
+
+    this.requireMatchingEmail(agent.email, input.email, 'Agent');
+  }
+
+  private requireMatchingEmail(
+    registered: string | null,
+    supplied: string,
+    who: 'Customer' | 'Agent',
+  ): void {
+    if (
+      !registered ||
+      registered.trim().toLowerCase() !==
+        supplied.trim().toLowerCase()
+    ) {
+      throw new ConflictException(
+        `${who} email must match the registered account`,
+      );
+    }
+  }
+
+  private async provisionPair(
+    walletId: string,
+    ownerType: LedgerOwnerType,
+    [primary, secondary]: readonly [WitmangoWalletPurpose, WitmangoWalletPurpose],
+    input: ProvisionWitmangoWalletInput,
+    adminId: string,
+  ) {
     const existing =
-      await this.prisma.witmangoWalletLink.findUnique({
+      await this.prisma.witmangoWalletLink.findMany({
         where: { walletId },
+        select: { purpose: true },
       });
 
-    if (existing) {
+    if (existing.length > 0) {
       throw new ConflictException(
         'A Witmango provisioning attempt already exists. Reconcile it instead of creating another wallet.',
       );
     }
 
+    // Every setting is resolved BEFORE anything is reserved. A missing
+    // product ID is a configuration problem, and should fail cleanly rather
+    // than leave records stuck in review for something that never reached
+    // the CBA.
     const tenantId = this.tenantId();
 
-    // Opaque, stable identifier without customer PII.
-    const externalId = `sw-${walletId}`;
+    const officeId = this.positiveConfig('WITMANGO_OFFICE_ID');
+    const legalFormId = this.positiveConfig('WITMANGO_LEGAL_FORM_ID');
 
-    // Reserve the linkage BEFORE contacting Fineract.
-    // walletId uniqueness prevents a normal duplicate
-    // provisioning request.
-    await this.prisma.witmangoWalletLink.create({
-      data: {
-        walletId,
-        tenantId,
-        clientExternalId: externalId,
-        status: WitmangoWalletLinkStatus.PROVISIONING,
-      },
+    const primaryProductId = this.positiveConfig(
+      PRODUCT_SETTING[primary],
+    );
+
+    const secondaryProductId = this.positiveConfig(
+      PRODUCT_SETTING[secondary],
+    );
+
+    // The whole point of two products is two GL lines. Sharing one would
+    // quietly put both kinds of money back into the same liability.
+    if (primaryProductId === secondaryProductId) {
+      throw new ServiceUnavailableException(
+        `${primary} and ${secondary} wallets must use different CBA savings products`,
+      );
+    }
+
+    // Opaque, stable identifiers without PII.
+    const clientExternalId = `sw-${walletId}`;
+    const secondaryExternalId =
+      `sw-${walletId}-${secondary.toLowerCase()}`;
+
+    // Reserve both linkages BEFORE contacting Fineract, in one statement so
+    // they exist together or not at all. The (walletId, purpose) uniqueness
+    // stops a concurrent request reserving the same accounts.
+    await this.prisma.witmangoWalletLink.createMany({
+      data: [
+        {
+          walletId,
+          purpose: primary,
+          tenantId,
+          clientExternalId,
+          savingsProductId: primaryProductId,
+          status: WitmangoWalletLinkStatus.PROVISIONING,
+        },
+        {
+          walletId,
+          purpose: secondary,
+          tenantId,
+          clientExternalId,
+          accountExternalId: secondaryExternalId,
+          savingsProductId: secondaryProductId,
+          status: WitmangoWalletLinkStatus.PROVISIONING,
+        },
+      ],
     });
 
     try {
       const created =
         await this.witmango.createClientWithWallet({
-          officeId: this.positiveConfig(
-            'WITMANGO_OFFICE_ID',
-          ),
-          legalFormId: this.positiveConfig(
-            'WITMANGO_LEGAL_FORM_ID',
-          ),
-          savingsProductId: this.positiveConfig(
-            'WITMANGO_SAVINGS_PRODUCT_ID',
-          ),
-          externalId,
+          officeId,
+          legalFormId,
+          savingsProductId: primaryProductId,
+          externalId: clientExternalId,
           firstName: input.firstName,
           lastName: input.lastName,
           email: input.email,
@@ -225,32 +407,63 @@ export class WitmangoWalletLinkService {
         });
 
       // Persist identifiers as soon as we know them.
-      // If subsequent verification fails, they remain
-      // available for manual recovery.
+      // If a later step fails, they remain available
+      // for manual recovery.
       await this.prisma.witmangoWalletLink.update({
-        where: { walletId },
+        where: {
+          walletId_purpose: { walletId, purpose: primary },
+        },
         data: {
           clientId: created.clientId,
           savingsAccountId: created.savingsAccountId,
         },
       });
 
-      const account =
-        await this.witmango.getSavingsAccount(
-          created.savingsAccountId,
-        );
+      const opened =
+        await this.witmango.openSavingsAccount({
+          clientId: created.clientId,
+          savingsProductId: secondaryProductId,
+          externalId: secondaryExternalId,
+        });
 
-      if (
-        account.status.id !== 300 ||
-        account.summary.accountBalance !== 0 ||
-        account.summary.availableBalance !== 0
-      ) {
+      await this.prisma.witmangoWalletLink.update({
+        where: {
+          walletId_purpose: { walletId, purpose: secondary },
+        },
+        data: {
+          clientId: created.clientId,
+          savingsAccountId: opened.savingsAccountId,
+        },
+      });
+
+      if (opened.savingsAccountId === created.savingsAccountId) {
         throw new ConflictException(
-          'New Witmango wallet requires reconciliation before activation',
+          'Witmango returned the same account for both wallets',
         );
       }
 
-      await this.prisma.witmangoWalletLink.update({
+      for (const accountId of [
+        created.savingsAccountId,
+        opened.savingsAccountId,
+      ]) {
+        const account =
+          await this.witmango.getSavingsAccount(accountId);
+
+        if (
+          account.status.id !== 300 ||
+          account.summary.accountBalance !== 0 ||
+          account.summary.availableBalance !== 0
+        ) {
+          throw new ConflictException(
+            'New Witmango wallet requires reconciliation before activation',
+          );
+        }
+      }
+
+      // Both accounts go live together. Half a pair is worse than none:
+      // a customer could buy a ticket with nowhere for a prize to land, or
+      // an agent could sell with nowhere for commission to go.
+      await this.prisma.witmangoWalletLink.updateMany({
         where: { walletId },
         data: {
           status: WitmangoWalletLinkStatus.ACTIVE,
@@ -269,22 +482,36 @@ export class WitmangoWalletLinkService {
           id: walletId,
         },
         metadata: {
+          ownerType,
           clientId: created.clientId,
-          savingsAccountId: created.savingsAccountId,
           tenantId,
+          accounts: {
+            [primary]: created.savingsAccountId,
+            [secondary]: opened.savingsAccountId,
+          },
         },
       });
 
       return {
         walletId,
+        ownerType,
         status: WitmangoWalletLinkStatus.ACTIVE,
         clientId: created.clientId,
-        savingsAccountId: created.savingsAccountId,
+        accounts: [
+          {
+            purpose: primary,
+            savingsAccountId: created.savingsAccountId,
+          },
+          {
+            purpose: secondary,
+            savingsAccountId: opened.savingsAccountId,
+          },
+        ],
       };
     } catch {
-      // The upstream wallet MAY have been created.
-      // Never automatically repeat POST /v1/clients.
-      await this.prisma.witmangoWalletLink.update({
+      // Either upstream account MAY have been created.
+      // Never automatically repeat a creation call.
+      await this.prisma.witmangoWalletLink.updateMany({
         where: { walletId },
         data: {
           status: WitmangoWalletLinkStatus.REVIEW_REQUIRED,
@@ -312,34 +539,47 @@ export class WitmangoWalletLinkService {
     return Math.round(value * 100);
   }
 
+  // Compares SureWina's ledger against the CBA. Transitional: SureWina
+  // still keeps one balance per wallet, so it is compared against the SUM
+  // of that wallet's CBA accounts. Once balances live only in the CBA, this
+  // becomes the vault-versus-book check instead.
   async reconcile(walletId: string) {
-    const link = await this.prisma.witmangoWalletLink.findUnique({
+    const links = await this.prisma.witmangoWalletLink.findMany({
       where: { walletId },
     });
 
-    if (!link) {
+    if (links.length === 0) {
       throw new NotFoundException(
         'Witmango wallet mapping not found',
-      );
-    }
-
-    if (
-      link.tenantId !== this.tenantId() ||
-      link.status !== WitmangoWalletLinkStatus.ACTIVE ||
-      !link.savingsAccountId
-    ) {
-      throw new ConflictException(
-        'Witmango wallet linkage is not ready for reconciliation',
       );
     }
 
     const internal =
       await this.wallets.getWallet(walletId);
 
-    const external =
-      await this.witmango.getSavingsAccount(
-        link.savingsAccountId,
+    const expected = PURPOSES_BY_OWNER[
+      internal.ownerType as LedgerOwnerType
+    ];
+
+    const tenantId = this.tenantId();
+
+    if (
+      !expected ||
+      links.length !== expected.length ||
+      !expected.every((purpose) =>
+        links.some((link) => link.purpose === purpose),
+      ) ||
+      links.some(
+        (link) =>
+          link.tenantId !== tenantId ||
+          link.status !== WitmangoWalletLinkStatus.ACTIVE ||
+          !link.savingsAccountId,
+      )
+    ) {
+      throw new ConflictException(
+        'Witmango wallet linkage is not ready for reconciliation',
       );
+    }
 
     const internalAvailableKobo =
       internal.availableNgn * 100;
@@ -356,13 +596,46 @@ export class WitmangoWalletLinkService {
       );
     }
 
-    const externalAvailableKobo =
-      this.toKobo(external.summary.availableBalance);
-
-    const externalTotalKobo =
-      this.toKobo(external.summary.accountBalance);
-
     const differences: string[] = [];
+
+    let externalAvailableKobo = 0;
+    let externalTotalKobo = 0;
+
+    const accounts: {
+      purpose: WitmangoWalletPurpose;
+      savingsAccountId: number;
+      availableNgn: number;
+      totalNgn: number;
+    }[] = [];
+
+    for (const link of links) {
+      const external =
+        await this.witmango.getSavingsAccount(
+          link.savingsAccountId!,
+        );
+
+      if (
+        external.status.id !== 300 &&
+        !differences.includes('EXTERNAL_ACCOUNT_STATUS')
+      ) {
+        differences.push('EXTERNAL_ACCOUNT_STATUS');
+      }
+
+      externalAvailableKobo += this.toKobo(
+        external.summary.availableBalance,
+      );
+
+      externalTotalKobo += this.toKobo(
+        external.summary.accountBalance,
+      );
+
+      accounts.push({
+        purpose: link.purpose,
+        savingsAccountId: link.savingsAccountId!,
+        availableNgn: external.summary.availableBalance,
+        totalNgn: external.summary.accountBalance,
+      });
+    }
 
     if (internal.currency !== 'NGN') {
       differences.push('INTERNAL_CURRENCY');
@@ -370,10 +643,6 @@ export class WitmangoWalletLinkService {
 
     if (internal.status !== WalletStatus.ACTIVE) {
       differences.push('INTERNAL_WALLET_STATUS');
-    }
-
-    if (external.status.id !== 300) {
-      differences.push('EXTERNAL_ACCOUNT_STATUS');
     }
 
     if (
@@ -388,7 +657,7 @@ export class WitmangoWalletLinkService {
 
     const checkedAt = new Date();
 
-    await this.prisma.witmangoWalletLink.update({
+    await this.prisma.witmangoWalletLink.updateMany({
       where: { walletId },
       data: {
         lastReconciledAt: checkedAt,
@@ -413,8 +682,9 @@ export class WitmangoWalletLinkService {
       },
 
       external: {
-        availableNgn: external.summary.availableBalance,
-        totalNgn: external.summary.accountBalance,
+        availableNgn: externalAvailableKobo / 100,
+        totalNgn: externalTotalKobo / 100,
+        accounts,
       },
 
       differences,

@@ -124,7 +124,19 @@ export const envValidationSchema = Joi.object({
   WITMANGO_LEGAL_FORM_ID:
     Joi.number().integer().min(1).optional(),
 
-  WITMANGO_SAVINGS_PRODUCT_ID:
+  // One CBA savings product per wallet purpose. Separate products give
+  // separate GL lines, so the books show deposits and winnings as distinct
+  // liabilities without anyone tagging transactions.
+  WITMANGO_DEPOSIT_PRODUCT_ID:
+    Joi.number().integer().min(1).optional(),
+
+  WITMANGO_WINNINGS_PRODUCT_ID:
+    Joi.number().integer().min(1).optional(),
+
+  WITMANGO_FLOAT_PRODUCT_ID:
+    Joi.number().integer().min(1).optional(),
+
+  WITMANGO_EARNINGS_PRODUCT_ID:
     Joi.number().integer().min(1).optional(),
 
   WITMANGO_WITHDRAWAL_RESERVATIONS_ENABLED:
