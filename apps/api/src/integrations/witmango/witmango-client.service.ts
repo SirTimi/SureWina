@@ -41,6 +41,65 @@ export type WitmangoCreatedWallet = {
   savingsAccountId: number;
 };
 
+// A deposit or withdrawal against one savings (wallet) account.
+//
+// `reference` is SureWina's own identifier for the movement. The CBA offers
+// no duplicate protection of its own, so this is what makes a retry safe:
+// it is sent as the receipt number, and findTransactionByReference() looks
+// for it before anything is posted a second time.
+export type WitmangoMoneyMovementInput = {
+  accountId: number;
+  amountNgn: number;
+  // Business date as YYYY-MM-DD. Chosen by the caller, not derived here,
+  // because the CBA rejects future dates in the tenant's own time zone.
+  transactionDate: string;
+  reference: string;
+};
+
+export type WitmangoPostedTransaction = {
+  transactionId: number;
+  savingsAccountId: number;
+};
+
+export type WitmangoTransferEndpoint = {
+  officeId: number;
+  clientId: number;
+  accountId: number;
+};
+
+export type WitmangoTransferInput = {
+  from: WitmangoTransferEndpoint;
+  to: WitmangoTransferEndpoint;
+  amountNgn: number;
+  transactionDate: string;
+  reference: string;
+};
+
+export type WitmangoTransferResult = {
+  transferId: number;
+  fromSavingsAccountId: number;
+};
+
+export type WitmangoReferencedTransaction = {
+  transactionId: number;
+  kind: 'DEPOSIT' | 'WITHDRAWAL' | 'OTHER';
+  amountNgn: number;
+  reversed: boolean;
+};
+
+// Thrown when the request may or may not have reached the CBA — a dropped
+// connection or a timeout. Callers must treat this differently from a
+// refusal: the movement might have happened, so the only safe next step is
+// to look for it by reference before posting again.
+//
+// Extends ServiceUnavailableException so existing callers that catch the
+// broader type keep working unchanged.
+export class WitmangoUncertainOutcomeError extends ServiceUnavailableException {
+  constructor() {
+    super('Witmango API request outcome is uncertain');
+  }
+}
+
 function isRecord(
   value: unknown,
 ): value is Record<string, unknown> {
@@ -95,6 +154,67 @@ export class WitmangoClientService {
       year: 'numeric',
       timeZone: 'UTC',
     });
+  }
+
+  // Writes are gated separately from reads. WITMANGO_ENABLED alone lets the
+  // platform look at the CBA; moving money needs this second, deliberate
+  // switch, which defaults to off.
+  private requireMonetaryEnabled(): void {
+    if (
+      this.config.get<boolean>(
+        'WITMANGO_MONETARY_ENABLED',
+      ) !== true
+    ) {
+      throw new ServiceUnavailableException(
+        'Witmango monetary operations are disabled',
+      );
+    }
+  }
+
+  // Whole naira only. Every amount in SureWina is an integer number of
+  // naira, and a fractional value reaching the CBA would mean a rounding
+  // error somewhere upstream that should fail loudly here instead.
+  private requireAmount(amountNgn: number): number {
+    if (!Number.isSafeInteger(amountNgn) || amountNgn <= 0) {
+      throw new BadRequestException(
+        'Amount must be a positive whole number of naira',
+      );
+    }
+
+    return amountNgn;
+  }
+
+  // Matches the 50-character reference columns on SureWina's own records,
+  // so whatever is stored locally can always be sent and searched for.
+  private requireReference(reference: string): string {
+    if (!/^[A-Za-z0-9_-]{8,50}$/.test(reference)) {
+      throw new BadRequestException(
+        'Reference must be 8-50 letters, digits, hyphens or underscores',
+      );
+    }
+
+    return reference;
+  }
+
+  // The CBA requires a payment type on every savings transaction, and which
+  // IDs exist differs per tenant. Configured, never assumed — the guide is
+  // explicit that 1 is not necessarily correct.
+  private paymentTypeId(): number {
+    const value = this.config.get<number>(
+      'WITMANGO_PAYMENT_TYPE_ID',
+    );
+
+    if (
+      value === undefined ||
+      !Number.isSafeInteger(value) ||
+      value <= 0
+    ) {
+      throw new ServiceUnavailableException(
+        'Witmango payment type is not configured',
+      );
+    }
+
+    return value;
   }
 
   async listGlAccounts(): Promise<unknown> {
@@ -229,6 +349,221 @@ export class WitmangoClientService {
     };
   }
 
+  // Credits a wallet. Used when real money has already arrived at Monnify
+  // and the book needs to catch up with the vault.
+  async deposit(
+    input: WitmangoMoneyMovementInput,
+  ): Promise<WitmangoPostedTransaction> {
+    return this.postSavingsTransaction('deposit', input);
+  }
+
+  // Debits a wallet. On the CBA this fails if the available balance is
+  // insufficient, because the wallet product disallows overdraft.
+  async withdraw(
+    input: WitmangoMoneyMovementInput,
+  ): Promise<WitmangoPostedTransaction> {
+    return this.postSavingsTransaction('withdrawal', input);
+  }
+
+  // Moves money between two wallets in a single CBA operation — both sides
+  // post together or neither does. This is how a ticket purchase moves
+  // naira from a player's wallet to Surewina's revenue account, and how a
+  // withdrawal locks funds into Pending Withdrawals before Monnify is asked
+  // to pay out.
+  //
+  // UNVERIFIED: the collection gives transfers no receipt number, so the
+  // reference travels only in the description. Whether a transfer can be
+  // found by that reference after an uncertain outcome is not yet proven
+  // against a sandbox. Until it is, callers must treat an uncertain
+  // transfer as needing review rather than retrying it.
+  async transfer(
+    input: WitmangoTransferInput,
+  ): Promise<WitmangoTransferResult> {
+    this.requireMonetaryEnabled();
+
+    const fromOffice = this.requireId(input.from.officeId);
+    const fromClient = this.requireId(input.from.clientId);
+    const fromAccount = this.requireId(input.from.accountId);
+
+    const toOffice = this.requireId(input.to.officeId);
+    const toClient = this.requireId(input.to.clientId);
+    const toAccount = this.requireId(input.to.accountId);
+
+    if (fromAccount === toAccount) {
+      throw new BadRequestException(
+        'A transfer must move money between two different accounts',
+      );
+    }
+
+    const amount = this.requireAmount(input.amountNgn);
+    const reference = this.requireReference(input.reference);
+    const date = this.fineractDate(input.transactionDate);
+
+    const result = await this.request(
+      'POST',
+      '/v1/accounttransfers',
+      {
+        fromOfficeId: fromOffice,
+        fromClientId: fromClient,
+        fromAccountType: 2,
+        fromAccountId: fromAccount,
+
+        toOfficeId: toOffice,
+        toClientId: toClient,
+        toAccountType: 2,
+        toAccountId: toAccount,
+
+        transferAmount: amount,
+        transferDate: date,
+        transferDescription: reference,
+
+        dateFormat: 'dd MMMM yyyy',
+        locale: 'en',
+      },
+    );
+
+    if (
+      !isRecord(result) ||
+      !Number.isSafeInteger(result.resourceId) ||
+      Number(result.resourceId) <= 0 ||
+      result.savingsId !== fromAccount
+    ) {
+      throw new BadGatewayException(
+        'Witmango transfer returned an unexpected response',
+      );
+    }
+
+    return {
+      transferId: Number(result.resourceId),
+      fromSavingsAccountId: fromAccount,
+    };
+  }
+
+  // The retry guard. Before posting anything a second time, look for the
+  // first attempt by its reference. Returns null when it never landed, and
+  // fails loudly if the reference appears more than once — that means a
+  // duplicate already exists and a person needs to look at it.
+  //
+  // UNVERIFIED: field names follow standard Fineract (paymentDetailData,
+  // transactionType, reversed). Confirm against a sandbox response before
+  // any caller relies on this for real money.
+  async findTransactionByReference(
+    accountId: number,
+    reference: string,
+  ): Promise<WitmangoReferencedTransaction | null> {
+    const id = this.requireId(accountId);
+    const ref = this.requireReference(reference);
+
+    const result = await this.request(
+      'GET',
+      `/v1/savingsaccounts/${id}?associations=transactions`,
+    );
+
+    if (!isRecord(result) || result.id !== id) {
+      throw new BadGatewayException(
+        'Witmango returned an invalid savings account',
+      );
+    }
+
+    const transactions = Array.isArray(result.transactions)
+      ? result.transactions
+      : [];
+
+    const matches = transactions.filter(
+      (tx): tx is Record<string, unknown> =>
+        isRecord(tx) &&
+        isRecord(tx.paymentDetailData) &&
+        tx.paymentDetailData.receiptNumber === ref,
+    );
+
+    if (matches.length === 0) {
+      return null;
+    }
+
+    if (matches.length > 1) {
+      throw new BadGatewayException(
+        'Reference appears on more than one CBA transaction',
+      );
+    }
+
+    const tx = matches[0];
+
+    if (
+      !Number.isSafeInteger(tx.id) ||
+      Number(tx.id) <= 0 ||
+      typeof tx.amount !== 'number' ||
+      !Number.isFinite(tx.amount)
+    ) {
+      throw new BadGatewayException(
+        'Witmango returned an invalid transaction',
+      );
+    }
+
+    const type = isRecord(tx.transactionType)
+      ? tx.transactionType
+      : {};
+
+    return {
+      transactionId: Number(tx.id),
+      kind:
+        type.deposit === true
+          ? 'DEPOSIT'
+          : type.withdrawal === true
+            ? 'WITHDRAWAL'
+            : 'OTHER',
+      amountNgn: tx.amount,
+      reversed: tx.reversed === true,
+    };
+  }
+
+  private async postSavingsTransaction(
+    command: 'deposit' | 'withdrawal',
+    input: WitmangoMoneyMovementInput,
+  ): Promise<WitmangoPostedTransaction> {
+    this.requireMonetaryEnabled();
+
+    const id = this.requireId(input.accountId);
+    const amount = this.requireAmount(input.amountNgn);
+    const reference = this.requireReference(input.reference);
+    const date = this.fineractDate(input.transactionDate);
+    const paymentTypeId = this.paymentTypeId();
+
+    const result = await this.request(
+      'POST',
+      `/v1/savingsaccounts/${id}/transactions?command=${command}`,
+      {
+        transactionDate: date,
+        transactionAmount: amount,
+        paymentTypeId,
+
+        // Carried on the CBA transaction so it can be found again. The
+        // note duplicates it for anyone reading the account in Witmango's
+        // own screens.
+        receiptNumber: reference,
+        note: reference,
+
+        dateFormat: 'dd MMMM yyyy',
+        locale: 'en',
+      },
+    );
+
+    if (
+      !isRecord(result) ||
+      !Number.isSafeInteger(result.resourceId) ||
+      Number(result.resourceId) <= 0 ||
+      result.savingsId !== id
+    ) {
+      throw new BadGatewayException(
+        `Witmango ${command} returned an unexpected response`,
+      );
+    }
+
+    return {
+      transactionId: Number(result.resourceId),
+      savingsAccountId: id,
+    };
+  }
+
   private async request(
     method: 'GET' | 'POST',
     path: string,
@@ -332,11 +667,9 @@ export class WitmangoClientService {
         },
       );
     } catch {
-      // An uncertain POST might have succeeded upstream.
-      // The provisioning coordinator must not retry it.
-      throw new ServiceUnavailableException(
-        'Witmango API request outcome is uncertain',
-      );
+      // An uncertain POST might have succeeded upstream. Callers must look
+      // for it by reference before posting again — never retry blindly.
+      throw new WitmangoUncertainOutcomeError();
     }
 
     if (!response.ok) {

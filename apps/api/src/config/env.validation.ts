@@ -132,4 +132,7 @@ export const envValidationSchema = Joi.object({
 
   WITMANGO_MONETARY_ENABLED:
     Joi.boolean().default(false),
+
+  WITMANGO_PAYMENT_TYPE_ID:
+    Joi.number().integer().min(1).optional(),
 });
