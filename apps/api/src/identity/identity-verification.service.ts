@@ -92,6 +92,21 @@ export class IdentityVerificationService {
     return identity;
   }
 
+  // Confirms a BVN supplied now is the one this customer verified with, and
+  // returns their identity. Used where the raw BVN is needed again — it is
+  // never stored, so it can only be checked by fingerprint, not looked up.
+  async requireVerifiedBvn(userId: string, bvn: string) {
+    const identity = await this.requireVerified(userId);
+
+    if (identity.identityFingerprint !== this.fingerprint(bvn.trim())) {
+      throw new ConflictException(
+        'This BVN does not match the verified identity',
+      );
+    }
+
+    return identity;
+  }
+
   // Verifies a customer's BVN against their supplied name and date of birth.
   //
   // Safe to call repeatedly with the same BVN: once a customer is verified,

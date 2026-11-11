@@ -14,6 +14,11 @@ import {
   WitmangoWalletState,
 } from '../integrations/witmango/witmango-wallet-link.service';
 
+import {
+  FundingAccountService,
+  FundingAccountView,
+} from './funding-account.service';
+
 export type OnboardWalletInput = VerifyBvnInput & {
   acceptTerms: boolean;
 };
@@ -32,6 +37,14 @@ export type WalletOnboardingView = {
     | { verified: false }
     | { verified: true; firstName: string; lastName: string };
   wallet: { status: WalletSetupStatus };
+  // The account number to transfer into. Only ever READY once the wallet
+  // itself is.
+  funding: FundingAccountView;
+};
+
+const NO_FUNDING: FundingAccountView = {
+  status: 'NOT_STARTED',
+  accounts: [],
 };
 
 const SETUP_STATUS: Record<WitmangoWalletState, WalletSetupStatus> = {
@@ -47,6 +60,11 @@ const SETUP_STATUS: Record<WitmangoWalletState, WalletSetupStatus> = {
 // whose attempt fails partway — simply submits again:
 //   1. Identity: an already-verified BVN is recognised and not re-charged.
 //   2. Wallet accounts: opened once; a second request finds them in place.
+//   3. Funding account: reserved once the wallet accounts are ready.
+//
+// The order of 2 and 3 is the point. A funding account handed out before
+// the wallet accounts exist would let real money arrive with nowhere to be
+// recorded.
 //
 // The BVN arrives with the request and is gone when it returns. It is never
 // stored, which is why it is asked for again on a retry.
@@ -58,6 +76,7 @@ export class WalletOnboardingService {
     private readonly identity: IdentityVerificationService,
     private readonly wallets: WalletService,
     private readonly links: WitmangoWalletLinkService,
+    private readonly funding: FundingAccountService,
   ) {}
 
   async getStatus(userId: string): Promise<WalletOnboardingView> {
@@ -67,6 +86,7 @@ export class WalletOnboardingService {
       return {
         identity: { verified: false },
         wallet: { status: 'NOT_STARTED' },
+        funding: NO_FUNDING,
       };
     }
 
@@ -80,6 +100,11 @@ export class WalletOnboardingService {
         lastName: identity.lastName,
       },
       wallet: { status: SETUP_STATUS[state] },
+      // Read-only here: checking status never reserves anything.
+      funding:
+        state === 'READY'
+          ? await this.funding.getView(wallet.walletId)
+          : NO_FUNDING,
     };
   }
 
@@ -129,6 +154,27 @@ export class WalletOnboardingService {
       unavailable = state === 'NONE';
     }
 
+    // Step 3. Only once the wallet accounts are ready.
+    let funding = NO_FUNDING;
+
+    if (state === 'READY') {
+      try {
+        funding = await this.funding.ensureForCustomer({
+          userId,
+          walletId: wallet.walletId,
+          bvn: input.bvn,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Funding account step failed for ${userId}: ${
+            error instanceof Error ? error.message : 'unknown'
+          }`,
+        );
+
+        funding = { status: 'NOT_AVAILABLE', accounts: [] };
+      }
+    }
+
     return {
       identity: {
         verified: true,
@@ -138,6 +184,7 @@ export class WalletOnboardingService {
       wallet: {
         status: unavailable ? 'NOT_AVAILABLE' : SETUP_STATUS[state],
       },
+      funding,
     };
   }
 }

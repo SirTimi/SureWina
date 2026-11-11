@@ -161,4 +161,17 @@ export const envValidationSchema = Joi.object({
 
   KYC_MAX_FAILED_ATTEMPTS_PER_DAY:
     Joi.number().integer().min(1).default(3),
+
+  // Reserved accounts are how wallets get funded by bank transfer. Off
+  // unless deliberately enabled.
+  MONNIFY_RESERVED_ACCOUNTS_ENABLED:
+    Joi.boolean().default(false),
+
+  // Deposit limits, set as limit profiles in Monnify and attached to every
+  // account at creation. Without the relevant code, no account is issued.
+  MONNIFY_CUSTOMER_LIMIT_PROFILE_CODE:
+    Joi.string().trim().max(40).allow('').default(''),
+
+  MONNIFY_AGENT_LIMIT_PROFILE_CODE:
+    Joi.string().trim().max(40).allow('').default(''),
 });

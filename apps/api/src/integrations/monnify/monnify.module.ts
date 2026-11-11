@@ -9,6 +9,10 @@ import {
   MonnifyVerificationService,
 } from './monnify-verification.service';
 
+import {
+  MonnifyReservedAccountsService,
+} from './monnify-reserved-accounts.service';
+
 @Module({
   imports: [
     ConfigModule,
@@ -17,11 +21,13 @@ import {
   providers: [
     MonnifyClientService,
     MonnifyVerificationService,
+    MonnifyReservedAccountsService,
   ],
 
   exports: [
     MonnifyClientService,
     MonnifyVerificationService,
+    MonnifyReservedAccountsService,
   ],
 })
 export class MonnifyModule {}

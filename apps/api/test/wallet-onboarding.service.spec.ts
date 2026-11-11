@@ -26,6 +26,19 @@ describe('WalletOnboardingService', () => {
     alreadyVerified: false,
   };
 
+  const fundingReady = {
+    status: 'READY',
+    accounts: [
+      {
+        bankName: 'Moniepoint Microfinance Bank',
+        accountNumber: '6254727989',
+        accountName: 'Olatunde Ogunboyejo',
+      },
+    ],
+  };
+
+  const noFunding = { status: 'NOT_STARTED', accounts: [] };
+
   function setup() {
     const identity = {
       verifyBvn: jest.fn().mockResolvedValue(verified),
@@ -38,12 +51,17 @@ describe('WalletOnboardingService', () => {
       getState: jest.fn(),
       provisionForVerifiedCustomer: jest.fn().mockResolvedValue({}),
     };
+    const funding = {
+      ensureForCustomer: jest.fn().mockResolvedValue(fundingReady),
+      getView: jest.fn().mockResolvedValue(fundingReady),
+    };
     const service = new WalletOnboardingService(
       identity as never,
       wallets as never,
       links as never,
+      funding as never,
     );
-    return { service, identity, wallets, links };
+    return { service, identity, wallets, links, funding };
   }
 
   it('verifies identity, opens the wallet accounts, and reports ready', async () => {
@@ -55,12 +73,18 @@ describe('WalletOnboardingService', () => {
     await expect(h.service.onboard(userId, input)).resolves.toEqual({
       identity: { verified: true, firstName: 'Olatunde', lastName: 'Ogunboyejo' },
       wallet: { status: 'READY' },
+      funding: fundingReady,
     });
 
     expect(h.links.provisionForVerifiedCustomer).toHaveBeenCalledWith(
       walletId,
       userId,
     );
+    expect(h.funding.ensureForCustomer).toHaveBeenCalledWith({
+      userId,
+      walletId,
+      bvn: input.bvn,
+    });
   });
 
   it('never returns the BVN', async () => {
@@ -92,6 +116,9 @@ describe('WalletOnboardingService', () => {
 
       expect(result.wallet.status).toBe('BEING_SET_UP');
       expect(h.links.provisionForVerifiedCustomer).not.toHaveBeenCalled();
+      // No account number until the wallet accounts exist to receive money.
+      expect(h.funding.ensureForCustomer).not.toHaveBeenCalled();
+      expect(result.funding).toEqual(noFunding);
     },
   );
 
@@ -120,7 +147,9 @@ describe('WalletOnboardingService', () => {
     await expect(h.service.onboard(userId, input)).resolves.toEqual({
       identity: { verified: true, firstName: 'Olatunde', lastName: 'Ogunboyejo' },
       wallet: { status: 'BEING_SET_UP' },
+      funding: noFunding,
     });
+    expect(h.funding.ensureForCustomer).not.toHaveBeenCalled();
   });
 
   it('says setup is not available when it could not even begin', async () => {
@@ -153,6 +182,7 @@ describe('WalletOnboardingService', () => {
       await expect(h.service.getStatus(userId)).resolves.toEqual({
         identity: { verified: false },
         wallet: { status: 'NOT_STARTED' },
+        funding: noFunding,
       });
       expect(h.wallets.getCustomerWallet).not.toHaveBeenCalled();
     });
@@ -164,7 +194,31 @@ describe('WalletOnboardingService', () => {
       await expect(h.service.getStatus(userId)).resolves.toEqual({
         identity: { verified: true, firstName: 'Olatunde', lastName: 'Ogunboyejo' },
         wallet: { status: 'READY' },
+        funding: fundingReady,
       });
+      // Looking at status must never reserve an account.
+      expect(h.funding.ensureForCustomer).not.toHaveBeenCalled();
     });
+
+    it('shows no funding account while the wallet is still being set up', async () => {
+      const h = setup();
+      h.links.getState.mockResolvedValue('UNDER_REVIEW');
+
+      const status = await h.service.getStatus(userId);
+
+      expect(status.funding).toEqual(noFunding);
+      expect(h.funding.getView).not.toHaveBeenCalled();
+    });
+  });
+
+  it('reports the wallet ready even if the funding account step throws', async () => {
+    const h = setup();
+    h.links.getState.mockResolvedValue('READY');
+    h.funding.ensureForCustomer.mockRejectedValue(new Error('boom'));
+
+    const result = await h.service.onboard(userId, input);
+
+    expect(result.wallet.status).toBe('READY');
+    expect(result.funding).toEqual({ status: 'NOT_AVAILABLE', accounts: [] });
   });
 });

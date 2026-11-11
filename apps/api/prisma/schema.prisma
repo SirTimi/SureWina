@@ -1229,10 +1229,52 @@ model Wallet {
 
   witmangoLinks WitmangoWalletLink[]
   withdrawals  WalletWithdrawal[]
+  reservedAccount WalletReservedAccount?
 
   @@index([ownerType, status])
   @@index([createdAt])
   @@map("wallets")
+}
+
+enum ReservedAccountStatus {
+  // Recorded, not yet confirmed at Monnify. Safe to retry: Monnify refuses
+  // a second reservation under the same reference.
+  PROVISIONING
+  ACTIVE
+  // Monnify's answers contradicted each other. Needs a person.
+  REVIEW_REQUIRED
+}
+
+// The Monnify account number(s) a wallet's owner transfers into to fund it.
+// One per wallet. The BVN used to reserve it is not stored here or anywhere.
+model WalletReservedAccount {
+  reservedAccountId String @id @default(uuid()) @map("reserved_account_id")
+
+  walletId String @unique @map("wallet_id")
+  wallet   Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+
+  // SureWina's reference for the reservation, and the key an incoming
+  // transfer is matched to a wallet by.
+  accountReference String @unique @map("account_reference") @db.VarChar(64)
+
+  // Monnify's own reference, known once the reservation is confirmed.
+  reservationReference String? @unique @map("reservation_reference") @db.VarChar(64)
+
+  customerName String @map("customer_name") @db.VarChar(101)
+
+  // The deposit limits attached when the account was created.
+  limitProfileCode String @map("limit_profile_code") @db.VarChar(40)
+
+  // [{ bankCode, bankName, accountNumber }] as returned by Monnify.
+  accounts Json?
+
+  status ReservedAccountStatus @default(PROVISIONING)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, updatedAt])
+  @@map("wallet_reserved_accounts")
 }
 
 model WalletHold {
