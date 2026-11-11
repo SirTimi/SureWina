@@ -39,6 +39,8 @@ model User {
   walletPurchases        WalletPurchase[]
   verifiedPayoutAccounts VerifiedPayoutAccount[]
   walletWithdrawals      WalletWithdrawal[]
+  verifiedIdentity             VerifiedIdentity?
+  identityVerificationAttempts IdentityVerificationAttempt[]
 
   @@index([phoneNumber])
   @@index([selfExclusionUntil])
@@ -49,6 +51,84 @@ enum KycStatus {
   NONE
   OTP_VERIFIED
   TIER1_COMPLETE
+}
+
+// Identity documents a customer can verify against. Only BVN is wired up:
+// every customer funds by bank transfer, so every customer has one.
+enum IdentityDocumentType {
+  BVN
+  NIN
+}
+
+enum IdentityVerificationStatus {
+  PENDING
+  VERIFIED
+  // The customer's details did not match, or the document was rejected.
+  // Counts toward their daily attempt limit.
+  FAILED
+  // The provider could not be reached. Not the customer's fault, so it does
+  // not count against them.
+  ERROR
+}
+
+// Every attempt, successful or not. Each paid check costs money, and each
+// failure is potentially someone guessing at another person's details — so
+// all of them are kept.
+model IdentityVerificationAttempt {
+  attemptId String @id @default(uuid()) @map("attempt_id")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [userId], onDelete: Restrict)
+
+  documentType IdentityDocumentType @map("document_type")
+
+  // Keyed fingerprint of the document number. The number itself is never
+  // stored anywhere.
+  identityFingerprint String @map("identity_fingerprint") @db.VarChar(64)
+
+  status   IdentityVerificationStatus @default(PENDING)
+  provider String                     @default("MONNIFY") @db.VarChar(30)
+
+  nameMatch        String? @map("name_match") @db.VarChar(20)
+  dateOfBirthMatch String? @map("date_of_birth_match") @db.VarChar(20)
+  phoneMatch       String? @map("phone_match") @db.VarChar(20)
+
+  failureReason String? @map("failure_reason") @db.VarChar(50)
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  verifiedIdentity VerifiedIdentity?
+
+  @@index([userId, status, createdAt])
+  @@index([identityFingerprint])
+  @@map("identity_verification_attempts")
+}
+
+// The outcome of a successful verification. Both uniqueness rules matter:
+// one identity per customer, and one customer per identity — so the same
+// BVN can never back two accounts.
+model VerifiedIdentity {
+  identityId String @id @default(uuid()) @map("identity_id")
+
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [userId], onDelete: Restrict)
+
+  documentType        IdentityDocumentType @map("document_type")
+  identityFingerprint String               @unique @map("identity_fingerprint") @db.VarChar(64)
+
+  // The legal names and date of birth that matched the record. Used when
+  // opening the CBA client and the Monnify funding account.
+  firstName   String   @map("first_name") @db.VarChar(50)
+  lastName    String   @map("last_name") @db.VarChar(50)
+  dateOfBirth DateTime @map("date_of_birth") @db.Date
+
+  attemptId String                      @unique @map("attempt_id")
+  attempt   IdentityVerificationAttempt @relation(fields: [attemptId], references: [attemptId], onDelete: Restrict)
+
+  verifiedAt DateTime @default(now()) @map("verified_at")
+
+  @@map("verified_identities")
 }
 
 enum SpendPeriod {

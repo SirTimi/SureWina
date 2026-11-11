@@ -5,6 +5,10 @@ import {
   MonnifyClientService,
 } from './monnify-client.service';
 
+import {
+  MonnifyVerificationService,
+} from './monnify-verification.service';
+
 @Module({
   imports: [
     ConfigModule,
@@ -12,10 +16,12 @@ import {
 
   providers: [
     MonnifyClientService,
+    MonnifyVerificationService,
   ],
 
   exports: [
     MonnifyClientService,
+    MonnifyVerificationService,
   ],
 })
 export class MonnifyModule {}

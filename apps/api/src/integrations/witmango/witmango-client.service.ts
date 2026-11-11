@@ -32,7 +32,7 @@ export type CreateWitmangoCustomerWalletInput = {
   externalId: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string | null;
   dateOfBirth: string;
 };
 
@@ -293,11 +293,13 @@ export class WitmangoClientService {
     this.requireId(input.legalFormId);
     this.requireId(input.savingsProductId);
 
+    const email = input.email?.trim().toLowerCase() || null;
+
     if (
       !/^[a-zA-Z0-9_-]{8,100}$/.test(input.externalId) ||
       !input.firstName.trim() ||
       !input.lastName.trim() ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)
+      (email !== null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     ) {
       throw new BadRequestException(
         'Valid customer onboarding information is required',
@@ -321,9 +323,7 @@ export class WitmangoClientService {
         firstname: input.firstName.trim(),
         lastname: input.lastName.trim(),
 
-        emailAddress: input.email
-          .trim()
-          .toLowerCase(),
+        ...(email ? { emailAddress: email } : {}),
 
         dateOfBirth: this.fineractDate(
           input.dateOfBirth,

@@ -15,6 +15,7 @@ import {
   AuditSeverity,
   KycStatus,
   LedgerOwnerType,
+  Prisma,
   WalletStatus,
   WitmangoWalletLinkStatus,
   WitmangoWalletPurpose,
@@ -35,6 +36,27 @@ export type ProvisionWitmangoWalletInput = {
   dateOfBirth: string;
   consent: boolean;
 };
+
+// The person a CBA client is opened for. Admin provisioning takes these from
+// a form; customer self-service takes them from the verified identity.
+type CbaPerson = {
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  dateOfBirth: string;
+};
+
+type ProvisioningActor = {
+  type: AuditActorType;
+  id: string;
+};
+
+// Where a wallet's CBA accounts stand, as far as its owner needs to know.
+export type WitmangoWalletState =
+  | 'NONE'
+  | 'IN_PROGRESS'
+  | 'UNDER_REVIEW'
+  | 'READY';
 
 // The CBA accounts each kind of owner holds. The first is opened together
 // with the client; the second is added to that client afterwards.
@@ -165,14 +187,92 @@ export class WitmangoWalletLinkService {
     };
   }
 
-  // One entry point for both owner types. Each has its own eligibility
-  // rules; once a wallet passes them, both go through the same provisioning
-  // core — a sequence too delicate to keep in two copies that could drift.
-  async provision(
+  // A wallet's CBA state in one word. READY only when both accounts exist
+  // and are active — never for half a pair.
+  async getState(walletId: string): Promise<WitmangoWalletState> {
+    const links = await this.prisma.witmangoWalletLink.findMany({
+      where: { walletId },
+    });
+
+    if (links.length === 0) {
+      return 'NONE';
+    }
+
+    if (
+      links.some(
+        (link) =>
+          link.status === WitmangoWalletLinkStatus.REVIEW_REQUIRED,
+      )
+    ) {
+      return 'UNDER_REVIEW';
+    }
+
+    return links.length === 2 &&
+      links.every(
+        (link) => link.status === WitmangoWalletLinkStatus.ACTIVE,
+      )
+      ? 'READY'
+      : 'IN_PROGRESS';
+  }
+
+  // Customer self-service. The customer has proven who they are, so the
+  // names and date of birth come from that verified record — not from
+  // whatever the request says. Nothing here can be supplied by the caller
+  // except which wallet.
+  async provisionForVerifiedCustomer(
     walletId: string,
-    input: ProvisionWitmangoWalletInput,
-    adminId: string,
+    userId: string,
   ) {
+    this.requireProvisioningEnabled();
+
+    const { wallet, purposes, ownerId } =
+      await this.requireProvisionableWallet(walletId);
+
+    if (
+      wallet.ownerType !== LedgerOwnerType.CUSTOMER ||
+      ownerId !== userId
+    ) {
+      throw new ConflictException(
+        'This wallet does not belong to the signed-in customer',
+      );
+    }
+
+    const identity = await this.prisma.verifiedIdentity.findUnique({
+      where: { userId },
+    });
+
+    if (!identity) {
+      throw new ConflictException(
+        'Identity must be verified before wallet setup',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: {
+        userId: true,
+        email: true,
+        kycStatus: true,
+      },
+    });
+
+    return this.provisionPair(
+      walletId,
+      LedgerOwnerType.CUSTOMER,
+      purposes,
+      {
+        firstName: identity.firstName,
+        lastName: identity.lastName,
+        email: user?.email ?? null,
+        dateOfBirth: identity.dateOfBirth
+          .toISOString()
+          .slice(0, 10),
+      },
+      { type: AuditActorType.CUSTOMER, id: userId },
+    );
+  }
+
+  private requireProvisioningEnabled(): void {
     if (
       !this.witmango.isEnabled() ||
       this.config.get<boolean>(
@@ -183,22 +283,25 @@ export class WitmangoWalletLinkService {
         'Witmango provisioning is disabled',
       );
     }
+  }
 
-    if (input.consent !== true) {
-      throw new BadRequestException(
-        'Documented consent is required',
-      );
-    }
-
+  // The checks every provisioning path shares, whoever started it: the
+  // wallet must be a live NGN customer or agent wallet holding no money.
+  //
+  // Returns ownerId separately because it has been checked here: callers
+  // get it as a definite string rather than re-checking for null.
+  private async requireProvisionableWallet(walletId: string) {
     const wallet = await this.wallets.getWallet(walletId);
 
     const purposes = PURPOSES_BY_OWNER[
       wallet.ownerType as LedgerOwnerType
     ];
 
+    const ownerId = wallet.ownerId;
+
     if (
       !purposes ||
-      !wallet.ownerId ||
+      !ownerId ||
       wallet.status !== WalletStatus.ACTIVE ||
       wallet.currency !== 'NGN'
     ) {
@@ -220,18 +323,45 @@ export class WitmangoWalletLinkService {
       );
     }
 
+    return { wallet, purposes, ownerId };
+  }
+
+  // One entry point for both owner types. Each has its own eligibility
+  // rules; once a wallet passes them, both go through the same provisioning
+  // core — a sequence too delicate to keep in two copies that could drift.
+  async provision(
+    walletId: string,
+    input: ProvisionWitmangoWalletInput,
+    adminId: string,
+  ) {
+    this.requireProvisioningEnabled();
+
+    if (input.consent !== true) {
+      throw new BadRequestException(
+        'Documented consent is required',
+      );
+    }
+
+    const { wallet, purposes, ownerId } =
+      await this.requireProvisionableWallet(walletId);
+
     if (wallet.ownerType === LedgerOwnerType.CUSTOMER) {
-      await this.requireEligibleCustomer(wallet.ownerId, input);
+      await this.requireEligibleCustomer(ownerId, input);
     } else {
-      await this.requireEligibleAgent(wallet.ownerId, input);
+      await this.requireEligibleAgent(ownerId, input);
     }
 
     return this.provisionPair(
       walletId,
       wallet.ownerType as LedgerOwnerType,
       purposes,
-      input,
-      adminId,
+      {
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: input.email,
+        dateOfBirth: input.dateOfBirth,
+      },
+      { type: AuditActorType.ADMIN, id: adminId },
     );
   }
 
@@ -323,8 +453,8 @@ export class WitmangoWalletLinkService {
     walletId: string,
     ownerType: LedgerOwnerType,
     [primary, secondary]: readonly [WitmangoWalletPurpose, WitmangoWalletPurpose],
-    input: ProvisionWitmangoWalletInput,
-    adminId: string,
+    person: CbaPerson,
+    actor: ProvisioningActor,
   ) {
     const existing =
       await this.prisma.witmangoWalletLink.findMany({
@@ -371,27 +501,42 @@ export class WitmangoWalletLinkService {
     // Reserve both linkages BEFORE contacting Fineract, in one statement so
     // they exist together or not at all. The (walletId, purpose) uniqueness
     // stops a concurrent request reserving the same accounts.
-    await this.prisma.witmangoWalletLink.createMany({
-      data: [
-        {
-          walletId,
-          purpose: primary,
-          tenantId,
-          clientExternalId,
-          savingsProductId: primaryProductId,
-          status: WitmangoWalletLinkStatus.PROVISIONING,
-        },
-        {
-          walletId,
-          purpose: secondary,
-          tenantId,
-          clientExternalId,
-          accountExternalId: secondaryExternalId,
-          savingsProductId: secondaryProductId,
-          status: WitmangoWalletLinkStatus.PROVISIONING,
-        },
-      ],
-    });
+    try {
+      await this.prisma.witmangoWalletLink.createMany({
+        data: [
+          {
+            walletId,
+            purpose: primary,
+            tenantId,
+            clientExternalId,
+            savingsProductId: primaryProductId,
+            status: WitmangoWalletLinkStatus.PROVISIONING,
+          },
+          {
+            walletId,
+            purpose: secondary,
+            tenantId,
+            clientExternalId,
+            accountExternalId: secondaryExternalId,
+            savingsProductId: secondaryProductId,
+            status: WitmangoWalletLinkStatus.PROVISIONING,
+          },
+        ],
+      });
+    } catch (error) {
+      // Two requests raced to set up the same wallet. The uniqueness rule
+      // let exactly one through; this is the other.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Wallet setup is already in progress',
+        );
+      }
+
+      throw error;
+    }
 
     try {
       const created =
@@ -400,10 +545,10 @@ export class WitmangoWalletLinkService {
           legalFormId,
           savingsProductId: primaryProductId,
           externalId: clientExternalId,
-          firstName: input.firstName,
-          lastName: input.lastName,
-          email: input.email,
-          dateOfBirth: input.dateOfBirth,
+          firstName: person.firstName,
+          lastName: person.lastName,
+          email: person.email,
+          dateOfBirth: person.dateOfBirth,
         });
 
       // Persist identifiers as soon as we know them.
@@ -472,10 +617,7 @@ export class WitmangoWalletLinkService {
 
       await this.audit.write({
         severity: AuditSeverity.INFO,
-        actor: {
-          type: AuditActorType.ADMIN,
-          id: adminId,
-        },
+        actor,
         action: 'WITMANGO_WALLET_PROVISIONED',
         resource: {
           type: 'Wallet',

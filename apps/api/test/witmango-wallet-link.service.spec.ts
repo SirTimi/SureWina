@@ -12,6 +12,8 @@ import {
   WalletStatus,
   WitmangoWalletLinkStatus,
   WitmangoWalletPurpose,
+  AuditActorType,
+  Prisma
 } from '@prisma/client';
 
 import { WitmangoWalletLinkService } from '../src/integrations/witmango/witmango-wallet-link.service';
@@ -93,6 +95,14 @@ describe('WitmangoWalletLinkService', () => {
           userId,
           email: input.email,
           kycStatus: KycStatus.TIER1_COMPLETE,
+        }),
+      },
+      verifiedIdentity: {
+        findUnique: jest.fn().mockResolvedValue({
+          userId,
+          firstName: 'Verified',
+          lastName: 'Person',
+          dateOfBirth: new Date('1993-04-27T00:00:00.000Z'),
         }),
       },
       witmangoWalletLink: {
@@ -483,6 +493,118 @@ describe('WitmangoWalletLinkService', () => {
       h.service.provision(walletId, input, 'finance-admin'),
     ).rejects.toThrow(ConflictException);
     expect(h.prisma.witmangoWalletLink.createMany).not.toHaveBeenCalled();
+  });
+
+  describe('customer self-service provisioning', () => {
+    it('uses the verified identity, not anything the caller supplies', async () => {
+      const h = setup();
+
+      const result = await h.service.provisionForVerifiedCustomer(walletId, userId);
+
+      expect(result.status).toBe(WitmangoWalletLinkStatus.ACTIVE);
+      expect(h.witmango.createClientWithWallet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          firstName: 'Verified',
+          lastName: 'Person',
+          dateOfBirth: '1993-04-27',
+          email: input.email,
+        }),
+      );
+      expect(h.audit.write).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor: { type: AuditActorType.CUSTOMER, id: userId },
+        }),
+      );
+    });
+
+    it('opens the client without an email when the customer has none', async () => {
+      const h = setup();
+      h.prisma.user.findUnique.mockResolvedValue({
+        userId,
+        email: null,
+        kycStatus: KycStatus.TIER1_COMPLETE,
+      });
+
+      await h.service.provisionForVerifiedCustomer(walletId, userId);
+
+      expect(h.witmango.createClientWithWallet).toHaveBeenCalledWith(
+        expect.objectContaining({ email: null }),
+      );
+    });
+
+    it('refuses a wallet that belongs to someone else', async () => {
+      const h = setup();
+
+      await expect(
+        h.service.provisionForVerifiedCustomer(walletId, 'another-user'),
+      ).rejects.toThrow(ConflictException);
+      expect(h.prisma.witmangoWalletLink.createMany).not.toHaveBeenCalled();
+    });
+
+    it('refuses a customer whose identity is not verified', async () => {
+      const h = setup();
+      h.prisma.verifiedIdentity.findUnique.mockResolvedValue(null);
+
+      await expect(
+        h.service.provisionForVerifiedCustomer(walletId, userId),
+      ).rejects.toThrow(ConflictException);
+      expect(h.prisma.witmangoWalletLink.createMany).not.toHaveBeenCalled();
+    });
+
+    it('refuses an agent wallet', async () => {
+      const h = setup();
+      h.wallets.getWallet.mockResolvedValue({
+        ...h.wallet,
+        ownerType: LedgerOwnerType.AGENT,
+      });
+
+      await expect(
+        h.service.provisionForVerifiedCustomer(walletId, userId),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('lets only one of two simultaneous requests through', async () => {
+      const h = setup();
+      h.prisma.witmangoWalletLink.createMany.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: 'test',
+        }),
+      );
+
+      await expect(
+        h.service.provisionForVerifiedCustomer(walletId, userId),
+      ).rejects.toThrow(ConflictException);
+      expect(h.witmango.createClientWithWallet).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('wallet state', () => {
+    it('is NONE with no accounts on record', async () => {
+      const h = setup();
+      await expect(h.service.getState(walletId)).resolves.toBe('NONE');
+    });
+
+    it('is READY only when both accounts are active', async () => {
+      const h = setup();
+      h.prisma.witmangoWalletLink.findMany.mockResolvedValue(activeLinks());
+      await expect(h.service.getState(walletId)).resolves.toBe('READY');
+    });
+
+    it('is not READY for half a pair', async () => {
+      const h = setup();
+      h.prisma.witmangoWalletLink.findMany.mockResolvedValue([activeLinks()[0]]);
+      await expect(h.service.getState(walletId)).resolves.toBe('IN_PROGRESS');
+    });
+
+    it('is UNDER_REVIEW when either account needs review', async () => {
+      const h = setup();
+      h.prisma.witmangoWalletLink.findMany.mockResolvedValue([
+        activeLinks()[0],
+        { ...activeLinks()[1], status: WitmangoWalletLinkStatus.REVIEW_REQUIRED },
+      ]);
+      await expect(h.service.getState(walletId)).resolves.toBe('UNDER_REVIEW');
+    });
   });
 
   describe('reaching an account by purpose', () => {

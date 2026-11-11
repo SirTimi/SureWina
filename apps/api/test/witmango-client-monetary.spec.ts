@@ -435,3 +435,65 @@ describe('Witmango opening a second wallet', () => {
     }
   });
 });
+
+
+describe('Witmango creating a client', () => {
+  const base = {
+    officeId: 1,
+    legalFormId: 1,
+    savingsProductId: 2,
+    externalId: 'sw-11111111-1111-4111-8111-111111111111',
+    firstName: 'Test',
+    lastName: 'Customer',
+    dateOfBirth: '1993-04-27',
+  };
+
+  function created(externalId: string) {
+    return jsonResponse(200, {
+      clientId: 4,
+      savingsId: 10,
+      resourceExternalId: externalId,
+    });
+  }
+
+  it('sends no email field at all when the customer has none', async () => {
+    const h = harness({ WITMANGO_PROVISIONING_ENABLED: true });
+    try {
+      h.fetchMock.mockResolvedValue(created(base.externalId));
+
+      await h.client.createClientWithWallet({ ...base, email: null });
+
+      expect(sentBody(h.fetchMock)).not.toHaveProperty('emailAddress');
+    } finally {
+      h.restore();
+    }
+  });
+
+  it('sends a normalised email when there is one', async () => {
+    const h = harness({ WITMANGO_PROVISIONING_ENABLED: true });
+    try {
+      h.fetchMock.mockResolvedValue(created(base.externalId));
+
+      await h.client.createClientWithWallet({
+        ...base,
+        email: '  Test@Example.COM ',
+      });
+
+      expect(sentBody(h.fetchMock).emailAddress).toBe('test@example.com');
+    } finally {
+      h.restore();
+    }
+  });
+
+  it('still rejects an email that is present but malformed', async () => {
+    const h = harness({ WITMANGO_PROVISIONING_ENABLED: true });
+    try {
+      await expect(
+        h.client.createClientWithWallet({ ...base, email: 'not-an-email' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(h.fetchMock).not.toHaveBeenCalled();
+    } finally {
+      h.restore();
+    }
+  });
+});

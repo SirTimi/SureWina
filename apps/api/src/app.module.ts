@@ -32,7 +32,7 @@ import { LedgerModule } from './ledger/ledger.module';
 import { WalletModule } from './wallet/wallet.module';
 import { TreasuryModule } from './treasury/treasury.module';
 import { WitmangoWithdrawalModule } from './integrations/witmango/witmango-withdrawal.module';
-
+import { WalletOnboardingModule } from './onboarding/wallet-onboarding.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -71,6 +71,7 @@ import { WitmangoWithdrawalModule } from './integrations/witmango/witmango-withd
     WalletModule,
     TreasuryModule,
     WitmangoWithdrawalModule,
+    WalletOnboardingModule,
     ThrottlerModule.forRoot([
       {
         name: 'default',

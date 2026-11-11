@@ -147,4 +147,18 @@ export const envValidationSchema = Joi.object({
 
   WITMANGO_PAYMENT_TYPE_ID:
     Joi.number().integer().min(1).optional(),
+
+  // BVN verification is live-only at Monnify and costs ₦10 per successful
+  // check from the Monnify balance. Off unless deliberately enabled.
+  MONNIFY_IDENTITY_VERIFICATION_ENABLED:
+    Joi.boolean().default(false),
+
+  // Whether the customer's SureWina phone number must also match the one on
+  // their BVN record. Off by default: many BVN records carry an old number,
+  // so requiring it refuses genuine customers.
+  KYC_REQUIRE_BVN_PHONE_MATCH:
+    Joi.boolean().default(false),
+
+  KYC_MAX_FAILED_ATTEMPTS_PER_DAY:
+    Joi.number().integer().min(1).default(3),
 });
