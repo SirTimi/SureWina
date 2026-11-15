@@ -1234,12 +1234,13 @@ model Wallet {
   holds           WalletHold[]
   walletPurchases WalletPurchase[]
 
-  witmangoLinks      WitmangoWalletLink[]
-  cbaTransfers       CbaTransfer[]
-  withdrawalAccounts WithdrawalAccount[]
-  cbaWithdrawals     CbaWithdrawal[]
-  withdrawals        WalletWithdrawal[]
-  reservedAccount    WalletReservedAccount?
+  witmangoLinks       WitmangoWalletLink[]
+  cbaTransfers        CbaTransfer[]
+  withdrawalAccounts  WithdrawalAccount[]
+  cbaWithdrawals      CbaWithdrawal[]
+  cbaBalanceMigration CbaBalanceMigration?
+  withdrawals         WalletWithdrawal[]
+  reservedAccount     WalletReservedAccount?
 
   @@index([ownerType, status])
   @@index([createdAt])
@@ -2594,4 +2595,52 @@ model CbaReconciliationRun {
   @@index([businessDate])
   @@index([status, completedAt])
   @@map("cba_reconciliation_runs")
+}
+
+enum CbaBalanceMigrationStatus {
+  // Written down, and the ledger debited; the CBA deposit is being made.
+  PENDING
+  CREDITED
+  // The CBA refused; the ledger balance was put back.
+  FAILED
+  // The deposit's outcome is unknown, or the ledger could not be put back.
+  REVIEW_REQUIRED
+}
+
+// Moves a wallet's remaining SureWina-ledger balance onto its CBA account,
+// once, when the wallet switches over. Run by finance.
+//
+// The ledger is debited and this record written first, in one transaction,
+// with the money parked against bank cash: finance must move the same amount
+// into the Monnify vault, or the next reconciliation shows a shortfall. Then
+// the CBA deposit is made under a receipt number recorded here.
+model CbaBalanceMigration {
+  migrationId String @id @default(uuid()) @map("migration_id")
+
+  // One per wallet, ever.
+  walletId String @unique @map("wallet_id")
+
+  amountNgn Int                       @map("amount_ngn")
+  purpose   WitmangoWalletPurpose
+  status    CbaBalanceMigrationStatus @default(PENDING)
+
+  savingsAccountId Int    @map("savings_account_id")
+  cbaReference     String @unique @map("cba_reference") @db.VarChar(50)
+  cbaTransactionId Int?   @map("cba_transaction_id")
+
+  ledgerTxnId         String? @map("ledger_txn_id")
+  reversalLedgerTxnId String? @map("reversal_ledger_txn_id")
+
+  failureReason String? @map("failure_reason") @db.VarChar(64)
+
+  createdBy  String    @map("created_by")
+  creditedAt DateTime? @map("credited_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+
+  @@index([status, updatedAt])
+  @@map("cba_balance_migrations")
 }

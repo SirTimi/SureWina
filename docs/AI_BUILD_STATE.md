@@ -93,7 +93,8 @@ Separate from AGENT-MOBILE-01, and **not accepted**. Every switch defaults off.
 - Not run against any real provider. Needs Witmango and Monnify sandboxes.
 - Built 2026-11-15: cash prizes to Winnings by winner's choice; agent-paid prizes reimbursed to Earnings; saved BVN-matched withdrawal accounts with cooling-off; withdrawals (lock to Pending Withdrawals, Monnify payout, settle or restore) with limits that refuse when unset. See `docs/WITMANGO_CBA_INTEGRATION.md` sections 6-8.
 - Built 2026-11-15: daily vault-against-book reconciliation (coverage and Pending Withdrawals checks, stored runs, rollout gate) and a retry sweep for safe repeats. See `docs/WITMANGO_CBA_INTEGRATION.md` section 9.
-- Next: read balances from the CBA; resolving uncertain transfers; wallet screens (customer web, agent web, mobile) — deferred by the user.
+- Built 2026-11-15: balances read live from the CBA; agent funding accounts; finance resolution of unclear transfers; one-time move of old ledger balances (`cba_balance_migrations`); customer web, agent web and admin finance screens. See `docs/WITMANGO_CBA_INTEGRATION.md` section 10.
+- Next: mobile wallet screens (deferred by the user); sandbox runs against Witmango and Monnify.
 
 ## Previous Finance Context
 

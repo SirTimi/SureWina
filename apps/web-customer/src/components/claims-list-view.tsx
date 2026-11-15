@@ -29,6 +29,7 @@ const statusLabel: Record<PrizeClaimStatus, string> = {
   CASH_PAID: 'Cash paid',
   FORFEITED: 'Forfeited',
   REVERTED_TO_PRODUCT: 'Reverted to product',
+  WALLET_CREDIT_PENDING: 'Paying into wallet',
 };
 
 const statusVariant: Record<
@@ -45,6 +46,7 @@ const statusVariant: Record<
   CASH_PAID: 'verified',
   FORFEITED: 'closed',
   REVERTED_TO_PRODUCT: 'live',
+  WALLET_CREDIT_PENDING: 'warning',
 };
 
 const actionStatuses: PrizeClaimStatus[] = ['NOTIFIED', 'KYC_PENDING'];

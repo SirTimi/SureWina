@@ -12,6 +12,7 @@ import { AccountModule } from './modules/account.js';
 import { ClaimsModule } from './modules/claims.js';
 import { WalletModule } from './modules/wallet.js';
 import { JackpotOffersModule } from './modules/jackpot-offers.js';
+import { CbaModule } from './modules/cba.js';
 
 export interface SurewinaApi {
   health: HealthModule;
@@ -26,6 +27,7 @@ export interface SurewinaApi {
   claims: ClaimsModule;
   wallet: WalletModule;
   jackpotOffers: JackpotOffersModule;
+  cba: CbaModule;
 
 }
 
@@ -48,6 +50,7 @@ export function createClient(config: ApiClientConfig): SurewinaApi {
     claims: new ClaimsModule(client),
     wallet: new WalletModule(client),
     jackpotOffers: new JackpotOffersModule(client),
+    cba: new CbaModule(client),
   };
 }
 
@@ -65,3 +68,4 @@ export type { CurrentJackpotOffersResponse, JackpotOfferView } from '@surewina/t
 export type { PromotionalJackpotPaystackPurchaseResponse } from './modules/jackpot-offers.js';
 export type { PromotionalJackpotPaystackPurchaseInput, PromotionalJackpotWalletPurchaseInput, PurchasePricingContext } from '@surewina/types';
 export type { NigerianBankOption } from './modules/account.js'
+export type { CbaWalletState, CbaAccountPurpose, CbaAccountBalance, CbaBalances, FundingAccountStatus, FundingAccountView, WalletSetupStatus, WalletOnboardingView, OnboardWalletRequest, WithdrawalAccountView, AddWithdrawalAccountRequest, CbaWithdrawalStatus, CbaWithdrawalView, RequestWithdrawalRequest, PrizeWalletCreditResponse, AgentCbaWalletView, AdminCbaWithdrawalRow, CbaReconciliationStatus, CbaReconciliationIssue, CbaReconciliationRunView, CbaTransferStatus, AdminCbaTransferRow, ResolveCbaTransferRequest, CbaLedgerBalancePreview } from './modules/cba.js';

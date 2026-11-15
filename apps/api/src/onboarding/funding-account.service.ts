@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createHash, timingSafeEqual } from 'crypto';
 
 import {
   AuditActorType,
@@ -129,7 +130,95 @@ export class FundingAccountService {
       throw new NotFoundException('Customer not found');
     }
 
-    const customerName = `${identity.firstName} ${identity.lastName}`;
+    return this.reserve({
+      walletId,
+      accountName: `${identity.firstName} ${identity.lastName}`,
+      email: user.email ?? this.placeholderEmail(user.phoneNumber),
+      bvn: input.bvn,
+      limitProfileCode,
+      actor: { type: AuditActorType.CUSTOMER, id: userId },
+    });
+  }
+
+  // The same for an agent, funding their Float.
+  //
+  // An agent's BVN was recorded at onboarding only as a hash. The agent
+  // enters it again here; it must match that hash before it goes anywhere.
+  // Agent accounts carry the agent limit profile, with its higher limits.
+  async ensureForAgent(input: {
+    agentId: string;
+    walletId: string;
+    bvn: string;
+  }): Promise<FundingAccountView> {
+    const { agentId, walletId } = input;
+
+    if (!this.monnify.isEnabled()) {
+      return { status: 'NOT_AVAILABLE', accounts: [] };
+    }
+
+    const limitProfileCode = this.config
+      .get<string>('MONNIFY_AGENT_LIMIT_PROFILE_CODE')
+      ?.trim();
+
+    if (!limitProfileCode) {
+      this.logger.error(
+        'MONNIFY_AGENT_LIMIT_PROFILE_CODE is not set — agent funding accounts cannot be issued',
+      );
+
+      return { status: 'NOT_AVAILABLE', accounts: [] };
+    }
+
+    if ((await this.links.getState(walletId)) !== 'READY') {
+      throw new ConflictException(
+        'Your Float and Earnings accounts must be set up before a funding account is issued',
+      );
+    }
+
+    const agent = await this.prisma.agent.findUnique({
+      where: { agentId },
+      select: { agentId: true, fullName: true, email: true, phoneNumber: true, bvnHash: true },
+    });
+
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+
+    const bvn = input.bvn?.trim() ?? '';
+
+    if (!/^\d{11}$/.test(bvn) || !agent.bvnHash || !this.sameHash(bvn, agent.bvnHash)) {
+      throw new ConflictException(
+        'That BVN does not match the one recorded when you were onboarded',
+      );
+    }
+
+    return this.reserve({
+      walletId,
+      accountName: agent.fullName.trim().replace(/\s+/g, ' '),
+      email: agent.email ?? this.placeholderEmail(agent.phoneNumber),
+      bvn,
+      limitProfileCode,
+      actor: { type: AuditActorType.AGENT, id: agentId },
+    });
+  }
+
+  private sameHash(bvn: string, stored: string): boolean {
+    const left = Buffer.from(createHash('sha256').update(bvn).digest('hex'), 'utf8');
+    const right = Buffer.from(stored.toLowerCase(), 'utf8');
+
+    return left.length === right.length && timingSafeEqual(left, right);
+  }
+
+  // Reserves the funding account for a wallet whose owner has been proven.
+  private async reserve(input: {
+    walletId: string;
+    accountName: string;
+    email: string;
+    bvn: string;
+    limitProfileCode: string;
+    actor: { type: AuditActorType; id: string };
+  }): Promise<FundingAccountView> {
+    const { walletId, limitProfileCode } = input;
+    const customerName = input.accountName;
     const accountReference = `SW-WAL-${walletId}`;
 
     let row = await this.prisma.walletReservedAccount.findUnique({
@@ -178,7 +267,7 @@ export class FundingAccountService {
         accountReference: row.accountReference,
         accountName: row.customerName,
         customerName: row.customerName,
-        customerEmail: user.email ?? this.placeholderEmail(user.phoneNumber),
+        customerEmail: input.email,
         bvn: input.bvn.trim(),
         limitProfileCode: row.limitProfileCode,
       });
@@ -210,7 +299,7 @@ export class FundingAccountService {
 
       await this.audit.write({
         severity: AuditSeverity.INFO,
-        actor: { type: AuditActorType.CUSTOMER, id: userId },
+        actor: input.actor,
         action: 'FUNDING_ACCOUNT_RESERVED',
         resource: { type: 'Wallet', id: walletId },
         metadata: {

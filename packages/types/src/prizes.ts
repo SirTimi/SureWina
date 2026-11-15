@@ -12,7 +12,9 @@ export type PrizeClaimStatus =
   | 'DELIVERED'
   | 'CASH_PAID'
   | 'FORFEITED'
-  | 'REVERTED_TO_PRODUCT';
+  | 'REVERTED_TO_PRODUCT'
+  // Being paid into the winner's bank-transfer wallet.
+  | 'WALLET_CREDIT_PENDING';
 
 export interface PrizeClaim {
   claimId: UUID;

@@ -210,8 +210,52 @@ Every 5 minutes, on one API instance:
 - A refusal by the CBA itself is left for finance: `POST /admin/finance/cba/transfers/:id/retry`.
 - **Uncertain transfers are never retried.** Finance sees them at `GET /admin/finance/cba/transfers` and checks Witmango's records.
 
-### Still not built
+### Still open
 
-- Resolving an uncertain transfer (recording that it did or did not post, and carrying the purchase, sale, prize or withdrawal on from there).
 - **UNVERIFIED:** that Monnify settles reserved-account collections into the same wallet `MONNIFY_SOURCE_ACCOUNT_NUMBER` reads. If collections settle to a bank account instead, the vault is two balances and this needs a second source.
 - Reading every account one by one scales with the number of wallets (five at a time). If Witmango offers a bulk balance listing, it should replace this.
+
+## 10. Balances, resolving transfers, moving old balances, screens (phase 12)
+
+### Balances read from the CBA
+
+- `GET /wallet/cba/balances` (customer) and `GET /agent/wallet/cba` (agent, with its funding account). Read live from Witmango, never cached.
+- Spendable: customer Deposit + Winnings; agent Float. Withdrawable: Winnings or Earnings.
+- If the CBA cannot be read, `available` is false and the screens say "unavailable". They never show zero in its place.
+
+### Agent funding accounts
+
+- `POST /agent/wallet/cba/funding-account` `{ bvn }` reserves the agent's Monnify account into Float, using `MONNIFY_AGENT_LIMIT_PROFILE_CODE`.
+- Needs the agent's CBA accounts READY, and the BVN must match the one on the agent's record.
+
+### Resolving an unclear transfer
+
+`POST /admin/finance/cba/transfers/:id/resolve` `{ outcome: POSTED | NOT_POSTED, cbaTransferId?, note }`, finance only, not auditors.
+
+- Only `UNCERTAIN` transfers, or `SENDING` ones untouched for 10 minutes. The CBA transfer ID is required for POSTED; a note of 10–500 characters always. Written to audit as CRITICAL.
+- Then, by what the transfer was for, the safe thing:
+  - Wallet purchase: refunded (any legs that posted are reversed, the purchase ends `FAILED`/`REFUNDED_AFTER_REVIEW`). It is never completed late: the draw may have moved on.
+  - Agent sale: a posted payment with no sale recorded is reversed.
+  - Prize to Winnings: POSTED pays the claim and writes the tax record; NOT_POSTED puts the claim back so the winner can choose again.
+  - Withdrawal lock: POSTED carries the withdrawal on to approval or payout; NOT_POSTED fails it (nothing was taken).
+  - Withdrawal restore: POSTED marks the withdrawal restored; NOT_POSTED sends the restore again.
+  - Commission and prize reimbursements: NOT_POSTED leaves them owed for the retry sweep.
+
+### Moving old ledger balances
+
+- `GET /admin/finance/cba/wallets/:walletId/ledger-balance` previews; `POST .../ledger-balance/move` `{ purpose }` moves it.
+- Once per wallet (table `cba_balance_migrations`). Finance chooses Deposit or Winnings (customer), Float or Earnings (agent).
+- Refused while the wallet has ledger holds, or has no balance, or its CBA accounts are not ready.
+- The ledger is debited first, then the CBA deposit is made under `sw-mig-<walletId>`. A refusal puts the ledger back; an unclear answer is looked up, never deposited twice.
+- **The cash must also be moved into the Monnify vault by finance.** The daily reconciliation shows a shortfall until it is.
+
+### Screens
+
+- Customer web, wallet page: set-up (BVN), balances, funding account, saved accounts, withdrawals. Claim page: "Pay into my wallet". Hidden while provisioning is switched off.
+- Agent web, wallet page: Float and Earnings, funding account, saved accounts, withdrawals.
+- Admin: `/cba/withdrawals` (approve, reject, check), `/cba/reconciliation` (runs, run now, issues), `/cba/transfers` (record outcomes, send refused payments again), and a "Move ledger balance to CBA" card on each wallet page. The older queue is now "Legacy withdrawals".
+- Mobile apps: not built (deferred by the user).
+
+### Still open
+
+- Bank codes on the withdrawal screens come from the existing bank list (customer) and `GET /agent/banks`. **UNVERIFIED** that every code there is one Monnify accepts for payouts.

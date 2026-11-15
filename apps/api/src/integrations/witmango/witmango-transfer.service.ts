@@ -61,6 +61,13 @@ export const OWED_PURPOSES: CbaTransferPurpose[] = [
   CbaTransferPurpose.PRIZE_REIMBURSEMENT,
 ];
 
+// Transfers that give money back. Re-sent only after a refusal, under
+// review, so a refund that failed is not left undone.
+export const RETURN_PURPOSES: CbaTransferPurpose[] = [
+  CbaTransferPurpose.REVERSAL,
+  CbaTransferPurpose.WITHDRAWAL_RESTORE,
+];
+
 // Moves money between two CBA savings accounts, one recorded step at a time.
 //
 // The CBA has no duplicate protection, and a transfer carries no reference
@@ -216,19 +223,40 @@ export class WitmangoTransferService {
   // owed payment is: a purchase leg or a withdrawal step depends on what
   // happened around it.
   async retryOwed(transferId: string): Promise<CbaTransfer> {
+    return this.retryRefused(
+      transferId,
+      OWED_PURPOSES,
+      'Only a refused commission or prize reimbursement can be retried',
+    );
+  }
+
+  // Sends again a money return — a purchase or sale refund, or a withdrawal
+  // being restored — that was definitely not posted. Used only once the
+  // record it belongs to is under review, never in normal flow.
+  async retryReturn(transferId: string): Promise<CbaTransfer> {
+    return this.retryRefused(
+      transferId,
+      RETURN_PURPOSES,
+      'Only a refused refund or withdrawal restore can be sent again',
+    );
+  }
+
+  private async retryRefused(
+    transferId: string,
+    purposes: CbaTransferPurpose[],
+    refusal: string,
+  ): Promise<CbaTransfer> {
     const reset = await this.prisma.cbaTransfer.updateMany({
       where: {
         transferId,
         status: CbaTransferStatus.FAILED,
-        purpose: { in: OWED_PURPOSES },
+        purpose: { in: purposes },
       },
       data: { status: CbaTransferStatus.PENDING, failureReason: null },
     });
 
     if (reset.count !== 1) {
-      throw new ConflictException(
-        'Only a refused commission or prize reimbursement can be retried',
-      );
+      throw new ConflictException(refusal);
     }
 
     return this.execute(transferId);

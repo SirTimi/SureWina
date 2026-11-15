@@ -31,6 +31,7 @@ import type {
 } from '@surewina/api-client';
 import type { AgentMe } from '@surewina/types';
 import { AgentShell } from '@/components/agent-shell';
+import { AgentCbaWalletPanel } from '@/components/agent-cba-wallet-panel';
 import { api } from '@/lib/api';
 
 interface AgentWalletScreenProps {
@@ -179,6 +180,10 @@ function AgentWalletView({
           verified wallet movement. Agent {agent.agentCode}.
         </p>
       </section>
+
+      <div className="mb-5">
+        <AgentCbaWalletPanel />
+      </div>
 
       {callbackError === 'missing-reference' && (
         <StatusNotice

@@ -267,6 +267,59 @@ export class PrizeWalletCreditService {
     throw new ServiceUnavailableException(reviewMessage(claimId));
   }
 
+  // After finance has resolved an uncertain credit. Posted: the prize is
+  // paid. Not posted: the winner is back where they were and may choose
+  // again.
+  async settleAfterResolution(claimId: string) {
+    const claim = await this.prisma.prizeClaim.findUnique({ where: { claimId } });
+
+    if (
+      !claim ||
+      claim.status !== PrizeClaimStatus.WALLET_CREDIT_PENDING ||
+      !claim.payoutReference
+    ) {
+      return claim ? { claimId, status: claim.status } : null;
+    }
+
+    const transfer = await this.prisma.cbaTransfer.findUnique({
+      where: { reference: claim.payoutReference },
+    });
+
+    if (transfer?.status === CbaTransferStatus.POSTED) {
+      const paidAt = new Date();
+
+      await this.prisma.prizeClaim.update({
+        where: { claimId },
+        data: {
+          status: PrizeClaimStatus.CASH_PAID,
+          payoutCompletedAt: paidAt,
+          fulfilledAt: paidAt,
+        },
+      });
+
+      await this.whtDeductions.recordForClaim(claimId);
+
+      return { claimId, status: PrizeClaimStatus.CASH_PAID };
+    }
+
+    if (transfer?.status === CbaTransferStatus.FAILED) {
+      await this.prisma.prizeClaim.update({
+        where: { claimId },
+        data: {
+          status: PrizeClaimStatus.SELECTION_MADE,
+          payoutProvider: null,
+          payoutReference: null,
+          payoutInitiatedAt: null,
+          payoutFailureReason: transfer.failureReason,
+        },
+      });
+
+      return { claimId, status: PrizeClaimStatus.SELECTION_MADE };
+    }
+
+    return { claimId, status: claim.status };
+  }
+
   private async writeAudit(
     phoneNumber: string,
     claimId: string,

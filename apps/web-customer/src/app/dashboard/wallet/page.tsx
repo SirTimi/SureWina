@@ -1,5 +1,6 @@
 import { Container } from '@surewina/ui';
 import { CustomerWalletView } from '@/components/customer-wallet-view';
+import { CbaWalletPanel } from '@/components/cba-wallet-panel';
 
 interface WalletPageProps {
   searchParams: Promise<{
@@ -30,6 +31,10 @@ export default async function WalletPage({
             Top up securely with Monnify or Flutterwave, see your available balance,
             and review every wallet movement from one place.
           </p>
+        </div>
+
+        <div className="mb-8">
+          <CbaWalletPanel />
         </div>
 
         <CustomerWalletView

@@ -24,6 +24,7 @@ import { AdminShell } from '@/components/admin-shell';
 import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
 import { StatusPill } from '@/components/status-pill';
+import { CbaLedgerMoveCard } from '@/components/cba-ledger-move-card';
 import type { AdminSession } from '@/lib/admin-auth';
 import { api } from '@/lib/api';
 
@@ -306,6 +307,10 @@ function WalletDetailBody({ session }: { session: AdminSession }) {
                 </div>
               )}
             </SectionCard>
+
+            {session.role === 'FINANCE_OFFICER' && (
+              <CbaLedgerMoveCard walletId={walletId} canManage={canManage} />
+            )}
 
             <SectionCard
               title="Funding history"

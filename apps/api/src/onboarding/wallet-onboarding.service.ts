@@ -82,10 +82,15 @@ export class WalletOnboardingService {
   async getStatus(userId: string): Promise<WalletOnboardingView> {
     const identity = await this.identity.getStatus(userId);
 
+    // Wallet setup switched off: say so, rather than invite a customer to
+    // start something that cannot complete. A wallet already opened is
+    // still shown as it is.
+    const setupOff = this.links.isProvisioningEnabled?.() === false;
+
     if (!identity.verified) {
       return {
         identity: { verified: false },
-        wallet: { status: 'NOT_STARTED' },
+        wallet: { status: setupOff ? 'NOT_AVAILABLE' : 'NOT_STARTED' },
         funding: NO_FUNDING,
       };
     }
@@ -99,7 +104,10 @@ export class WalletOnboardingService {
         firstName: identity.firstName,
         lastName: identity.lastName,
       },
-      wallet: { status: SETUP_STATUS[state] },
+      wallet: {
+        status:
+          state === 'NONE' && setupOff ? 'NOT_AVAILABLE' : SETUP_STATUS[state],
+      },
       // Read-only here: checking status never reserves anything.
       funding:
         state === 'READY'

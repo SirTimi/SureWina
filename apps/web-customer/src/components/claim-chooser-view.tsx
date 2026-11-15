@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Ticket,
   Truck,
+  WalletCards,
 } from 'lucide-react';
 import { Button, Card, Container } from '@surewina/ui';
 import { formatNaira } from '@surewina/utils';
@@ -27,13 +28,38 @@ interface ClaimChooserViewProps {
   claimId: string;
 }
 
-type Path = 'PRODUCT' | 'CASH';
+type Path = 'PRODUCT' | 'CASH' | 'WALLET';
 
 export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
   const router = useRouter();
   const [claim, setClaim] = useState<ClaimPath | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<Path | null>(null);
+
+  // Offered only when the winner's bank-transfer wallet is ready.
+  const [walletReady, setWalletReady] = useState(false);
+
+  useEffect(() => {
+    api.cba
+      .onboardingStatus()
+      .then((s) => setWalletReady(s.wallet.status === 'READY'))
+      .catch(() => setWalletReady(false));
+  }, []);
+
+  const handleWallet = async () => {
+    if (!claim) return;
+
+    setError(null);
+    setSubmitting('WALLET');
+
+    try {
+      await api.cba.creditPrizeToWallet(claim.claimId);
+      router.push(`/claim/${claimId}/status`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not pay your prize into your wallet.');
+      setSubmitting(null);
+    }
+  };
 
   useEffect(() => {
     api.claims
@@ -45,7 +71,7 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
       });
   }, [claimId]);
 
-  const handleChoose = async (path: Path) => {
+  const handleChoose = async (path: 'PRODUCT' | 'CASH') => {
     if (!claim) return;
 
     setError(null);
@@ -221,6 +247,37 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
                 disabled={submitting !== null}
               />
             </div>
+
+            {walletReady && (
+              <Card
+                variant="default"
+                className="mt-4 rounded-3xl border-emerald-200 bg-emerald-50 p-5 shadow-sm"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <WalletCards className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+                    <div>
+                      <p className="text-sm font-black text-navy-950">
+                        Or take {formatNaira(claim.netCashIfChosenNgn)} straight into your wallet
+                      </p>
+                      <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                        Paid instantly into your Winnings, after withholding tax. No bank
+                        details needed now — withdraw to your own bank account whenever you like.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="accent"
+                    disabled={submitting !== null}
+                    onClick={() => void handleWallet()}
+                    className="shrink-0 rounded-sm !border-transparent bg-amber-500 font-bold text-navy-950 hover:!border-transparent hover:bg-amber-400"
+                  >
+                    {submitting === 'WALLET' ? 'Paying in…' : 'Pay into my wallet'}
+                  </Button>
+                </div>
+              </Card>
+            )}
 
             {error && (
               <div className="mt-6 flex items-start gap-2 rounded-2xl border border-red-100 bg-red-50 p-4">

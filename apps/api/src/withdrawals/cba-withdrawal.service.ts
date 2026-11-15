@@ -505,6 +505,76 @@ export class CbaWithdrawalService {
     return { found: true, changed: before !== after };
   }
 
+  // After finance has resolved an uncertain lock. Posted: the money is
+  // locked, so the withdrawal carries on as requested. Not posted: nothing
+  // moved, and the withdrawal ends.
+  async continueAfterLockResolved(withdrawalId: string) {
+    const withdrawal = await this.prisma.cbaWithdrawal.findUnique({
+      where: { withdrawalId },
+      include: { lockTransfer: true },
+    });
+
+    if (
+      !withdrawal ||
+      withdrawal.status !== CbaWithdrawalStatus.REVIEW_REQUIRED ||
+      withdrawal.failureReason !== REASON.LOCK_UNCERTAIN ||
+      !withdrawal.lockTransfer
+    ) {
+      return withdrawal ? this.toView(withdrawal) : null;
+    }
+
+    if (withdrawal.lockTransfer.status === CbaTransferStatus.POSTED) {
+      await this.move(withdrawalId, [CbaWithdrawalStatus.REVIEW_REQUIRED], {
+        status: withdrawal.requiresApproval
+          ? CbaWithdrawalStatus.AWAITING_APPROVAL
+          : CbaWithdrawalStatus.LOCKED,
+        failureReason: null,
+      });
+
+      if (!withdrawal.requiresApproval) {
+        await this.pay(withdrawalId);
+      }
+    } else if (withdrawal.lockTransfer.status === CbaTransferStatus.FAILED) {
+      await this.move(withdrawalId, [CbaWithdrawalStatus.REVIEW_REQUIRED], {
+        status: CbaWithdrawalStatus.FAILED,
+        failureReason: REASON.LOCK_REFUSED,
+      });
+    }
+
+    return this.view(withdrawalId);
+  }
+
+  // After finance has resolved an uncertain restore. Posted: the money is
+  // back. Not posted: it is sent again — a definite refusal moved nothing.
+  async continueAfterRestoreResolved(withdrawalId: string) {
+    const withdrawal = await this.prisma.cbaWithdrawal.findUnique({
+      where: { withdrawalId },
+      include: { restoreTransfer: true },
+    });
+
+    if (
+      !withdrawal ||
+      withdrawal.status !== CbaWithdrawalStatus.REVIEW_REQUIRED ||
+      !withdrawal.restoreTransfer
+    ) {
+      return withdrawal ? this.toView(withdrawal) : null;
+    }
+
+    let restore = withdrawal.restoreTransfer;
+
+    if (restore.status === CbaTransferStatus.FAILED) {
+      restore = await this.cbaTransfers.retryReturn(restore.transferId);
+    }
+
+    if (restore.status === CbaTransferStatus.POSTED) {
+      await this.move(withdrawalId, [CbaWithdrawalStatus.REVIEW_REQUIRED], {
+        status: CbaWithdrawalStatus.RESTORED,
+      });
+    }
+
+    return this.view(withdrawalId);
+  }
+
   // ─── steps ────────────────────────────────────────────────
 
   private async pay(withdrawalId: string): Promise<void> {

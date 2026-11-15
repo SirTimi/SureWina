@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   ForbiddenException,
   Get,
@@ -13,6 +14,7 @@ import {
   AdminTier,
   CbaTransferPurpose,
   CbaTransferStatus,
+  WitmangoWalletPurpose,
 } from '@prisma/client';
 
 import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
@@ -24,6 +26,9 @@ import { PrismaService } from '../database/prisma.service';
 import { WitmangoTransferService } from '../integrations/witmango/witmango-transfer.service';
 
 import { CbaReconciliationService } from './cba-reconciliation.service';
+import { CbaTransferResolutionService } from './cba-transfer-resolution.service';
+import { ResolveTransferDto } from './dto/resolve-transfer.dto';
+import { CbaBalanceMigrationService } from './cba-balance-migration.service';
 
 // Finance's view of CBA reconciliation, and the queue of CBA transfers that
 // need a person.
@@ -35,7 +40,33 @@ export class CbaReconciliationAdminController {
     private readonly reconciliation: CbaReconciliationService,
     private readonly transfers: WitmangoTransferService,
     private readonly prisma: PrismaService,
+    private readonly resolution: CbaTransferResolutionService,
+    private readonly migrations: CbaBalanceMigrationService,
   ) {}
+
+  // What a wallet still holds on the SureWina ledger, and whether it has
+  // been moved to the CBA.
+  @Get('wallets/:walletId/ledger-balance')
+  ledgerBalance(@Param('walletId') walletId: string) {
+    return this.migrations.preview(walletId);
+  }
+
+  // Moves that balance onto the CBA account finance chooses. Once per
+  // wallet; repeating it moves on an unfinished one, never moves twice.
+  @Post('wallets/:walletId/ledger-balance/move')
+  moveLedgerBalance(
+    @Param('walletId') walletId: string,
+    @Body() body: { purpose?: string },
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    this.requireWriter(admin);
+
+    if (!Object.values(WitmangoWalletPurpose).includes(body?.purpose as WitmangoWalletPurpose)) {
+      throw new BadRequestException('purpose must be a CBA account purpose');
+    }
+
+    return this.migrations.migrate(walletId, body.purpose as WitmangoWalletPurpose, admin.sub);
+  }
 
   @Get('reconciliation/runs')
   listRuns(@Query('limit') limit?: string) {
@@ -107,6 +138,19 @@ export class CbaReconciliationAdminController {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }));
+  }
+
+  // Records what Witmango's own records show for a transfer whose outcome
+  // was unknown, and carries on the purchase, sale, prize or withdrawal it
+  // belonged to.
+  @Post('transfers/:transferId/resolve')
+  resolve(
+    @Param('transferId') transferId: string,
+    @Body() dto: ResolveTransferDto,
+    @CurrentAdmin() admin: AdminJwtPayload,
+  ) {
+    this.requireWriter(admin);
+    return this.resolution.resolve(transferId, admin.sub, dto);
   }
 
   // Sends again a refused commission or prize reimbursement.

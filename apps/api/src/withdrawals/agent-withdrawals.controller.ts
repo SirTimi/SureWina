@@ -13,6 +13,7 @@ import { AgentJwtGuard } from '../agent-auth/guards/agent-jwt.guard';
 import { CurrentAgent } from '../agent-auth/guards/current-agent.decorator';
 import { AgentJwtPayload } from '../agent-auth/agent-auth.types';
 import { WalletService } from '../wallet/wallet.service';
+import { BankResolveService } from '../claims/kyc/bank-resolve.service';
 
 import { CbaWithdrawalService } from './cba-withdrawal.service';
 import {
@@ -33,7 +34,15 @@ export class AgentWithdrawalsController {
     private readonly wallets: WalletService,
     private readonly accounts: WithdrawalAccountService,
     private readonly withdrawals: CbaWithdrawalService,
+    private readonly banks: BankResolveService,
   ) {}
+
+  // The bank list for choosing a withdrawal account. The customer route for
+  // it is customer-only.
+  @Get('banks')
+  listBanks() {
+    return this.banks.listBanks();
+  }
 
   @Get('withdrawal-accounts')
   async listAccounts(@CurrentAgent() agent: AgentJwtPayload) {

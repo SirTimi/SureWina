@@ -272,6 +272,14 @@ export class WitmangoWalletLinkService {
     );
   }
 
+  // Whether new CBA wallets can be opened at all right now.
+  isProvisioningEnabled(): boolean {
+    return (
+      this.witmango.isEnabled() &&
+      this.config.get<boolean>('WITMANGO_PROVISIONING_ENABLED') === true
+    );
+  }
+
   private requireProvisioningEnabled(): void {
     if (
       !this.witmango.isEnabled() ||

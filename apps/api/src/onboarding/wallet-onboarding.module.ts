@@ -9,6 +9,10 @@ import { MonnifyModule } from '../integrations/monnify/monnify.module';
 import { WalletOnboardingController } from './wallet-onboarding.controller';
 import { WalletOnboardingService } from './wallet-onboarding.service';
 import { FundingAccountService } from './funding-account.service';
+import {
+  AgentCbaWalletController,
+  CustomerCbaWalletController,
+} from './cba-wallet.controller';
 
 @Module({
   imports: [
@@ -18,7 +22,11 @@ import { FundingAccountService } from './funding-account.service';
     WitmangoModule,
     MonnifyModule,
   ],
-  controllers: [WalletOnboardingController],
+  controllers: [
+    WalletOnboardingController,
+    CustomerCbaWalletController,
+    AgentCbaWalletController,
+  ],
   providers: [WalletOnboardingService, FundingAccountService],
 })
 export class WalletOnboardingModule {}
