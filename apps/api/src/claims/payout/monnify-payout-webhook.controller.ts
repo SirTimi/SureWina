@@ -5,6 +5,9 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+
+import { CbaWithdrawalService } from '../../withdrawals/cba-withdrawal.service';
 
 import {
   MonnifyWebhookSignatureGuard,
@@ -38,6 +41,7 @@ export class MonnifyPayoutWebhookController {
   constructor(
     private readonly sync:
       MonnifyPayoutSyncService,
+    private readonly moduleRef: ModuleRef,
   ) {}
 
   @Post('disbursement')
@@ -91,6 +95,28 @@ export class MonnifyPayoutWebhookController {
         ignored: true,
         reason:
           'Missing payout reference',
+      };
+    }
+
+    /*
+     * CBA wallet withdrawals share this webhook. Their references carry
+     * their own prefix, and they are settled by the withdrawals module —
+     * resolved here at runtime because that module already depends on
+     * this one. As below, the status is re-queried from Monnify, never
+     * taken from the notification.
+     */
+    if (reference.startsWith('sw-wdr-')) {
+      const withdrawals = this.moduleRef.get(CbaWithdrawalService, {
+        strict: false,
+      });
+
+      const synced = await withdrawals.syncByReference(reference);
+
+      return {
+        received: true,
+        reference,
+        matched: synced.found,
+        changed: synced.changed,
       };
     }
 

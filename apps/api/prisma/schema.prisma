@@ -1234,10 +1234,12 @@ model Wallet {
   holds           WalletHold[]
   walletPurchases WalletPurchase[]
 
-  witmangoLinks   WitmangoWalletLink[]
-  cbaTransfers    CbaTransfer[]
-  withdrawals     WalletWithdrawal[]
-  reservedAccount WalletReservedAccount?
+  witmangoLinks      WitmangoWalletLink[]
+  cbaTransfers       CbaTransfer[]
+  withdrawalAccounts WithdrawalAccount[]
+  cbaWithdrawals     CbaWithdrawal[]
+  withdrawals        WalletWithdrawal[]
+  reservedAccount    WalletReservedAccount?
 
   @@index([ownerType, status])
   @@index([createdAt])
@@ -2281,6 +2283,12 @@ enum CbaTransferPurpose {
   // SureWina sales account -> agent Earnings: repays a prize the agent paid
   // out in cash from their own till.
   PRIZE_REIMBURSEMENT
+  // Winnings or Earnings -> SureWina Pending Withdrawals: locks the amount
+  // while the bank payout is in progress, so it cannot be spent twice.
+  WITHDRAWAL_LOCK
+  // Pending Withdrawals -> Winnings or Earnings: the payout did not happen,
+  // so the locked amount goes back.
+  WITHDRAWAL_RESTORE
 }
 
 enum CbaTransferStatus {
@@ -2354,6 +2362,9 @@ model CbaTransfer {
   reverses   CbaTransfer? @relation("CbaTransferReversal", fields: [reversesTransferId], references: [transferId], onDelete: Restrict)
   reversedBy CbaTransfer? @relation("CbaTransferReversal")
 
+  lockedWithdrawal   CbaWithdrawal? @relation("CbaWithdrawalLock")
+  restoredWithdrawal CbaWithdrawal? @relation("CbaWithdrawalRestore")
+
   @@index([status, updatedAt])
   @@index([walletId, createdAt])
   @@index([walletPurchaseId])
@@ -2361,4 +2372,153 @@ model CbaTransfer {
   @@index([prizeClaimId])
   @@index([saleReference])
   @@map("cba_transfers")
+}
+
+enum WithdrawalAccountStatus {
+  // BVN-matched to the wallet's owner. Usable once its cooling-off ends.
+  ACTIVE
+  // Monnify said the account does not belong to the BVN holder. Kept so the
+  // attempt counts against the daily limit and stays on record.
+  REJECTED
+  // Removed by its owner.
+  REMOVED
+}
+
+// A bank account a customer or agent may withdraw to, saved in advance.
+//
+// Only an account in the owner's own name — matched by Monnify to the same
+// BVN the wallet was verified with — is ever saved. A new account cannot be
+// used until its cooling-off period ends: if someone takes over a wallet,
+// adding their own account and withdrawing straight away is the first thing
+// they would try.
+model WithdrawalAccount {
+  withdrawalAccountId String @id @default(uuid()) @map("withdrawal_account_id")
+
+  walletId  String          @map("wallet_id")
+  ownerType LedgerOwnerType @map("owner_type")
+
+  bankCode String  @map("bank_code") @db.VarChar(6)
+  bankName String? @map("bank_name") @db.VarChar(140)
+
+  // AES-256-GCM, bound to the wallet and bank. Never stored in clear.
+  accountCiphertext  String @map("account_ciphertext") @db.Text
+  accountLast4       String @map("account_last4") @db.VarChar(4)
+  // HMAC of bank code and account number: recognises the same account
+  // again without decrypting anything.
+  accountFingerprint String @map("account_fingerprint") @db.VarChar(64)
+
+  // The name on the account, as Monnify returned it with the match.
+  accountName String? @map("account_name") @db.VarChar(200)
+
+  status WithdrawalAccountStatus
+
+  verifiedAt DateTime? @map("verified_at")
+  // When cooling-off ends and the account can first be withdrawn to.
+  usableFrom DateTime? @map("usable_from")
+  removedAt  DateTime? @map("removed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+
+  withdrawals CbaWithdrawal[]
+
+  @@index([walletId, status])
+  @@index([walletId, accountFingerprint])
+  @@index([walletId, createdAt])
+  @@map("withdrawal_accounts")
+}
+
+enum CbaWithdrawalStatus {
+  // Written down; the lock transfer is being sent.
+  LOCKING
+  // The lock was refused. Nothing moved.
+  FAILED
+  // Locked, and above the approval threshold: waiting for finance.
+  AWAITING_APPROVAL
+  // Locked and ready to pay out.
+  LOCKED
+  // Sent to Monnify; not yet final.
+  PAYOUT_PENDING
+  // Monnify paid the bank account. The CBA withdrawal that takes the money
+  // out of Pending Withdrawals has not posted yet.
+  PAID
+  // Paid, and the CBA book agrees.
+  SUCCEEDED
+  // The payout did not happen, or was rejected, and the money went back.
+  RESTORED
+  // Money may be in the wrong place. A person must look.
+  REVIEW_REQUIRED
+}
+
+// A withdrawal from a CBA wallet to a saved bank account.
+//
+// Three systems move in turn and none can be rolled back by another, so
+// every step is written down first and each outcome is recorded:
+//
+//   lock    Winnings/Earnings -> Pending Withdrawals   (CBA transfer)
+//   pay     Monnify transfer to the saved bank account
+//   settle  CBA withdrawal out of Pending Withdrawals  (book follows vault)
+//   or restore  Pending Withdrawals -> Winnings/Earnings, if not paid
+model CbaWithdrawal {
+  withdrawalId String @id @default(uuid()) @map("withdrawal_id")
+
+  walletId  String          @map("wallet_id")
+  ownerType LedgerOwnerType @map("owner_type")
+
+  // The client's own key, so a repeated request is the same withdrawal.
+  requestId String @map("request_id") @db.VarChar(64)
+
+  withdrawalAccountId String @map("withdrawal_account_id")
+
+  // Where the money comes from: WINNINGS for customers, EARNINGS for agents.
+  sourcePurpose WitmangoWalletPurpose @map("source_purpose")
+
+  amountNgn Int @map("amount_ngn")
+
+  status        CbaWithdrawalStatus @default(LOCKING)
+  failureReason String?             @map("failure_reason") @db.VarChar(64)
+
+  // Destination as it was when the withdrawal was made.
+  bankCode           String @map("bank_code") @db.VarChar(6)
+  accountLast4       String @map("account_last4") @db.VarChar(4)
+  accountFingerprint String @map("account_fingerprint") @db.VarChar(64)
+
+  lockTransferId    String? @unique @map("lock_transfer_id")
+  restoreTransferId String? @unique @map("restore_transfer_id")
+
+  requiresApproval Boolean   @default(false) @map("requires_approval")
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  rejectedBy       String?   @map("rejected_by")
+  rejectedAt       DateTime? @map("rejected_at")
+
+  // Sent to Monnify as the transfer reference; how the payout is found again.
+  payoutReference              String             @unique @map("payout_reference") @db.VarChar(64)
+  payoutStatus                 PrizePayoutStatus? @map("payout_status")
+  payoutRawStatus              String?            @map("payout_raw_status") @db.VarChar(64)
+  providerTransactionReference String?            @map("provider_transaction_reference") @db.VarChar(120)
+  payoutSubmittedAt            DateTime?          @map("payout_submitted_at")
+  payoutCompletedAt            DateTime?          @map("payout_completed_at")
+  payoutLastCheckedAt          DateTime?          @map("payout_last_checked_at")
+
+  // Receipt number on the CBA withdrawal out of Pending Withdrawals.
+  settlementReference     String    @unique @map("settlement_reference") @db.VarChar(50)
+  settlementTransactionId Int?      @map("settlement_transaction_id")
+  settledAt               DateTime? @map("settled_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  wallet            Wallet            @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+  withdrawalAccount WithdrawalAccount @relation(fields: [withdrawalAccountId], references: [withdrawalAccountId], onDelete: Restrict)
+  lockTransfer      CbaTransfer?      @relation("CbaWithdrawalLock", fields: [lockTransferId], references: [transferId], onDelete: Restrict)
+  restoreTransfer   CbaTransfer?      @relation("CbaWithdrawalRestore", fields: [restoreTransferId], references: [transferId], onDelete: Restrict)
+
+  @@unique([walletId, requestId])
+  @@index([walletId, status])
+  @@index([walletId, createdAt])
+  @@index([status, updatedAt])
+  @@map("cba_withdrawals")
 }

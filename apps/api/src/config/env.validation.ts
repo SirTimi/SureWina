@@ -171,6 +171,66 @@ export const envValidationSchema = Joi.object({
   WITMANGO_PRIZE_CREDITS_ENABLED:
     Joi.boolean().default(false),
 
+  // Saved withdrawal accounts. Each one is BVN-matched by Monnify (a paid
+  // verification call), so this is off unless deliberately enabled and needs
+  // MONNIFY_IDENTITY_VERIFICATION_ENABLED as well.
+  WITHDRAWAL_ACCOUNTS_ENABLED:
+    Joi.boolean().default(false),
+
+  // How long a newly saved account waits before it can be withdrawn to.
+  // Business value to confirm with Paul; 24 hours until then.
+  WITHDRAWAL_ACCOUNT_COOLING_OFF_HOURS:
+    Joi.number().integer().min(0).max(720).default(24),
+
+  WITHDRAWAL_ACCOUNTS_MAX:
+    Joi.number().integer().min(1).max(10).default(3),
+
+  // Attempts to save an account per wallet per day, matched or not. Each
+  // match is a paid Monnify call.
+  WITHDRAWAL_ACCOUNT_ADDS_PER_DAY:
+    Joi.number().integer().min(1).max(20).default(3),
+
+  // Withdrawals from CBA wallets to saved bank accounts, paid by Monnify.
+  // Off unless deliberately enabled. Needs WITMANGO_MONETARY_ENABLED, the
+  // Pending Withdrawals account below, MONNIFY_SOURCE_ACCOUNT_NUMBER, and
+  // Monnify's disbursement OTP switched off for API transfers.
+  WALLET_WITHDRAWALS_ENABLED:
+    Joi.boolean().default(false),
+
+  // SureWina's CBA account that holds money between the lock and the payout.
+  WITMANGO_PENDING_WITHDRAWALS_CLIENT_ID:
+    Joi.number().integer().min(1).optional(),
+
+  WITMANGO_PENDING_WITHDRAWALS_ACCOUNT_ID:
+    Joi.number().integer().min(1).optional(),
+
+  // Withdrawal limits — values for Paul to set. A per-request or daily
+  // maximum left at 0 means "not configured", and withdrawals are refused
+  // for that owner type: no limit is never assumed.
+  WITHDRAWAL_MIN_NGN:
+    Joi.number().integer().min(1).default(100),
+
+  WITHDRAWAL_MAX_PER_REQUEST_CUSTOMER_NGN:
+    Joi.number().integer().min(0).default(0),
+
+  WITHDRAWAL_MAX_PER_REQUEST_AGENT_NGN:
+    Joi.number().integer().min(0).default(0),
+
+  WITHDRAWAL_DAILY_MAX_CUSTOMER_NGN:
+    Joi.number().integer().min(0).default(0),
+
+  WITHDRAWAL_DAILY_MAX_AGENT_NGN:
+    Joi.number().integer().min(0).default(0),
+
+  // The share of the withdrawable balance one request may take.
+  WITHDRAWAL_MAX_PERCENT_OF_BALANCE:
+    Joi.number().integer().min(1).max(100).default(100),
+
+  // Withdrawals above this wait for finance approval, already locked.
+  // 0 means none need approval.
+  WITHDRAWAL_APPROVAL_THRESHOLD_NGN:
+    Joi.number().integer().min(0).default(0),
+
   // BVN verification is live-only at Monnify and costs ₦10 per successful
   // check from the Monnify balance. Off unless deliberately enabled.
   MONNIFY_IDENTITY_VERIFICATION_ENABLED:

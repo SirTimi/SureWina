@@ -10,6 +10,26 @@ import { ConfigService } from '@nestjs/config';
 import { MonnifyClientService } from './monnify-client.service';
 
 const BVN_DETAILS_MATCH_PATH = '/api/v1/vas/bvn-details-match';
+const BVN_ACCOUNT_MATCH_PATH = '/api/v1/vas/bvn-account-match';
+
+export type BvnAccountMatchInput = {
+  bvn: string;
+  bankCode: string;
+  accountNumber: string;
+};
+
+// Whether a bank account belongs to the holder of a BVN.
+export type BvnAccountMatchResult =
+  | { outcome: 'MATCHED'; accountName: string }
+  | { outcome: 'NOT_MATCHED' };
+
+type RawBvnAccountMatch = {
+  bvn?: string;
+  accountNumber?: string;
+  accountName?: string;
+  matchStatus?: string;
+  matchPercentage?: number;
+};
 
 const MATCH_STATUSES = ['FULL_MATCH', 'PARTIAL_MATCH', 'NO_MATCH'] as const;
 
@@ -144,6 +164,81 @@ export class MonnifyVerificationService {
 
     throw new BadGatewayException(
       'Identity verification is unavailable right now',
+    );
+  }
+
+  // BVN and Account Name Match: does this bank account belong to the
+  // person who holds this BVN? Used before a withdrawal account is saved, so
+  // money only ever leaves to the owner's own account.
+  //
+  // Only FULL_MATCH counts. Monnify's documentation shows no other status,
+  // so anything else — a partial match, an unknown value — is treated as no
+  // match rather than guessed at.
+  async matchBvnToAccount(
+    input: BvnAccountMatchInput,
+  ): Promise<BvnAccountMatchResult> {
+    if (!this.isEnabled()) {
+      throw new ServiceUnavailableException(
+        'Identity verification is disabled',
+      );
+    }
+
+    if (!/^\d{11}$/.test(input.bvn)) {
+      throw new BadRequestException('A BVN must be exactly 11 digits');
+    }
+
+    if (!/^\d{3,6}$/.test(input.bankCode)) {
+      throw new BadRequestException('Invalid bank code');
+    }
+
+    if (!/^\d{10}$/.test(input.accountNumber)) {
+      throw new BadRequestException(
+        'Bank account number must contain exactly 10 digits',
+      );
+    }
+
+    const result = await this.client.request<RawBvnAccountMatch>(
+      BVN_ACCOUNT_MATCH_PATH,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bvn: input.bvn,
+          bankCode: input.bankCode,
+          accountNumber: input.accountNumber,
+        }),
+      },
+    );
+
+    const payload = result.payload;
+
+    if (
+      result.httpStatus >= 200 &&
+      result.httpStatus < 300 &&
+      payload?.requestSuccessful === true &&
+      payload.responseBody
+    ) {
+      const body = payload.responseBody;
+      const accountName = body.accountName?.trim();
+
+      if (
+        body.matchStatus?.trim().toUpperCase() === 'FULL_MATCH' &&
+        body.accountNumber === input.accountNumber &&
+        accountName
+      ) {
+        return { outcome: 'MATCHED', accountName };
+      }
+
+      return { outcome: 'NOT_MATCHED' };
+    }
+
+    // Neither the BVN nor the account number appears in logs.
+    this.logger.error(
+      `BVN account match failed: HTTP ${result.httpStatus}, code ${payload?.responseCode ?? 'none'}`,
+    );
+
+    throw new BadGatewayException(
+      'Account verification is unavailable right now',
     );
   }
 

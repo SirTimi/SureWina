@@ -152,6 +152,26 @@ describe('Rollout checks for CBA-funded spending', () => {
     expect(result.status).toBe('BLOCKER');
   });
 
+  it('passes when no CBA withdrawal needs review or is stuck', async () => {
+    const result = await service({
+      cbaWithdrawal: { findMany: jest.fn().mockResolvedValue([]) },
+    }).checkCbaWithdrawals();
+    expect(result.status).toBe('PASS');
+  });
+
+  it('blocks on withdrawals under review, paid but unsettled, or stuck', async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      { withdrawalId: 'w-1', status: 'PAID', failureReason: 'SETTLEMENT_UNCERTAIN' },
+    ]);
+    const result = await service({ cbaWithdrawal: { findMany } }).checkCbaWithdrawals();
+
+    expect(result.status).toBe('BLOCKER');
+    const statuses = findMany.mock.calls[0][0].where.OR.map((c: { status: string }) => c.status);
+    expect(statuses).toEqual(
+      expect.arrayContaining(['REVIEW_REQUIRED', 'PAID', 'LOCKING', 'PAYOUT_PENDING']),
+    );
+  });
+
   it('passes when every CBA transfer is settled', async () => {
     const result = await service({
       cbaTransfer: { findMany: jest.fn().mockResolvedValue([]) },
@@ -173,7 +193,7 @@ describe('Rollout checks for CBA-funded spending', () => {
         expect.objectContaining({ status: CbaTransferStatus.SENDING }),
         expect.objectContaining({
           status: CbaTransferStatus.FAILED,
-          purpose: { in: [CbaTransferPurpose.AGENT_COMMISSION, CbaTransferPurpose.PRIZE_REIMBURSEMENT, CbaTransferPurpose.REVERSAL] },
+          purpose: { in: [CbaTransferPurpose.AGENT_COMMISSION, CbaTransferPurpose.PRIZE_REIMBURSEMENT, CbaTransferPurpose.REVERSAL, CbaTransferPurpose.WITHDRAWAL_RESTORE] },
         }),
       ]),
     );

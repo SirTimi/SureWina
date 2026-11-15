@@ -6,6 +6,7 @@ import {
   AuditSeverity,
   CbaTransferPurpose,
   CbaTransferStatus,
+  CbaWithdrawalStatus,
   FinancialMigrationRunStatus,
   JackpotDiscountOfferStatus,
   LedgerAccountType,
@@ -101,6 +102,7 @@ export class RolloutCheckService {
       await this.checkBankPrizePayouts(),
       await this.checkCbaWithdrawalHolds(),
       await this.checkCbaTransfers(),
+      await this.checkCbaWithdrawals(),
       await this.checkRetiredDebtSuspensions(),
       await this.checkReconciliation(),
       await this.checkSuspenseBalance(options.production),
@@ -2381,6 +2383,7 @@ export class RolloutCheckService {
                   CbaTransferPurpose.AGENT_COMMISSION,
                   CbaTransferPurpose.PRIZE_REIMBURSEMENT,
                   CbaTransferPurpose.REVERSAL,
+                  CbaTransferPurpose.WITHDRAWAL_RESTORE,
                 ],
               },
             },
@@ -2414,6 +2417,62 @@ export class RolloutCheckService {
       'cba.transfers',
       'CBA transfers settled',
       'No CBA transfer is uncertain, stuck, or owed.',
+    );
+  }
+
+  // CBA withdrawals that need a person:
+  //   - REVIEW_REQUIRED: money may be in the wrong place.
+  //   - PAID but not settled: the customer has the money, but the CBA book
+  //     still shows it in Pending Withdrawals.
+  //   - LOCKING for more than a few minutes: the lock's outcome is unknown.
+  //   - PAYOUT_PENDING for more than a day: Monnify has not answered.
+  private async checkCbaWithdrawals(): Promise<CheckResult> {
+    const now = Date.now();
+
+    const stuck =
+      await this.prisma.cbaWithdrawal.findMany({
+        where: {
+          OR: [
+            { status: CbaWithdrawalStatus.REVIEW_REQUIRED },
+            {
+              status: CbaWithdrawalStatus.PAID,
+              updatedAt: { lt: new Date(now - 10 * 60 * 1000) },
+            },
+            {
+              status: CbaWithdrawalStatus.LOCKING,
+              updatedAt: { lt: new Date(now - 10 * 60 * 1000) },
+            },
+            {
+              status: CbaWithdrawalStatus.PAYOUT_PENDING,
+              updatedAt: { lt: new Date(now - 24 * 60 * 60 * 1000) },
+            },
+          ],
+        },
+        select: {
+          withdrawalId: true,
+          walletId: true,
+          status: true,
+          amountNgn: true,
+          failureReason: true,
+          payoutReference: true,
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 100,
+      });
+
+    if (stuck.length > 0) {
+      return this.blocker(
+        'cba.withdrawals',
+        'CBA withdrawals settled',
+        `${stuck.length} CBA withdrawal(s) need review, are unsettled, or are stuck.`,
+        stuck,
+      );
+    }
+
+    return this.pass(
+      'cba.withdrawals',
+      'CBA withdrawals settled',
+      'No CBA withdrawal needs review or is stuck.',
     );
   }
 

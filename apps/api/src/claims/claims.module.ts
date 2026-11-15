@@ -105,6 +105,7 @@ import { PaystackPrizePayoutProvider } from './payout/paystack-prize-payout.prov
 
   exports: [
     PaystackPrizePayoutProvider,
+    MonnifyPrizePayoutProvider,
     ClaimsService,
     BankResolveService,
     WhtDeductionService,

@@ -125,3 +125,60 @@ Every movement is a row in `cba_transfers`, written **before** it is sent and cl
 - No tool yet to resolve an `UNCERTAIN` or stale `SENDING` transfer, or to retry an owed commission. They are recorded and block the rollout check; resolution is the reconciliation / retry-sweep increment.
 - **UNVERIFIED:** that a transfer can be found again by the reference sent in `transferDescription`. Until proven in sandbox, uncertain transfers are never retried.
 - Any balance left in a customer's or agent's **ledger** wallet is not moved to the CBA by this; once a wallet spends from the CBA, a ledger balance is stranded until a migration step moves it.
+
+## 6. Prizes (phase 8)
+
+Status: **built and unit-tested against mocks; not run against a sandbox; not accepted.** Off by default.
+
+- **Customer cash prize → Winnings, by the winner's choice** (`POST /claims/:claimId/wallet`). WHT is deducted exactly as on the bank route; the net prize is transferred from the sales account. No bank KYC: the wallet was BVN-verified at opening, and money can only leave Winnings to a BVN-matched account. The claim moves to `WALLET_CREDIT_PENDING` *before* money moves, which takes it out of every other route (re-choosing, agent cash, the forfeit sweep). Refused → back to `SELECTION_MADE`; uncertain → stays pending for review, never paid twice. Switch: `WITMANGO_PRIZE_CREDITS_ENABLED`.
+- **Agent pays a prize in cash** (agents on the CBA path) → reimbursed from the sales account into **Earnings**. The prize stays paid whatever happens; a reimbursement that does not post is owed and blocks `cba.transfers`. Follows `WITMANGO_WALLET_SPENDING_ENABLED`, as agent sales do.
+- Anonymous agent-sold tickets have no customer wallet and stay on bank or agent cash payout.
+
+## 7. Saved withdrawal accounts (phase 9)
+
+Status: **built and unit-tested; Monnify call unverified in sandbox; not accepted.** Off by default (`WITHDRAWAL_ACCOUNTS_ENABLED`; also needs `MONNIFY_IDENTITY_VERIFICATION_ENABLED`).
+
+Customer: `GET|POST /wallet/withdrawal-accounts`, `DELETE /wallet/withdrawal-accounts/:id`. Agent: same under `/agent/withdrawal-accounts`.
+
+1. The owner re-enters their BVN. It must match the stored fingerprint (customers) or onboarding hash (agents). If not, nothing is sent to Monnify and nothing is stored — a wrong BVN costs nothing.
+2. Monnify `POST /api/v1/vas/bvn-account-match` must return `FULL_MATCH` for the same account number. Anything else is "not in your name"; the attempt is stored as `REJECTED` so it counts against the daily limit.
+3. The account is stored encrypted (AES-256-GCM, bound to the wallet), fingerprinted with the platform's existing bank-account formula, and unusable until **cooling-off** ends.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `WITHDRAWAL_ACCOUNT_COOLING_OFF_HOURS` | 24 | Wait before a new account can be withdrawn to. **Paul to confirm.** |
+| `WITHDRAWAL_ACCOUNTS_MAX` | 3 | Saved accounts per wallet. |
+| `WITHDRAWAL_ACCOUNT_ADDS_PER_DAY` | 3 | Attempts per wallet per day (each match is a paid call). |
+
+## 8. Withdrawals (phase 10)
+
+Status: **built and unit-tested against mocks; not run against Monnify or Witmango; not accepted.** Off by default (`WALLET_WITHDRAWALS_ENABLED`).
+
+Customer: `GET|POST /wallet/cba-withdrawals` (separate from the legacy ledger `wallet/withdrawals`). Agent: `GET|POST /agent/withdrawals`. Finance: `GET /admin/finance/cba-withdrawals`, `POST …/:id/approve | reject | refresh`.
+
+| Step | What happens | If refused | If uncertain |
+|---|---|---|---|
+| Lock | CBA transfer Winnings/Earnings → **Pending Withdrawals** | `FAILED`, nothing moved | `REVIEW_REQUIRED` |
+| Approve | Only above `WITHDRAWAL_APPROVAL_THRESHOLD_NGN`; money already locked | Reject → restore | — |
+| Pay | Monnify single transfer, reference `sw-wdr-<id>` fixed in advance | Restore to source | Stays `PAYOUT_PENDING`; queried by reference, **never re-sent** |
+| Settle | CBA withdrawal out of Pending Withdrawals, receipt `sw-wds-<id>` | Retried later (nothing posted) | Looked up by receipt; never re-posted on a guess |
+| Restore | Pending Withdrawals → source | — | `REVIEW_REQUIRED` |
+
+- Only Winnings (customers) or Earnings (agents) can be withdrawn. Deposit and Float never.
+- Destination must be a saved account past cooling-off, re-checked at the moment of paying.
+- One withdrawal in flight per wallet. A repeated `requestId` returns the same withdrawal.
+- A reversal reported after payment goes to review — never re-paid, never auto-restored.
+- Monnify "no such transfer" within 30 minutes of submission is not treated as failure.
+- The disbursement webhook routes `sw-wdr-` references here; the status is always re-queried from Monnify.
+- Rollout check `cba.withdrawals` blocks on review, paid-but-unsettled, and stuck withdrawals.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `WITMANGO_PENDING_WITHDRAWALS_CLIENT_ID` / `_ACCOUNT_ID` | — | SureWina's CBA account holding locked money. Opened by Witmango. |
+| `WITHDRAWAL_MIN_NGN` | 100 | |
+| `WITHDRAWAL_MAX_PER_REQUEST_CUSTOMER_NGN` / `_AGENT_NGN` | **0 = refused** | **Paul to set.** |
+| `WITHDRAWAL_DAILY_MAX_CUSTOMER_NGN` / `_AGENT_NGN` | **0 = refused** | **Paul to set.** |
+| `WITHDRAWAL_MAX_PERCENT_OF_BALANCE` | 100 | Share of the withdrawable balance per request. |
+| `WITHDRAWAL_APPROVAL_THRESHOLD_NGN` | 0 = none | Above this, finance approves. **Paul to set.** |
+
+Requires `MONNIFY_SOURCE_ACCOUNT_NUMBER`, and Monnify's **disbursement OTP switched off** for API transfers — otherwise every payout waits at `PENDING_AUTHORIZATION`. Monnify's transfer fee is charged to SureWina's Monnify wallet; the customer receives the full amount (fee bearer still for Paul to confirm).
