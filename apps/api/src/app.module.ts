@@ -19,6 +19,7 @@ import { QueueModule } from './queue/queue.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { ClaimsModule } from './claims/claims.module';
 import { WithdrawalsModule } from './withdrawals/withdrawals.module';
+import { CbaReconciliationModule } from './reconciliation/cba-reconciliation.module';
 import {StorageModule} from './storage/storage.module';
 import { AgentOpsModule } from './agent-ops/agent-ops.module';
 import { AdminOpsModule } from './admin-ops/admin-ops.module';
@@ -61,6 +62,7 @@ import { WalletOnboardingModule } from './onboarding/wallet-onboarding.module';
     TicketsModule,
     ClaimsModule,
     WithdrawalsModule,
+    CbaReconciliationModule,
     StorageModule,
     AgentOpsModule,
     AdminOpsModule,

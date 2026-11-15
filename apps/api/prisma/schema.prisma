@@ -2522,3 +2522,76 @@ model CbaWithdrawal {
   @@index([status, updatedAt])
   @@map("cba_withdrawals")
 }
+
+enum CbaReconciliationStatus {
+  // Everything owed to customers and agents is in the vault, and the CBA's
+  // own accounts agree with SureWina's records.
+  PASS
+  // The vault holds less than is owed to customers and agents.
+  SHORTFALL
+  // Covered, but a CBA account disagrees with SureWina's records.
+  MISMATCH
+  // Some balances could not be read, so no verdict is possible.
+  INCOMPLETE
+}
+
+// One vault-against-book reconciliation.
+//
+// The vault is the Monnify wallet; the book is every CBA savings account.
+// They are never expected to be equal to the naira — prize bank payouts
+// and Monnify fees leave the vault without touching the book — so the hard
+// test is coverage: the vault must hold at least everything owed to
+// customers and agents. The full difference is recorded for finance to
+// explain, not treated as a failure.
+//
+// Amounts are in kobo, as BigInt: balances in naira would overflow a
+// 32-bit column at about ₦21m.
+model CbaReconciliationRun {
+  runId String @id @default(uuid()) @map("run_id")
+
+  // The WAT business day the run is for.
+  businessDate DateTime @map("business_date") @db.Date
+
+  status CbaReconciliationStatus
+
+  // Who started it: 'schedule', or an admin ID.
+  triggeredBy String @map("triggered_by") @db.VarChar(64)
+
+  vaultKobo BigInt @map("vault_kobo")
+
+  // Customer and agent accounts.
+  ownersKobo             BigInt @map("owners_kobo")
+  salesKobo              BigInt @map("sales_kobo")
+  pendingWithdrawalsKobo BigInt @map("pending_withdrawals_kobo")
+
+  // In the vault but not yet in anyone's book: top-ups not credited.
+  uncreditedTopUpsKobo BigInt @map("uncredited_top_ups_kobo")
+  // Left the vault but still in the Pending Withdrawals book.
+  paidUnsettledKobo    BigInt @map("paid_unsettled_kobo")
+
+  // What SureWina owes: owners + pending withdrawals − paid-unsettled +
+  // uncredited top-ups. Coverage is vault − obligations; never negative on
+  // a PASS.
+  obligationsKobo BigInt @map("obligations_kobo")
+  coverageKobo    BigInt @map("coverage_kobo")
+
+  // Vault − every account in the book, adjusted for money in transit.
+  // Explained by fees, prize payouts and SureWina's own transfers.
+  unexplainedKobo BigInt @map("unexplained_kobo")
+
+  // What Pending Withdrawals should hold, from SureWina's own records.
+  expectedPendingKobo BigInt @map("expected_pending_kobo")
+
+  accountsRead   Int @map("accounts_read")
+  accountsFailed Int @map("accounts_failed")
+
+  // Each problem found, for finance to work through.
+  issues Json
+
+  startedAt   DateTime @default(now()) @map("started_at")
+  completedAt DateTime @map("completed_at")
+
+  @@index([businessDate])
+  @@index([status, completedAt])
+  @@map("cba_reconciliation_runs")
+}

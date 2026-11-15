@@ -5,6 +5,7 @@ import {
   AgentStatus,
   AuditSeverity,
   CbaTransferPurpose,
+  CbaReconciliationStatus,
   CbaTransferStatus,
   CbaWithdrawalStatus,
   FinancialMigrationRunStatus,
@@ -103,6 +104,7 @@ export class RolloutCheckService {
       await this.checkCbaWithdrawalHolds(),
       await this.checkCbaTransfers(),
       await this.checkCbaWithdrawals(),
+      await this.checkCbaReconciliation(),
       await this.checkRetiredDebtSuspensions(),
       await this.checkReconciliation(),
       await this.checkSuspenseBalance(options.production),
@@ -2473,6 +2475,66 @@ export class RolloutCheckService {
       'cba.withdrawals',
       'CBA withdrawals settled',
       'No CBA withdrawal needs review or is stuck.',
+    );
+  }
+
+  // Once CBA wallets hold real money, a recent passing reconciliation is a
+  // release gate: the vault must cover everything owed, and the Pending
+  // Withdrawals account must agree with SureWina's records.
+  private async checkCbaReconciliation(): Promise<CheckResult> {
+    const inUse = [
+      'WITMANGO_WALLET_SPENDING_ENABLED',
+      'WITMANGO_PRIZE_CREDITS_ENABLED',
+      'WALLET_WITHDRAWALS_ENABLED',
+      'MONNIFY_RESERVED_ACCOUNTS_ENABLED',
+    ].some((name) => String(this.config.get(name)) === 'true');
+
+    if (!inUse) {
+      return this.pass(
+        'cba.reconciliation',
+        'CBA vault-against-book reconciliation',
+        'CBA wallet money movement is switched off; no reconciliation is required yet.',
+      );
+    }
+
+    const latest =
+      await this.prisma.cbaReconciliationRun.findFirst({
+        orderBy: { completedAt: 'desc' },
+        select: {
+          runId: true,
+          status: true,
+          completedAt: true,
+          coverageKobo: true,
+        },
+      });
+
+    const freshAfter = Date.now() - 36 * 60 * 60 * 1000;
+
+    if (!latest || latest.completedAt.getTime() < freshAfter) {
+      return this.blocker(
+        'cba.reconciliation',
+        'CBA vault-against-book reconciliation',
+        'CBA wallets are in use but no reconciliation has completed in the last 36 hours.',
+        { latestRunId: latest?.runId ?? null },
+      );
+    }
+
+    if (latest.status !== CbaReconciliationStatus.PASS) {
+      return this.blocker(
+        'cba.reconciliation',
+        'CBA vault-against-book reconciliation',
+        `The latest reconciliation is ${latest.status}.`,
+        {
+          runId: latest.runId,
+          coverageNgn: Number(latest.coverageKobo) / 100,
+        },
+      );
+    }
+
+    return this.pass(
+      'cba.reconciliation',
+      'CBA vault-against-book reconciliation',
+      `The latest reconciliation passed at ${latest.completedAt.toISOString()}.`,
     );
   }
 

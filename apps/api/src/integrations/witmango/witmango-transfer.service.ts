@@ -54,6 +54,13 @@ type CbaAccount = {
 
 const WAT_OFFSET_MS = 60 * 60 * 1000;
 
+// Payments SureWina owes that nothing else depends on. The only transfers
+// that may ever be sent again after a refusal.
+export const OWED_PURPOSES: CbaTransferPurpose[] = [
+  CbaTransferPurpose.AGENT_COMMISSION,
+  CbaTransferPurpose.PRIZE_REIMBURSEMENT,
+];
+
 // Moves money between two CBA savings accounts, one recorded step at a time.
 //
 // The CBA has no duplicate protection, and a transfer carries no reference
@@ -198,6 +205,33 @@ export class WitmangoTransferService {
         failureReason: null,
       },
     });
+  }
+
+  // Sends again a payment SureWina owes — commission, or a prize
+  // reimbursement — whose earlier attempt was refused.
+  //
+  // Safe only because FAILED means a definite "no": nothing was posted, so
+  // sending the same transfer again cannot pay twice. Transfers whose
+  // outcome is unknown are never retried here, and nothing other than an
+  // owed payment is: a purchase leg or a withdrawal step depends on what
+  // happened around it.
+  async retryOwed(transferId: string): Promise<CbaTransfer> {
+    const reset = await this.prisma.cbaTransfer.updateMany({
+      where: {
+        transferId,
+        status: CbaTransferStatus.FAILED,
+        purpose: { in: OWED_PURPOSES },
+      },
+      data: { status: CbaTransferStatus.PENDING, failureReason: null },
+    });
+
+    if (reset.count !== 1) {
+      throw new ConflictException(
+        'Only a refused commission or prize reimbursement can be retried',
+      );
+    }
+
+    return this.execute(transferId);
   }
 
   // Undoes a posted transfer: the same amount, back the other way, as its

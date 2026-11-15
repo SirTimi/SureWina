@@ -182,3 +182,36 @@ Customer: `GET|POST /wallet/cba-withdrawals` (separate from the legacy ledger `w
 | `WITHDRAWAL_APPROVAL_THRESHOLD_NGN` | 0 = none | Above this, finance approves. **Paul to set.** |
 
 Requires `MONNIFY_SOURCE_ACCOUNT_NUMBER`, and Monnify's **disbursement OTP switched off** for API transfers — otherwise every payout waits at `PENDING_AUTHORIZATION`. Monnify's transfer fee is charged to SureWina's Monnify wallet; the customer receives the full amount (fee bearer still for Paul to confirm).
+
+## 9. Reconciliation and retry sweep (phase 11)
+
+Status: **built and unit-tested against mocks; not run against real balances; not accepted.** Both parts off by default.
+
+### Daily vault-against-book reconciliation (`CBA_RECONCILIATION_ENABLED`)
+
+Runs once a day after `CBA_RECONCILIATION_HOUR_WAT` (default 06:00), on one API instance (Redis lock). Finance can also run it: `POST /admin/finance/cba/reconciliation/runs`. Results: `GET /admin/finance/cba/reconciliation/runs[/:runId]`.
+
+- **Vault** = Monnify wallet ledger balance (`MONNIFY_SOURCE_ACCOUNT_NUMBER`).
+- **Book** = every active customer/agent CBA account, plus the sales and Pending Withdrawals accounts.
+- **Obligations** = customer and agent accounts + Pending Withdrawals − withdrawals already paid out but not yet settled + top-ups received but not yet credited.
+- **Coverage** = vault − obligations. Negative → `SHORTFALL` (critical).
+- **Pending Withdrawals** must equal the sum of unfinished withdrawals in SureWina's records. Otherwise → `MISMATCH`.
+- Any unreadable balance → `INCOMPLETE`. A failed read is never taken as zero.
+- The remaining vault-vs-book difference (Monnify fees, prize bank payouts, SureWina's own transfers) is recorded and raised as a warning past `CBA_RECONCILIATION_TOLERANCE_NGN`. It does not fail the run, because vault and book are not expected to match to the naira.
+- Nothing is corrected automatically. Amounts are stored in kobo (BigInt).
+- Rollout gate `cba.reconciliation`: once any CBA money switch is on, the latest run must be under 36 hours old and `PASS`.
+
+### Retry sweep (`CBA_RECOVERY_SWEEP_ENABLED`)
+
+Every 5 minutes, on one API instance:
+
+- Withdrawals waiting in `LOCKED`, `PAYOUT_PENDING` or `PAID` are moved on, the same as finance pressing refresh.
+- Owed commission and prize reimbursements are sent if they were written down but never sent, or retried if refused because the CBA was switched off.
+- A refusal by the CBA itself is left for finance: `POST /admin/finance/cba/transfers/:id/retry`.
+- **Uncertain transfers are never retried.** Finance sees them at `GET /admin/finance/cba/transfers` and checks Witmango's records.
+
+### Still not built
+
+- Resolving an uncertain transfer (recording that it did or did not post, and carrying the purchase, sale, prize or withdrawal on from there).
+- **UNVERIFIED:** that Monnify settles reserved-account collections into the same wallet `MONNIFY_SOURCE_ACCOUNT_NUMBER` reads. If collections settle to a bank account instead, the vault is two balances and this needs a second source.
+- Reading every account one by one scales with the number of wallets (five at a time). If Witmango offers a bulk balance listing, it should replace this.

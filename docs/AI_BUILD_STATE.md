@@ -92,7 +92,8 @@ Separate from AGENT-MOBILE-01, and **not accepted**. Every switch defaults off.
 - Built 2026-11-15: customer wallet ticket purchase paid from CBA (Deposit, then Winnings); agent sale paid in full from Float with commission to Earnings; `cba_transfers` step record; rollout check `cba.transfers`. See `docs/WITMANGO_CBA_INTEGRATION.md` section 5.
 - Not run against any real provider. Needs Witmango and Monnify sandboxes.
 - Built 2026-11-15: cash prizes to Winnings by winner's choice; agent-paid prizes reimbursed to Earnings; saved BVN-matched withdrawal accounts with cooling-off; withdrawals (lock to Pending Withdrawals, Monnify payout, settle or restore) with limits that refuse when unset. See `docs/WITMANGO_CBA_INTEGRATION.md` sections 6-8.
-- Next: read balances from the CBA; reconciliation and retry sweep (resolves uncertain transfers, owed commission, unsettled withdrawals); wallet screens.
+- Built 2026-11-15: daily vault-against-book reconciliation (coverage and Pending Withdrawals checks, stored runs, rollout gate) and a retry sweep for safe repeats. See `docs/WITMANGO_CBA_INTEGRATION.md` section 9.
+- Next: read balances from the CBA; resolving uncertain transfers; wallet screens (customer web, agent web, mobile) — deferred by the user.
 
 ## Previous Finance Context
 

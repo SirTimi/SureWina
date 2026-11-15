@@ -231,6 +231,27 @@ export const envValidationSchema = Joi.object({
   WITHDRAWAL_APPROVAL_THRESHOLD_NGN:
     Joi.number().integer().min(0).default(0),
 
+  // Daily vault-against-book reconciliation for CBA wallets. Reads every CBA
+  // account and the Monnify wallet balance. Off unless deliberately enabled;
+  // finance can also run it by hand.
+  CBA_RECONCILIATION_ENABLED:
+    Joi.boolean().default(false),
+
+  // The WAT hour at which the daily run happens.
+  CBA_RECONCILIATION_HOUR_WAT:
+    Joi.number().integer().min(0).max(23).default(6),
+
+  // How far the full vault-against-book difference may drift, in naira,
+  // before it is raised as an issue. Coverage itself has no tolerance.
+  CBA_RECONCILIATION_TOLERANCE_NGN:
+    Joi.number().integer().min(0).default(0),
+
+  // The retry sweep: moves on withdrawals waiting on Monnify or the CBA,
+  // and sends owed commission and prize reimbursements that never went out.
+  // Only ever repeats what is proven safe to repeat. Off unless enabled.
+  CBA_RECOVERY_SWEEP_ENABLED:
+    Joi.boolean().default(false),
+
   // BVN verification is live-only at Monnify and costs ₦10 per successful
   // check from the Monnify balance. Off unless deliberately enabled.
   MONNIFY_IDENTITY_VERIFICATION_ENABLED:
