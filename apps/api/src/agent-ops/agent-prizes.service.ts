@@ -9,9 +9,12 @@ import {
   AgentStatus,
   AuditActorType,
   AuditSeverity,
+  CbaTransferPurpose,
+  CbaTransferStatus,
   ClaimType,
   PrizeClaimStatus,
   Prisma,
+  WitmangoWalletPurpose,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -19,6 +22,8 @@ import { WhtDeductionService } from '../claims/wht-deduction.service';
 import { SettingsService } from '../config/settings.service';
 import { AgentAccountingService } from './agent-accounting.service';
 import { WalletService } from '../wallet/wallet.service';
+import { WitmangoWalletLinkService } from '../integrations/witmango/witmango-wallet-link.service';
+import { WitmangoTransferService } from '../integrations/witmango/witmango-transfer.service';
 
 // Claims an agent may settle in cash: not yet in KYC, not terminal.
 const AGENT_PAYABLE: PrizeClaimStatus[] = [
@@ -38,6 +43,8 @@ export class AgentPrizesService {
     private readonly settings: SettingsService,
     private readonly agentAccounting: AgentAccountingService,
     private readonly wallets: WalletService,
+    private readonly cbaLinks: WitmangoWalletLinkService,
+    private readonly cbaTransfers: WitmangoTransferService,
   ) {}
 
   async lookup(ticketRefRaw: string) {
@@ -85,6 +92,20 @@ export class AgentPrizesService {
     const reference = `AGT-CASH-${agent.agentCode}-${Date.now()}`;
     const paidAt = new Date();
 
+    // An agent who sells from CBA Float is repaid into CBA Earnings, from
+    // SureWina's sales account. Everyone else keeps the ledger wallet.
+    const cba =
+      this.cbaTransfers.isSpendingEnabled() &&
+      (await this.cbaLinks.getState(wallet.walletId)) === 'READY'
+        ? {
+            earnings: await this.cbaLinks.getActiveAccount(
+              wallet.walletId,
+              WitmangoWalletPurpose.EARNINGS,
+            ),
+            sales: this.cbaTransfers.salesEndpoint(),
+          }
+        : null;
+
     const payout = await this.prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`
@@ -125,16 +146,33 @@ export class AgentPrizesService {
           );
         }
 
-        await this.agentAccounting.recordAgentPrizePayoutInTransaction(
-          tx,
-          {
-            claim: current,
-            agentId,
-            walletId: wallet.walletId,
-            reference,
-            occurredAt: paidAt,
-          },
-        );
+        // CBA: the reimbursement is written down here, with the claim, and
+        // sent after the commit. The cash has already been handed over, so
+        // the claim is paid either way; a reimbursement that does not post
+        // is owed to the agent, never a reason to undo the payment.
+        const reimbursement = cba
+          ? await this.cbaTransfers.createInTransaction(tx, {
+              purpose: CbaTransferPurpose.PRIZE_REIMBURSEMENT,
+              walletId: wallet.walletId,
+              from: cba.sales,
+              to: this.cbaTransfers.endpoint(cba.earnings),
+              amountNgn: current.netPrizeValueNgn,
+              prizeClaimId: current.claimId,
+            })
+          : null;
+
+        if (!reimbursement) {
+          await this.agentAccounting.recordAgentPrizePayoutInTransaction(
+            tx,
+            {
+              claim: current,
+              agentId,
+              walletId: wallet.walletId,
+              reference,
+              occurredAt: paidAt,
+            },
+          );
+        }
 
         await tx.prizeClaim.update({
           where: { claimId: current.claimId },
@@ -154,6 +192,7 @@ export class AgentPrizesService {
 
         return {
           amountNgn: current.netPrizeValueNgn,
+          reimbursementId: reimbursement?.transferId ?? null,
         };
       },
       {
@@ -163,6 +202,50 @@ export class AgentPrizesService {
     );
 
     await this.whtDeductions.recordForClaim(claim.claimId);
+
+    let reimbursementStatus: CbaTransferStatus | null = null;
+
+    if (payout.reimbursementId) {
+      try {
+        reimbursementStatus = (
+          await this.cbaTransfers.execute(payout.reimbursementId)
+        ).status;
+      } catch (error) {
+        reimbursementStatus = CbaTransferStatus.SENDING;
+
+        this.logger.error(
+          `Prize reimbursement for ${claim.winnerTicketRef} not recorded: ${
+            error instanceof Error ? error.message : 'unknown'
+          }`,
+        );
+      }
+
+      if (reimbursementStatus !== CbaTransferStatus.POSTED) {
+        await this.audit
+          .write({
+            severity: AuditSeverity.WARNING,
+            actor: { type: AuditActorType.AGENT, id: agentId },
+            action: 'AGENT_PRIZE_REIMBURSEMENT_NOT_POSTED',
+            resource: { type: 'CbaTransfer', id: payout.reimbursementId },
+            metadata: {
+              claimId: claim.claimId,
+              amountNgn: payout.amountNgn,
+              status: reimbursementStatus,
+            },
+          })
+          .catch(() => undefined);
+      }
+    }
+
+    const fundingSource = payout.reimbursementId ? 'CBA' : 'LEDGER';
+
+    // What reached the agent's balance now. On the CBA path, only a posted
+    // reimbursement counts; anything else is owed.
+    const walletCreditedNgn =
+      !payout.reimbursementId ||
+      reimbursementStatus === CbaTransferStatus.POSTED
+        ? payout.amountNgn
+        : 0;
 
     const walletAfter =
       await this.wallets.getWallet(wallet.walletId);
@@ -177,14 +260,16 @@ export class AgentPrizesService {
         ticketRef: claim.winnerTicketRef,
         amountNgn: payout.amountNgn,
         grossPrizeValueNgn: claim.grossPrizeValueNgn,
-        walletCreditedNgn: payout.amountNgn,
+        walletCreditedNgn,
         walletBalanceNgn: walletAfter.availableNgn,
+        fundingSource,
+        reimbursementStatus,
         reference,
       },
     });
 
     this.logger.log(
-      `Agent prize payout: ${agent.agentCode} paid NGN ${payout.amountNgn.toLocaleString('en-NG')} for ${claim.winnerTicketRef}; wallet reimbursed immediately`,
+      `Agent prize payout: ${agent.agentCode} paid NGN ${payout.amountNgn.toLocaleString('en-NG')} for ${claim.winnerTicketRef}; reimbursement ${fundingSource === 'CBA' ? reimbursementStatus : 'posted to ledger wallet'}`,
     );
 
     return {
@@ -192,8 +277,11 @@ export class AgentPrizesService {
       reference,
       ticketRef: claim.winnerTicketRef,
       amountNgn: payout.amountNgn,
-      walletCreditedNgn: payout.amountNgn,
+      walletCreditedNgn,
       walletBalanceNgn: walletAfter.availableNgn,
+      fundingSource,
+      // CBA only: whether the reimbursement reached Earnings.
+      reimbursementStatus,
     };
   }
 

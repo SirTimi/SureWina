@@ -1632,6 +1632,7 @@ model PrizeClaim {
   agentPayoutLedgerTxn  LedgerTransaction? @relation("PrizeClaimAgentPayoutLedger", fields: [agentPayoutLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
   payoutAttempts PrizePayoutAttempt[]
+  cbaTransfers   CbaTransfer[]
 
   // Fulfilment
   collectionPointId     String?   @map("collection_point_id")
@@ -1750,6 +1751,10 @@ enum PrizeClaimStatus {
   DELIVERED
   CASH_PAID
   FORFEITED
+  // The winner chose their CBA Winnings account and the credit has been
+  // sent. Left here if the CBA's answer was uncertain, for a person to
+  // resolve; never forfeited, never re-chosen.
+  WALLET_CREDIT_PENDING
 }
 
 enum PrizePayoutStatus {
@@ -2270,6 +2275,12 @@ enum CbaTransferPurpose {
   AGENT_COMMISSION
   // Undoes one earlier transfer: the same amount in the opposite direction.
   REVERSAL
+  // SureWina sales account -> customer Winnings: a cash prize the winner
+  // chose to take into their wallet, net of WHT.
+  PRIZE_CREDIT
+  // SureWina sales account -> agent Earnings: repays a prize the agent paid
+  // out in cash from their own till.
+  PRIZE_REIMBURSEMENT
 }
 
 enum CbaTransferStatus {
@@ -2315,6 +2326,7 @@ model CbaTransfer {
 
   walletPurchaseId String? @map("wallet_purchase_id")
   paymentTxnId     String? @map("payment_txn_id")
+  prizeClaimId     String? @map("prize_claim_id")
 
   // An agent sale's reference, known before its payment record exists.
   saleReference String? @map("sale_reference") @db.VarChar(64)
@@ -2337,6 +2349,7 @@ model CbaTransfer {
   wallet         Wallet              @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
   walletPurchase WalletPurchase?     @relation(fields: [walletPurchaseId], references: [purchaseId], onDelete: Restrict)
   payment        PaymentTransaction? @relation(fields: [paymentTxnId], references: [txnId], onDelete: Restrict)
+  prizeClaim     PrizeClaim?         @relation(fields: [prizeClaimId], references: [claimId], onDelete: Restrict)
 
   reverses   CbaTransfer? @relation("CbaTransferReversal", fields: [reversesTransferId], references: [transferId], onDelete: Restrict)
   reversedBy CbaTransfer? @relation("CbaTransferReversal")
@@ -2345,6 +2358,7 @@ model CbaTransfer {
   @@index([walletId, createdAt])
   @@index([walletPurchaseId])
   @@index([paymentTxnId])
+  @@index([prizeClaimId])
   @@index([saleReference])
   @@map("cba_transfers")
 }

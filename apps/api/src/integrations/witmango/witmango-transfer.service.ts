@@ -42,6 +42,7 @@ export type CbaTransferDraft = {
   amountNgn: number;
   walletPurchaseId?: string | null;
   paymentTxnId?: string | null;
+  prizeClaimId?: string | null;
   saleReference?: string | null;
   reversesTransferId?: string | null;
 };
@@ -226,6 +227,7 @@ export class WitmangoTransferService {
         amountNgn: original.amountNgn,
         walletPurchaseId: original.walletPurchaseId,
         paymentTxnId: original.paymentTxnId,
+        prizeClaimId: original.prizeClaimId,
         saleReference: original.saleReference,
         reversesTransferId: original.transferId,
       });
@@ -312,6 +314,7 @@ export class WitmangoTransferService {
       amountNgn: draft.amountNgn,
       walletPurchaseId: draft.walletPurchaseId ?? null,
       paymentTxnId: draft.paymentTxnId ?? null,
+      prizeClaimId: draft.prizeClaimId ?? null,
       saleReference: draft.saleReference ?? null,
       reversesTransferId: draft.reversesTransferId ?? null,
     };

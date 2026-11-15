@@ -16,6 +16,9 @@ import { RedemptionController } from './redemption.controller';
 
 import { MonnifyModule } from '../integrations/monnify/monnify.module';
 import { LedgerModule } from '../ledger/ledger.module';
+import { WalletModule } from '../wallet/wallet.module';
+import { WitmangoModule } from '../integrations/witmango/witmango.module';
+import { PrizeWalletCreditService } from './prize-wallet-credit.service';
 
 import { DevPrizePayoutProvider } from './payout/dev-prize-payout.provider';
 
@@ -56,6 +59,8 @@ import { PaystackPrizePayoutProvider } from './payout/paystack-prize-payout.prov
     JwtModule.register({}),
     MonnifyModule,
     LedgerModule,
+    WalletModule,
+    WitmangoModule,
   ],
 
   controllers: [
@@ -67,6 +72,7 @@ import { PaystackPrizePayoutProvider } from './payout/paystack-prize-payout.prov
 
   providers: [
     ClaimsService,
+    PrizeWalletCreditService,
 
     BvnVerificationService,
     BankResolveService,

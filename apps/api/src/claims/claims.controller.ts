@@ -25,13 +25,15 @@ import {
 } from './dto/bank-change.dto'
 
 import { BankChangeStepUpService } from '../payout-accounts/bank-change-step-up.service'
+import { PrizeWalletCreditService } from './prize-wallet-credit.service'
 @Controller('claims')
 @UseGuards(CustomerJwtGuard)
 export class ClaimsController {
   constructor(
     private readonly claimsService: ClaimsService,
     private readonly identityCoordinator: PaystackIdentityCoordinatorService,
-    private readonly bankChange: BankChangeStepUpService
+    private readonly bankChange: BankChangeStepUpService,
+    private readonly prizeWalletCredit: PrizeWalletCreditService,
   ) {}
 
   @Get()
@@ -59,6 +61,16 @@ export class ClaimsController {
     @CurrentUser() user: CustomerJwtPayload,
   ) {
     return this.claimsService.choose(claimId, user.phoneNumber, dto.path);
+  }
+
+  // Take a cash prize into the CBA Winnings account instead of a bank
+  // payout. Off unless WITMANGO_PRIZE_CREDITS_ENABLED is on.
+  @Post(':claimId/wallet')
+  creditToWallet(
+    @Param('claimId') claimId: string,
+    @CurrentUser() user: CustomerJwtPayload,
+  ) {
+    return this.prizeWalletCredit.creditToWallet(claimId, user);
   }
 
   @Post(':claimId/kyc/identity/start')

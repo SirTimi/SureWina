@@ -165,6 +165,12 @@ export const envValidationSchema = Joi.object({
   WITMANGO_SALES_ACCOUNT_ID:
     Joi.number().integer().min(1).optional(),
 
+  // Winners may take a cash prize into their CBA Winnings account instead of
+  // a bank payout. Off unless deliberately enabled; needs
+  // WITMANGO_MONETARY_ENABLED and the sales account above.
+  WITMANGO_PRIZE_CREDITS_ENABLED:
+    Joi.boolean().default(false),
+
   // BVN verification is live-only at Monnify and costs ₦10 per successful
   // check from the Monnify balance. Off unless deliberately enabled.
   MONNIFY_IDENTITY_VERIFICATION_ENABLED:

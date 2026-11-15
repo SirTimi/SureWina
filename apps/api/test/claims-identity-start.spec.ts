@@ -51,6 +51,7 @@ describe('Phase 2C: Paystack identity start', () => {
       {} as never,
       coordinator as never,
       {} as never,
+      {} as never,
     );
 
     const dto = Object.assign(

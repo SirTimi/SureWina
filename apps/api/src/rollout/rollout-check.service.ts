@@ -1992,6 +1992,20 @@ export class RolloutCheckService {
             PrizeClaimStatus.CASH_PAID,
         },
         include: {
+          cbaTransfers: {
+            where: {
+              purpose:
+                CbaTransferPurpose.PRIZE_REIMBURSEMENT,
+            },
+            select: {
+              amountNgn: true,
+              wallet: {
+                select: {
+                  agentId: true,
+                },
+              },
+            },
+          },
           agentPayoutLedgerTxn: {
             include: {
               entries: {
@@ -2014,6 +2028,8 @@ export class RolloutCheckService {
       0;
     let legacyReceivable =
       0;
+    let cbaReimbursements =
+      0;
 
     for (
       const claim
@@ -2021,6 +2037,34 @@ export class RolloutCheckService {
     ) {
       const journal =
         claim.agentPayoutLedgerTxn;
+
+      // Repaid into the agent's CBA Earnings: no SureWina journal, one
+      // reimbursement transfer for the net prize instead. Whether it has
+      // posted is checked by cba.transfers, which blocks while it is owed.
+      const reimbursements =
+        claim.cbaTransfers ?? [];
+
+      if (reimbursements.length > 0) {
+        cbaReimbursements += 1;
+
+        if (
+          journal ||
+          reimbursements.length !== 1 ||
+          reimbursements[0].amountNgn !==
+            claim.netPrizeValueNgn ||
+          reimbursements[0].wallet?.agentId !==
+            claim.paidByAgentId
+        ) {
+          problems.push({
+            claimId:
+              claim.claimId,
+            reason:
+              'CBA agent prize reimbursement must be one transfer of the net prize to the paying agent, with no ledger journal',
+          });
+        }
+
+        continue;
+      }
 
       if (
         !journal ||
@@ -2153,7 +2197,7 @@ export class RolloutCheckService {
       ? this.pass(
           'agent.prize-reimbursement',
           'Agent prize reimbursement',
-          `${walletReimbursements} wallet reimbursement(s) are consistent; ${legacyReceivable} legacy receivable-backed payout(s) remain historical.`,
+          `${walletReimbursements} wallet reimbursement(s) are consistent; ${cbaReimbursements} CBA Earnings reimbursement(s) are consistent; ${legacyReceivable} legacy receivable-backed payout(s) remain historical.`,
         )
       : this.blocker(
           'agent.prize-reimbursement',
@@ -2335,6 +2379,7 @@ export class RolloutCheckService {
               purpose: {
                 in: [
                   CbaTransferPurpose.AGENT_COMMISSION,
+                  CbaTransferPurpose.PRIZE_REIMBURSEMENT,
                   CbaTransferPurpose.REVERSAL,
                 ],
               },
@@ -2349,6 +2394,7 @@ export class RolloutCheckService {
           amountNgn: true,
           walletPurchaseId: true,
           paymentTxnId: true,
+          prizeClaimId: true,
           saleReference: true,
         },
         orderBy: { createdAt: 'asc' },

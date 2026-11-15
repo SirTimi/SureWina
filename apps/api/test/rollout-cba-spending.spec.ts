@@ -122,6 +122,36 @@ describe('Rollout checks for CBA-funded spending', () => {
     expect(result.status).toBe('BLOCKER');
   });
 
+  function prizePrisma(claim: Record<string, unknown>) {
+    return {
+      prizeClaim: { findMany: jest.fn().mockResolvedValue([claim]) },
+    };
+  }
+
+  const agentPaidClaim = {
+    claimId: 'claim-9',
+    paidByAgentId: 'agent-1',
+    netPrizeValueNgn: 20_000,
+    agentPayoutLedgerTxn: null,
+    cbaTransfers: [{ amountNgn: 20_000, wallet: { agentId: 'agent-1' } }],
+  };
+
+  it('accepts an agent prize reimbursed into CBA Earnings, with no ledger journal', async () => {
+    const result = await service(prizePrisma(agentPaidClaim)).checkAgentPrizeReimbursements();
+    expect(result.status).toBe('PASS');
+    expect(result.summary).toContain('1 CBA Earnings reimbursement');
+  });
+
+  it.each([
+    ['the wrong amount', { cbaTransfers: [{ amountNgn: 19_000, wallet: { agentId: 'agent-1' } }] }],
+    ['the wrong agent', { cbaTransfers: [{ amountNgn: 20_000, wallet: { agentId: 'agent-2' } }] }],
+  ])('blocks a CBA prize reimbursement to %s', async (_label, overrides) => {
+    const result = await service(
+      prizePrisma({ ...agentPaidClaim, ...overrides }),
+    ).checkAgentPrizeReimbursements();
+    expect(result.status).toBe('BLOCKER');
+  });
+
   it('passes when every CBA transfer is settled', async () => {
     const result = await service({
       cbaTransfer: { findMany: jest.fn().mockResolvedValue([]) },
@@ -143,7 +173,7 @@ describe('Rollout checks for CBA-funded spending', () => {
         expect.objectContaining({ status: CbaTransferStatus.SENDING }),
         expect.objectContaining({
           status: CbaTransferStatus.FAILED,
-          purpose: { in: [CbaTransferPurpose.AGENT_COMMISSION, CbaTransferPurpose.REVERSAL] },
+          purpose: { in: [CbaTransferPurpose.AGENT_COMMISSION, CbaTransferPurpose.PRIZE_REIMBURSEMENT, CbaTransferPurpose.REVERSAL] },
         }),
       ]),
     );

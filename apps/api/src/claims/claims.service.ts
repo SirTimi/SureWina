@@ -21,6 +21,7 @@ import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { BankResolveService } from './kyc/bank-resolve.service';
 import { StorageService } from '../storage/storage.service';
+import { computeWht } from './wht-calculation';
 import { WhtDeductionService } from './wht-deduction.service';
 import { SettingsService } from '../config/settings.service';
 import { RedemptionService } from './redemption.service';
@@ -919,16 +920,8 @@ async reviewKyc(
     return this.toView(updated);
   }
 
-  // WHT applies to CASH prizes at/above the threshold. Integer naira,
-  // rounded down in the winner's favour on the tax side.
+  // WHT applies to CASH prizes at/above the threshold. See wht-calculation.
   private async computeWht(grossNgn: number, path: ClaimType) {
-    const rate = await this.settings.getNumber('WHT_RATE_PERCENT', 5);
-    const threshold = await this.settings.getNumber('WHT_THRESHOLD_NGN', 0);
-
-    if (path !== ClaimType.CASH || grossNgn < threshold || rate === 0) {
-      return { whtApplicable: false, whtAmountNgn: 0, netPrizeValueNgn: grossNgn };
-    }
-    const whtAmountNgn = Math.floor((grossNgn * rate) / 100);
-    return { whtApplicable: true, whtAmountNgn, netPrizeValueNgn: grossNgn - whtAmountNgn };
+    return computeWht(this.settings, grossNgn, path);
   }
 }
