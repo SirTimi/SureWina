@@ -185,15 +185,43 @@ describe('Witmango CBA monetary operations', () => {
     }
   });
 
-  it('rejects a response that names a different account', async () => {
+    it('treats a success with an unexpected body as uncertain, not failed', async () => {
     const h = harness();
     try {
       h.fetchMock.mockResolvedValue(
         jsonResponse(200, { resourceId: 91, savingsId: 11 }),
       );
       await expect(h.client.deposit(movement)).rejects.toBeInstanceOf(
-        BadGatewayException,
+        WitmangoUncertainOutcomeError,
       );
+    } finally {
+      h.restore();
+    }
+  });
+
+  it('treats an unreadable success response to a write as uncertain', async () => {
+    const h = harness();
+    try {
+      h.fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: jest.fn(async () => { throw new Error('bad json'); }),
+      } as unknown as Response);
+      await expect(h.client.deposit(movement)).rejects.toBeInstanceOf(
+        WitmangoUncertainOutcomeError,
+      );
+    } finally {
+      h.restore();
+    }
+  });
+
+  it('treats a refusal by the CBA as a definite failure', async () => {
+    const h = harness();
+    try {
+      h.fetchMock.mockResolvedValue(jsonResponse(403, {}));
+      const error = await h.client.deposit(movement).catch((e) => e);
+      expect(error).toBeInstanceOf(BadGatewayException);
+      expect(error).not.toBeInstanceOf(WitmangoUncertainOutcomeError);
     } finally {
       h.restore();
     }

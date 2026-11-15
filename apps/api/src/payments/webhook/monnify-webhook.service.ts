@@ -7,6 +7,7 @@ import { PurchaseConfirmationService } from '../purchase-confirmation.service';
 import { PaymentVerificationService } from '../payment-verification.service';
 import { WalletFundingService } from '../wallet-funding.service';
 import { NotificationQueueService } from '../../queue/notification-queue.service';
+import { ReservedAccountTopUpService } from '../reserved-account-topup.service';
 
 type MonnifyCollectionWebhook = {
   eventType?: string;
@@ -15,6 +16,12 @@ type MonnifyCollectionWebhook = {
     paymentReference?: string;
     transactionReference?: string;
     paymentStatus?: string;
+    amountPaid?: number | string;
+
+    product?: {
+      type?: string;
+      reference?: string;
+    };
   };
 };
 
@@ -37,6 +44,9 @@ export class MonnifyWebhookService {
 
     private readonly notificationQueue:
       NotificationQueueService,
+
+    private readonly reservedAccountTopUps:
+      ReservedAccountTopUpService,
   ) {}
 
   async handle(
@@ -54,6 +64,37 @@ export class MonnifyWebhookService {
       this.logger.debug(
         `Ignoring Monnify collection event: ${eventType ?? 'unknown'}`,
       );
+
+      return;
+    }
+
+    /*
+     * A transfer into a reserved account is handled on its own path.
+     *
+     * Every other payment here was started by the customer, so a record of
+     * it already exists to be matched. A transfer into a reserved account
+     * arrives unannounced: there is nothing to match, and the lookups below
+     * would find nothing and drop it. It also credits the CBA rather than
+     * the internal ledger.
+     */
+    if (
+      this.reservedAccountTopUps.isReservedAccountEvent(
+        event,
+      )
+    ) {
+      try {
+        await this.reservedAccountTopUps.handle(
+          event,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Reserved account top-up failed: ${
+            error instanceof Error
+              ? error.message
+              : 'unknown'
+          }`,
+        );
+      }
 
       return;
     }

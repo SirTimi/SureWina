@@ -34,6 +34,8 @@ import { WalletFundingAdminController } from './wallet-funding-admin.controller'
 import { WalletTicketPurchaseController } from './wallet-ticket-purchase.controller';
 import { WalletTicketPurchaseService } from './wallet-ticket-purchase.service';
 import { PaystackDriver } from './gateway/paystack.driver'
+import { WitmangoModule } from '../integrations/witmango/witmango.module';
+import { ReservedAccountTopUpService } from './reserved-account-topup.service';
 
 @Module({
   controllers: [
@@ -64,7 +66,8 @@ import { PaystackDriver } from './gateway/paystack.driver'
     WalletFundingService,
     CustomerJwtGuard,
     WalletTicketPurchaseService,
-    JackpotOffersService
+    JackpotOffersService,
+    ReservedAccountTopUpService
   ],
   exports: [
     PaymentsService,
@@ -80,7 +83,8 @@ import { PaystackDriver } from './gateway/paystack.driver'
     WalletModule,
     ClaimsModule,
     LedgerModule,
-    MonnifyModule
+    MonnifyModule,
+    WitmangoModule
   ],  
 })
 export class PaymentsModule {}

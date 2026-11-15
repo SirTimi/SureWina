@@ -174,4 +174,14 @@ export const envValidationSchema = Joi.object({
 
   MONNIFY_AGENT_LIMIT_PROFILE_CODE:
     Joi.string().trim().max(40).allow('').default(''),
+  
+  // Backstop deposit limits. Monnify's limit profile is the real limit and
+  // refuses an over-limit transfer at the bank; these catch the case where
+  // that profile is wrong or missing. A deposit above the backstop is held
+  // for finance, not credited. 0 disables the backstop.
+  WALLET_TOPUP_BACKSTOP_CUSTOMER_NGN:
+    Joi.number().integer().min(0).default(0),
+
+  WALLET_TOPUP_BACKSTOP_AGENT_NGN:
+    Joi.number().integer().min(0).default(0),
 });

@@ -526,15 +526,15 @@ export class WitmangoClientService {
       },
     );
 
+    // As with deposits: a success status with an unexpected body means the
+    // transfer may have happened. Uncertain, never "failed".
     if (
       !isRecord(result) ||
       !Number.isSafeInteger(result.resourceId) ||
       Number(result.resourceId) <= 0 ||
       result.savingsId !== fromAccount
     ) {
-      throw new BadGatewayException(
-        'Witmango transfer returned an unexpected response',
-      );
+      throw new WitmangoUncertainOutcomeError();
     }
 
     return {
@@ -651,15 +651,16 @@ export class WitmangoClientService {
       },
     );
 
+    // The CBA answered with success but not in the shape expected. The money
+    // may well have moved — so this is an uncertain outcome, not a failure.
+    // Treating it as a failure would invite a retry and a double posting.
     if (
       !isRecord(result) ||
       !Number.isSafeInteger(result.resourceId) ||
       Number(result.resourceId) <= 0 ||
       result.savingsId !== id
     ) {
-      throw new BadGatewayException(
-        `Witmango ${command} returned an unexpected response`,
-      );
+      throw new WitmangoUncertainOutcomeError();
     }
 
     return {
@@ -786,6 +787,12 @@ export class WitmangoClientService {
     try {
       return await response.json() as unknown;
     } catch {
+      // A write that succeeded upstream but came back unreadable has still
+      // happened. Only a read can safely be called a plain failure here.
+      if (method === 'POST') {
+        throw new WitmangoUncertainOutcomeError();
+      }
+
       throw new BadGatewayException(
         'Witmango returned invalid JSON',
       );

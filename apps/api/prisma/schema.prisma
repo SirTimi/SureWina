@@ -616,6 +616,12 @@ model WalletFunding {
   providerTransactionId String? @map("provider_transaction_id")
 
   ledgerTxnId String? @unique @map("ledger_txn_id")
+  // Set when a funding is credited to the CBA rather than the internal
+  // ledger. The reference is written BEFORE the deposit is attempted, so a
+  // deposit whose outcome was never heard can be found again.
+  cbaReference        String? @unique @map("cba_reference") @db.VarChar(50)
+  cbaTransactionId    Int?    @map("cba_transaction_id")
+  cbaSavingsAccountId Int?    @map("cba_savings_account_id")
 
   failureReason       String? @map("failure_reason")
   verificationPayload Json?   @map("verification_payload")
