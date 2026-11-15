@@ -778,6 +778,14 @@ export class WitmangoClientService {
     }
 
     if (!response.ok) {
+      // A server-side failure on a write is not a refusal. A gateway timeout
+      // or a 500 can come back after the CBA has already posted, so the
+      // write may have happened. Only a 4xx — the CBA declining the request
+      // as sent — is a definite "no".
+      if (method === 'POST' && response.status >= 500) {
+        throw new WitmangoUncertainOutcomeError();
+      }
+
       // Do not expose upstream error bodies or credentials.
       throw new BadGatewayException(
         `Witmango request failed with HTTP ${response.status}`,

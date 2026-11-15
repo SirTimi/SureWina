@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import {
   AgentStatus,
   AuditSeverity,
+  CbaTransferPurpose,
+  CbaTransferStatus,
   FinancialMigrationRunStatus,
   JackpotDiscountOfferStatus,
   LedgerAccountType,
@@ -22,6 +24,7 @@ import {
   TreasuryAccountStatus,
   WalletFundingStatus,
   WalletHoldStatus,
+  WalletPurchaseFundingSource,
   WalletPurchaseStatus,
   WalletWithdrawalStatus,
 } from '@prisma/client';
@@ -97,6 +100,7 @@ export class RolloutCheckService {
       await this.checkAgentPrizeReimbursements(),
       await this.checkBankPrizePayouts(),
       await this.checkCbaWithdrawalHolds(),
+      await this.checkCbaTransfers(),
       await this.checkRetiredDebtSuspensions(),
       await this.checkReconciliation(),
       await this.checkSuspenseBalance(options.production),
@@ -1106,6 +1110,13 @@ export class RolloutCheckService {
                 true,
             },
           },
+          cbaTransfers: {
+            select: {
+              purpose: true,
+              status: true,
+              amountNgn: true,
+            },
+          },
           hold: {
             include: {
               holdLedgerTxn: {
@@ -1153,6 +1164,71 @@ export class RolloutCheckService {
             ticket.faceValueNgn,
           0,
         );
+
+      // Paid by CBA transfer: no ledger hold, so the evidence is the
+      // transfers themselves. They must add up to the purchase, and none
+      // may have been sent back.
+      if (
+        purchase.fundingSource ===
+        WalletPurchaseFundingSource.CBA
+      ) {
+        const legs =
+          purchase.cbaTransfers ?? [];
+
+        const paidNgn = legs
+          .filter(
+            (leg) =>
+              leg.purpose ===
+                CbaTransferPurpose.WALLET_PURCHASE &&
+              leg.status ===
+                CbaTransferStatus.POSTED,
+          )
+          .reduce(
+            (sum, leg) =>
+              sum + leg.amountNgn,
+            0,
+          );
+
+        const anyReturned = legs.some(
+          (leg) =>
+            leg.purpose ===
+              CbaTransferPurpose.REVERSAL &&
+            leg.status ===
+              CbaTransferStatus.POSTED,
+        );
+
+        if (
+          !purchase.completedAt ||
+          purchase.holdId ||
+          anyReturned ||
+          paidNgn !==
+            purchase.amountNgn ||
+          purchase.tickets.length !==
+            purchase.ticketCount ||
+          ticketFaceValueNgn !==
+            purchase.amountNgn
+        ) {
+          problems.push({
+            purchaseId:
+              purchase.purchaseId,
+            reason:
+              'CBA-funded purchase transfers, ticket count, or summed ticket face value is inconsistent',
+            amountNgn:
+              purchase.amountNgn,
+            ticketCount:
+              purchase.ticketCount,
+            actualTickets:
+              purchase.tickets.length,
+            ticketFaceValueNgn,
+            holdId:
+              purchase.holdId,
+            holdStatus: null,
+            captureLedgerTxnId: null,
+          });
+        }
+
+        continue;
+      }
 
       const hold =
         purchase.hold;
@@ -1345,8 +1421,13 @@ export class RolloutCheckService {
     const pending =
       await this.prisma.walletPurchase.count({
         where: {
-          status:
-            WalletPurchaseStatus.PENDING,
+          status: {
+            in: [
+              WalletPurchaseStatus.PENDING,
+              // CBA-funded purchases whose payment could not be confirmed.
+              WalletPurchaseStatus.REVIEW_REQUIRED,
+            ],
+          },
         },
       });
 
@@ -1592,6 +1673,16 @@ export class RolloutCheckService {
           txnId: true,
           agentId: true,
           amountNgn: true,
+          cbaTransfers: {
+            where: {
+              purpose:
+                CbaTransferPurpose.AGENT_SALE,
+            },
+            select: {
+              status: true,
+              amountNgn: true,
+            },
+          },
           collectionLedgerTxn: {
             select: {
               ledgerTxnId:
@@ -1696,6 +1787,7 @@ export class RolloutCheckService {
 
     let prepaid = 0;
     let legacy = 0;
+    let cbaFunded = 0;
 
     for (
       const sale
@@ -1703,6 +1795,40 @@ export class RolloutCheckService {
     ) {
       const journal =
         sale.collectionLedgerTxn;
+
+      // Paid from the agent's CBA Float. The CBA writes its own accounting,
+      // so there is no SureWina journal; the evidence is one posted float
+      // transfer for the full ticket value.
+      const floatLegs =
+        sale.cbaTransfers ?? [];
+
+      if (floatLegs.length > 0) {
+        cbaFunded += 1;
+
+        const posted = floatLegs.filter(
+          (leg) =>
+            leg.status ===
+            CbaTransferStatus.POSTED,
+        );
+
+        if (
+          journal ||
+          !sale.agentId ||
+          floatLegs.length !== 1 ||
+          posted.length !== 1 ||
+          posted[0].amountNgn !==
+            sale.amountNgn
+        ) {
+          problems.push({
+            txnId:
+              sale.txnId,
+            reason:
+              'CBA-funded agent sale must have exactly one posted float transfer for the gross amount and no ledger journal',
+          });
+        }
+
+        continue;
+      }
 
       if (
         !journal ||
@@ -1835,7 +1961,7 @@ export class RolloutCheckService {
       ? this.pass(
           'agent.sales',
           'Agent sale accounting',
-          `${prepaid} prepaid sale(s) are mathematically consistent; ${legacy} legacy receivable-backed sale(s) remain classified for history.`,
+          `${prepaid} prepaid sale(s) are mathematically consistent; ${cbaFunded} CBA float-funded sale(s) carry one posted float transfer each; ${legacy} legacy receivable-backed sale(s) remain classified for history.`,
         )
       : this.blocker(
           'agent.sales',
@@ -1843,6 +1969,7 @@ export class RolloutCheckService {
           `${problems.length} agent sale accounting issue(s) found.`,
           {
             prepaid,
+            cbaFunded,
             legacy,
             problems:
               problems.slice(
@@ -2169,6 +2296,81 @@ export class RolloutCheckService {
    * Phase 6 financial safety gate. This check is read-only and does not
    * assume that a CBA debit means a beneficiary received bank funds.
    */
+  // CBA transfers that are not settled. Each is money a person must look at:
+  //   - SENDING for more than a few minutes, or UNCERTAIN: the CBA may or
+  //     may not have posted it.
+  //   - A commission that did not post: owed to an agent.
+  //   - A return that did not post: a customer's or agent's money is with
+  //     SureWina when it should not be.
+  private async checkCbaTransfers(): Promise<CheckResult> {
+    const staleBefore = new Date(
+      Date.now() - 10 * 60 * 1000,
+    );
+
+    const unsettled =
+      await this.prisma.cbaTransfer.findMany({
+        where: {
+          OR: [
+            {
+              status:
+                CbaTransferStatus.UNCERTAIN,
+            },
+            {
+              status:
+                CbaTransferStatus.SENDING,
+              updatedAt: {
+                lt: staleBefore,
+              },
+            },
+            {
+              status:
+                CbaTransferStatus.PENDING,
+              createdAt: {
+                lt: staleBefore,
+              },
+            },
+            {
+              status:
+                CbaTransferStatus.FAILED,
+              purpose: {
+                in: [
+                  CbaTransferPurpose.AGENT_COMMISSION,
+                  CbaTransferPurpose.REVERSAL,
+                ],
+              },
+            },
+          ],
+        },
+        select: {
+          transferId: true,
+          reference: true,
+          purpose: true,
+          status: true,
+          amountNgn: true,
+          walletPurchaseId: true,
+          paymentTxnId: true,
+          saleReference: true,
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 100,
+      });
+
+    if (unsettled.length > 0) {
+      return this.blocker(
+        'cba.transfers',
+        'CBA transfers settled',
+        `${unsettled.length} CBA transfer(s) are uncertain, stuck, or owed.`,
+        unsettled,
+      );
+    }
+
+    return this.pass(
+      'cba.transfers',
+      'CBA transfers settled',
+      'No CBA transfer is uncertain, stuck, or owed.',
+    );
+  }
+
   private async checkCbaWithdrawalHolds(): Promise<CheckResult> {
     const unresolvedStatuses: WalletWithdrawalStatus[] = [
       WalletWithdrawalStatus.RESERVED,

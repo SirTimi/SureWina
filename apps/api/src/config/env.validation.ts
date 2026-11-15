@@ -148,6 +148,23 @@ export const envValidationSchema = Joi.object({
   WITMANGO_PAYMENT_TYPE_ID:
     Joi.number().integer().min(1).optional(),
 
+  // Spending from CBA wallets: customer ticket purchases and agent sales are
+  // paid by transfer between CBA savings accounts instead of from the
+  // SureWina ledger wallet. Only wallets whose CBA pair is fully active use
+  // it; every other wallet keeps the ledger path. Off unless deliberately
+  // enabled, and needs WITMANGO_MONETARY_ENABLED as well.
+  WITMANGO_WALLET_SPENDING_ENABLED:
+    Joi.boolean().default(false),
+
+  // SureWina's own CBA savings account that ticket money is transferred to,
+  // and agent commission is paid from. Opened by Witmango; office is
+  // WITMANGO_OFFICE_ID.
+  WITMANGO_SALES_CLIENT_ID:
+    Joi.number().integer().min(1).optional(),
+
+  WITMANGO_SALES_ACCOUNT_ID:
+    Joi.number().integer().min(1).optional(),
+
   // BVN verification is live-only at Monnify and costs ₦10 per successful
   // check from the Monnify balance. Off unless deliberately enabled.
   MONNIFY_IDENTITY_VERIFICATION_ENABLED:

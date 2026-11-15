@@ -82,3 +82,46 @@ Restart the API and have an authorized Finance admin call `GET /v1/admin/finance
 - Which independent external bank pay-in and bank-payout APIs, if any, does the CBA provide beyond these wallet endpoints?
 
 Do not supply API passwords in chat. Configure them privately on the machine that calls the CBA.
+
+## 5. Spending from CBA wallets (phases 6 and 7)
+
+Status: **built and unit-tested against mocks; not run against a Witmango sandbox; not accepted.** Off by default.
+
+### What it does
+
+- **Customer wallet purchase.** Paid by transfer from the customer's CBA **Deposit** account, then **Winnings** if Deposit is not enough (winnings are the only withdrawable money, so they are spent last), into SureWina's sales account.
+- **Agent sale.** The agent's CBA **Float** pays the **full** ticket value into the sales account. Commission is then paid from the sales account into the agent's **Earnings**, as a separate transfer. No SureWina ledger journal is written for either — the CBA writes its own accounting.
+
+Wallets whose CBA pair is not `READY`, and every wallet while the switch is off, keep the existing ledger path unchanged.
+
+### How it stays safe across two systems
+
+Every movement is a row in `cba_transfers`, written **before** it is sent and claimed once (`PENDING → SENDING → POSTED | FAILED | UNCERTAIN`).
+
+| Step | Customer purchase | Agent sale |
+|---|---|---|
+| 1. Accept | All rules checked, purchase + transfers written, in one DB transaction | Float balance checked, transfer written |
+| 2. Pay | Each transfer sent once | Float transfer sent once |
+| 3. Issue | Tickets created in a second transaction that re-checks the draw is still open | Payment + tickets created the same way, then commission sent |
+
+- **Refused** → nothing issued; anything already taken is transferred back (a `REVERSAL`).
+- **Draw closed mid-payment, or tickets could not be issued** → the money is transferred back.
+- **Uncertain** (timeout, dropped connection, 5xx, unreadable answer) → **stop**: no tickets, nothing further sent, nothing returned on a guess. Purchase becomes `REVIEW_REQUIRED`; the agent is told not to hand over tickets.
+- A return that does not post → `REVIEW_REQUIRED`.
+- A commission that does not post never undoes the sale; it is owed, and the rollout check `cba.transfers` blocks until it is settled.
+- One CBA payment in flight per customer wallet at a time.
+
+### Configuration
+
+| Setting | Meaning |
+|---|---|
+| `WITMANGO_WALLET_SPENDING_ENABLED` | Master switch. Default `false`. |
+| `WITMANGO_MONETARY_ENABLED` | Must also be `true` for anything to move. |
+| `WITMANGO_OFFICE_ID` | Office for every transfer endpoint. |
+| `WITMANGO_SALES_CLIENT_ID`, `WITMANGO_SALES_ACCOUNT_ID` | SureWina's own CBA client and savings account (sales in, commission out). Opened by Witmango. |
+
+### Not built yet
+
+- No tool yet to resolve an `UNCERTAIN` or stale `SENDING` transfer, or to retry an owed commission. They are recorded and block the rollout check; resolution is the reconciliation / retry-sweep increment.
+- **UNVERIFIED:** that a transfer can be found again by the reference sent in `transferDescription`. Until proven in sandbox, uncertain transfers are never retried.
+- Any balance left in a customer's or agent's **ledger** wallet is not moved to the CBA by this; once a wallet spends from the CBA, a ledger balance is stranded until a migration step moves it.

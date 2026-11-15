@@ -16,6 +16,8 @@ import type { CustomerAdminService } from '../src/admin-ops/customer-admin.servi
 import type { AccountService } from '../src/account/account.service';
 import type { AgentAccountingService } from '../src/agent-ops/agent-accounting.service';
 import type { WalletService } from '../src/wallet/wallet.service';
+import type { WitmangoWalletLinkService } from '../src/integrations/witmango/witmango-wallet-link.service';
+import type { WitmangoTransferService } from '../src/integrations/witmango/witmango-transfer.service';
 
 const agentId = 'agent-1';
 const customerPhone = '+2348012345678';
@@ -153,6 +155,9 @@ function harness(unlock = offerUnlock) {
     account as unknown as AccountService,
     accounting as unknown as AgentAccountingService,
     wallets as unknown as WalletService,
+    {} as WitmangoWalletLinkService,
+    // CBA spending off: these tests cover the ledger-funded path.
+    { isSpendingEnabled: () => false } as unknown as WitmangoTransferService,
   );
 
   return {

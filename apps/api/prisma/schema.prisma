@@ -29,16 +29,16 @@ model User {
   bankAccountLast4    String? @map("bank_account_last4")
   bankAccountNameHash String? @map("bank_account_name_hash")
 
-  createdAt              DateTime                @default(now()) @map("created_at")
-  updatedAt              DateTime                @updatedAt @map("updated_at")
-  tickets                Ticket[]
-  paymentTransactions    PaymentTransaction[]
-  jackpotAccumulations   JackpotAccumulation[]
-  jackpotDiscountOffers  JackpotDiscountOffer[]
-  wallet                 Wallet?                 @relation("CustomerWallet")
-  walletPurchases        WalletPurchase[]
-  verifiedPayoutAccounts VerifiedPayoutAccount[]
-  walletWithdrawals      WalletWithdrawal[]
+  createdAt                    DateTime                      @default(now()) @map("created_at")
+  updatedAt                    DateTime                      @updatedAt @map("updated_at")
+  tickets                      Ticket[]
+  paymentTransactions          PaymentTransaction[]
+  jackpotAccumulations         JackpotAccumulation[]
+  jackpotDiscountOffers        JackpotDiscountOffer[]
+  wallet                       Wallet?                       @relation("CustomerWallet")
+  walletPurchases              WalletPurchase[]
+  verifiedPayoutAccounts       VerifiedPayoutAccount[]
+  walletWithdrawals            WalletWithdrawal[]
   verifiedIdentity             VerifiedIdentity?
   identityVerificationAttempts IdentityVerificationAttempt[]
 
@@ -440,6 +440,7 @@ model PaymentTransaction {
   refundSettlementLedgerTxn LedgerTransaction? @relation("PaymentRefundSettlementLedger", fields: [refundSettlementLedgerTxnId], references: [ledgerTxnId], onDelete: Restrict)
 
   treasurySettlementLines TreasurySettlementLine[]
+  cbaTransfers            CbaTransfer[]
 
   @@index([gateway, status])
   @@index([buyerPhone, createdAt])
@@ -615,7 +616,7 @@ model WalletFunding {
 
   providerTransactionId String? @map("provider_transaction_id")
 
-  ledgerTxnId String? @unique @map("ledger_txn_id")
+  ledgerTxnId         String? @unique @map("ledger_txn_id")
   // Set when a funding is credited to the CBA rather than the internal
   // ledger. The reference is written BEFORE the deposit is attempted, so a
   // deposit whose outcome was never heard can be found again.
@@ -1233,8 +1234,9 @@ model Wallet {
   holds           WalletHold[]
   walletPurchases WalletPurchase[]
 
-  witmangoLinks WitmangoWalletLink[]
-  withdrawals  WalletWithdrawal[]
+  witmangoLinks   WitmangoWalletLink[]
+  cbaTransfers    CbaTransfer[]
+  withdrawals     WalletWithdrawal[]
   reservedAccount WalletReservedAccount?
 
   @@index([ownerType, status])
@@ -1342,6 +1344,9 @@ model WalletPurchase {
 
   status WalletPurchaseStatus @default(PENDING)
 
+  fundingSource WalletPurchaseFundingSource @default(LEDGER) @map("funding_source")
+  failureReason String?                     @map("failure_reason") @db.VarChar(64)
+
   holdId String? @unique @map("hold_id")
 
   completedAt DateTime? @map("completed_at")
@@ -1357,7 +1362,8 @@ model WalletPurchase {
   hold WalletHold? @relation("WalletPurchaseHold", fields: [holdId], references: [holdId], onDelete: Restrict)
 
   tickets          Ticket[]
-  walletHold       WalletHold? @relation(fields: [walletHoldHoldId], references: [holdId])
+  cbaTransfers     CbaTransfer[]
+  walletHold       WalletHold?   @relation(fields: [walletHoldHoldId], references: [holdId])
   walletHoldHoldId String?
 
   @@index([buyerUserId, createdAt])
@@ -1365,6 +1371,7 @@ model WalletPurchase {
   @@index([drawId, status])
   @@index([jackpotDiscountOfferId, status])
   @@index([status, createdAt])
+  @@index([walletId, status])
   @@map("wallet_purchases")
 }
 
@@ -1372,6 +1379,19 @@ enum WalletPurchaseStatus {
   PENDING
   COMPLETED
   REVERSED
+  // CBA-funded only. Nothing was taken, or whatever was taken was returned.
+  FAILED
+  // CBA-funded only. Money may have moved and no ticket was issued; a person
+  // must establish what happened before anything else is done with it.
+  REVIEW_REQUIRED
+}
+
+// Where a wallet purchase took its money from. LEDGER is SureWina's own
+// wallet ledger (a hold, then a capture); CBA is a transfer between Witmango
+// savings accounts, recorded step by step in cba_transfers.
+enum WalletPurchaseFundingSource {
+  LEDGER
+  CBA
 }
 
 enum WalletStatus {
@@ -2238,4 +2258,93 @@ model WalletWithdrawal {
   @@index([walletId, status])
   @@index([status, updatedAt])
   @@map("wallet_withdrawals")
+}
+
+// Why money moved between two CBA savings accounts.
+enum CbaTransferPurpose {
+  // Customer Deposit or Winnings -> SureWina sales account.
+  WALLET_PURCHASE
+  // Agent Float -> SureWina sales account, for the full ticket value.
+  AGENT_SALE
+  // SureWina sales account -> agent Earnings.
+  AGENT_COMMISSION
+  // Undoes one earlier transfer: the same amount in the opposite direction.
+  REVERSAL
+}
+
+enum CbaTransferStatus {
+  // Written down; not yet sent.
+  PENDING
+  // Claimed and sent. A record left here means the server stopped mid-call,
+  // and whether the CBA posted it is unknown.
+  SENDING
+  POSTED
+  // A definite refusal. Nothing was posted.
+  FAILED
+  // The CBA may or may not have posted it. Never retried on a guess.
+  UNCERTAIN
+}
+
+// One transfer between two CBA savings accounts, recorded before it is sent.
+//
+// The CBA offers no duplicate protection and its transfers carry no
+// reference field of their own, so this row is the only evidence of what
+// SureWina asked for. It is written first, claimed once, and settled with
+// whatever the CBA answered.
+model CbaTransfer {
+  transferId String @id @default(uuid()) @map("transfer_id")
+
+  // Sent to the CBA as the transfer description.
+  reference String @unique @db.VarChar(50)
+
+  purpose CbaTransferPurpose
+  status  CbaTransferStatus  @default(PENDING)
+
+  // The customer or agent wallet the transfer belongs to.
+  walletId String @map("wallet_id")
+
+  fromOfficeId  Int @map("from_office_id")
+  fromClientId  Int @map("from_client_id")
+  fromAccountId Int @map("from_account_id")
+
+  toOfficeId  Int @map("to_office_id")
+  toClientId  Int @map("to_client_id")
+  toAccountId Int @map("to_account_id")
+
+  amountNgn Int @map("amount_ngn")
+
+  walletPurchaseId String? @map("wallet_purchase_id")
+  paymentTxnId     String? @map("payment_txn_id")
+
+  // An agent sale's reference, known before its payment record exists.
+  saleReference String? @map("sale_reference") @db.VarChar(64)
+
+  // Set on a REVERSAL: the transfer it undoes. Unique, so nothing can be
+  // reversed twice.
+  reversesTransferId String? @unique @map("reverses_transfer_id")
+
+  // The CBA's own ID for the posted transfer.
+  cbaTransferId Int? @map("cba_transfer_id")
+
+  failureReason String? @map("failure_reason") @db.VarChar(64)
+
+  sentAt   DateTime? @map("sent_at")
+  postedAt DateTime? @map("posted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  wallet         Wallet              @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+  walletPurchase WalletPurchase?     @relation(fields: [walletPurchaseId], references: [purchaseId], onDelete: Restrict)
+  payment        PaymentTransaction? @relation(fields: [paymentTxnId], references: [txnId], onDelete: Restrict)
+
+  reverses   CbaTransfer? @relation("CbaTransferReversal", fields: [reversesTransferId], references: [transferId], onDelete: Restrict)
+  reversedBy CbaTransfer? @relation("CbaTransferReversal")
+
+  @@index([status, updatedAt])
+  @@index([walletId, createdAt])
+  @@index([walletPurchaseId])
+  @@index([paymentTxnId])
+  @@index([saleReference])
+  @@map("cba_transfers")
 }

@@ -37,6 +37,9 @@ const ACTIVE_PAYMENT_STATUSES = [
 const ACTIVE_WALLET_PURCHASE_STATUSES = [
   WalletPurchaseStatus.PENDING,
   WalletPurchaseStatus.COMPLETED,
+  // A CBA-funded purchase whose payment could not be confirmed. Money may
+  // have moved, so the offer stays tied to it until a person decides.
+  WalletPurchaseStatus.REVIEW_REQUIRED,
 ];
 
 export type OfferWithDraw = {

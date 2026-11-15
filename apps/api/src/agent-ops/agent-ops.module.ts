@@ -14,6 +14,7 @@ import { IdentityVerificationService } from './kyc/identity-verification.service
 import { AgentDayRecordService } from '../agent-ops/agent-day-record.service'
 import { LedgerModule } from '../ledger/ledger.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { WitmangoModule } from '../integrations/witmango/witmango.module';
 import { AgentAccountingService } from './agent-accounting.service';
 import { AgentRemittanceAccountingRecoveryService } from './agent-remittance-accounting-recovery.service';
 @Module({
@@ -25,6 +26,7 @@ import { AgentRemittanceAccountingRecoveryService } from './agent-remittance-acc
     ClaimsModule,
     LedgerModule,
     WalletModule,
+    WitmangoModule,
   ],
   controllers: [AgentOpsController, AdminFinanceAgentsController],
   providers: [

@@ -22,6 +22,8 @@ import type { JackpotOffersService } from '../src/payments/jackpot-offers.servic
 import type { WalletService } from '../src/wallet/wallet.service';
 import type { JackpotAccumulationService } from '../src/payments/jackpot-accumulation.service';
 import type { NotificationQueueService } from '../src/queue/notification-queue.service';
+import type { WitmangoWalletLinkService } from '../src/integrations/witmango/witmango-wallet-link.service';
+import type { WitmangoTransferService } from '../src/integrations/witmango/witmango-transfer.service';
 
 const offerId =
   '11111111-1111-4111-8111-111111111111';
@@ -292,6 +294,9 @@ describe('Promotional jackpot purchase pricing', () => {
       {} as JackpotAccumulationService,
       jackpotOffers,
       notifications,
+      {} as WitmangoWalletLinkService,
+      // CBA spending off: this test covers the ledger-funded path.
+      { isSpendingEnabled: () => false } as unknown as WitmangoTransferService,
     );
 
     const result = await service.purchase(

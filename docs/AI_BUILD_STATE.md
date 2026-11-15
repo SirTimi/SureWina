@@ -84,6 +84,15 @@ No provider sandbox payment, CBA debit, ledger write or production test executed
 
 Previous Phase 1 commit: `1777463470d6c0062826a142968b8b6927aa2fd7`. Current adjustment: `chore(mobile-agent): configure Android development APK workflow` — see `git log -1` for pushed hash.
 
+## Parallel Track: CBA Wallets (Monnify + Witmango)
+
+Separate from AGENT-MOBILE-01, and **not accepted**. Every switch defaults off.
+
+- Built: CBA deposit/withdrawal/transfer client; two CBA accounts per wallet (Deposit+Winnings, Float+Earnings); BVN identity verification; customer wallet onboarding; Monnify reserved funding accounts with limit profiles; bank top-ups credited to Deposit/Float exactly once.
+- Built 2026-11-15: customer wallet ticket purchase paid from CBA (Deposit, then Winnings); agent sale paid in full from Float with commission to Earnings; `cba_transfers` step record; rollout check `cba.transfers`. See `docs/WITMANGO_CBA_INTEGRATION.md` section 5.
+- Not run against any real provider. Needs Witmango and Monnify sandboxes.
+- Next: read balances from the CBA; prizes to Winnings; withdrawals; reconciliation and retry sweep.
+
 ## Previous Finance Context
 
 Prior detailed history archived in `docs/AI_BUILD_STATE_PRE_MOBILE_2026-10-19.md`. The archived status represents prior work, not the active mobile development gate.

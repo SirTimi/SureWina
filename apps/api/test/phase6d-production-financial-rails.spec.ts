@@ -137,7 +137,7 @@ describe('Phase 6D: production financial rail rollout gates', () => {
       'checkWalletBalances', 'checkLocalSmokeArtifacts', 'checkPaymentCollections',
       'checkWalletFunding', 'checkWalletPurchases', 'checkPromotionalJackpotPurchases',
       'checkAgentSales', 'checkAgentPrizeReimbursements', 'checkBankPrizePayouts',
-      'checkCbaWithdrawalHolds', 'checkRetiredDebtSuspensions', 'checkReconciliation',
+      'checkCbaWithdrawalHolds', 'checkCbaTransfers', 'checkRetiredDebtSuspensions', 'checkReconciliation',
       'checkSuspenseBalance', 'checkTreasury', 'checkMigration', 'checkHistoricalRemittance',
     ];
     for (const name of checks) {
