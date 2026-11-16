@@ -22,8 +22,12 @@ import {
 } from './withdrawal-account.service';
 import {
   AddWithdrawalAccountDto,
+  ChangeWalletPinDto,
   RequestWithdrawalDto,
+  ResetWalletPinDto,
+  SetWalletPinDto,
 } from './dto/withdrawal.dto';
+import { WalletPinService } from './wallet-pin.service';
 
 // Customer withdrawals from CBA Winnings. Separate from the legacy
 // `wallet/withdrawals` routes, which pay from the SureWina ledger.
@@ -35,6 +39,7 @@ export class CustomerWithdrawalsController {
     private readonly accounts: WithdrawalAccountService,
     private readonly withdrawals: CbaWithdrawalService,
     private readonly banks: MonnifyBanksService,
+    private readonly pins: WalletPinService,
   ) {}
 
   // The banks a withdrawal account can be saved with: Monnify's list and
@@ -55,7 +60,12 @@ export class CustomerWithdrawalsController {
     @CurrentUser() user: CustomerJwtPayload,
     @Body() dto: AddWithdrawalAccountDto,
   ) {
-    return this.accounts.add(await this.owner(user), dto);
+    const owner = await this.owner(user);
+    const { pin, ...input } = dto;
+
+    await this.pins.verifyIfRequired(owner, pin);
+
+    return this.accounts.add(owner, input);
   }
 
   @Delete('withdrawal-accounts/:withdrawalAccountId')
@@ -76,7 +86,34 @@ export class CustomerWithdrawalsController {
     @CurrentUser() user: CustomerJwtPayload,
     @Body() dto: RequestWithdrawalDto,
   ) {
-    return this.withdrawals.request(await this.owner(user), dto);
+    const owner = await this.owner(user);
+    const { pin, ...input } = dto;
+
+    await this.pins.verifyIfRequired(owner, pin);
+
+    return this.withdrawals.request(owner, input);
+  }
+
+  // Withdrawal PIN: needed to withdraw and to save a bank account.
+  @Get('pin')
+  async pinStatus(@CurrentUser() user: CustomerJwtPayload) {
+    return this.pins.status(await this.owner(user));
+  }
+
+  @Post('pin')
+  async setPin(@CurrentUser() user: CustomerJwtPayload, @Body() dto: SetWalletPinDto) {
+    return this.pins.set(await this.owner(user), dto.pin);
+  }
+
+  @Post('pin/change')
+  async changePin(@CurrentUser() user: CustomerJwtPayload, @Body() dto: ChangeWalletPinDto) {
+    return this.pins.change(await this.owner(user), dto.currentPin, dto.newPin);
+  }
+
+  // A forgotten PIN: reset with the BVN the wallet was verified with.
+  @Post('pin/reset')
+  async resetPin(@CurrentUser() user: CustomerJwtPayload, @Body() dto: ResetWalletPinDto) {
+    return this.pins.reset(await this.owner(user), dto.bvn, dto.newPin);
   }
 
   private async owner(user: CustomerJwtPayload): Promise<WalletOwner> {

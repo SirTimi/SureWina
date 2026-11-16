@@ -376,7 +376,9 @@ export class WithdrawalAccountService {
       .digest('hex');
   }
 
-  private async isOwnersBvn(owner: WalletOwner, bvn: string): Promise<boolean> {
+  // Whether this BVN is the one the wallet's owner was verified with. Also
+  // used to reset a forgotten withdrawal PIN.
+  async isOwnersBvn(owner: WalletOwner, bvn: string): Promise<boolean> {
     if (owner.ownerType === LedgerOwnerType.CUSTOMER) {
       const identity = await this.prisma.verifiedIdentity.findUnique({
         where: { userId: owner.ownerId },

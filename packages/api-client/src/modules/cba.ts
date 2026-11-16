@@ -61,6 +61,13 @@ export interface AddWithdrawalAccountRequest {
   accountNumber: string;
   bvn: string;
   bankName?: string;
+  // The owner's 4-digit withdrawal PIN.
+  pin?: string;
+}
+
+export interface WalletPinStatus {
+  set: boolean;
+  lockedUntil: string | null;
 }
 
 export type CbaWithdrawalStatus =
@@ -90,6 +97,8 @@ export interface RequestWithdrawalRequest {
   withdrawalAccountId: string;
   amountNgn: number;
   requestId: string;
+  // The owner's 4-digit withdrawal PIN.
+  pin?: string;
 }
 
 export interface PrizeWalletCreditResponse {
@@ -235,6 +244,23 @@ export class CbaModule {
     return this.client.get<{ banks: Array<{ code: string; name: string }> }>('/wallet/withdrawal-banks');
   }
 
+  // Withdrawal PIN: needed to withdraw and to save a bank account.
+  pinStatus() {
+    return this.client.get<WalletPinStatus>('/wallet/pin');
+  }
+
+  setPin(pin: string) {
+    return this.client.post<WalletPinStatus>('/wallet/pin', { pin });
+  }
+
+  changePin(currentPin: string, newPin: string) {
+    return this.client.post<WalletPinStatus>('/wallet/pin/change', { currentPin, newPin });
+  }
+
+  resetPin(bvn: string, newPin: string) {
+    return this.client.post<WalletPinStatus>('/wallet/pin/reset', { bvn, newPin });
+  }
+
   creditPrizeToWallet(claimId: string) {
     return this.client.post<PrizeWalletCreditResponse>(`/claims/${claimId}/wallet`, {});
   }
@@ -251,6 +277,22 @@ export class CbaModule {
 
   agentFundingAccount(bvn: string) {
     return this.client.post<FundingAccountView>('/agent/wallet/cba/funding-account', { bvn });
+  }
+
+  agentPinStatus() {
+    return this.client.get<WalletPinStatus>('/agent/wallet/pin');
+  }
+
+  agentSetPin(pin: string) {
+    return this.client.post<WalletPinStatus>('/agent/wallet/pin', { pin });
+  }
+
+  agentChangePin(currentPin: string, newPin: string) {
+    return this.client.post<WalletPinStatus>('/agent/wallet/pin/change', { currentPin, newPin });
+  }
+
+  agentResetPin(bvn: string, newPin: string) {
+    return this.client.post<WalletPinStatus>('/agent/wallet/pin/reset', { bvn, newPin });
   }
 
   agentWithdrawalAccounts() {

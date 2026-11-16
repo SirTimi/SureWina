@@ -171,6 +171,11 @@ export const envValidationSchema = Joi.object({
   WITMANGO_PRIZE_CREDITS_ENABLED:
     Joi.boolean().default(false),
 
+  // A 4-digit PIN is needed to withdraw and to save a bank account. On by
+  // default; switching it off removes that check for everyone.
+  WALLET_PIN_REQUIRED:
+    Joi.boolean().default(true),
+
   // Saved withdrawal accounts. Each one is BVN-matched by Monnify (a paid
   // verification call), so this is off unless deliberately enabled and needs
   // MONNIFY_IDENTITY_VERIFICATION_ENABLED as well.

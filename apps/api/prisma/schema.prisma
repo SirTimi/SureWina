@@ -1239,6 +1239,7 @@ model Wallet {
   withdrawalAccounts  WithdrawalAccount[]
   cbaWithdrawals      CbaWithdrawal[]
   cbaBalanceMigration CbaBalanceMigration?
+  pin                 WalletPin?
   withdrawals         WalletWithdrawal[]
   reservedAccount     WalletReservedAccount?
 
@@ -2643,4 +2644,25 @@ model CbaBalanceMigration {
 
   @@index([status, updatedAt])
   @@map("cba_balance_migrations")
+}
+
+// A wallet owner's withdrawal PIN. Required to withdraw and to save a bank
+// account. Only a salted scrypt hash is kept.
+model WalletPin {
+  walletId String @id @map("wallet_id")
+
+  // scrypt$N$r$p$saltHex$hashHex
+  pinHash String @map("pin_hash") @db.VarChar(255)
+
+  // Consecutive wrong PINs (or wrong BVNs on reset) since the last success.
+  failedAttempts Int       @default(0) @map("failed_attempts")
+  lockedUntil    DateTime? @map("locked_until")
+
+  setAt     DateTime @map("set_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [walletId], onDelete: Restrict)
+
+  @@map("wallet_pins")
 }

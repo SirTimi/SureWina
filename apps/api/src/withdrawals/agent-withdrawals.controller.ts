@@ -22,8 +22,12 @@ import {
 } from './withdrawal-account.service';
 import {
   AddWithdrawalAccountDto,
+  ChangeWalletPinDto,
   RequestWithdrawalDto,
+  ResetWalletPinDto,
+  SetWalletPinDto,
 } from './dto/withdrawal.dto';
+import { WalletPinService } from './wallet-pin.service';
 
 // Agent withdrawals from CBA Earnings: commission and reimbursed prizes.
 // Float is never withdrawable.
@@ -35,6 +39,7 @@ export class AgentWithdrawalsController {
     private readonly accounts: WithdrawalAccountService,
     private readonly withdrawals: CbaWithdrawalService,
     private readonly banks: MonnifyBanksService,
+    private readonly pins: WalletPinService,
   ) {}
 
   // The banks a withdrawal account can be saved with: Monnify's list and
@@ -54,7 +59,12 @@ export class AgentWithdrawalsController {
     @CurrentAgent() agent: AgentJwtPayload,
     @Body() dto: AddWithdrawalAccountDto,
   ) {
-    return this.accounts.add(await this.owner(agent), dto);
+    const owner = await this.owner(agent);
+    const { pin, ...input } = dto;
+
+    await this.pins.verifyIfRequired(owner, pin);
+
+    return this.accounts.add(owner, input);
   }
 
   @Delete('withdrawal-accounts/:withdrawalAccountId')
@@ -75,7 +85,34 @@ export class AgentWithdrawalsController {
     @CurrentAgent() agent: AgentJwtPayload,
     @Body() dto: RequestWithdrawalDto,
   ) {
-    return this.withdrawals.request(await this.owner(agent), dto);
+    const owner = await this.owner(agent);
+    const { pin, ...input } = dto;
+
+    await this.pins.verifyIfRequired(owner, pin);
+
+    return this.withdrawals.request(owner, input);
+  }
+
+  // Withdrawal PIN: needed to withdraw and to save a bank account.
+  @Get('wallet/pin')
+  async pinStatus(@CurrentAgent() agent: AgentJwtPayload) {
+    return this.pins.status(await this.owner(agent));
+  }
+
+  @Post('wallet/pin')
+  async setPin(@CurrentAgent() agent: AgentJwtPayload, @Body() dto: SetWalletPinDto) {
+    return this.pins.set(await this.owner(agent), dto.pin);
+  }
+
+  @Post('wallet/pin/change')
+  async changePin(@CurrentAgent() agent: AgentJwtPayload, @Body() dto: ChangeWalletPinDto) {
+    return this.pins.change(await this.owner(agent), dto.currentPin, dto.newPin);
+  }
+
+  // A forgotten PIN: reset with the BVN the wallet was verified with.
+  @Post('wallet/pin/reset')
+  async resetPin(@CurrentAgent() agent: AgentJwtPayload, @Body() dto: ResetWalletPinDto) {
+    return this.pins.reset(await this.owner(agent), dto.bvn, dto.newPin);
   }
 
   private async owner(agent: AgentJwtPayload): Promise<WalletOwner> {

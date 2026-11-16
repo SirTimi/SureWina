@@ -8,6 +8,7 @@ import { ClaimsModule } from '../claims/claims.module';
 
 import { WithdrawalAccountService } from './withdrawal-account.service';
 import { CbaWithdrawalService } from './cba-withdrawal.service';
+import { WalletPinService } from './wallet-pin.service';
 import { CustomerWithdrawalsController } from './customer-withdrawals.controller';
 import { AgentWithdrawalsController } from './agent-withdrawals.controller';
 import { CbaWithdrawalsAdminController } from './cba-withdrawals-admin.controller';
@@ -27,7 +28,7 @@ import { CbaWithdrawalsAdminController } from './cba-withdrawals-admin.controlle
     AgentWithdrawalsController,
     CbaWithdrawalsAdminController,
   ],
-  providers: [WithdrawalAccountService, CbaWithdrawalService],
+  providers: [WithdrawalAccountService, CbaWithdrawalService, WalletPinService],
   exports: [WithdrawalAccountService, CbaWithdrawalService],
 })
 export class WithdrawalsModule {}

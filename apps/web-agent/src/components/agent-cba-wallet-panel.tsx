@@ -9,6 +9,7 @@ import {
   Clock,
   Copy,
   Landmark,
+  KeyRound,
   Loader2,
   Trash2,
   WalletCards,
@@ -19,6 +20,7 @@ import type {
   AgentCbaWalletView,
   CbaWithdrawalStatus,
   CbaWithdrawalView,
+  WalletPinStatus,
   WithdrawalAccountView,
 } from '@surewina/api-client';
 import { api } from '@/lib/api';
@@ -213,12 +215,14 @@ function WithdrawCard({ withdrawableNgn, onChanged }: { withdrawableNgn: number 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [pin, setPin] = useState<WalletPinStatus | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [a, w] = await Promise.all([api.cba.agentWithdrawalAccounts(), api.cba.agentWithdrawals()]);
+      const [a, w, p] = await Promise.all([api.cba.agentWithdrawalAccounts(), api.cba.agentWithdrawals(), api.cba.agentPinStatus()]);
       setAccounts(a);
       setHistory(w);
+      setPin(p);
       setError(null);
     } catch (err) {
       setError(message(err, 'Could not load withdrawals.'));
@@ -245,6 +249,16 @@ function WithdrawCard({ withdrawableNgn, onChanged }: { withdrawableNgn: number 
         <Notice tone="error" title={error} />
       ) : (
         <div className="space-y-6">
+          {pin && (
+            <PinSection
+              status={pin}
+              pinApi={{ set: (p) => api.cba.agentSetPin(p), change: (c, n) => api.cba.agentChangePin(c, n), reset: (b, n) => api.cba.agentResetPin(b, n) }}
+              onChanged={setPin}
+            />
+          )}
+
+          {pin?.set && (
+          <>
           <WithdrawForm
             accounts={accounts.filter((a) => a.usable)}
             withdrawableNgn={withdrawableNgn}
@@ -269,6 +283,8 @@ function WithdrawCard({ withdrawableNgn, onChanged }: { withdrawableNgn: number 
               await load();
             }}
           />
+          </>
+          )}
 
           {history.length > 0 && (
             <div className="border-t border-slate-100 pt-5">
@@ -306,6 +322,7 @@ function WithdrawForm({
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ tone: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [requestId, setRequestId] = useState(() => newRequestId());
+  const [pin, setPin] = useState('');
 
   useEffect(() => {
     if (!accountId && accounts[0]) setAccountId(accounts[0].withdrawalAccountId);
@@ -327,7 +344,11 @@ function WithdrawForm({
 
     setSubmitting(true);
     try {
-      const withdrawal = await api.cba.agentWithdraw({ withdrawalAccountId: accountId, amountNgn, requestId });
+      if (!/^\d{4}$/.test(pin)) {
+        setResult({ tone: 'error', text: 'Enter your 4-digit withdrawal PIN.' });
+        return;
+      }
+      const withdrawal = await api.cba.agentWithdraw({ withdrawalAccountId: accountId, amountNgn, requestId, pin });
       setResult({ tone: withdrawal.status === 'SUCCEEDED' ? 'success' : 'info', text: withdrawalMessage(withdrawal.status) });
       setAmount('');
       setRequestId(newRequestId());
@@ -335,6 +356,7 @@ function WithdrawForm({
     } catch (err) {
       setResult({ tone: 'error', text: message(err, 'Your withdrawal could not be made.') });
     } finally {
+      setPin('');
       setSubmitting(false);
     }
   };
@@ -355,6 +377,9 @@ function WithdrawForm({
       </Field>
       <Field label="Amount">
         <input className={inputClass} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} placeholder="5000" />
+      </Field>
+      <Field label="Withdrawal PIN">
+        <input className={inputClass} type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
       </Field>
       {result && <Notice tone={result.tone} title={result.text} />}
       <Button type="submit" variant="accent" fullWidth disabled={submitting} className={accentButton}>
@@ -377,11 +402,12 @@ function SavedAccounts({
   adding: boolean;
   setAdding: (v: boolean) => void;
   onRemove: (id: string) => Promise<void>;
-  onAdd: (input: { bankCode: string; bankName?: string; accountNumber: string; bvn: string }) => Promise<void>;
+  onAdd: (input: { bankCode: string; bankName?: string; accountNumber: string; bvn: string; pin: string }) => Promise<void>;
 }) {
   const [bankCode, setBankCode] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [bvn, setBvn] = useState('');
+  const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bankName = useMemo(() => banks.find((b) => b.code === bankCode)?.name, [banks, bankCode]);
@@ -391,12 +417,13 @@ function SavedAccounts({
     setError(null);
     setBusy(true);
     try {
-      await onAdd({ bankCode, bankName, accountNumber, bvn });
+      await onAdd({ bankCode, bankName, accountNumber, bvn, pin });
       setAccountNumber('');
       setBvn('');
     } catch (err) {
       setError(message(err, 'We could not save this account.'));
     } finally {
+      setPin('');
       setBusy(false);
     }
   };
@@ -455,6 +482,9 @@ function SavedAccounts({
           </Field>
           <Field label="Your BVN">
             <input className={inputClass} inputMode="numeric" autoComplete="off" maxLength={11} value={bvn} onChange={(e) => setBvn(e.target.value.replace(/\D/g, ''))} required />
+          </Field>
+          <Field label="Withdrawal PIN">
+            <input className={inputClass} type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} required />
           </Field>
           {error && <Notice tone="error" title={error} />}
           <div className="flex gap-2">
@@ -555,4 +585,118 @@ function newRequestId(): string {
 
 function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+type PinApi = {
+  set: (pin: string) => Promise<WalletPinStatus>;
+  change: (currentPin: string, newPin: string) => Promise<WalletPinStatus>;
+  reset: (bvn: string, newPin: string) => Promise<WalletPinStatus>;
+};
+
+// The 4-digit PIN needed to withdraw and to save a bank account. Set once;
+// changed with the current PIN; reset with the BVN if forgotten.
+function PinSection({ status, pinApi, onChanged }: { status: WalletPinStatus; pinApi: PinApi; onChanged: (s: WalletPinStatus) => void }) {
+  const [mode, setMode] = useState<'idle' | 'change' | 'reset'>('idle');
+  const [current, setCurrent] = useState('');
+  const [bvn, setBvn] = useState('');
+  const [pin, setPin] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+
+  const clear = () => {
+    setCurrent('');
+    setBvn('');
+    setPin('');
+    setConfirm('');
+  };
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setDone(null);
+    if (pin !== confirm) {
+      setError('The two PINs do not match.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const next = !status.set
+        ? await pinApi.set(pin)
+        : mode === 'change'
+          ? await pinApi.change(current, pin)
+          : await pinApi.reset(bvn, pin);
+      setDone(!status.set ? 'Your withdrawal PIN is set.' : 'Your withdrawal PIN has been updated.');
+      clear();
+      setMode('idle');
+      onChanged(next);
+    } catch (err) {
+      setError(message(err, 'Your PIN could not be saved.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pinInput = (value: string, set: (v: string) => void) => (
+    <input
+      className={inputClass}
+      type="password"
+      inputMode="numeric"
+      autoComplete="off"
+      maxLength={4}
+      value={value}
+      onChange={(e) => set(e.target.value.replace(/\D/g, ''))}
+      required
+    />
+  );
+
+  if (status.set && mode === 'idle') {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-slate-200 p-3">
+        <p className="inline-flex items-center gap-2 text-sm font-bold text-navy-950">
+          <KeyRound className="h-4 w-4 text-navy-700" />
+          {status.lockedUntil ? `PIN locked until ${formatWhen(status.lockedUntil)}` : 'Withdrawal PIN is set'}
+        </p>
+        <div className="flex gap-3 text-sm font-bold text-navy-700">
+          <button type="button" onClick={() => { setMode('change'); setDone(null); }}>Change PIN</button>
+          <button type="button" onClick={() => { setMode('reset'); setDone(null); }}>Forgot PIN?</button>
+        </div>
+        {done && <div className="w-full"><Notice tone="success" title={done} /></div>}
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-3 rounded-sm border border-navy-100 bg-navy-50/40 p-4">
+      <p className="inline-flex items-center gap-2 text-sm font-black text-navy-950">
+        <KeyRound className="h-4 w-4 text-navy-700" />
+        {!status.set ? 'Set your withdrawal PIN' : mode === 'change' ? 'Change your PIN' : 'Reset your PIN'}
+      </p>
+      <p className="text-xs leading-relaxed text-slate-600">
+        {!status.set
+          ? 'You will enter this 4-digit PIN every time you withdraw or add a bank account. Avoid easy PINs like 1234 or 0000.'
+          : mode === 'reset'
+            ? 'Enter the BVN you verified your wallet with, then choose a new PIN.'
+            : 'Five wrong tries lock your PIN for 30 minutes.'}
+      </p>
+      {status.set && mode === 'change' && <Field label="Current PIN">{pinInput(current, setCurrent)}</Field>}
+      {status.set && mode === 'reset' && (
+        <Field label="Your BVN">
+          <input className={inputClass} inputMode="numeric" autoComplete="off" maxLength={11} value={bvn} onChange={(e) => setBvn(e.target.value.replace(/\D/g, ''))} required />
+        </Field>
+      )}
+      <Field label={status.set ? 'New PIN' : 'PIN'}>{pinInput(pin, setPin)}</Field>
+      <Field label="Confirm PIN">{pinInput(confirm, setConfirm)}</Field>
+      {error && <Notice tone="error" title={error} />}
+      <div className="flex gap-2">
+        <Button type="submit" variant="accent" disabled={busy} className={accentButton}>
+          {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : 'Save PIN'}
+        </Button>
+        {status.set && (
+          <Button type="button" variant="secondary" onClick={() => { clear(); setError(null); setMode('idle'); }}>Cancel</Button>
+        )}
+      </div>
+    </form>
+  );
 }

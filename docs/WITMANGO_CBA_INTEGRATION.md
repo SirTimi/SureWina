@@ -274,3 +274,13 @@ Monnify confirmed (2026-11-16) that BVN verification is **live only**. For sandb
 It only works when `MONNIFY_BASE_URL` is `sandbox.monnify.com` **and** the API key starts with `MK_TEST_`. Switched on with any other Monnify settings, every BVN check is refused (never passed). `MONNIFY_IDENTITY_VERIFICATION_ENABLED` must still be on. **Must be off for live.**
 
 Also confirmed by Monnify on 2026-11-16: reserved-account payments settle into the Monnify wallet (as the reconciliation assumes); `/api/v1/banks` is the definitive disbursement bank list; sandbox payments can be simulated at https://websim.sdk.monnify.com/#/bankingapp; switching off disbursement OTP needs a formal request and an indemnity.
+
+## 12. Withdrawal PIN
+
+Customers and agents set a 4-digit PIN, required to withdraw and to save a bank account (`WALLET_PIN_REQUIRED`, default on).
+
+- Routes: customer `GET/POST /wallet/pin`, `POST /wallet/pin/change`, `POST /wallet/pin/reset`; agent the same under `/agent/wallet/pin`. Withdrawal and add-account requests carry `pin`.
+- Stored only as a salted scrypt hash (table `wallet_pins`). PINs that are all one digit or a straight run (1234, 9876) are refused.
+- Five wrong tries in a row lock it for 30 minutes. A wrong BVN on reset counts as a wrong try, and reset is refused while locked.
+- A forgotten PIN is reset with the owner's BVN (checked against the one the wallet was verified with).
+- Every set, change, reset, wrong try and lock is audited.
