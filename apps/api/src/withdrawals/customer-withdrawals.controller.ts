@@ -13,6 +13,7 @@ import { CustomerJwtGuard } from '../auth/guards/customer-jwt.guard';
 import { CurrentUser } from '../auth/guards/current-user.decorator';
 import { CustomerJwtPayload } from '../auth/auth.types';
 import { WalletService } from '../wallet/wallet.service';
+import { MonnifyBanksService } from '../integrations/monnify/monnify-banks.service';
 
 import { CbaWithdrawalService } from './cba-withdrawal.service';
 import {
@@ -33,7 +34,16 @@ export class CustomerWithdrawalsController {
     private readonly wallets: WalletService,
     private readonly accounts: WithdrawalAccountService,
     private readonly withdrawals: CbaWithdrawalService,
+    private readonly banks: MonnifyBanksService,
   ) {}
+
+  // The banks a withdrawal account can be saved with: Monnify's list and
+  // codes, since Monnify pays the withdrawal. Not `account/banks`, which is
+  // Paystack's list for prize claims.
+  @Get('withdrawal-banks')
+  listBanks() {
+    return this.banks.listBanks();
+  }
 
   @Get('withdrawal-accounts')
   async listAccounts(@CurrentUser() user: CustomerJwtPayload) {

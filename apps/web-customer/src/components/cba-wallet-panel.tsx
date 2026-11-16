@@ -335,8 +335,8 @@ function WithdrawalsCard({ withdrawableNgn, onChanged }: { withdrawableNgn: numb
 
   useEffect(() => {
     void load();
-    api.account
-      .listNigerianBanks()
+    api.cba
+      .withdrawalBanks()
       .then((r) => setBanks(r.banks))
       .catch(() => setBanks([]));
   }, [load]);

@@ -18,6 +18,7 @@ import {
 } from '../src/withdrawals/withdrawal-account.service';
 import { PayoutAccountCipherService } from '../src/payout-accounts/payout-account-cipher.service';
 import { MonnifyVerificationService } from '../src/integrations/monnify/monnify-verification.service';
+import { MonnifyBanksService } from '../src/integrations/monnify/monnify-banks.service';
 import type { MonnifyClientService } from '../src/integrations/monnify/monnify-client.service';
 import type { PrismaService } from '../src/database/prisma.service';
 import type { AuditService } from '../src/audit/audit.service';
@@ -124,15 +125,23 @@ function harness(options: { match?: unknown; config?: Record<string, unknown> } 
     ),
   };
 
+  // Monnify's bank list: GTBank is on it; Paystack-only codes are not.
+  const banks = {
+    findBank: jest.fn(async (code: string) =>
+      code === '058' ? { code: '058', name: 'Guaranty Trust Bank' } : null,
+    ),
+  };
+
   const service = new WithdrawalAccountService(
     prisma as unknown as PrismaService,
     { write: jest.fn(async () => undefined) } as unknown as AuditService,
     configService,
     verification as unknown as MonnifyVerificationService,
     new PayoutAccountCipherService(configService),
+    banks as unknown as MonnifyBanksService,
   );
 
-  return { service, rows, verification, prisma };
+  return { service, rows, verification, prisma, banks };
 }
 
 describe('Phase 9: saved withdrawal accounts', () => {
@@ -150,7 +159,8 @@ describe('Phase 9: saved withdrawal accounts', () => {
 
     expect(view).toMatchObject({
       bankCode: '058',
-      bankName: 'GTBank',
+      // Monnify's own name for the bank, not the one the screen sent.
+      bankName: 'Guaranty Trust Bank',
       accountLast4: '6789',
       accountName: 'ADE OKAFOR',
       status: WithdrawalAccountStatus.ACTIVE,
@@ -259,6 +269,28 @@ describe('Phase 9: saved withdrawal accounts', () => {
     await expect(
       h.service.requireUsable(WALLET_ID, view.withdrawalAccountId),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('refuses a bank Monnify cannot pay, before any BVN check or stored row', async () => {
+    const h = harness();
+
+    // 50211 is Paystack's code for Kuda; Monnify uses a different one.
+    await expect(
+      h.service.add(customer, { ...input, bankCode: '50211' }),
+    ).rejects.toThrow('Withdrawals cannot be paid to this bank');
+
+    expect(h.verification.matchBvnToAccount).not.toHaveBeenCalled();
+    expect(h.rows).toHaveLength(0);
+  });
+
+  it('says so plainly when the bank list cannot be loaded', async () => {
+    const h = harness();
+    h.banks.findBank.mockRejectedValueOnce(new Error('unreachable'));
+
+    await expect(h.service.add(customer, input)).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+    expect(h.rows).toHaveLength(0);
   });
 
   it('rejects malformed input before anything else', async () => {

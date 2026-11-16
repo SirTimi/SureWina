@@ -258,4 +258,5 @@ Every 5 minutes, on one API instance:
 
 ### Still open
 
-- Bank codes on the withdrawal screens come from the existing bank list (customer) and `GET /agent/banks`. **UNVERIFIED** that every code there is one Monnify accepts for payouts.
+- Withdrawal bank lists come from **Monnify** (`GET /wallet/withdrawal-banks`, `GET /agent/banks`), not Paystack. Checked on the sandbox 2026-11-16: 216 of Paystack's 292 codes are not Monnify codes (mostly microfinance banks and fintechs; all major banks match). A withdrawal account is refused unless Monnify knows its bank code, and Monnify's own bank name is stored.
+- Prize claims still use Paystack's list (`GET /account/banks`). If cash prizes are ever paid through Monnify instead of Paystack, the same mismatch applies there.

@@ -187,7 +187,7 @@ export class MonnifyVerificationService {
       throw new BadRequestException('A BVN must be exactly 11 digits');
     }
 
-    if (!/^\d{3,6}$/.test(input.bankCode)) {
+    if (!/^\d{3,10}$/.test(input.bankCode)) {
       throw new BadRequestException('Invalid bank code');
     }
 

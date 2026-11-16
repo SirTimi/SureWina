@@ -21,6 +21,7 @@ import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { MonnifyVerificationService } from '../integrations/monnify/monnify-verification.service';
+import { MonnifyBanksService } from '../integrations/monnify/monnify-banks.service';
 import { PayoutAccountCipherService } from '../payout-accounts/payout-account-cipher.service';
 
 // Who is asking: the wallet, and the owner it belongs to.
@@ -86,6 +87,7 @@ export class WithdrawalAccountService {
     private readonly config: ConfigService,
     private readonly verification: MonnifyVerificationService,
     private readonly cipher: PayoutAccountCipherService,
+    private readonly banks: MonnifyBanksService,
   ) {}
 
   isEnabled(): boolean {
@@ -118,7 +120,7 @@ export class WithdrawalAccountService {
     const accountNumber = input.accountNumber?.trim();
     const bvn = input.bvn?.trim();
 
-    if (!/^\d{3,6}$/.test(bankCode ?? '')) {
+    if (!/^\d{3,10}$/.test(bankCode ?? '')) {
       throw new BadRequestException('Invalid bank code');
     }
 
@@ -130,6 +132,24 @@ export class WithdrawalAccountService {
 
     if (!/^\d{11}$/.test(bvn ?? '')) {
       throw new BadRequestException('A BVN must be exactly 11 digits');
+    }
+
+    // Monnify pays the withdrawal, so the bank must be one Monnify knows by
+    // this code. Its own name for the bank is stored, not the one sent in.
+    let bank;
+
+    try {
+      bank = await this.banks.findBank(bankCode);
+    } catch {
+      throw new ServiceUnavailableException(
+        'We cannot load the bank list right now. Please try again shortly.',
+      );
+    }
+
+    if (!bank) {
+      throw new BadRequestException(
+        'Withdrawals cannot be paid to this bank. Please choose another bank.',
+      );
     }
 
     const fingerprint = this.accountFingerprint(bankCode, accountNumber);
@@ -221,7 +241,7 @@ export class WithdrawalAccountService {
           walletId: owner.walletId,
           ownerType: owner.ownerType,
           bankCode,
-          bankName: this.cleanBankName(input.bankName),
+          bankName: this.cleanBankName(bank.name),
           accountCiphertext: ciphertext,
           accountLast4: accountNumber.slice(-4),
           accountFingerprint: fingerprint,
@@ -249,7 +269,7 @@ export class WithdrawalAccountService {
         walletId: owner.walletId,
         ownerType: owner.ownerType,
         bankCode,
-        bankName: this.cleanBankName(input.bankName),
+        bankName: this.cleanBankName(bank.name),
         accountCiphertext: ciphertext,
         accountLast4: accountNumber.slice(-4),
         accountFingerprint: fingerprint,

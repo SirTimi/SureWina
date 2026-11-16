@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 
 export class AddWithdrawalAccountDto {
-  @Matches(/^\d{3,6}$/, { message: 'bankCode must be 3 to 6 digits' })
+  @Matches(/^\d{3,10}$/, { message: 'bankCode must be 3 to 10 digits' })
   bankCode!: string;
 
   @Matches(/^\d{10}$/, { message: 'accountNumber must be exactly 10 digits' })

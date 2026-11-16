@@ -229,11 +229,18 @@ export class CbaModule {
     return this.client.post<CbaWithdrawalView>('/wallet/cba-withdrawals', input);
   }
 
+  // Banks a withdrawal account can use: Monnify's list and codes, since
+  // Monnify pays withdrawals. Not account.listNigerianBanks (Paystack's).
+  withdrawalBanks() {
+    return this.client.get<{ banks: Array<{ code: string; name: string }> }>('/wallet/withdrawal-banks');
+  }
+
   creditPrizeToWallet(claimId: string) {
     return this.client.post<PrizeWalletCreditResponse>(`/claims/${claimId}/wallet`, {});
   }
 
   // ── Agent ──
+  // Monnify's list and codes, as for customers.
   agentBanks() {
     return this.client.get<{ banks: Array<{ code: string; name: string }> }>('/agent/banks');
   }

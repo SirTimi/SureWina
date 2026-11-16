@@ -13,7 +13,7 @@ import { AgentJwtGuard } from '../agent-auth/guards/agent-jwt.guard';
 import { CurrentAgent } from '../agent-auth/guards/current-agent.decorator';
 import { AgentJwtPayload } from '../agent-auth/agent-auth.types';
 import { WalletService } from '../wallet/wallet.service';
-import { BankResolveService } from '../claims/kyc/bank-resolve.service';
+import { MonnifyBanksService } from '../integrations/monnify/monnify-banks.service';
 
 import { CbaWithdrawalService } from './cba-withdrawal.service';
 import {
@@ -34,11 +34,11 @@ export class AgentWithdrawalsController {
     private readonly wallets: WalletService,
     private readonly accounts: WithdrawalAccountService,
     private readonly withdrawals: CbaWithdrawalService,
-    private readonly banks: BankResolveService,
+    private readonly banks: MonnifyBanksService,
   ) {}
 
-  // The bank list for choosing a withdrawal account. The customer route for
-  // it is customer-only.
+  // The banks a withdrawal account can be saved with: Monnify's list and
+  // codes, since Monnify pays the withdrawal.
   @Get('banks')
   listBanks() {
     return this.banks.listBanks();
