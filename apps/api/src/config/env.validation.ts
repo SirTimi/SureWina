@@ -257,6 +257,13 @@ export const envValidationSchema = Joi.object({
   MONNIFY_IDENTITY_VERIFICATION_ENABLED:
     Joi.boolean().default(false),
 
+  // Monnify's BVN checks are live-only. With this on, the checks answer from
+  // a fixed set of test BVNs instead — and only when the Monnify settings are
+  // the sandbox's (sandbox.monnify.com and an MK_TEST_ key). On any other
+  // configuration every BVN check is refused, never passed.
+  MONNIFY_SANDBOX_VERIFICATION_MOCK:
+    Joi.boolean().default(false),
+
   // Whether the customer's SureWina phone number must also match the one on
   // their BVN record. Off by default: many BVN records carry an old number,
   // so requiring it refuses genuine customers.

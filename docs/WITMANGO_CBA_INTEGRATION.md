@@ -260,3 +260,17 @@ Every 5 minutes, on one API instance:
 
 - Withdrawal bank lists come from **Monnify** (`GET /wallet/withdrawal-banks`, `GET /agent/banks`), not Paystack. Checked on the sandbox 2026-11-16: 216 of Paystack's 292 codes are not Monnify codes (mostly microfinance banks and fintechs; all major banks match). A withdrawal account is refused unless Monnify knows its bank code, and Monnify's own bank name is stored.
 - Prize claims still use Paystack's list (`GET /account/banks`). If cash prizes are ever paid through Monnify instead of Paystack, the same mismatch applies there.
+
+## 11. Sandbox stand-in for BVN checks
+
+Monnify confirmed (2026-11-16) that BVN verification is **live only**. For sandbox testing, `MONNIFY_SANDBOX_VERIFICATION_MOCK=true` answers the two BVN checks from fixed test BVNs, in Monnify's documented response shape:
+
+| Test BVN | Details check | Account match |
+|---|---|---|
+| `22222222222` | all FULL_MATCH | MATCHED as "SANDBOX TEST ACCOUNT", unless the account number ends in `0000` |
+| `33333333333` | name and phone NO_MATCH | NOT_MATCHED |
+| `11111111111` or any other | INVALID_BVN | NOT_MATCHED |
+
+It only works when `MONNIFY_BASE_URL` is `sandbox.monnify.com` **and** the API key starts with `MK_TEST_`. Switched on with any other Monnify settings, every BVN check is refused (never passed). `MONNIFY_IDENTITY_VERIFICATION_ENABLED` must still be on. **Must be off for live.**
+
+Also confirmed by Monnify on 2026-11-16: reserved-account payments settle into the Monnify wallet (as the reconciliation assumes); `/api/v1/banks` is the definitive disbursement bank list; sandbox payments can be simulated at https://websim.sdk.monnify.com/#/bankingapp; switching off disbursement OTP needs a formal request and an indemnity.

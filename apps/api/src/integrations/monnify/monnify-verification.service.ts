@@ -65,6 +65,20 @@ type RawBvnDetailsMatch = {
   mobileNo?: string;
 };
 
+// Sandbox stand-ins for Monnify's live-only BVN checks. Each answers in the
+// shape Monnify documents, so everything after the check runs as it would
+// on live.
+export const SANDBOX_TEST_BVNS = {
+  // Every detail matches; any bank account matches unless it ends in 0000.
+  MATCH: '22222222222',
+  // The BVN record exists but the name does not match; no account matches.
+  MISMATCH: '33333333333',
+  // Monnify does not recognise the number.
+  INVALID: '11111111111',
+} as const;
+
+const SANDBOX_ACCOUNT_NAME = 'SANDBOX TEST ACCOUNT';
+
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -73,7 +87,8 @@ const MONTHS = [
 // BVN Information Verification — checks the details a customer supplies
 // against their BVN record.
 //
-// Live environment only: Monnify does not offer it in sandbox. Each
+// Live environment only: Monnify does not offer it in sandbox (for sandbox
+// testing, see MONNIFY_SANDBOX_VERIFICATION_MOCK). Each
 // successful check costs ₦10 from the Monnify wallet balance, and requests
 // fail outright if that balance is too low. Disabled by default so neither
 // cost nor failure can happen by accident.
@@ -94,6 +109,41 @@ export class MonnifyVerificationService {
     );
   }
 
+  // True only when the sandbox stand-in is switched on AND the Monnify
+  // settings are unmistakably the sandbox's. Switched on anywhere else, it
+  // refuses every check: a live BVN check must never be faked.
+  private useSandboxMock(): boolean {
+    if (
+      this.config.get<boolean>('MONNIFY_SANDBOX_VERIFICATION_MOCK') !== true
+    ) {
+      return false;
+    }
+
+    let host = '';
+
+    try {
+      host = new URL(
+        this.config.get<string>('MONNIFY_BASE_URL') ?? '',
+      ).hostname;
+    } catch {
+      host = '';
+    }
+
+    const apiKey = this.config.get<string>('MONNIFY_API_KEY') ?? '';
+
+    if (host === 'sandbox.monnify.com' && apiKey.startsWith('MK_TEST_')) {
+      return true;
+    }
+
+    this.logger.error(
+      'MONNIFY_SANDBOX_VERIFICATION_MOCK is on, but Monnify is not configured for the sandbox. BVN checks are refused.',
+    );
+
+    throw new ServiceUnavailableException(
+      'Identity verification is misconfigured',
+    );
+  }
+
   async matchBvnDetails(
     input: BvnDetailsMatchInput,
   ): Promise<BvnDetailsMatchResult> {
@@ -111,6 +161,10 @@ export class MonnifyVerificationService {
       throw new BadRequestException(
         'A mobile number must be 11 to 13 digits',
       );
+    }
+
+    if (this.useSandboxMock()) {
+      return this.sandboxDetailsMatch(input.bvn);
     }
 
     const result = await this.client.request<RawBvnDetailsMatch>(
@@ -197,6 +251,10 @@ export class MonnifyVerificationService {
       );
     }
 
+    if (this.useSandboxMock()) {
+      return this.sandboxAccountMatch(input.bvn, input.accountNumber);
+    }
+
     const result = await this.client.request<RawBvnAccountMatch>(
       BVN_ACCOUNT_MATCH_PATH,
       {
@@ -240,6 +298,43 @@ export class MonnifyVerificationService {
     throw new BadGatewayException(
       'Account verification is unavailable right now',
     );
+  }
+
+  private sandboxDetailsMatch(bvn: string): BvnDetailsMatchResult {
+    this.logger.warn('BVN details check answered by the sandbox stand-in');
+
+    if (bvn === SANDBOX_TEST_BVNS.MATCH) {
+      return {
+        outcome: 'CHECKED',
+        name: 'FULL_MATCH',
+        dateOfBirth: 'FULL_MATCH',
+        mobileNo: 'FULL_MATCH',
+      };
+    }
+
+    if (bvn === SANDBOX_TEST_BVNS.MISMATCH) {
+      return {
+        outcome: 'CHECKED',
+        name: 'NO_MATCH',
+        dateOfBirth: 'FULL_MATCH',
+        mobileNo: 'NO_MATCH',
+      };
+    }
+
+    return { outcome: 'INVALID_BVN' };
+  }
+
+  private sandboxAccountMatch(
+    bvn: string,
+    accountNumber: string,
+  ): BvnAccountMatchResult {
+    this.logger.warn('BVN account match answered by the sandbox stand-in');
+
+    if (bvn === SANDBOX_TEST_BVNS.MATCH && !accountNumber.endsWith('0000')) {
+      return { outcome: 'MATCHED', accountName: SANDBOX_ACCOUNT_NAME };
+    }
+
+    return { outcome: 'NOT_MATCHED' };
   }
 
   private status(value: unknown): BvnMatchStatus | null {
