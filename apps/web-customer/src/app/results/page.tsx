@@ -149,7 +149,7 @@ export default async function ResultsPage() {
                       </td>
 
                       <td className="px-5 py-4 font-mono text-sm text-slate-700">
-                        {r.winnerTicketRef}
+                        {r.totalWinners > 1 ? `${r.totalWinners.toLocaleString()} winners` : r.winnerTicketRef}
                       </td>
 
                       <td className="px-5 py-4 text-right text-sm tabular-nums text-slate-700">

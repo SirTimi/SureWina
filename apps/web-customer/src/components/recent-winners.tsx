@@ -83,7 +83,7 @@ export function RecentWinners({ winners }: RecentWinnersProps) {
 
                 return (
                   <tr
-                    key={w.winnerTicketRef}
+                    key={w.drawCode}
                     className={
                       i < winners.length - 1
                         ? 'border-b border-slate-100 transition hover:bg-navy-50/40'
@@ -111,7 +111,7 @@ export function RecentWinners({ winners }: RecentWinnersProps) {
                     </td>
 
                     <td className="px-5 py-4 font-mono text-sm text-slate-700">
-                      {w.winnerTicketRef}
+                      {w.totalWinners > 1 ? `${w.totalWinners.toLocaleString()} winners` : w.winnerTicketRef}
                     </td>
 
                     <td className="px-5 py-4 text-sm text-slate-500">
@@ -120,7 +120,7 @@ export function RecentWinners({ winners }: RecentWinnersProps) {
 
                     <td className="px-5 py-4 text-right">
                       <Link
-                        href={`/results/${w.winnerTicketRef}`}
+                        href={`/results/${w.drawCode}`}
                         className="inline-flex items-center gap-1 text-sm font-bold text-emerald-700 transition hover:text-emerald-800"
                       >
                         Seed hash <ExternalLink className="h-3.5 w-3.5" />

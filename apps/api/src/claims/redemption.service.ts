@@ -91,6 +91,7 @@ export class RedemptionService {
         drawResult: {
           select: { draw: { select: { prizeDescription: true } } },
         },
+        drawWinner: { select: { prizeDescription: true } },
       },
     });
     if (!claim) throw new NotFoundException('Claim not found');
@@ -155,7 +156,7 @@ export class RedemptionService {
     return {
       code,
       winnerPhone: claim.winnerPhone,
-      prizeDescription: claim.drawResult.draw.prizeDescription,
+      prizeDescription: claim.drawWinner?.prizeDescription ?? claim.drawResult.draw.prizeDescription,
       claimDeadlineAt: claim.claimDeadlineAt,
       reissueCount: updated.redemptionReissues,
     };
@@ -176,6 +177,8 @@ export class RedemptionService {
         drawResult: {
           select: { draw: { select: { prizeDescription: true, drawCode: true } } },
         },
+        // Pool and stage draws: the winner's own prize.
+        drawWinner: { select: { prizeDescription: true } },
         collectionPoint: { select: { pointId: true, name: true } },
       },
     });
@@ -245,7 +248,7 @@ export class RedemptionService {
       winnerTicketRef: claim.winnerTicketRef,
       winnerPhone: claim.winnerPhone,
       claimType: claim.claimType,
-      prizeDescription: claim.drawResult.draw.prizeDescription,
+      prizeDescription: claim.drawWinner?.prizeDescription ?? claim.drawResult.draw.prizeDescription,
       drawCode: claim.drawResult.draw.drawCode,
       grossPrizeValueNgn: claim.grossPrizeValueNgn,
       whtAmountNgn: claim.whtAmountNgn,

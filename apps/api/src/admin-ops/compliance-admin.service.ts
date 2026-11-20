@@ -87,6 +87,7 @@ export class ComplianceAdminService {
             executedAt: true,
           },
         },
+        drawWinner: { select: { tierName: true, prizeDescription: true } },
         collectionPoint: {
           select: { name: true, stateCode: true, address: true },
         },
@@ -136,8 +137,10 @@ export class ComplianceAdminService {
       draw: {
         drawCode: claim.drawResult.draw.drawCode,
         drawType: claim.drawResult.draw.drawType,
-        prizeDescription: claim.drawResult.draw.prizeDescription,
-        prizeValueNgn: claim.drawResult.draw.prizeValueNgn,
+        // The winner's own prize on pool and stage draws.
+        prizeDescription: claim.drawWinner?.prizeDescription ?? claim.drawResult.draw.prizeDescription,
+        prizeValueNgn: claim.drawWinner ? claim.grossPrizeValueNgn : claim.drawResult.draw.prizeValueNgn,
+        tierName: claim.drawWinner?.tierName ?? null,
         executedAt: claim.drawResult.executedAt.toISOString(),
       },
       kyc: {

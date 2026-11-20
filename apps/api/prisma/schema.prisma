@@ -313,6 +313,22 @@ model Draw {
   prizeValueNgn    Int     @map("prize_value_ngn")
   prizeImageUrl    String? @map("prize_image_url")
 
+  // How winners and prizes are decided. SINGLE: one winner, the prize above
+  // (every draw before prize pools). POOL: the pool is worked out from ticket
+  // revenue at close of sales and split across the draw's prize tiers.
+  // STAGES: each active tier picks the number of winners set at setup (the
+  // jackpot and its consolation draws).
+  prizeModel DrawPrizeModel @default(SINGLE) @map("prize_model")
+
+  // POOL only. Basis points: 5000 = 50%.
+  poolPayoutBp     Int?              @map("pool_payout_bp")
+  poolMinimumNgn   Int?              @map("pool_minimum_ngn")
+  poolRevenueBasis PoolRevenueBasis? @map("pool_revenue_basis")
+
+  // Set when ticket sales open. From then on the prize settings and tiers
+  // cannot change.
+  prizeConfigLockedAt DateTime? @map("prize_config_locked_at")
+
   ticketPriceNgn Int  @map("ticket_price_ngn")
   ticketQuota    Int? @map("ticket_quota")
 
@@ -332,6 +348,9 @@ model Draw {
 
   tickets               Ticket[]
   result                DrawResult?
+  prizeTiers            DrawPrizeTier[]
+  winners               DrawWinner[]
+  retainedPrizes        RetainedPrize[]
   seedCommit            DrawSeedCommit?
   jackpotEntries        JackpotEntry[]
   jackpotDiscountOffers JackpotDiscountOffer[]
@@ -354,6 +373,109 @@ model DrawSeedCommit {
   draw Draw @relation(fields: [drawId], references: [drawId])
 
   @@map("draw_seed_commits")
+}
+
+enum DrawPrizeModel {
+  SINGLE
+  POOL
+  STAGES
+}
+
+enum PoolRevenueBasis {
+  // Every eligible ticket at face value.
+  GROSS
+  // Agent-sold tickets less the selling agent's commission rate.
+  NET_OF_COMMISSION
+}
+
+// A prize tier (POOL) or draw stage (STAGES). Up to three per draw, numbered
+// from 1 (filled first).
+model DrawPrizeTier {
+  tierId String @id @default(uuid()) @map("tier_id")
+  drawId String @map("draw_id")
+  tierNo Int    @map("tier_no")
+
+  name   String  @db.VarChar(60)
+  active Boolean @default(true)
+
+  // POOL: share of the prize pool, basis points. Tiers total 10000.
+  allocationBp Int? @map("allocation_bp")
+  // STAGES: how many winners this stage picks.
+  winnerCount Int? @map("winner_count")
+
+  prizePerWinnerNgn Int     @map("prize_per_winner_ngn")
+  prizeDescription  String? @map("prize_description") @db.VarChar(200)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  draw Draw @relation(fields: [drawId], references: [drawId], onDelete: Restrict)
+
+  @@unique([drawId, tierNo])
+  @@map("draw_prize_tiers")
+}
+
+// One row per winner of a draw, in the order the engine picked them. Every
+// draw has these, a single-prize draw has one.
+model DrawWinner {
+  winnerId String @id @default(uuid()) @map("winner_id")
+  drawId   String @map("draw_id")
+  resultId String @map("result_id")
+
+  tierNo    Int    @map("tier_no")
+  tierName  String @map("tier_name") @db.VarChar(60)
+  // 0-based position in the engine's pick sequence. Reproducible from the
+  // revealed seed.
+  pickIndex Int    @map("pick_index")
+
+  // ticketRef, or ENTRY-<entryId> for a free jackpot entry.
+  unitId     String  @map("unit_id")
+  ticketId   String? @map("ticket_id")
+  entryId    String? @map("entry_id")
+  buyerPhone String  @map("buyer_phone")
+
+  prizeNgn         Int     @map("prize_ngn")
+  prizeDescription String  @map("prize_description")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  draw   Draw        @relation(fields: [drawId], references: [drawId], onDelete: Restrict)
+  result DrawResult  @relation(fields: [resultId], references: [resultId], onDelete: Restrict)
+  claim  PrizeClaim?
+
+  @@unique([drawId, unitId])
+  @@unique([drawId, pickIndex])
+  @@index([buyerPhone])
+  @@map("draw_winners")
+}
+
+enum RetainedPrizeKind {
+  // Whole-winner rounding and percentage rounding in a prize pool.
+  ROUNDING
+  // Prizes the pool allowed but there were not enough tickets to award.
+  UNAWARDED
+  // A won prize not claimed before its deadline.
+  UNCLAIMED
+}
+
+// The uncollected prizes ledger: prize money that goes back to the company,
+// by draw and date.
+model RetainedPrize {
+  retainedId String            @id @default(uuid()) @map("retained_id")
+  drawId     String            @map("draw_id")
+  kind       RetainedPrizeKind
+  amountNgn  Int               @map("amount_ngn")
+  tierNo     Int?              @map("tier_no")
+  // UNCLAIMED only: the expired claim. One row per claim, ever.
+  claimId    String?           @unique @map("claim_id")
+  note       String?
+  recordedAt DateTime          @default(now()) @map("recorded_at")
+
+  draw Draw @relation(fields: [drawId], references: [drawId], onDelete: Restrict)
+
+  @@unique([drawId, kind, tierNo])
+  @@index([recordedAt])
+  @@map("retained_prizes")
 }
 
 enum DrawType {
@@ -1570,8 +1692,22 @@ model DrawResult {
 
   executedAt DateTime @map("executed_at")
 
-  draw  Draw        @relation(fields: [drawId], references: [drawId])
-  claim PrizeClaim?
+  // Prize pools and stages. For these, winnerTicketRef is the first winner
+  // picked (top tier) and prizeValueNgn the total paid out across winners.
+  prizeModel          DrawPrizeModel @default(SINGLE) @map("prize_model")
+  eligibleRevenueNgn  Int?           @map("eligible_revenue_ngn")
+  prizePoolNgn        Int?           @map("prize_pool_ngn")
+  fundingShortfallNgn Int            @default(0) @map("funding_shortfall_ngn")
+  retainedNgn         Int            @default(0) @map("retained_ngn")
+  totalWinners        Int            @default(1) @map("total_winners")
+  // The draw integrity certificate (signed by the engine). Plain JSON, not
+  // JSONB: JSON keeps the exact text, so the signature can be re-checked
+  // over JSON.stringify of what is read back.
+  certificate         Json?     @db.Json
+
+  draw    Draw         @relation(fields: [drawId], references: [drawId])
+  claims  PrizeClaim[]
+  winners DrawWinner[]
 
   @@map("draw_results")
 }
@@ -1580,7 +1716,10 @@ model DrawResult {
 
 model PrizeClaim {
   claimId         String  @id @default(uuid()) @map("claim_id")
-  drawResultId    String  @unique @map("draw_result_id")
+  drawResultId    String  @map("draw_result_id")
+  // The winner this claim pays. Set for every claim created since prize
+  // pools (one claim per winner); null only on earlier single-prize claims.
+  drawWinnerId    String? @unique @map("draw_winner_id")
   winnerTicketRef String  @map("winner_ticket_ref")
   winnerPhone     String  @map("winner_phone")
   winnerUserId    String? @map("winner_user_id")
@@ -1674,10 +1813,12 @@ model PrizeClaim {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   drawResult      DrawResult       @relation(fields: [drawResultId], references: [resultId])
+  drawWinner      DrawWinner?      @relation(fields: [drawWinnerId], references: [winnerId], onDelete: Restrict)
   collectionPoint CollectionPoint? @relation(fields: [collectionPointId], references: [pointId])
   paidByAgent     Agent?           @relation(fields: [paidByAgentId], references: [agentId])
 
   @@index([winnerPhone])
+  @@index([drawResultId])
   @@index([payoutStatus, payoutInitiatedAt])
   @@index([status, selectionDeadlineAt])
   @@index([paidByAgentId, paidByAgentAt])

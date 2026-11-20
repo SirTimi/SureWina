@@ -6,6 +6,7 @@ import { CustomerAdminService } from './customer-admin.service'
 import { AgentAdminController } from './agent-admin.controller'
 import { AgentAdminService } from './agent-admin.service'
 import { FinanceAdminService } from './finance-admin.service'
+import { UncollectedPrizesService } from './uncollected-prizes.service'
 import { ComplianceAdminService} from './compliance-admin.service'
 import { FinanceAdminController} from './finance-admin.controller'
 import { ComplianceAdminController} from './compliance-admin.controller'
@@ -41,7 +42,7 @@ import { WitmangoWalletFinanceController} from '../integrations/witmango/witmang
     WitmangoFinanceController,
     WitmangoWalletFinanceController
   ],
-  providers: [AdminDashboardService, CustomerAdminService, AgentAdminService, FinanceAdminService, ComplianceAdminService, AdminNotificationsService, PaymentRefundService],
+  providers: [AdminDashboardService, CustomerAdminService, AgentAdminService, FinanceAdminService, UncollectedPrizesService, ComplianceAdminService, AdminNotificationsService, PaymentRefundService],
   exports: [CustomerAdminService]
 })
 export class AdminOpsModule {}

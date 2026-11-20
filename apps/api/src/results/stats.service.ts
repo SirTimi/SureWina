@@ -11,9 +11,10 @@ export class StatsService {
       this.prisma.drawResult.findMany({
         orderBy: { executedAt: 'desc' },
         take: 8,
-        include: { draw: { select: { drawType: true, prizeDescription: true } } },
+        include: { draw: { select: { drawCode: true, drawType: true, prizeDescription: true } } },
       }),
-      this.prisma.drawResult.count(),
+      // Pool and stage draws have many winners each.
+      this.prisma.drawResult.aggregate({ _sum: { totalWinners: true } }),
       this.prisma.prizeClaim.aggregate({
         where: {
           status: { in: [PrizeClaimStatus.CASH_PAID, PrizeClaimStatus.DELIVERED] },
@@ -37,13 +38,15 @@ export class StatsService {
           prizeDescription: r.draw.prizeDescription,
           winnerStateCode: winningTicket?.stateOfPlayCode ?? 'NA',
           winnerTicketRef: r.winnerTicketRef,
+          drawCode: r.draw.drawCode,
+          totalWinners: r.totalWinners,
         };
       }),
     );
 
     return {
       recentWinners,
-      totalWinnersAllTime,
+      totalWinnersAllTime: totalWinnersAllTime._sum.totalWinners ?? 0,
       totalPrizesPaidNgn: paid._sum.grossPrizeValueNgn ?? 0,
     };
   }

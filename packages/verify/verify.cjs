@@ -7,7 +7,10 @@
 //   1. sha256(revealed seed) === committed seed hash
 //   2. Merkle root over the published pool === published root
 //   3. Deterministic winner index → pool[i] === published winner
-//   4. Ed25519 signature over the result payload, against the public key
+//      (prize pool and jackpot stage draws: every winner, in pick order,
+//      and the tier each one was given)
+//   4. Ed25519 signature over the result payload (or, for pool and stage
+//      draws, over the integrity certificate), against the public key
 //
 // The public key should come from an out-of-band source you trust (e.g.
 // Surewina's published key), NOT from the same server whose result you are
@@ -39,12 +42,29 @@ function computeMerkleRoot(ids, drawCode) {
   return level[0];
 }
 
-// Must match apps/engine/src/draw-math.util.ts exactly.
+// Must match apps/engine/src/draw-math.utils.ts exactly.
 function deterministicWinnerIndex(seed, drawCode, n) {
+  return deterministicIndex(seed, `${drawCode}:WINNER_INDEX`, n);
+}
+
+// Pool and stage draws: pick k takes an index into the entries not yet
+// picked. Must match pickWinnerIndexes in apps/engine/src/draw-math.utils.ts.
+function pickWinnerIndexes(seed, drawCode, n, count) {
+  const remaining = Array.from({ length: n }, (_, i) => i);
+  const picks = [];
+  for (let k = 0; k < count && remaining.length > 0; k++) {
+    const j = deterministicIndex(seed, `${drawCode}:PICK:${k}`, remaining.length);
+    picks.push(remaining[j]);
+    remaining.splice(j, 1);
+  }
+  return picks;
+}
+
+function deterministicIndex(seed, label, n) {
   if (n <= 0) throw new Error('Empty pool');
   if (n === 1) return 0;
   const key = createHash('sha256')
-    .update(Buffer.concat([seed, Buffer.from(`${drawCode}:WINNER_INDEX`)]))
+    .update(Buffer.concat([seed, Buffer.from(label)]))
     .digest();
   const nBig = BigInt(n);
   const range = 1n << 64n;
@@ -54,6 +74,48 @@ function deterministicWinnerIndex(seed, drawCode, n) {
     const x = block.readBigUInt64BE(0);
     if (x < limit) return Number(x % nBig);
   }
+}
+
+// Every winner recomputed from the seed, each given the right tier, and every
+// naira of the pool accounted for.
+function verifyCertificate(b, cert, seed) {
+  let ok = true;
+  const r = cert.randomness || {};
+  ok = check('certificate seed and Merkle root match', r.seed === b.rngSeed && r.ticketListMerkleRoot === b.merkleRoot) && ok;
+  ok = check('certificate entry count matches pool', cert.eligibleEntries === b.pool.length, `${cert.eligibleEntries}`) && ok;
+
+  const winners = cert.winners || [];
+  const picks = pickWinnerIndexes(seed, b.drawCode, b.pool.length, winners.length);
+  const mismatch = winners.findIndex((w, k) => w.pickIndex !== k || b.pool[picks[k]] !== w.entry);
+  ok = check(
+    `recomputed all ${winners.length} winners in pick order`,
+    mismatch === -1 && picks.length === winners.length,
+    mismatch === -1 ? '' : `first difference at pick ${mismatch}`,
+  ) && ok;
+
+  // Tier 1 is filled first, then tier 2, then tier 3.
+  const expectedTiers = [];
+  for (const t of cert.tiers || []) {
+    for (let i = 0; i < t.winnersAwarded; i++) expectedTiers.push([t.tierNo, t.prizePerWinnerNgn]);
+  }
+  const tiersOk =
+    expectedTiers.length === winners.length &&
+    winners.every((w, k) => w.tierNo === expectedTiers[k][0] && w.prizeNgn === expectedTiers[k][1]);
+  ok = check('each winner has the prize for their place in the order', tiersOk) && ok;
+
+  const awarded = winners.reduce((s, w) => s + w.prizeNgn, 0);
+  ok = check('awarded total matches', awarded === cert.totals.awardedNgn, `₦${awarded}`) && ok;
+
+  if (cert.pool) {
+    const p = cert.pool;
+    const pctBp = Math.round(parseFloat(p.payoutRatio) * 100);
+    const share = Number((BigInt(p.eligibleRevenueNgn) * BigInt(pctBp)) / 10000n);
+    const pool = Math.max(p.minimumPoolNgn, share);
+    ok = check('pool = max(minimum, payout ratio × revenue)', pool === p.prizePoolNgn && share === p.revenueShareNgn, `₦${pool}`) && ok;
+    ok = check('pool fully accounted for (paid + kept)', awarded + cert.totals.retainedNgn === p.prizePoolNgn) && ok;
+  }
+
+  return ok;
 }
 
 async function loadBundle(source) {
@@ -96,17 +158,23 @@ async function main() {
     `${b.pool.length}`,
   ) && allOk;
 
+  const cert = b.certificate || null;
+
   // 3. Winner recomputation — the core claim
-  const idx = deterministicWinnerIndex(seed, b.drawCode, b.pool.length);
-  allOk = check(
-    'recomputed winner matches published winner',
-    b.pool[idx] === b.winnerTicketRef,
-    `index ${idx} → ${b.pool[idx]}`,
-  ) && allOk;
+  if (cert) {
+    allOk = verifyCertificate(b, cert, seed) && allOk;
+  } else {
+    const idx = deterministicWinnerIndex(seed, b.drawCode, b.pool.length);
+    allOk = check(
+      'recomputed winner matches published winner',
+      b.pool[idx] === b.winnerTicketRef,
+      `index ${idx} → ${b.pool[idx]}`,
+    ) && allOk;
+  }
 
   // 4. Engine signature (optional: needs the public key)
   if (publicKeyB64) {
-    const payload = JSON.stringify({
+    const payload = cert ? JSON.stringify(cert) : JSON.stringify({
       drawId: b.drawId,
       drawCode: b.drawCode,
       winnerTicketRef: b.winnerTicketRef,
@@ -130,7 +198,7 @@ async function main() {
       publicKey,
       Buffer.from(b.engineSignature, 'base64'),
     );
-    allOk = check('Ed25519 engine signature valid', sigOk) && allOk;
+    allOk = check(cert ? 'Ed25519 signature over the certificate valid' : 'Ed25519 engine signature valid', sigOk) && allOk;
   } else {
     console.log('  SKIP  signature check (no public key supplied)');
   }

@@ -1,6 +1,14 @@
+import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsEnum,
   IsInt,
+  Max,
+  Min,
+  ValidateIf,
+  ValidateNested,
   IsISO8601,
   IsOptional,
   IsPositive,
@@ -9,7 +17,9 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { DrawType } from '@prisma/client';
+import { DrawPrizeModel, DrawType, PoolRevenueBasis } from '@prisma/client';
+
+import { PrizeTierDto } from './prize-tier.dto';
 
 export class CreateDrawDto {
   @IsEnum(DrawType)
@@ -20,9 +30,12 @@ export class CreateDrawDto {
   @MaxLength(200)
   prizeDescription!: string;
 
+  // Required for single-prize draws. For pools and stages the server works
+  // it out (the guaranteed minimum, or the stages' total).
+  @ValidateIf((o: CreateDrawDto) => !o.prizeModel || o.prizeModel === DrawPrizeModel.SINGLE)
   @IsInt()
   @IsPositive()
-  prizeValueNgn!: number;
+  prizeValueNgn?: number;
 
   @IsOptional()
   @IsUrl({ require_protocol: true })
@@ -43,4 +56,35 @@ export class CreateDrawDto {
 
   @IsISO8601()
   cutoffAt!: string;
+
+  // ─── Prize model ─────────────────────────────────────────
+  // SINGLE (default): one winner wins prizeValueNgn.
+  // POOL: pool = max(minimum, payout% × eligible revenue), split across tiers.
+  // STAGES: jackpot stages, each with a set number of winners.
+  @IsOptional()
+  @IsEnum(DrawPrizeModel)
+  prizeModel?: DrawPrizeModel;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10000)
+  poolPayoutBp?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  poolMinimumNgn?: number;
+
+  @IsOptional()
+  @IsEnum(PoolRevenueBasis)
+  poolRevenueBasis?: PoolRevenueBasis;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => PrizeTierDto)
+  tiers?: PrizeTierDto[];
 }

@@ -89,13 +89,33 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleWinnerSms(data: WinnerSmsJob) {
-    // 1. Create the claim (idempotent: one claim per draw result).
+    // 1. Create the claim. Idempotent: one claim per winner (prize pools can
+    // have many winners per draw), or per draw result for a job queued
+    // before prize pools.
     const result = await this.prisma.drawResult.findUnique({
       where: { drawId: data.drawId },
       select: { resultId: true },
     });
     if (!result) {
       throw new Error(`No draw result for ${data.drawCode} — retrying`);
+    }
+
+    if (data.drawWinnerId) {
+      const winner = await this.prisma.drawWinner.findUnique({
+        where: { winnerId: data.drawWinnerId },
+        select: { winnerId: true, drawId: true, unitId: true, buyerPhone: true, prizeNgn: true },
+      });
+      if (
+        !winner ||
+        winner.drawId !== data.drawId ||
+        winner.unitId !== data.winnerRef ||
+        winner.buyerPhone !== data.winnerPhone ||
+        winner.prizeNgn !== data.prizeValueNgn
+      ) {
+        // The job must describe a recorded winner exactly. Never trust the
+        // queue payload alone with money.
+        throw new Error(`Winner ${data.drawWinnerId} does not match its job — not opening a claim`);
+      }
     }
 
     const selectionDays = Number(
@@ -107,31 +127,46 @@ export class NotificationsWorker implements OnModuleInit, OnModuleDestroy {
     const now = Date.now();
     const claimDeadlineAt = new Date(now + claimDays * 86_400_000);
 
-    let claimId: string;
-    try {
-      const claim = await this.prisma.prizeClaim.create({
-        data: {
-          drawResultId: result.resultId,
-          winnerTicketRef: data.winnerRef,
-          winnerPhone: data.winnerPhone,
-          grossPrizeValueNgn: data.prizeValueNgn,
-          netPrizeValueNgn: data.prizeValueNgn, // WHT applied at selection (8.5)
-          selectionDeadlineAt: new Date(now + selectionDays * 86_400_000),
-          claimDeadlineAt,
-        },
-      });
-      claimId = claim.claimId;
-      this.logger.log(`Claim created: ${claimId} for ${data.winnerRef}`);
-    } catch (error) {
-      if ((error as { code?: string }).code === 'P2002') {
-        // Retry after a mid-run crash: claim exists, reuse it.
-        const existing = await this.prisma.prizeClaim.findUniqueOrThrow({
-          where: { drawResultId: result.resultId },
+    const existing = data.drawWinnerId
+      ? await this.prisma.prizeClaim.findUnique({
+          where: { drawWinnerId: data.drawWinnerId },
+          select: { claimId: true },
+        })
+      : await this.prisma.prizeClaim.findFirst({
+          where: { drawResultId: result.resultId, winnerTicketRef: data.winnerRef },
           select: { claimId: true },
         });
-        claimId = existing.claimId;
-      } else {
-        throw error;
+
+    let claimId: string;
+    if (existing) {
+      // Retry after a mid-run crash: claim exists, reuse it.
+      claimId = existing.claimId;
+    } else {
+      try {
+        const claim = await this.prisma.prizeClaim.create({
+          data: {
+            drawResultId: result.resultId,
+            drawWinnerId: data.drawWinnerId ?? null,
+            winnerTicketRef: data.winnerRef,
+            winnerPhone: data.winnerPhone,
+            grossPrizeValueNgn: data.prizeValueNgn,
+            netPrizeValueNgn: data.prizeValueNgn, // WHT applied at selection (8.5)
+            selectionDeadlineAt: new Date(now + selectionDays * 86_400_000),
+            claimDeadlineAt,
+          },
+        });
+        claimId = claim.claimId;
+        this.logger.log(`Claim created: ${claimId} for ${data.winnerRef}`);
+      } catch (error) {
+        if ((error as { code?: string }).code === 'P2002' && data.drawWinnerId) {
+          const raced = await this.prisma.prizeClaim.findUniqueOrThrow({
+            where: { drawWinnerId: data.drawWinnerId },
+            select: { claimId: true },
+          });
+          claimId = raced.claimId;
+        } else {
+          throw error;
+        }
       }
     }
 

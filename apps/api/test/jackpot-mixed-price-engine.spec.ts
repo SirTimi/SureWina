@@ -52,6 +52,8 @@ async function executeMixedJackpot({
     drawCode,
     drawType: DrawType.SATURDAY_JACKPOT,
     status: DrawStatus.SALES_CLOSED,
+    prizeModel: 'SINGLE',
+    prizeTiers: [],
     prizeValueNgn: 4000000,
     prizeDescription: 'Saturday jackpot',
     scheduledAt: new Date('2026-10-10T20:00:00.000Z'),
@@ -66,10 +68,13 @@ async function executeMixedJackpot({
   const legacyUpdate = jest.fn(async (_args: unknown) => ({}));
   const drawUpdate = jest.fn(async (_args: unknown) => ({}));
 
+  // Winners are written in bulk since prize pools (one row per winner).
   const tx = {
-    drawResult: { create: resultCreate },
-    ticket: { update: ticketUpdate },
-    jackpotEntry: { update: legacyUpdate },
+    drawResult: { create: jest.fn(async (args: unknown) => { await resultCreate(args); return { resultId: 'result-1' }; }) },
+    drawWinner: { createMany: jest.fn(async () => ({ count: 1 })) },
+    ticket: { updateMany: ticketUpdate },
+    jackpotEntry: { updateMany: legacyUpdate },
+    retainedPrize: { createMany: jest.fn(async () => ({ count: 0 })) },
     draw: { update: drawUpdate },
   };
   const prisma = {
@@ -167,7 +172,7 @@ describe('Phase 12: mixed-price jackpot engine', () => {
 
     expect(h.ticketUpdate).toHaveBeenCalledTimes(1);
     expect(h.ticketUpdate).toHaveBeenCalledWith({
-      where: { ticketId: tickets[index].ticketId },
+      where: { ticketId: { in: [tickets[index].ticketId] } },
       data: { status: TicketStatus.WINNING, isWinner: true },
     });
     expect(h.legacyUpdate).not.toHaveBeenCalled();

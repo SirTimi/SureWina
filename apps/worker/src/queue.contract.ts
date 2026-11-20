@@ -18,6 +18,9 @@ export const JOB_WINNER_SMS = 'winner-sms';
 export type WinnerSmsJob = {
   drawId: string;
   drawCode: string;
+  // The DrawWinner this notice and claim are for. Absent only on jobs queued
+  // before prize pools (one winner per draw).
+  drawWinnerId?: string;
   winnerPhone: string;
   winnerRef: string; // ticketRef or ENTRY-<id>
   prizeDescription: string;

@@ -9,6 +9,12 @@ import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
 import { canPerformAdminAction, getAdminActionDeniedReason, type AdminSession } from '@/lib/admin-auth';
 import { api } from '@/lib/api';
+import {
+  PrizeSetupEditor,
+  defaultPrizeSetup,
+  prizeSetupPayload,
+  type PrizeSetupForm,
+} from '@/components/prize-setup-editor';
 
 type DrawType = 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
 
@@ -30,6 +36,7 @@ function Body({ session }: { session: AdminSession }) {
   const [prizeImageUrl, setPrizeImageUrl] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [cutoffAt, setCutoffAt] = useState('');
+  const [prizeSetup, setPrizeSetup] = useState<PrizeSetupForm>({ ...defaultPrizeSetup('POOL'), model: 'SINGLE' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,12 +67,18 @@ function Body({ session }: { session: AdminSession }) {
       return;
     }
 
+    const prize = prizeSetupPayload(prizeSetup);
+    if (prize.errors.length > 0) {
+      setError(prize.errors.join(' '));
+      return;
+    }
+
     setSubmitting(true);
     try {
       await api.admin.createDraw({
         drawType,
         prizeDescription: prizeDescription.trim(),
-        prizeValueNgn,
+        ...(prizeSetup.model === 'SINGLE' ? { prizeValueNgn } : prize.payload),
         ticketPriceNgn,
         scheduledAt: scheduled.toISOString(),
         cutoffAt: cutoff.toISOString(),
@@ -116,7 +129,7 @@ function Body({ session }: { session: AdminSession }) {
         ]}
       />
 
-      <div className="mx-auto max-w-[720px] px-6 py-5">
+      <div className="mx-auto max-w-[920px] px-6 py-5">
         <form onSubmit={submit}>
           <SectionCard title="Draw setup">
             <div className="space-y-4">
@@ -157,7 +170,13 @@ function Body({ session }: { session: AdminSession }) {
                 </div>
               </div>
 
-              <Field label="Prize description">
+              <PrizeSetupEditor
+                value={prizeSetup}
+                onChange={setPrizeSetup}
+                ticketPriceNgn={ticketPriceNgn}
+              />
+
+              <Field label={prizeSetup.model === 'SINGLE' ? 'Prize description' : 'Headline shown to buyers'}>
                 <input
                   value={prizeDescription}
                   onChange={(e) => setPrizeDescription(e.target.value)}
@@ -168,15 +187,17 @@ function Body({ session }: { session: AdminSession }) {
               </Field>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Prize value (₦)" hint={formatNaira(prizeValueNgn)}>
-                  <input
-                    type="number"
-                    min={1}
-                    value={prizeValueNgn}
-                    onChange={(e) => setPrizeValueNgn(Number(e.target.value))}
-                    className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 font-mono text-sm outline-none focus:border-navy-700"
-                  />
-                </Field>
+                {prizeSetup.model === 'SINGLE' && (
+                  <Field label="Prize value (₦)" hint={formatNaira(prizeValueNgn)}>
+                    <input
+                      type="number"
+                      min={1}
+                      value={prizeValueNgn}
+                      onChange={(e) => setPrizeValueNgn(Number(e.target.value))}
+                      className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 font-mono text-sm outline-none focus:border-navy-700"
+                    />
+                  </Field>
+                )}
 
                 <Field label="Ticket price (₦)" hint={formatNaira(ticketPriceNgn)}>
                   <input

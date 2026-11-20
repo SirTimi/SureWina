@@ -5,7 +5,9 @@ import { use, useEffect, useState } from 'react';
 import {
   Ban,
   CheckCircle2,
+  Download,
   Hash,
+  Lock,
   Pencil,
   ShieldCheck,
   Ticket,
@@ -133,7 +135,12 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
         )}
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat icon={Trophy} label="Prize value">{formatNaira(draw.prizeValueNgn)}</Stat>
+          <Stat
+            icon={Trophy}
+            label={draw.prizeModel === 'POOL' ? 'Minimum pool' : draw.prizeModel === 'STAGES' ? 'All stages' : 'Prize value'}
+          >
+            {formatNaira(draw.prizeValueNgn)}
+          </Stat>
           <Stat icon={Ticket} label="Tickets sold">
             {sales.ticketsSold.toLocaleString('en-NG')}
             {draw.ticketQuota ? ` / ${draw.ticketQuota.toLocaleString('en-NG')}` : ''}
@@ -203,6 +210,50 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
           </SectionCard>
         </div>
 
+        {draw.prizeModel !== 'SINGLE' && (
+          <SectionCard
+            title={draw.prizeModel === 'POOL' ? 'Prize pool' : 'Jackpot stages'}
+            description={
+              draw.prizeModel === 'POOL'
+                ? `${pct(draw.poolPayoutBp)} of ${draw.poolRevenueBasis === 'NET_OF_COMMISSION' ? 'sales less agent commission' : 'all ticket sales'}, never less than ${formatNaira(draw.poolMinimumNgn ?? 0)}`
+                : 'Each active stage picks its own winners from the same entries'
+            }
+          >
+            {draw.prizeConfigLockedAt && (
+              <p className="mb-3 flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                <Lock className="h-3.5 w-3.5" />
+                Locked when sales opened,{' '}
+                {new Date(draw.prizeConfigLockedAt).toLocaleString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] text-sm">
+                <thead className="text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                  <tr>
+                    <th className="py-1 pr-3">{draw.prizeModel === 'POOL' ? 'Category' : 'Stage'}</th>
+                    <th className="py-1 pr-3">{draw.prizeModel === 'POOL' ? 'Share' : 'Winners'}</th>
+                    <th className="py-1 pr-3">Prize per winner</th>
+                    <th className="py-1">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {draw.tiers.map((t) => (
+                    <tr key={t.tierNo} className="border-t border-slate-100">
+                      <td className="py-2 pr-3 font-bold">{t.name}</td>
+                      <td className="py-2 pr-3 font-mono">{draw.prizeModel === 'POOL' ? pct(t.allocationBp ?? null) : t.winnerCount}</td>
+                      <td className="py-2 pr-3">
+                        {formatNaira(t.prizePerWinnerNgn)}
+                        {t.prizeDescription ? <span className="text-slate-500"> · {t.prizeDescription}</span> : null}
+                      </td>
+                      <td className="py-2 text-xs font-bold">{t.active ? 'On' : <span className="text-slate-400">Off</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+        )}
+
         {result && (
           <SectionCard
             title="Draw result"
@@ -211,11 +262,20 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                  Winning ticket
+                  {result.totalWinners > 1 ? 'Winners' : 'Winning ticket'}
                 </p>
                 <p className="mt-1 font-mono text-2xl font-black text-[#0B1220]">
-                  {result.winnerTicketRef}
+                  {result.totalWinners > 1
+                    ? `${result.totalWinners.toLocaleString('en-NG')} winners · ${formatNaira(result.awardedNgn)}`
+                    : result.winnerTicketRef}
                 </p>
+                {result.prizePoolNgn != null && (
+                  <p className="mt-1 text-sm text-slate-600">
+                    Pool {formatNaira(result.prizePoolNgn)} from {formatNaira(result.eligibleRevenueNgn ?? 0)} eligible revenue
+                    {result.fundingShortfallNgn > 0 ? ` · company top-up ${formatNaira(result.fundingShortfallNgn)}` : ''}
+                    {result.retainedNgn > 0 ? ` · kept ${formatNaira(result.retainedNgn)}` : ''}
+                  </p>
+                )}
                 <p className="mt-2 text-xs text-slate-500">
                   Executed{' '}
                   {new Date(result.executedAt).toLocaleString('en-NG', {
@@ -242,8 +302,70 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
                 <Mono label="Seed hash" value={result.rngSeedHash} />
                 <Mono label="Merkle root" value={result.merkleRoot} />
                 <Mono label="Engine signature" value={result.engineSignature} />
+                {result.certificate != null && (
+                  <button
+                    type="button"
+                    onClick={() => downloadJson(`${draw.drawCode}-certificate.json`, result.certificate)}
+                    className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-black text-[#0B1220] hover:border-slate-300"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Integrity certificate
+                  </button>
+                )}
               </div>
             </div>
+          </SectionCard>
+        )}
+
+        {data.winners.length > 0 && (
+          <SectionCard
+            title={`Winners (${data.winners.length.toLocaleString('en-NG')})`}
+            description="In the order the engine picked them. Phone numbers are masked."
+          >
+            <div className="max-h-[480px] overflow-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead className="sticky top-0 bg-white text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                  <tr>
+                    <th className="py-1 pr-3">#</th>
+                    <th className="py-1 pr-3">Prize</th>
+                    <th className="py-1 pr-3">Ticket</th>
+                    <th className="py-1 pr-3">Phone</th>
+                    <th className="py-1 pr-3">Amount</th>
+                    <th className="py-1">Claim</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.winners.map((w) => (
+                    <tr key={w.winnerId} className="border-t border-slate-100">
+                      <td className="py-1.5 pr-3 font-mono text-slate-400">{w.pickIndex + 1}</td>
+                      <td className="py-1.5 pr-3 font-bold">{w.tierName}</td>
+                      <td className="py-1.5 pr-3 font-mono">{w.unitId}</td>
+                      <td className="py-1.5 pr-3 font-mono">{w.buyerPhone}</td>
+                      <td className="py-1.5 pr-3">{w.prizeDescription}</td>
+                      <td className="py-1.5 text-xs">
+                        {w.claimId ? (
+                          <Link href={`/claims/${w.claimId}`} className="font-bold text-navy-700 hover:underline">
+                            {w.claimStatus}
+                          </Link>
+                        ) : (
+                          <span className="text-slate-400">Pending</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+        )}
+
+        {data.retained.length > 0 && (
+          <SectionCard title="Kept by the company" description="Also listed in the uncollected prizes ledger.">
+            {data.retained.map((r, i) => (
+              <Row key={i} label={retainedLabel(r.kind, r.tierNo, draw.tiers)}>
+                {formatNaira(r.amountNgn)}
+              </Row>
+            ))}
           </SectionCard>
         )}
       </div>
@@ -304,4 +426,27 @@ function Chip({ ok, label }: { ok: boolean; label: string }) {
       {label}
     </span>
   );
+}
+
+function pct(bp: number | null): string {
+  if (bp == null) return '—';
+  const frac = bp % 100;
+  return frac === 0 ? `${bp / 100}%` : `${Math.floor(bp / 100)}.${String(frac).padStart(2, '0')}%`;
+}
+
+function retainedLabel(kind: string, tierNo: number | null, tiers: { tierNo: number; name: string }[]): string {
+  const tier = tierNo != null ? tiers.find((t) => t.tierNo === tierNo)?.name ?? `Tier ${tierNo}` : null;
+  if (kind === 'ROUNDING') return tier ? `Rounding · ${tier}` : 'Rounding · pool';
+  if (kind === 'UNAWARDED') return `Not enough entries · ${tier ?? 'pool'}`;
+  return 'Unclaimed prize';
+}
+
+function downloadJson(name: string, value: unknown) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
 }

@@ -11,7 +11,9 @@ import {
 import {
   AdminRole,
   PrizeClaimStatus,
+  RetainedPrizeKind,
 } from '@prisma/client';
+import { Type } from 'class-transformer';
 
 import {
   IsDateString,
@@ -20,8 +22,10 @@ import {
   IsIn,
   IsNotEmpty,
   IsOptional,
+  IsInt,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { ConfigService } from '@nestjs/config';
 import { getPaystackPrizePayoutReadiness } from '../claims/payout/paystack-prize-payout-readiness';
@@ -34,6 +38,7 @@ import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 
 import { FinanceAdminService } from './finance-admin.service';
 import { PaymentRefundService } from './payment-refund.service';
+import { UncollectedPrizesService } from './uncollected-prizes.service';
 
 import {
   PrizePayoutEngineService,
@@ -68,6 +73,26 @@ class ListPayoutsQueryDto {
   toDate?: string;
 }
 
+class UncollectedPrizesQueryDto {
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
+
+  @IsOptional()
+  @IsEnum(RetainedPrizeKind)
+  kind?: RetainedPrizeKind;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+}
+
 export class PrizePayoutProviderDto {
   @IsIn(['MONNIFY', 'FLUTTERWAVE', 'PAYSTACK'])
   provider!: 'MONNIFY' | 'FLUTTERWAVE' | 'PAYSTACK';
@@ -92,7 +117,15 @@ export class FinanceAdminController {
     private readonly prizePayouts:
       PrizePayoutEngineService,
     private readonly config: ConfigService,
+    private readonly uncollectedPrizes: UncollectedPrizesService,
   ) {}
+
+  // Prize money kept by the company: rounding, prizes nobody could win, and
+  // prizes forfeited after the claim deadline.
+  @Get('uncollected-prizes')
+  listUncollectedPrizes(@Query() q: UncollectedPrizesQueryDto) {
+    return this.uncollectedPrizes.list(q);
+  }
 
   @Get('reconciliation')
   reconciliation(

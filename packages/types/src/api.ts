@@ -1,4 +1,4 @@
-import type { DrawPublic, DrawResultPublic, DrawType } from './draws.js';
+import type { DrawPrizeTierSummary, DrawPublic, DrawResultPublic, DrawType, DrawWinnerPublic } from './draws.js';
 import type { TicketPublic, TicketStatus, TicketType } from './tickets.js';
 import type { UserMe, UserPublic } from './identity.js';
 import type { ClaimType, PrizeClaimStatus } from './prizes.js';
@@ -34,6 +34,8 @@ export interface GetResultDetailResponse {
   result: DrawResultPublic;
   drawDescription: string;
   prizeImageUrl: string | null;
+  winners: DrawWinnerPublic[];
+  tiers: DrawPrizeTierSummary[];
 }
 
 export interface LookupTicketRequest {
@@ -53,6 +55,9 @@ export interface RecentWinnerStat {
   prizeDescription: string;
   winnerStateCode: string;
   winnerTicketRef: string;
+  drawCode: string;
+  // More than 1 for prize pool and jackpot stage draws.
+  totalWinners: number;
 }
 
 export interface RecentStatsResponse {

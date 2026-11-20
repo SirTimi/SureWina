@@ -24,17 +24,14 @@ export function computeMerkleRoot(ids: string[], drawCode: string): string {
 }
 
 // Deterministic uniform index in [0, n): HMAC-SHA256 counter mode over a
-// key derived from the seed, with rejection sampling to remove modulo bias.
-export function deterministicWinnerIndex(
-  seed: Buffer,
-  drawCode: string,
-  n: number,
-): number {
+// key derived from the seed and a label, with rejection sampling to remove
+// modulo bias. The verifier must implement this identically.
+export function deterministicIndex(seed: Buffer, label: string, n: number): number {
   if (n <= 0) throw new Error('Pool must be non-empty');
   if (n === 1) return 0;
 
   const key = createHash('sha256')
-    .update(Buffer.concat([seed, Buffer.from(`${drawCode}:WINNER_INDEX`)]))
+    .update(Buffer.concat([seed, Buffer.from(label)]))
     .digest();
 
   const nBig = BigInt(n);
@@ -49,4 +46,43 @@ export function deterministicWinnerIndex(
     if (x < limit) return Number(x % nBig);
     // else reject and continue — probability of rejection is < n/2^64
   }
+}
+
+// The single-prize draw's winner. Unchanged since the first release, so every
+// past result still verifies.
+export function deterministicWinnerIndex(
+  seed: Buffer,
+  drawCode: string,
+  n: number,
+): number {
+  return deterministicIndex(seed, `${drawCode}:WINNER_INDEX`, n);
+}
+
+// Prize pools and stages: `count` distinct winners, in pick order. Pick k
+// draws uniformly from the entries not yet picked, using the label
+// `${drawCode}:PICK:${k}`, so every remaining entry has an equal chance at
+// every pick and no entry can win twice. Returns indexes into the pool, in
+// pick order.
+export function pickWinnerIndexes(
+  seed: Buffer,
+  drawCode: string,
+  n: number,
+  count: number,
+): number[] {
+  if (!Number.isSafeInteger(n) || n < 0) throw new Error('Pool size must be 0 or more');
+  if (!Number.isSafeInteger(count) || count < 0 || count > n) {
+    throw new Error('Cannot pick more winners than there are entries');
+  }
+
+  // remaining[i] is the original index of the i-th entry still in play.
+  const remaining = Array.from({ length: n }, (_, i) => i);
+  const picked: number[] = [];
+
+  for (let k = 0; k < count; k++) {
+    const at = deterministicIndex(seed, `${drawCode}:PICK:${k}`, remaining.length);
+    picked.push(remaining[at]);
+    remaining.splice(at, 1);
+  }
+
+  return picked;
 }

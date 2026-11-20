@@ -223,6 +223,14 @@ const navGroups: Array<{
         roles: ['FINANCE_OFFICER'],
       },
       {
+        label: 'Uncollected prizes',
+        href: '/uncollected-prizes',
+        icon: ReceiptText,
+        help: 'Prize money kept by the company: rounding, prizes nobody could win, and unclaimed prizes',
+        permission: 'VIEW_FINANCE',
+        roles: ['FINANCE_OFFICER'],
+      },
+      {
         label: 'Treasury',
         href: '/treasury',
         icon: Banknote,

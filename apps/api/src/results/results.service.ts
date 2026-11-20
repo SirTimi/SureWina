@@ -6,6 +6,7 @@ import {
   GetResultDetailResponseDto,
   ListPastResultsResponseDto,
   toDrawResultPublic,
+  toDrawWinnerPublic,
 } from './results.types';
 
 @Injectable()
@@ -63,11 +64,25 @@ export class ResultsService {
     }
 
     const resultWithDraw = { ...draw.result, draw };
+    const winners = await this.prisma.drawWinner.findMany({
+      where: { drawId: draw.drawId },
+      orderBy: { pickIndex: 'asc' },
+    });
+
+    // One line per prize level, in tier order.
+    const tiers = new Map<number, { tierNo: number; name: string; winners: number; prizePerWinnerNgn: number; prizeDescription: string }>();
+    for (const w of winners) {
+      const t = tiers.get(w.tierNo);
+      if (t) t.winners += 1;
+      else tiers.set(w.tierNo, { tierNo: w.tierNo, name: w.tierName, winners: 1, prizePerWinnerNgn: w.prizeNgn, prizeDescription: w.prizeDescription });
+    }
 
     return {
       result: toDrawResultPublic(resultWithDraw),
       drawDescription: draw.prizeDescription,
       prizeImageUrl: draw.prizeImageUrl,
+      winners: winners.map(toDrawWinnerPublic),
+      tiers: [...tiers.values()].sort((a, b) => a.tierNo - b.tierNo),
     };
   }
 
@@ -155,6 +170,11 @@ export class ResultsService {
       executedAt: r.executedAt.toISOString(),
       seedCommittedAt: r.rngSeedHashedAt.toISOString(),
       pool,
+      // Pool and stage draws: the signed certificate lists every winner in
+      // pick order. Null for single-prize draws.
+      prizeModel: r.prizeModel,
+      totalWinners: r.totalWinners,
+      certificate: r.certificate,
     };
   }
 }

@@ -15,6 +15,12 @@ import {
   type AdminSession,
 } from '@/lib/admin-auth';
 import { api } from '@/lib/api';
+import {
+  PrizeSetupEditor,
+  prizeSetupFromDraw,
+  prizeSetupPayload,
+  type PrizeSetupForm,
+} from '@/components/prize-setup-editor';
 
 // datetime-local wants "YYYY-MM-DDTHH:mm" in local time.
 function toLocalInput(iso: string) {
@@ -46,6 +52,7 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
   const [prizeImageUrl, setPrizeImageUrl] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [cutoffAt, setCutoffAt] = useState('');
+  const [prizeSetup, setPrizeSetup] = useState<PrizeSetupForm | null>(null);
 
   const allowed = canPerformAdminAction(session.tier, 'CREATE_DRAW_SETUP_REQUEST');
 
@@ -61,6 +68,7 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
         setPrizeImageUrl(d.draw.prizeImageUrl ?? '');
         setScheduledAt(toLocalInput(d.draw.scheduledAt));
         setCutoffAt(toLocalInput(d.draw.cutoffAt));
+        setPrizeSetup(prizeSetupFromDraw(d.draw));
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Could not load draw.'))
       .finally(() => setLoading(false));
@@ -87,7 +95,22 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
     const patch: Record<string, unknown> = {};
     if (prizeDescription.trim() !== original.draw.prizeDescription)
       patch.prizeDescription = prizeDescription.trim();
-    if (prizeValueNgn !== original.draw.prizeValueNgn) patch.prizeValueNgn = prizeValueNgn;
+    if (prizeSetup) {
+      const prize = prizeSetupPayload(prizeSetup);
+      if (prize.errors.length > 0) {
+        setError(prize.errors.join(' '));
+        return;
+      }
+      const before = prizeSetupPayload(prizeSetupFromDraw(original.draw)).payload;
+      const modelChanged = prizeSetup.model !== original.draw.prizeModel;
+      if (prizeSetup.model === 'SINGLE') {
+        if (modelChanged) patch.prizeModel = 'SINGLE';
+        if (modelChanged || prizeValueNgn !== original.draw.prizeValueNgn) patch.prizeValueNgn = prizeValueNgn;
+      } else if (modelChanged || JSON.stringify(prize.payload) !== JSON.stringify(before)) {
+        // Prize settings are saved as a whole.
+        Object.assign(patch, prize.payload);
+      }
+    }
     if (ticketPriceNgn !== original.draw.ticketPriceNgn) patch.ticketPriceNgn = ticketPriceNgn;
     if ((ticketQuota ? Number(ticketQuota) : null) !== original.draw.ticketQuota && ticketQuota)
       patch.ticketQuota = Number(ticketQuota);
@@ -146,7 +169,7 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
         ]}
       />
 
-      <div className="mx-auto max-w-[720px] px-6 py-5">
+      <div className="mx-auto max-w-[920px] px-6 py-5">
         {!allowed || notEditable ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
             <AlertTriangle className="mx-auto h-8 w-8 text-amber-600" />
@@ -166,7 +189,17 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
           <form onSubmit={submit}>
             <SectionCard title="Draw details">
               <div className="space-y-4">
-                <Field label="Prize description">
+                {prizeSetup && (
+                  <PrizeSetupEditor
+                    value={prizeSetup}
+                    onChange={setPrizeSetup}
+                    drawId={id}
+                    ticketPriceNgn={ticketPriceNgn}
+                    locked={!!original.draw.prizeConfigLockedAt}
+                  />
+                )}
+
+                <Field label={prizeSetup?.model === 'SINGLE' ? 'Prize description' : 'Headline shown to buyers'}>
                   <input
                     value={prizeDescription}
                     onChange={(e) => setPrizeDescription(e.target.value)}
@@ -176,15 +209,17 @@ function Body({ id, session }: { id: string; session: AdminSession }) {
                 </Field>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="Prize value (₦)" hint={formatNaira(prizeValueNgn)}>
-                    <input
-                      type="number"
-                      min={1}
-                      value={prizeValueNgn}
-                      onChange={(e) => setPrizeValueNgn(Number(e.target.value))}
-                      className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 font-mono text-sm outline-none focus:border-navy-700"
-                    />
-                  </Field>
+                  {prizeSetup?.model === 'SINGLE' && (
+                    <Field label="Prize value (₦)" hint={formatNaira(prizeValueNgn)}>
+                      <input
+                        type="number"
+                        min={1}
+                        value={prizeValueNgn}
+                        onChange={(e) => setPrizeValueNgn(Number(e.target.value))}
+                        className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 font-mono text-sm outline-none focus:border-navy-700"
+                      />
+                    </Field>
+                  )}
 
                   <Field label="Ticket price (₦)" hint={formatNaira(ticketPriceNgn)}>
                     <input

@@ -14,6 +14,8 @@ const JOB_WINNER_SMS = 'winner-sms';
 export type WinnerSmsJob = {
   drawId: string;
   drawCode: string;
+  // The DrawWinner this notice and claim are for.
+  drawWinnerId: string;
   drawScheduledAt: string;
   winnerPhone: string;
   winnerRef: string;
@@ -46,7 +48,7 @@ export class WinnerQueueService implements OnModuleInit, OnModuleDestroy {
   async enqueueWinnerSms(job: WinnerSmsJob): Promise<void> {
     try {
       await this.queue.add(JOB_WINNER_SMS, job, {
-        jobId: `winner-${job.drawId}`, // one winner SMS per draw, ever
+        jobId: `winner-${job.drawWinnerId}`, // one SMS (and claim) per winner, ever
         attempts: 5,
         backoff: { type: 'exponential', delay: 2000 },
         removeOnComplete: 1000,

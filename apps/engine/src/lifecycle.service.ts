@@ -87,7 +87,9 @@ export class LifecycleService implements OnModuleInit, OnModuleDestroy {
   ): Promise<void> {
     const result = await this.prisma.draw.updateMany({
       where: { drawId, status: from },
-      data: { status: to },
+      // Opening sales locks the prize setup: from here the draw pays out
+      // exactly what buyers were shown.
+      data: to === DrawStatus.ACTIVE ? { status: to, prizeConfigLockedAt: new Date() } : { status: to },
     });
     if (result.count === 0) return;
 

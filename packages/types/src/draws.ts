@@ -69,4 +69,26 @@ export interface DrawResultPublic {
   rngSeedHash: string;
   stateBreakdown: DrawStateBreakdown;
   executedAt: Timestamp;
+  // SINGLE: one winner (winnerTicketRef). POOL and STAGES: many winners;
+  // winnerTicketRef is the first one picked.
+  prizeModel: 'SINGLE' | 'POOL' | 'STAGES';
+  totalWinners: number;
+  prizePoolNgn: NairaAmount | null;
+}
+
+export interface DrawWinnerPublic {
+  pickIndex: number;
+  tierNo: number;
+  tierName: string;
+  winnerRef: string;
+  prizeNgn: NairaAmount;
+  prizeDescription: string;
+}
+
+export interface DrawPrizeTierSummary {
+  tierNo: number;
+  name: string;
+  winners: number;
+  prizePerWinnerNgn: NairaAmount;
+  prizeDescription: string;
 }

@@ -17,8 +17,55 @@ import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 import { DrawsService } from './draws.service';
 import { CreateDrawDto } from './dto/create-draw.dto';
 import { UpdateDrawDto } from './dto/update-draw.dto';
-import { DrawStatus } from '@prisma/client';
-import { IsEnum, IsOptional } from 'class-validator'
+import { DrawPrizeModel, DrawStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { PrizeTierDto } from './dto/prize-tier.dto';
+
+class PrizePreviewDto {
+  @IsEnum(DrawPrizeModel)
+  prizeModel!: DrawPrizeModel;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10000)
+  poolPayoutBp?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  poolMinimumNgn?: number;
+
+  @IsArray()
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => PrizeTierDto)
+  tiers!: PrizeTierDto[];
+
+  // Revenue levels to work the plan out at.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(8)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  revenuesNgn?: number[];
+
+  // Adds the plan at this draw's sales so far.
+  @IsOptional()
+  @IsUUID()
+  drawId?: string;
+}
 
 
 class ListDrawsQueryDto {
@@ -36,6 +83,12 @@ export class AdminDrawsController {
   @Get()
   list(@Query() q: ListDrawsQueryDto) {
     return this.drawsService.listForAdmin(q.status);
+  }
+
+  // Declared before ':drawId' routes. Saves nothing.
+  @Post('prize-preview')
+  prizePreview(@Body() dto: PrizePreviewDto) {
+    return this.drawsService.prizePreview(dto);
   }
 
   @Get(':drawId')

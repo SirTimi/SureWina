@@ -58,7 +58,7 @@ export class AgentPrizesService {
     return {
       ticketRef: ticket.ticketRef,
       isWinner: ticket.isWinner,
-      prizeDescription: claim?.drawResult.draw.prizeDescription ?? null,
+      prizeDescription: claim ? claim.drawWinner?.prizeDescription ?? claim.drawResult.draw.prizeDescription : null,
       grossPrizeValueNgn: claim?.grossPrizeValueNgn ?? null,
       netPrizeValueNgn: claim?.netPrizeValueNgn ?? null,
       claimStatus: claim?.status ?? null,
@@ -300,6 +300,7 @@ export class AgentPrizesService {
             drawResult: {
               select: { draw: { select: { prizeDescription: true } } },
             },
+            drawWinner: { select: { prizeDescription: true } },
           },
         })
       : null;

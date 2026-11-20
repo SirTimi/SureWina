@@ -1,6 +1,6 @@
 # AI Build State
 
-Updated: 2026-10-26
+Updated: 2026-11-20
 
 ## Current Goal
 
@@ -99,3 +99,15 @@ Separate from AGENT-MOBILE-01, and **not accepted**. Every switch defaults off.
 ## Previous Finance Context
 
 Prior detailed history archived in `docs/AI_BUILD_STATE_PRE_MOBILE_2026-10-19.md`. The archived status represents prior work, not the active mobile development gate.
+
+## Parallel Track: Prize Pools and Jackpot Stages
+
+Built 2026-11-20 from Mr Alex's requirements; **not accepted**. See `docs/PRIZE_POOLS.md`.
+
+- Draws can be a single prize (unchanged), a prize pool split into up to 3 categories, or up to 3 jackpot stages.
+- Engine 1.1.0 picks many winners from the sealed seed; single-prize draws use the original method so past draws still verify.
+- Signed integrity certificate per pool/stage draw; `packages/verify/verify.cjs` checks every winner.
+- Prize setup locks when sales open. Uncollected prizes ledger for finance.
+- Migration `20261120180000_prize_pools`.
+- Waiting on Mr Alex: revenue basis, real values, approvers, WHT, jackpot stage prizes. Approval workflow not built.
+

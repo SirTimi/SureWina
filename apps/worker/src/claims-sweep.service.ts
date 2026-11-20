@@ -5,7 +5,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AuditActorType, AuditSeverity, PrizeClaimStatus } from '@prisma/client';
+import { AuditActorType, AuditSeverity, Prisma, PrizeClaimStatus, RetainedPrizeKind } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 import { V2nSmsService } from './v2n-sms.service';
 
@@ -82,11 +82,18 @@ export class ClaimsSweepService implements OnModuleInit, OnModuleDestroy {
     winnerRef: string,
   ): Promise<void> {
     // Guarded flip: a concurrent selection/KYC action makes this a no-op.
-    const result = await this.prisma.prizeClaim.updateMany({
-      where: { claimId, status: fromStatus },
-      data: { status: PrizeClaimStatus.FORFEITED, forfeitedAt: new Date() },
+    // The uncollected prizes ledger entry is written in the same
+    // transaction, so a forfeited prize is never missing from the ledger.
+    const forfeited = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.prizeClaim.updateMany({
+        where: { claimId, status: fromStatus },
+        data: { status: PrizeClaimStatus.FORFEITED, forfeitedAt: new Date() },
+      });
+      if (result.count === 0) return false;
+      await this.recordUnclaimed(tx, claimId);
+      return true;
     });
-    if (result.count === 0) return;
+    if (!forfeited) return;
 
     await this.prisma.auditLog.create({
       data: {
@@ -114,4 +121,32 @@ export class ClaimsSweepService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.warn(`Forfeited claim ${claimId} (${fromStatus}, ${winnerRef})`);
   }
+
+  // The unclaimed prize goes back to the company: one ledger row per claim
+  // (the claim id is unique in the ledger).
+  private async recordUnclaimed(tx: Prisma.TransactionClient, claimId: string): Promise<void> {
+    const claim = await tx.prizeClaim.findUnique({
+      where: { claimId },
+      select: {
+        grossPrizeValueNgn: true,
+        winnerTicketRef: true,
+        drawResult: { select: { drawId: true } },
+        drawWinner: { select: { tierNo: true } },
+      },
+    });
+    if (!claim || claim.grossPrizeValueNgn <= 0) return;
+
+    await tx.retainedPrize.create({
+      data: {
+        drawId: claim.drawResult.drawId,
+        kind: RetainedPrizeKind.UNCLAIMED,
+        amountNgn: claim.grossPrizeValueNgn,
+        // Null tier keeps the (draw, kind, tier) key free for every claim.
+        tierNo: null,
+        claimId,
+        note: `Unclaimed prize for ${claim.winnerTicketRef}${claim.drawWinner ? ` (tier ${claim.drawWinner.tierNo})` : ''}`,
+      },
+    });
+  }
+
 }

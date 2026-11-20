@@ -68,8 +68,19 @@ type ClaimWithViewData = PrizeClaim & {
       prizeDescription: string;
     };
   };
+  // Pool and stage draws: the winner's own prize, e.g. "₦25,000 (Gold)".
+  drawWinner: { prizeDescription: string } | null;
   identityChecks: KycIdentityCheck[];
 };
+
+// The prize this claim pays: the winner's own prize where there is one,
+// otherwise the draw's prize.
+function claimPrizeDescription(c: {
+  drawResult: { draw: { prizeDescription: string } };
+  drawWinner?: { prizeDescription: string } | null;
+}): string {
+  return c.drawWinner?.prizeDescription ?? c.drawResult.draw.prizeDescription;
+}
 
 // Statuses in which the winner may still (re)choose product vs cash.
 const CHOOSABLE: PrizeClaimStatus[] = [
@@ -743,13 +754,14 @@ async reviewKyc(
     winnerPhone: string;
     claimDeadlineAt: Date;
     drawResult: { draw: { prizeDescription: string } };
+    drawWinner?: { prizeDescription: string } | null;
   }) {
     const code = await this.redemption.issue(claim.claimId);
     await this.notificationQueue.enqueueRedemptionCodeSms({
       claimId: claim.claimId,
       winnerPhone: claim.winnerPhone,
       code,
-      prizeDescription: claim.drawResult.draw.prizeDescription,
+      prizeDescription: claimPrizeDescription(claim),
       claimDeadlineAt: claim.claimDeadlineAt.toISOString(),
     });
   }
@@ -767,6 +779,7 @@ async reviewKyc(
           },
         },
       },
+      drawWinner: { select: { prizeDescription: true } },
       identityChecks: {
         orderBy: {
           attemptNumber: 'desc' as const,
@@ -818,7 +831,7 @@ async reviewKyc(
       claimId: c.claimId,
       winnerTicketRef: c.winnerTicketRef,
       drawCode: c.drawResult.draw.drawCode,
-      prizeDescription: c.drawResult.draw.prizeDescription,
+      prizeDescription: claimPrizeDescription(c),
       status: c.status,
       claimType: c.claimType,
       grossPrizeValueNgn: c.grossPrizeValueNgn,

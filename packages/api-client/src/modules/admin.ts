@@ -439,6 +439,98 @@ export interface AdminDrawRow {
   createdAt: string;
 }
 
+export type AdminPrizeModel = 'SINGLE' | 'POOL' | 'STAGES';
+export type AdminPoolRevenueBasis = 'GROSS' | 'NET_OF_COMMISSION';
+
+export interface AdminPrizeTier {
+  tierNo: number;
+  name: string;
+  active: boolean;
+  allocationBp?: number | null;
+  winnerCount?: number | null;
+  prizePerWinnerNgn: number;
+  prizeDescription?: string | null;
+}
+
+export interface AdminPrizeSetup {
+  prizeModel?: AdminPrizeModel;
+  poolPayoutBp?: number;
+  poolMinimumNgn?: number;
+  poolRevenueBasis?: AdminPoolRevenueBasis;
+  tiers?: AdminPrizeTier[];
+}
+
+export interface AdminPrizePlan {
+  model: 'POOL' | 'STAGES';
+  eligibleRevenueNgn: number | null;
+  revenueShareNgn: number | null;
+  poolNgn: number | null;
+  fundingShortfallNgn: number;
+  tiers: {
+    tierNo: number;
+    name: string;
+    prizePerWinnerNgn: number;
+    prizeDescription: string;
+    allocationNgn: number | null;
+    winners: number;
+    roundingNgn: number;
+  }[];
+  totalWinners: number;
+  totalPrizeNgn: number;
+  roundingNgn: number;
+}
+
+export interface AdminPrizePreview {
+  valid: boolean;
+  errors: string[];
+  payoutRatio?: string | null;
+  breakEvenRevenueNgn: number | null;
+  scenarios: AdminPrizePlan[];
+  current: { eligibleRevenueNgn: number; ticketsSold: number; plan: AdminPrizePlan } | null;
+}
+
+export interface AdminDrawWinner {
+  winnerId: string;
+  pickIndex: number;
+  tierNo: number;
+  tierName: string;
+  unitId: string;
+  buyerPhone: string;
+  prizeNgn: number;
+  prizeDescription: string;
+  claimId: string | null;
+  claimStatus: string | null;
+}
+
+export type AdminRetainedPrizeKind = 'ROUNDING' | 'UNAWARDED' | 'UNCLAIMED';
+
+export interface AdminUncollectedPrizeRow {
+  retainedId: string;
+  recordedAt: string;
+  kind: AdminRetainedPrizeKind;
+  amountNgn: number;
+  drawId: string;
+  drawCode: string;
+  drawDate: string;
+  tierName: string | null;
+  note: string | null;
+  claim: {
+    claimId: string;
+    winnerTicketRef: string;
+    winnerPhone: string;
+    claimDeadlineAt: string;
+    prizeDescription: string | null;
+  } | null;
+}
+
+export interface AdminUncollectedPrizes {
+  rows: AdminUncollectedPrizeRow[];
+  totals: Record<AdminRetainedPrizeKind | 'all', { count: number; amountNgn: number }>;
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
 export interface AdminDrawDetail {
   draw: {
     drawId: string;
@@ -453,7 +545,15 @@ export interface AdminDrawDetail {
     cutoffAt: string;
     status: string;
     createdAt: string;
+    prizeModel: AdminPrizeModel;
+    poolPayoutBp: number | null;
+    poolMinimumNgn: number | null;
+    poolRevenueBasis: AdminPoolRevenueBasis | null;
+    prizeConfigLockedAt: string | null;
+    tiers: AdminPrizeTier[];
   };
+  winners: AdminDrawWinner[];
+  retained: { kind: 'ROUNDING' | 'UNAWARDED' | 'UNCLAIMED'; tierNo: number | null; amountNgn: number; note: string | null; recordedAt: string }[];
   sales: { ticketsSold: number; grossSalesNgn: number; agentTickets: number };
   seed: { seedHash: string; committedAt: string | null; revealed: boolean } | null;
   result: {
@@ -468,6 +568,14 @@ export interface AdminDrawDetail {
     totalEligibleParticipants: number;
     zeroInterventionConfirmed: boolean;
     stateBreakdown: unknown;
+    prizeModel: AdminPrizeModel;
+    eligibleRevenueNgn: number | null;
+    prizePoolNgn: number | null;
+    fundingShortfallNgn: number;
+    retainedNgn: number;
+    totalWinners: number;
+    awardedNgn: number;
+    certificate: unknown;
   } | null;
 }
 
@@ -1326,6 +1434,15 @@ export class AdminModule {
     );
   }
 
+  async uncollectedPrizes(query: {
+    fromDate?: string;
+    toDate?: string;
+    kind?: AdminRetainedPrizeKind;
+    page?: number;
+  } = {}): Promise<AdminUncollectedPrizes> {
+    return this.client.get('/admin/finance/uncollected-prizes', { query });
+  }
+
   async listRemittances(status?: string): Promise<{ remittances: AdminRemittanceRow[] }> {
     return this.client.get('/admin/finance/remittances', { query: { status } });
   }
@@ -1334,10 +1451,10 @@ export class AdminModule {
     return this.client.get('/admin/draws', { query: { status } });
   }
 
-  async createDraw(input: {
+  async createDraw(input: AdminPrizeSetup & {
     drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
     prizeDescription: string;
-    prizeValueNgn: number;
+    prizeValueNgn?: number;
     ticketPriceNgn: number;
     scheduledAt: string;
     cutoffAt: string;
@@ -1357,7 +1474,7 @@ export class AdminModule {
 
   async updateDraw(
     drawId: string,
-    input: Partial<{
+    input: AdminPrizeSetup & Partial<{
       prizeDescription: string;
       prizeValueNgn: number;
       prizeImageUrl: string;
@@ -1368,6 +1485,18 @@ export class AdminModule {
     }>,
   ): Promise<unknown> {
     return this.client.patch(`/admin/draws/${encodeURIComponent(drawId)}`, input);
+  }
+
+  // Works out what a prize pool or jackpot stage setup would pay. Saves nothing.
+  async prizePreview(input: {
+    prizeModel: 'POOL' | 'STAGES';
+    poolPayoutBp?: number;
+    poolMinimumNgn?: number;
+    tiers: AdminPrizeTier[];
+    revenuesNgn?: number[];
+    drawId?: string;
+  }): Promise<AdminPrizePreview> {
+    return this.client.post('/admin/draws/prize-preview', input);
   }
 
   async drawPreChecks(drawId: string): Promise<AdminDrawPreChecks> {

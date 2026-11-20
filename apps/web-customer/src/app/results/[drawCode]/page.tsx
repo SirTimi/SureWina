@@ -22,6 +22,7 @@ export default async function ResultDetailPage({ params }: ResultDetailPageProps
   }
 
   const { result } = detail;
+  const multi = result.totalWinners > 1 || result.prizeModel !== 'SINGLE';
   const isJackpot = result.drawType === 'SATURDAY_JACKPOT';
 
   // Sort state breakdown by ticket count desc
@@ -53,14 +54,22 @@ export default async function ResultDetailPage({ params }: ResultDetailPageProps
           </div>
 
           <p className="text-[10px] uppercase tracking-wider text-white/60 font-semibold mb-1">
-            Prize awarded
+            {multi ? 'Prizes awarded' : 'Prize awarded'}
           </p>
           <h1 className="font-display text-3xl sm:text-4xl font-bold mb-2">
             {result.prizeDescription}
           </h1>
           <p className="font-display text-2xl text-amber-500 font-bold tabular-nums">
             {formatNaira(result.prizeValueNgn)}
+            {multi && (
+              <span className="ml-2 text-base font-semibold text-white/80">
+                to {result.totalWinners.toLocaleString()} winner{result.totalWinners === 1 ? '' : 's'}
+              </span>
+            )}
           </p>
+          {result.prizePoolNgn != null && (
+            <p className="mt-1 text-sm text-white/70">Prize pool {formatNaira(result.prizePoolNgn)}</p>
+          )}
 
           <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
             <div>
@@ -89,6 +98,34 @@ export default async function ResultDetailPage({ params }: ResultDetailPageProps
         </div>
 
         {/* Winner panel */}
+        {multi ? (
+          <div className="p-6 sm:p-8 bg-amber-50 border-b border-amber-100">
+            <p className="text-[10px] uppercase tracking-wider text-amber-700 font-semibold mb-3">
+              Winning ticket references
+            </p>
+            <div className="space-y-3">
+              {detail.tiers.map((tier) => {
+                const refs = detail.winners.filter((w) => w.tierNo === tier.tierNo);
+                return (
+                  <details key={tier.tierNo} open={refs.length <= 12} className="rounded-md border border-amber-200 bg-white">
+                    <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-ink-900">
+                      {tier.name}: {tier.winners.toLocaleString()} × {tier.prizeDescription}
+                    </summary>
+                    <div className="grid grid-cols-1 gap-x-4 gap-y-1 border-t border-amber-100 px-4 py-3 font-mono text-sm text-ink-800 sm:grid-cols-3">
+                      {refs.map((w) => (
+                        <span key={w.pickIndex}>{w.winnerRef}</span>
+                      ))}
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+            <p className="text-xs text-ink-500 mt-3">
+              Winners are picked by the draw engine in a fixed order from the sealed seed, top prize first. Winner
+              privacy is a hard rule: we never publish names, only ticket reference, draw, prize, and timestamp.
+            </p>
+          </div>
+        ) : (
         <div className="p-6 sm:p-8 bg-amber-50 border-b border-amber-100">
           <p className="text-[10px] uppercase tracking-wider text-amber-700 font-semibold mb-2">
             Winning ticket reference
@@ -101,6 +138,7 @@ export default async function ResultDetailPage({ params }: ResultDetailPageProps
             prize, and timestamp.
           </p>
         </div>
+        )}
 
         {/* Verification block */}
         <div className="p-6 sm:p-8">
@@ -133,7 +171,7 @@ export default async function ResultDetailPage({ params }: ResultDetailPageProps
         <div className="flex items-center gap-2 mb-3">
           <Search className="w-4 h-4 text-navy-800" />
           <h2 className="text-[10px] uppercase tracking-wider text-ink-500 font-semibold">
-            Was your ticket the winner?
+            {multi ? 'Did your ticket win?' : 'Was your ticket the winner?'}
           </h2>
         </div>
         <p className="text-sm text-ink-500 mb-4">
