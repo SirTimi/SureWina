@@ -131,3 +131,14 @@ Built 2026-11-24; **not accepted**. See `docs/DRAW_APPROVALS.md`.
 - Gate 2: reconciliation checks at sales close, fingerprint of entries + prizes, approval with password + two-factor; engine runs only approved draws whose fingerprint matches.
 - Approvers are settings (default SUPER tier) until Mr Alex names them; escalation after 30 minutes.
 
+- Production: approval switch left OFF on request (DRAW_RELEASE_APPROVAL_REQUIRED=false); checks still recorded.
+
+## Parallel Track: Accounting Framework (Phase 3)
+
+Built 2026-11-24; **not accepted**. See `docs/ACCOUNTING.md`.
+
+- Month close: propose → a different SUPER admin approves; trial balance frozen with a fingerprint; a database trigger refuses ledger postings dated (Lagos time) in a closed month. Reopen needs a SUPER admin and a reason.
+- Chart-of-accounts mapping (maker-checker) from SureWina ledger accounts to the consultant's GL codes; unmapped accounts export as UNMAPPED.
+- Journal CSV (daily summary and every line) with the product on each line; product P&L (ledger view and draws view).
+- Admin page `/accounting` (Super Admin and Auditor, like the other finance pages).
+- Waiting on: the consultant's chart of accounts to fill the mappings.

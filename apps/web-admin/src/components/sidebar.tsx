@@ -240,6 +240,14 @@ const navGroups: Array<{
         roles: ['FINANCE_OFFICER'],
       },
       {
+        label: 'Accounting',
+        href: '/accounting',
+        icon: BookOpen,
+        help: 'Month close, chart of accounts, journal export and profit by product',
+        permission: 'VIEW_FINANCE',
+        roles: ['FINANCE_OFFICER'],
+      },
+      {
         label: 'Uncollected prizes',
         href: '/uncollected-prizes',
         icon: ReceiptText,

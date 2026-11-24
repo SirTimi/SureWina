@@ -736,6 +736,40 @@ export class LedgerService {
       return existingFull;
     }
 
+    // A closed accounting month takes no postings (the database refuses them
+    // too; this gives a clear message first).
+    const occurredAt =
+      input.occurredAt ??
+      new Date();
+
+    const watMonth =
+      new Date(
+        occurredAt.getTime() + 60 * 60 * 1000,
+      )
+        .toISOString()
+        .slice(0, 7);
+
+    const closedPeriod =
+      await tx.accountingPeriod.findFirst({
+        where: {
+          period:
+            watMonth,
+
+          status:
+            'CLOSED',
+        },
+        select: {
+          period:
+            true,
+        },
+      });
+
+    if (closedPeriod) {
+      throw new ConflictException(
+        `Accounting period ${watMonth} is closed: post this in the current month instead`,
+      );
+    }
+
     const transaction =
       await tx.ledgerTransaction.create({
         data: {
@@ -769,9 +803,7 @@ export class LedgerService {
           metadata:
             input.metadata,
 
-          occurredAt:
-            input.occurredAt ??
-            new Date(),
+          occurredAt,
 
           reversesLedgerTxnId:
             options.reversesLedgerTxnId ??

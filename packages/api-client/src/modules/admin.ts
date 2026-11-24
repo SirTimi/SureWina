@@ -593,6 +593,63 @@ export interface AdminDrawRelease {
   plan: AdminPrizePlan | null;
 }
 
+export interface AdminAccountingPeriodRow {
+  period: string;
+  status: 'OPEN' | 'CLOSE_PROPOSED' | 'CLOSED';
+  ended: boolean;
+  proposedBy: string | null;
+  proposedAt: string | null;
+  closedBy: string | null;
+  closedAt: string | null;
+  snapshotHash: string | null;
+  closeCount: number;
+  reopenedAt: string | null;
+  reopenReason: string | null;
+}
+
+export interface AdminTrialBalanceLine {
+  code: string;
+  name: string;
+  type: string;
+  glCode: string | null;
+  glName: string | null;
+  debitNgn: number;
+  creditNgn: number;
+}
+
+export interface AdminAccountingPeriod {
+  period: string;
+  status: 'OPEN' | 'CLOSE_PROPOSED' | 'CLOSED';
+  proposedBy: string | null;
+  closedBy: string | null;
+  closedAt: string | null;
+  snapshotHash: string | null;
+  matchesFrozen: boolean | null;
+  trialBalance: AdminTrialBalanceLine[];
+  totals: { debitNgn: number; creditNgn: number; balanced: boolean };
+}
+
+export interface AdminGlMapping {
+  internalKey: string;
+  name: string;
+  type: string;
+  scope: string;
+  glCode: string | null;
+  glName: string | null;
+  pending: { glCode: string | null; glName: string | null; proposedBy: string | null; proposedAt: string } | null;
+  approvedAt: string | null;
+}
+
+export interface AdminProductPnl {
+  period: string;
+  rows: {
+    product: string;
+    ledger: { salesRevenueNgn: number; commissionNgn: number; prizeExpenseNgn: number; feesNgn: number; otherExpenseNgn: number; netNgn: number };
+    draws: { draws: number; tickets: number; salesNgn: number; prizesAwardedNgn: number; companyTopUpNgn: number; keptRoundingNgn: number; keptUnawardedNgn: number; keptUnclaimedNgn: number; ggrNgn: number };
+  }[];
+  totals: { salesRevenueNgn: number; commissionNgn: number; prizeExpenseNgn: number; feesNgn: number; netNgn: number; prizesAwardedNgn: number; companyTopUpNgn: number; keptNgn: number; ggrNgn: number };
+}
+
 export interface AdminDrawDetail {
   draw: {
     drawId: string;
@@ -1640,6 +1697,54 @@ export class AdminModule {
     effectiveFrom?: string;
   }): Promise<AdminDrawTemplate> {
     return this.client.post('/admin/draw-templates', input);
+  }
+
+  async accountingPeriods(): Promise<{ currentMonth: string; periods: AdminAccountingPeriodRow[] }> {
+    return this.client.get('/admin/accounting/periods');
+  }
+
+  async accountingPeriod(period: string): Promise<AdminAccountingPeriod> {
+    return this.client.get(`/admin/accounting/periods/${encodeURIComponent(period)}`);
+  }
+
+  async proposePeriodClose(period: string): Promise<AdminAccountingPeriod> {
+    return this.client.post(`/admin/accounting/periods/${encodeURIComponent(period)}/propose-close`, {});
+  }
+
+  async approvePeriodClose(period: string): Promise<AdminAccountingPeriod> {
+    return this.client.post(`/admin/accounting/periods/${encodeURIComponent(period)}/approve-close`, {});
+  }
+
+  async rejectPeriodClose(period: string, reason: string): Promise<AdminAccountingPeriod> {
+    return this.client.post(`/admin/accounting/periods/${encodeURIComponent(period)}/reject-close`, { reason });
+  }
+
+  async reopenPeriod(period: string, reason: string): Promise<AdminAccountingPeriod> {
+    return this.client.post(`/admin/accounting/periods/${encodeURIComponent(period)}/reopen`, { reason });
+  }
+
+  async accountingJournal(period: string, view: 'summary' | 'detail'): Promise<Blob> {
+    return this.client.getBlob(`/admin/accounting/periods/${encodeURIComponent(period)}/journal.csv`, { query: { view } });
+  }
+
+  async productPnl(period: string): Promise<AdminProductPnl> {
+    return this.client.get(`/admin/accounting/periods/${encodeURIComponent(period)}/pnl`);
+  }
+
+  async glMappings(): Promise<{ mappings: AdminGlMapping[]; unmapped: number }> {
+    return this.client.get('/admin/accounting/mappings');
+  }
+
+  async proposeGlMapping(internalKey: string, glCode: string, glName: string): Promise<{ mappings: AdminGlMapping[]; unmapped: number }> {
+    return this.client.post(`/admin/accounting/mappings/${encodeURIComponent(internalKey)}`, { glCode, glName });
+  }
+
+  async approveGlMapping(internalKey: string): Promise<{ mappings: AdminGlMapping[]; unmapped: number }> {
+    return this.client.post(`/admin/accounting/mappings/${encodeURIComponent(internalKey)}/approve`, {});
+  }
+
+  async rejectGlMapping(internalKey: string): Promise<{ mappings: AdminGlMapping[]; unmapped: number }> {
+    return this.client.post(`/admin/accounting/mappings/${encodeURIComponent(internalKey)}/reject`, {});
   }
 
   async drawApprovals(): Promise<AdminDrawApprovals> {

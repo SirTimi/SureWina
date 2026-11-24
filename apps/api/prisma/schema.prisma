@@ -2942,3 +2942,62 @@ model WalletPin {
 
   @@map("wallet_pins")
 }
+
+// ─── ACCOUNTING (Phase 3) ───────────────────────────────────
+
+enum AccountingPeriodStatus {
+  OPEN
+  CLOSE_PROPOSED
+  CLOSED
+}
+
+// A calendar month (Nigerian time), e.g. "2026-11". Closing it freezes its
+// trial balance (stored, with a fingerprint) and stops anything being posted
+// to the ledger with a date in that month: enforced by a database trigger,
+// whatever writes the posting. Finance proposes the close; a different
+// senior admin approves. Reopening needs a senior admin and a reason.
+model AccountingPeriod {
+  period String                 @id @db.VarChar(7)
+  status AccountingPeriodStatus @default(OPEN)
+
+  proposedBy String?   @map("proposed_by")
+  proposedAt DateTime? @map("proposed_at")
+  closedBy   String?   @map("closed_by")
+  closedAt   DateTime? @map("closed_at")
+  // [{ code, name, glCode, type, debitNgn, creditNgn }] at the month end.
+  trialBalance Json?   @map("trial_balance")
+  snapshotHash String? @map("snapshot_hash") @db.VarChar(64)
+  closeCount   Int     @default(0) @map("close_count")
+
+  reopenedBy   String?   @map("reopened_by")
+  reopenedAt   DateTime? @map("reopened_at")
+  reopenReason String?   @map("reopen_reason") @db.VarChar(500)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("accounting_periods")
+}
+
+// The accounting consultant's chart of accounts: which general-ledger code
+// each SureWina ledger account rolls up to. Keyed by a system account's code
+// (e.g. TICKET_SALES_REVENUE) or, for customers' and agents' own accounts,
+// by purpose (e.g. CUSTOMER_AVAILABLE). Changes are maker-checker.
+model GlAccountMapping {
+  internalKey String @id @map("internal_key") @db.VarChar(80)
+  glCode      String? @map("gl_code") @db.VarChar(40)
+  glName      String? @map("gl_name") @db.VarChar(120)
+
+  pendingGlCode     String?   @map("pending_gl_code") @db.VarChar(40)
+  pendingGlName     String?   @map("pending_gl_name") @db.VarChar(120)
+  pendingProposedBy String?   @map("pending_proposed_by")
+  pendingProposedAt DateTime? @map("pending_proposed_at")
+
+  approvedBy String?   @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("gl_account_mappings")
+}
