@@ -27,6 +27,7 @@ export class TreasuryRecoveryService
 
   private timer?: NodeJS.Timeout;
   private running = false;
+  private sandboxSkipLogged = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -101,8 +102,31 @@ export class TreasuryRecoveryService
           ),
         );
 
+      // A sandbox wallet holds play money (₦5bn on our sandbox), so
+      // comparing it with the books only opens false CRITICAL variances.
+      // The manual snapshot in admin still works.
+      const monnifySandbox =
+        String(
+          this.config.get<string>(
+            'MONNIFY_BASE_URL',
+          ) ?? '',
+        )
+          .toLowerCase()
+          .includes('sandbox');
+
+      if (
+        monnifySandbox &&
+        !this.sandboxSkipLogged
+      ) {
+        this.sandboxSkipLogged = true;
+        this.logger.log(
+          'Monnify is on sandbox: hourly balance reconciliation skipped',
+        );
+      }
+
       if (
         monnifyConfigured &&
+        !monnifySandbox &&
         this.config.get<string>(
           'MONNIFY_SOURCE_ACCOUNT_NUMBER',
         )

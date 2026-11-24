@@ -284,3 +284,11 @@ Customers and agents set a 4-digit PIN, required to withdraw and to save a bank 
 - Five wrong tries in a row lock it for 30 minutes. A wrong BVN on reset counts as a wrong try, and reset is refused while locked.
 - A forgotten PIN is reset with the owner's BVN (checked against the one the wallet was verified with).
 - Every set, change, reset, wrong try and lock is audited.
+
+## 13. Monnify balance variance while on sandbox (2026-11-24)
+
+The hourly treasury job compared the Monnify **sandbox** wallet (₦5,000,000,000 of play money) with the books (₦0) and opened a new CRITICAL `BALANCE_VARIANCE` every hour and on every API start: 200+ open issues, a rollout-check blocker.
+
+- While `MONNIFY_BASE_URL` points at sandbox, the hourly Monnify balance comparison is skipped (manual snapshot in admin still works).
+- A variance identical to one already open (same book and provider amounts) no longer opens another issue; the snapshot and run are still recorded. A different variance does.
+- Existing false issues are closed with `pnpm --filter @surewina/api treasury:dismiss-sandbox-variance -- --admin <super admin email> --note "<reason>"` (dry run; add `--apply`). It refuses unless Monnify is on sandbox, only touches open Monnify balance variances with ₦0 on the books, marks them IGNORED with the admin and note, and writes one CRITICAL audit entry listing them.

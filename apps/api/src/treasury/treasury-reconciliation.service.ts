@@ -1161,11 +1161,38 @@ export class TreasuryReconciliationService {
             },
           });
 
-          if (
+          // The same variance still open from an earlier snapshot is the
+          // same problem: record the snapshot, but do not open another
+          // CRITICAL issue for it every hour. A different variance does.
+          const sameOpen =
             this.abs(
               variance,
             ) >
             BALANCE_TOLERANCE_MINOR
+              ? await tx.reconciliationIssue.findFirst({
+                  where: {
+                    treasuryAccountId,
+                    type:
+                      ReconciliationIssueType.BALANCE_VARIANCE,
+                    status:
+                      ReconciliationIssueStatus.OPEN,
+                    expectedAmountMinor:
+                      internalMinor,
+                    actualAmountMinor:
+                      externalBalanceMinor,
+                  },
+                  select: {
+                    issueId: true,
+                  },
+                })
+              : null;
+
+          if (
+            this.abs(
+              variance,
+            ) >
+              BALANCE_TOLERANCE_MINOR &&
+            !sameOpen
           ) {
             await tx.reconciliationIssue.create({
               data: {
