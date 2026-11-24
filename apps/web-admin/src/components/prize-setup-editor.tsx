@@ -25,6 +25,8 @@ export type TierForm = {
   winners: string;
   prize: string;
   description: string;
+  // Jackpot stages: the prize is the item in description; prize is its cash value.
+  item: boolean;
 };
 
 export type PrizeSetupForm = {
@@ -44,9 +46,9 @@ export function defaultPrizeSetup(model: AdminPrizeModel): PrizeSetupForm {
       minimumNgn: '',
       basis: 'GROSS',
       tiers: [
-        { tierNo: 1, name: 'Jackpot', active: true, sharePct: '', winners: '1', prize: '4000000', description: '' },
-        { tierNo: 2, name: 'Consolation', active: true, sharePct: '', winners: '5', prize: '50000', description: '' },
-        { tierNo: 3, name: 'Second consolation', active: false, sharePct: '', winners: '10', prize: '10000', description: '' },
+        { tierNo: 1, name: 'Jackpot', active: true, sharePct: '', winners: '1', prize: '4000000', description: '', item: false },
+        { tierNo: 2, name: 'Consolation', active: true, sharePct: '', winners: '5', prize: '50000', description: '', item: false },
+        { tierNo: 3, name: 'Second consolation', active: false, sharePct: '', winners: '10', prize: '10000', description: '', item: false },
       ],
     };
   }
@@ -56,9 +58,10 @@ export function defaultPrizeSetup(model: AdminPrizeModel): PrizeSetupForm {
     minimumNgn: '500000',
     basis: 'GROSS',
     tiers: [
-      { tierNo: 1, name: 'Category 1', active: true, sharePct: '25', winners: '', prize: '25000', description: '' },
-      { tierNo: 2, name: 'Category 2', active: true, sharePct: '20', winners: '', prize: '10000', description: '' },
-      { tierNo: 3, name: 'Category 3', active: true, sharePct: '55', winners: '', prize: '5000', description: '' },
+      { tierNo: 1, name: 'Category 1', active: true, sharePct: '10', winners: '', prize: '50000', description: '', item: false },
+      { tierNo: 2, name: 'Category 2', active: true, sharePct: '20', winners: '', prize: '10000', description: '', item: false },
+      { tierNo: 3, name: 'Category 3', active: true, sharePct: '30', winners: '', prize: '2000', description: '', item: false },
+      { tierNo: 4, name: 'Category 4', active: true, sharePct: '40', winners: '', prize: '500', description: '', item: false },
     ],
   };
 }
@@ -78,7 +81,7 @@ export function prizeSetupFromDraw(draw: {
     payoutPct: draw.poolPayoutBp != null ? bpToPct(draw.poolPayoutBp) : fallback.payoutPct,
     minimumNgn: draw.poolMinimumNgn != null ? String(draw.poolMinimumNgn) : fallback.minimumNgn,
     basis: draw.poolRevenueBasis ?? 'GROSS',
-    tiers: [1, 2, 3].map((n) => {
+    tiers: (draw.prizeModel === 'POOL' ? [1, 2, 3, 4] : [1, 2, 3]).map((n) => {
       const t = draw.tiers.find((x) => x.tierNo === n);
       if (!t) return { ...fallback.tiers[n - 1], active: false };
       return {
@@ -89,6 +92,7 @@ export function prizeSetupFromDraw(draw: {
         winners: t.winnerCount != null ? String(t.winnerCount) : '',
         prize: String(t.prizePerWinnerNgn),
         description: t.prizeDescription ?? '',
+        item: !!t.itemPrize,
       };
     }),
   };
@@ -108,7 +112,11 @@ export function prizeSetupPayload(form: PrizeSetupForm): { payload: AdminPrizeSe
       active: t.active,
       prizePerWinnerNgn: prize ?? 0,
       prizeDescription: t.description.trim() || null,
+      ...(form.model === 'STAGES' ? { itemPrize: t.item } : {}),
     };
+    if (form.model === 'STAGES' && t.active && t.item && !t.description.trim()) {
+      errors.push(`${label(form.model, t.tierNo)}: name the item; the prize amount is its cash value`);
+    }
     if (form.model === 'POOL') {
       const bp = pctToBp(t.sharePct);
       if (t.active && bp == null) errors.push(`${label(form.model, t.tierNo)}: enter a share of the pool, up to two decimal places`);
@@ -148,12 +156,15 @@ export function PrizeSetupEditor({
   drawId,
   ticketPriceNgn,
   locked,
+  fixedModel,
 }: {
   value: PrizeSetupForm;
   onChange: (next: PrizeSetupForm) => void;
   drawId?: string;
   ticketPriceNgn: number;
   locked?: boolean;
+  // Products: the model follows the product (daily pool or jackpot stages).
+  fixedModel?: boolean;
 }) {
   const set = (patch: Partial<PrizeSetupForm>) => onChange({ ...value, ...patch });
   const setTier = (tierNo: number, patch: Partial<TierForm>) =>
@@ -172,6 +183,7 @@ export function PrizeSetupEditor({
         </div>
       )}
 
+      {!fixedModel && (
       <div>
         <label className="mb-1.5 block text-sm font-bold text-[#0B1220]">How prizes work</label>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -199,6 +211,7 @@ export function PrizeSetupEditor({
           ))}
         </div>
       </div>
+      )}
 
       {value.model === 'POOL' && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -236,14 +249,15 @@ export function PrizeSetupEditor({
 
       {value.model !== 'SINGLE' && (
         <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-3 py-2">On</th>
                 <th className="px-3 py-2">{value.model === 'POOL' ? 'Category' : 'Stage'}</th>
                 <th className="px-3 py-2">{value.model === 'POOL' ? 'Share of pool (%)' : 'Winners'}</th>
-                <th className="px-3 py-2">Prize per winner (₦)</th>
-                <th className="px-3 py-2">Prize shown (optional)</th>
+                <th className="px-3 py-2">{value.model === 'STAGES' ? 'Prize or cash value (₦)' : 'Prize per winner (₦)'}</th>
+                {value.model === 'STAGES' && <th className="px-3 py-2">Item</th>}
+                <th className="px-3 py-2">{value.model === 'STAGES' ? 'Item name / prize shown' : 'Prize shown (optional)'}</th>
               </tr>
             </thead>
             <tbody>
@@ -298,11 +312,23 @@ export function PrizeSetupEditor({
                     />
                     <span className="mt-1 block text-xs text-slate-400">{formatOrBlank(t.prize)}</span>
                   </td>
+                  {value.model === 'STAGES' && (
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        aria-label={`${label(value.model, t.tierNo)} is an item prize`}
+                        disabled={locked || !t.active}
+                        checked={t.item}
+                        onChange={(e) => setTier(t.tierNo, { item: e.target.checked })}
+                        className="mt-3 h-4 w-4"
+                      />
+                    </td>
+                  )}
                   <td className="px-3 py-2">
                     <input
                       disabled={locked}
                       maxLength={200}
-                      placeholder="e.g. Phone"
+                      placeholder={value.model === 'STAGES' && t.item ? 'e.g. Toyota Corolla' : 'e.g. ₦50,000 cash'}
                       value={t.description}
                       onChange={(e) => setTier(t.tierNo, { description: e.target.value })}
                       className={inputClass}

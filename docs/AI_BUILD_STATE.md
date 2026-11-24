@@ -1,6 +1,6 @@
 # AI Build State
 
-Updated: 2026-11-20
+Updated: 2026-11-24
 
 ## Current Goal
 
@@ -110,4 +110,16 @@ Built 2026-11-20 from Mr Alex's requirements; **not accepted**. See `docs/PRIZE_
 - Prize setup locks when sales open. Uncollected prizes ledger for finance.
 - Migration `20261120180000_prize_pools`.
 - Waiting on Mr Alex: revenue basis, real values, approvers, WHT, jackpot stage prizes. Approval workflow not built.
+
+## Parallel Track: Products and Twice-Daily Draws (Phase 1)
+
+Built 2026-11-24 from Mr Alex's changes; **not accepted**. See `docs/PRODUCTS_AND_SCHEDULES.md`.
+
+- Products (daily: pool with 4 categories, cash only; jackpot: 3 stages, item or cash), maker-checker.
+- Schedules per product and slot with sales-open times (noon and 6pm draws); engine opens sales on time.
+- Product picker for customers and agents; product name on tickets; prize categories on draw pages.
+- Undecided winners default to cash; automatic wallet credit for direct buyers (switch off).
+- Sales report by product, channel and top agents. Safe deploy script `scripts/deploy.sh`.
+- Fixed: Uncollected prizes page was Super-Admin-only; draw page showed a fixed example seed fingerprint.
+- Next: Phase 2 approvals (approvers still to be named).
 

@@ -4,6 +4,7 @@ import type {
   RequestAgentOtpResponse,
   VerifyAgentOtpRequest,
   VerifyAgentOtpResponse,
+  DrawPublic,
 } from '@surewina/types';
 import type { ApiClient } from '../client.js';
 import type {
@@ -24,6 +25,8 @@ export interface AgentSalePrint {
   drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
   drawName: string;
   drawShortCode: string;
+  productName: string | null;
+  ticketLabel: string | null;
   scheduledAt: string;
   cutoffAt: string;
   soldAt: string;
@@ -120,15 +123,8 @@ export class AgentsModule {
     return this.client.get('/agent/performance');
   }
 
-  async activeDraws(): Promise<{
-    draws: { 
-      drawCode: string;
-      drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT'; 
-      prizeDescription: string; 
-      ticketPriceNgn: number; 
-      scheduledAt: string; 
-      cutoffAt: string }[];
-  }> {
+  // The public list of open draws (one per product per slot, plus jackpots).
+  async activeDraws(): Promise<{ draws: DrawPublic[] }> {
     return this.client.get('/draws/active', { skipAuth: true});
   }
 

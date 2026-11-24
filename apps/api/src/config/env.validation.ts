@@ -171,6 +171,13 @@ export const envValidationSchema = Joi.object({
   WITMANGO_PRIZE_CREDITS_ENABLED:
     Joi.boolean().default(false),
 
+  // Cash prizes on tickets a customer bought directly are paid into their
+  // wallet automatically after the draw (agent-sold tickets are paid by the
+  // agent). Off unless deliberately enabled; needs
+  // WITMANGO_PRIZE_CREDITS_ENABLED.
+  PRIZE_AUTO_WALLET_CREDIT_ENABLED:
+    Joi.boolean().default(false),
+
   // A 4-digit PIN is needed to withdraw and to save a bank account. On by
   // default; switching it off removes that check for everyone.
   WALLET_PIN_REQUIRED:

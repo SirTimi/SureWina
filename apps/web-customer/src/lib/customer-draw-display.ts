@@ -14,6 +14,8 @@ const DAY_NAMES = [
 const WAT_OFFSET_MS = 60 * 60 * 1000;
 
 export function getCustomerDrawName(draw: DrawPublic): string {
+  // Product draws carry their name, e.g. "SURE 100 · 12:00".
+  if (draw.productName) return draw.drawName;
   if (draw.drawType === 'SATURDAY_JACKPOT') {
     return 'Sure Jackpot';
   }
@@ -24,6 +26,7 @@ export function getCustomerDrawName(draw: DrawPublic): string {
 }
 
 export function getCustomerDrawSubtitle(draw: DrawPublic): string {
+  if (draw.productName) return draw.prizeDescription;
   if (draw.drawType === 'SATURDAY_JACKPOT') {
     return 'Direct entry into the coming Saturday jackpot draw.';
   }
@@ -32,6 +35,7 @@ export function getCustomerDrawSubtitle(draw: DrawPublic): string {
 }
 
 export function getTicketTypeLabel(draw: DrawPublic): string {
+  if (draw.ticketLabel) return `${draw.ticketLabel} ticket`;
   return draw.drawType === 'SATURDAY_JACKPOT'
     ? 'Sure Jackpot ticket'
     : 'Regular daily ticket';

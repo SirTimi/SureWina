@@ -37,7 +37,10 @@ export function TicketReceipt({
   receipt: ReceiptData;
   ticketRef: string;
 }) {
-  const { name, code } = naming(receipt.drawType, receipt.scheduledAt);
+  // Product draws: the product printed on the ticket, e.g. "SURE 100 · 12:00".
+  const { name, code } = receipt.productName && receipt.drawName
+    ? { name: receipt.drawName.toUpperCase(), code: receipt.drawShortCode ?? '' }
+    : naming(receipt.drawType, receipt.scheduledAt);
   const isJackpot = receipt.drawType === 'SATURDAY_JACKPOT';
 
   return (

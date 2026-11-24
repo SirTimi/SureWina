@@ -25,3 +25,23 @@ export function drawShortCode(type: DrawType, scheduledAt: Date): string {
   if (type === DrawType.SATURDAY_JACKPOT) return 'JACK-D';
   return DAYS[watDay(scheduledAt)].code;
 }
+
+// Product draws: the name printed on the ticket and the draw time, e.g.
+// "SURE 100 · 12:00", code "SW100-1200". Draws from before products keep
+// their day names.
+export type DrawProductInfo = { code: string; name: string; ticketLabel: string } | null | undefined;
+
+export function productDrawName(type: DrawType, scheduledAt: Date, product: DrawProductInfo): string {
+  if (!product) return drawDisplayName(type, scheduledAt);
+  return `${product.ticketLabel} · ${watClock(scheduledAt)}`;
+}
+
+export function productDrawShortCode(type: DrawType, scheduledAt: Date, product: DrawProductInfo): string {
+  if (!product) return drawShortCode(type, scheduledAt);
+  return `${product.code}-${watClock(scheduledAt).replace(':', '')}`;
+}
+
+function watClock(at: Date): string {
+  const w = new Date(at.getTime() + WAT_OFFSET_MS);
+  return `${String(w.getUTCHours()).padStart(2, '0')}:${String(w.getUTCMinutes()).padStart(2, '0')}`;
+}

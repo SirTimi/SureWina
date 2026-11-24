@@ -12,6 +12,11 @@ export interface TicketReceipt {
   terminal: string;
   drawNumber: string;
   drawType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+  // e.g. "SURE 100 · 12:00" (old draws: the day name) and "SW100-1200".
+  drawName: string;
+  drawShortCode: string;
+  productName: string | null;
+  ticketLabel: string | null;
   scheduledAt: string;
   cutoffAt: string;
   soldAt: string;

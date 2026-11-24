@@ -20,6 +20,9 @@ export type TierInput = {
   winnerCount?: number | null;
   prizePerWinnerNgn: number;
   prizeDescription?: string | null;
+  // STAGES only: the prize is the item in prizeDescription, and
+  // prizePerWinnerNgn is its cash value.
+  itemPrize?: boolean | null;
 };
 
 export type PrizeConfig = {
@@ -35,6 +38,7 @@ export type PlannedTier = {
   name: string;
   prizePerWinnerNgn: number;
   prizeDescription: string;
+  itemPrize: boolean;
   // POOL: the tier's share of the pool. STAGES: null.
   allocationNgn: number | null;
   // Winners the pool (or the stage setting) allows.
@@ -74,7 +78,8 @@ export type Award = {
   unawardedNgn: number;
 };
 
-const MAX_TIERS = 3;
+// Daily prize pools have up to 4 categories; jackpot stages up to 3.
+export const MAX_TIERS: Record<PrizeModel, number> = { POOL: 4, STAGES: 3 };
 const FULL_BP = 10000;
 
 // Every reason a prize configuration cannot be saved. Empty means valid.
@@ -86,13 +91,14 @@ export function validatePrizeConfig(config: PrizeConfig): string[] {
     return ['Prize model must be POOL or STAGES'];
   }
 
-  if (!Array.isArray(tiers) || tiers.length < 1 || tiers.length > MAX_TIERS) {
-    return [`Between 1 and ${MAX_TIERS} prize tiers are required`];
+  const max = MAX_TIERS[config.model];
+  if (!Array.isArray(tiers) || tiers.length < 1 || tiers.length > max) {
+    return [`Between 1 and ${max} prize tiers are required`];
   }
 
   const numbers = tiers.map((t) => t.tierNo);
-  if (new Set(numbers).size !== numbers.length || numbers.some((n) => !Number.isInteger(n) || n < 1 || n > MAX_TIERS)) {
-    errors.push(`Tiers must be numbered 1 to ${MAX_TIERS}, each once`);
+  if (new Set(numbers).size !== numbers.length || numbers.some((n) => !Number.isInteger(n) || n < 1 || n > max)) {
+    errors.push(`Tiers must be numbered 1 to ${max}, each once`);
   }
 
   for (const tier of tiers) {
@@ -102,6 +108,13 @@ export function validatePrizeConfig(config: PrizeConfig): string[] {
     }
     if (!Number.isSafeInteger(tier.prizePerWinnerNgn) || tier.prizePerWinnerNgn < 1) {
       errors.push(`${label}: prize per winner must be a whole naira amount of at least ₦1`);
+    }
+    if (tier.itemPrize) {
+      if (config.model !== 'STAGES') {
+        errors.push(`${label}: daily prize categories are cash only`);
+      } else if (!tier.prizeDescription || !tier.prizeDescription.trim()) {
+        errors.push(`${label}: name the item (the prize amount is its cash value)`);
+      }
     }
   }
 
@@ -160,6 +173,7 @@ export function planPrizes(config: PrizeConfig, eligibleRevenueNgn: number): Pri
       name: t.name.trim(),
       prizePerWinnerNgn: t.prizePerWinnerNgn,
       prizeDescription: describe(t),
+      itemPrize: !!t.itemPrize,
       allocationNgn: null,
       winners: t.winnerCount as number,
       roundingNgn: 0,
@@ -189,6 +203,7 @@ export function planPrizes(config: PrizeConfig, eligibleRevenueNgn: number): Pri
       name: t.name.trim(),
       prizePerWinnerNgn: t.prizePerWinnerNgn,
       prizeDescription: describe(t),
+      itemPrize: false,
       allocationNgn,
       winners,
       roundingNgn: allocationNgn - winners * t.prizePerWinnerNgn,
@@ -253,6 +268,9 @@ function mulBp(amountNgn: number, bp: number): number {
 
 function describe(tier: TierInput): string {
   const custom = tier.prizeDescription?.trim();
+  if (custom && tier.itemPrize) {
+    return `${custom} or ₦${tier.prizePerWinnerNgn.toLocaleString('en-NG')} cash`;
+  }
   if (custom) return custom;
   return `₦${tier.prizePerWinnerNgn.toLocaleString('en-NG')} (${tier.name.trim()})`;
 }

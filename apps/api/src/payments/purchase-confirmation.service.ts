@@ -26,8 +26,8 @@ import { ReceiptService } from '../tickets/receipt.service';
 import { ticketReceipt } from '../notifications/email.templates';
 
 import {
-  drawDisplayName,
-  drawShortCode,
+  productDrawName,
+  productDrawShortCode,
 } from '../common/draw-naming.util';
 
 import type {
@@ -641,6 +641,11 @@ export class PurchaseConfirmationService {
             where: {
               drawId:
                 purchaseDrawId,
+            },
+            include: {
+              product: {
+                select: { code: true, name: true, ticketLabel: true },
+              },
             },
           });
 
@@ -1327,15 +1332,17 @@ export class PurchaseConfirmationService {
           const mail =
             ticketReceipt({
               drawName:
-                drawDisplayName(
+                productDrawName(
                   draw.drawType,
                   draw.scheduledAt,
+                  draw.product,
                 ),
 
               drawShortCode:
-                drawShortCode(
+                productDrawShortCode(
                   draw.drawType,
                   draw.scheduledAt,
+                  draw.product,
                 ),
 
               drawDate:

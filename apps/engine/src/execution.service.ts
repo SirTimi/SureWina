@@ -243,6 +243,7 @@ export class ExecutionService implements OnModuleInit, OnModuleDestroy {
               winnerCount: t.winnerCount,
               prizePerWinnerNgn: t.prizePerWinnerNgn,
               prizeDescription: t.prizeDescription,
+              itemPrize: t.itemPrize,
             })),
           },
           eligibleRevenueNgn,

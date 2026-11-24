@@ -37,7 +37,9 @@ export default async function HomePage() {
   const nextDaily = drawsWithStats.find((d) => d.draw.drawType === 'DAILY_STANDARD');
   const nextJackpot = drawsWithStats.find((d) => d.draw.drawType === 'SATURDAY_JACKPOT');
 
-  const homepageDraws = [nextDaily, nextJackpot].filter(
+  // Product draws: every daily product open now, then the next jackpot.
+  const productDailies = drawsWithStats.filter((d) => d.draw.drawType === 'DAILY_STANDARD' && d.draw.productName);
+  const homepageDraws = (productDailies.length > 0 ? [...productDailies, nextJackpot] : [nextDaily, nextJackpot]).filter(
     (d): d is NonNullable<typeof d> => Boolean(d),
   );
 

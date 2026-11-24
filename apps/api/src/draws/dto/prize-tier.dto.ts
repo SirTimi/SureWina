@@ -15,7 +15,7 @@ import {
 export class PrizeTierDto {
   @IsInt()
   @Min(1)
-  @Max(3)
+  @Max(4)
   tierNo!: number;
 
   @IsString()
@@ -49,4 +49,10 @@ export class PrizeTierDto {
   @IsString()
   @MaxLength(200)
   prizeDescription?: string | null;
+
+  // Jackpot stages only: the prize is the item named above, and the prize
+  // per winner is its cash value.
+  @IsOptional()
+  @IsBoolean()
+  itemPrize?: boolean;
 }

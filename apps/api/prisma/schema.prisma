@@ -301,6 +301,60 @@ model AuditCheckpoint {
   @@map("audit_checkpoints")
 }
 
+// ─── PRODUCTS ───────────────────────────────────────────────
+
+// A game sold to players: a daily product (prize pool with up to 4
+// categories) or a jackpot product (up to 3 stages, winners per stage set
+// by management). Its schedules (DrawTemplate) say when its draws run; each
+// draw copies the product's price and prize setup when it is created and
+// keeps it from the moment sales open.
+//
+// Price and prize changes are maker-checker: one admin proposes
+// (pendingChange), a different, senior admin approves. Approval applies to
+// the product and to its draws that have not opened for sales.
+model Product {
+  productId String  @id @default(uuid()) @map("product_id")
+  // Short code used in draw codes, e.g. SW100.
+  code      String  @unique @db.VarChar(12)
+  name      String  @db.VarChar(60)
+  // Printed on the ticket.
+  ticketLabel String @map("ticket_label") @db.VarChar(40)
+  // DAILY_STANDARD or SATURDAY_JACKPOT.
+  kind      DrawType
+  active    Boolean @default(true)
+
+  ticketPriceNgn   Int            @map("ticket_price_ngn")
+  // Shown to buyers, e.g. "Win up to ₦250,000".
+  prizeDescription String         @map("prize_description") @db.VarChar(200)
+  prizeModel       DrawPrizeModel @map("prize_model")
+  poolPayoutBp     Int?           @map("pool_payout_bp")
+  poolMinimumNgn   Int?           @map("pool_minimum_ngn")
+  poolRevenueBasis PoolRevenueBasis? @map("pool_revenue_basis")
+  // [{ tierNo, name, active, allocationBp, winnerCount, prizePerWinnerNgn,
+  //    prizeDescription, itemPrize }], checked with validatePrizeConfig.
+  prizeTiers       Json           @map("prize_tiers")
+
+  version Int @default(1)
+
+  // A proposed change to the fields above, awaiting approval.
+  pendingChange     Json?     @map("pending_change")
+  pendingProposedBy String?   @map("pending_proposed_by")
+  pendingProposedAt DateTime? @map("pending_proposed_at")
+
+  createdByAdminId  String    @map("created_by_admin_id")
+  approvedByAdminId String?   @map("approved_by_admin_id")
+  approvedAt        DateTime? @map("approved_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  draws     Draw[]
+  templates DrawTemplate[]
+
+  @@index([kind, active])
+  @@map("products")
+}
+
 // ─── DRAWS ──────────────────────────────────────────────────
 
 model Draw {
@@ -332,6 +386,15 @@ model Draw {
   ticketPriceNgn Int  @map("ticket_price_ngn")
   ticketQuota    Int? @map("ticket_quota")
 
+  // The product this draw is for (null for draws made before products).
+  productId String?  @map("product_id")
+  product   Product? @relation(fields: [productId], references: [productId])
+  // The schedule slot, e.g. NOON or EVENING.
+  slotCode  String?  @map("slot_code") @db.VarChar(20)
+
+  // When ticket sales open. Null: as soon as the seed is committed (every
+  // draw before twice-daily schedules).
+  salesOpenAt DateTime? @map("sales_open_at")
   scheduledAt DateTime  @map("scheduled_at")
   cutoffAt    DateTime  @map("cutoff_at")
   executedAt  DateTime? @map("executed_at")
@@ -359,6 +422,7 @@ model Draw {
   @@index([drawType, status])
   @@index([scheduledAt])
   @@index([status, cutoffAt])
+  @@index([productId, scheduledAt])
   @@map("draws")
 }
 
@@ -405,6 +469,10 @@ model DrawPrizeTier {
 
   prizePerWinnerNgn Int     @map("prize_per_winner_ngn")
   prizeDescription  String? @map("prize_description") @db.VarChar(200)
+  // Jackpot only: the prize is an item (prizeDescription), and
+  // prizePerWinnerNgn is its cash value. The winner chooses item or cash
+  // within the claim period; cash if they do not choose.
+  itemPrize         Boolean @default(false) @map("item_prize")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1719,6 +1787,8 @@ model PrizeClaim {
   drawResultId    String  @map("draw_result_id")
   // The winner this claim pays. Set for every claim created since prize
   // pools (one claim per winner); null only on earlier single-prize claims.
+  // When the automatic wallet credit was tried for this claim (once).
+  autoCreditAttemptedAt DateTime? @map("auto_credit_attempted_at")
   drawWinnerId    String? @unique @map("draw_winner_id")
   winnerTicketRef String  @map("winner_ticket_ref")
   winnerPhone     String  @map("winner_phone")
@@ -2056,9 +2126,20 @@ model DrawTemplate {
   ticketPriceNgn   Int    @map("ticket_price_ngn")
   ticketQuota      Int?   @map("ticket_quota")
 
+  // Product schedules: one template per product and slot (e.g. NOON).
+  // Null product: a template from before products.
+  productId String?  @map("product_id")
+  product   Product? @relation(fields: [productId], references: [productId])
+  slotCode  String?  @map("slot_code") @db.VarChar(20)
+
   // WAT wall-clock times, stored as minutes past midnight (0–1439)
   cutoffMinutesWat    Int @map("cutoff_minutes_wat")
   scheduledMinutesWat Int @map("scheduled_minutes_wat")
+  // When sales open, and whether that is the day before the draw (sales
+  // for the noon draw open at 7pm the evening before). Null: as soon as
+  // the draw is created and its seed committed.
+  salesOpenMinutesWat Int?    @map("sales_open_minutes_wat")
+  salesOpenPreviousDay Boolean @default(false) @map("sales_open_previous_day")
 
   // Which WAT weekdays this template applies to (0=Sun … 6=Sat)
   weekdays Int[] @map("weekdays")
@@ -2084,6 +2165,7 @@ model DrawTemplate {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([templateType, status, effectiveFrom])
+  @@index([productId, slotCode, status])
   @@map("draw_templates")
 }
 

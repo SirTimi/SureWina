@@ -48,7 +48,7 @@ class PrizePreviewDto {
   poolMinimumNgn?: number;
 
   @IsArray()
-  @ArrayMaxSize(3)
+  @ArrayMaxSize(4)
   @ValidateNested({ each: true })
   @Type(() => PrizeTierDto)
   tiers!: PrizeTierDto[];

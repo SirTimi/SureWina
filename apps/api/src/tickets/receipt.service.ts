@@ -1,3 +1,9 @@
+import { DrawType } from '@prisma/client';
+import {
+  DrawProductInfo,
+  productDrawName,
+  productDrawShortCode,
+} from '../common/draw-naming.util';
 import {
   Injectable,
   NotFoundException,
@@ -137,7 +143,11 @@ export class ReceiptService {
           purchaseId: walletPurchaseId,
         },
         include: {
-          draw: true,
+          draw: {
+            include: {
+              product: { select: { code: true, name: true, ticketLabel: true } },
+            },
+          },
           tickets: {
             select: {
               ticketRef: true,
@@ -169,6 +179,8 @@ export class ReceiptService {
 
       drawType:
         purchase.draw.drawType,
+
+      ...productNames(purchase.draw),
 
       scheduledAt:
         purchase.draw.scheduledAt.toISOString(),
@@ -252,6 +264,7 @@ export class ReceiptService {
         select: {
           drawNumber: true,
           drawType: true,
+          product: { select: { code: true, name: true, ticketLabel: true } },
           scheduledAt: true,
           cutoffAt: true,
           ticketPriceNgn: true,
@@ -279,6 +292,8 @@ export class ReceiptService {
 
       drawType:
         draw.drawType,
+
+      ...productNames(draw),
 
       scheduledAt:
         draw.scheduledAt.toISOString(),
@@ -320,4 +335,18 @@ export class ReceiptService {
 
     return `${phone.slice(0, 4)}****${phone.slice(-4)}`;
   }
+}
+
+// The product printed on the ticket, and the draw's name and short code.
+function productNames(draw: {
+  drawType: DrawType;
+  scheduledAt: Date;
+  product: DrawProductInfo;
+}) {
+  return {
+    drawName: productDrawName(draw.drawType, draw.scheduledAt, draw.product),
+    drawShortCode: productDrawShortCode(draw.drawType, draw.scheduledAt, draw.product),
+    productName: draw.product?.name ?? null,
+    ticketLabel: draw.product?.ticketLabel ?? null,
+  };
 }

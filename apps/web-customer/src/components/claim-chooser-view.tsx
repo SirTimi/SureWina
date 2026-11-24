@@ -165,8 +165,9 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
                   <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/75 sm:text-base">
                     You won{' '}
                     <span className="font-bold text-white">{claim.prizeDescription}</span>.
-                    Choose product fulfilment or cash conversion. Your selection controls
-                    the next steps.
+                    {claim.itemAllowed === false
+                      ? 'This prize is paid in cash. Choose how you want to receive it.'
+                      : 'Choose the item or its cash value. Your selection controls the next steps.'}
                   </p>
                 </div>
               </div>
@@ -193,6 +194,7 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
             </Card>
 
             <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {claim.itemAllowed !== false && (
               <PathCard
                 title="Product fulfilment"
                 subtitle="Receive the actual prize"
@@ -219,6 +221,7 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
                 onChoose={() => handleChoose('PRODUCT')}
                 disabled={submitting !== null}
               />
+              )}
 
               <PathCard
                 title="Cash conversion"
@@ -309,7 +312,7 @@ export function ClaimChooserView({ claimId }: ClaimChooserViewProps) {
                   <span className="font-bold text-navy-950">
                     {formatDrawDate(claim.selectionDeadlineAt)}
                   </span>
-                  . If you do not choose, the claim may default to product fulfilment.
+                  . If you do not choose, your prize is paid in cash. Claim it before the claim deadline.
                 </p>
               </div>
             </Card>

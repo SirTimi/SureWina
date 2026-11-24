@@ -21,6 +21,8 @@ type BackendClaim = {
   kycBvnVerified?: boolean; kycHasDocs?: boolean;
   kycIdentityStatus?: ClaimKycStatus['identityStatus'];
   kycBank?: { bankCode: string | null; accountLast4: string | null; accountName: string } | null;
+  itemAllowed?: boolean;
+  isJackpot?: boolean;
 };
 
 function toClaimPath(c: BackendClaim): ClaimPath {
@@ -37,7 +39,8 @@ function toClaimPath(c: BackendClaim): ClaimPath {
     selectionDeadlineAt: c.selectionDeadlineAt,
     // Flip window: open while still SELECTION_MADE; closes when KYC starts.
     changeWindowEndsAt: c.status === 'SELECTION_MADE' ? c.selectionDeadlineAt : null,
-    isJackpot: c.drawCode.includes('JACKPOT'),
+    isJackpot: c.isJackpot ?? c.drawCode.includes('JACKPOT'),
+    itemAllowed: c.itemAllowed,
   } as ClaimPath;
 }
 

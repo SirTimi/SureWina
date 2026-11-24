@@ -82,7 +82,7 @@ export class UpdateDrawDto {
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(3)
+  @ArrayMaxSize(4)
   @ValidateNested({ each: true })
   @Type(() => PrizeTierDto)
   tiers?: PrizeTierDto[];

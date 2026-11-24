@@ -31,6 +31,10 @@ import { PayoutAccountCipherService } from '../payout-accounts/payout-account-ci
 import { LockedPayoutDestinationService } from '../payout-accounts/locked-payout-destination.service'
 
 export type ClaimViewDto = {
+  // Whether the winner may take an item instead of cash (jackpot item
+  // prizes only). Set on single-claim reads.
+  itemAllowed?: boolean;
+  isJackpot: boolean;
   claimId: string;
   winnerTicketRef: string;
   drawCode: string;
@@ -65,6 +69,7 @@ type ClaimWithViewData = PrizeClaim & {
   drawResult: {
     draw: {
       drawCode: string;
+      drawType: string;
       prizeDescription: string;
     };
   };
@@ -118,7 +123,7 @@ export class ClaimsService {
 
   async getMine(claimId: string, phoneNumber: string): Promise<ClaimViewDto> {
     const claim = await this.findOwned(claimId, phoneNumber);
-    return this.toView(claim);
+    return { ...this.toView(claim), itemAllowed: await this.itemAllowed(claim) };
   }
 
   async choose(
@@ -135,6 +140,12 @@ export class ClaimsService {
     }
     if (claim.selectionDeadlineAt.getTime() <= Date.now()) {
       throw new ConflictException('The selection window for this claim has closed');
+    }
+
+    // Daily prizes are cash only. An item is offered only where the jackpot
+    // category is an item prize (and on old item-prize draws).
+    if (path === ClaimType.PRODUCT && !(await this.itemAllowed(claim))) {
+      throw new BadRequestException('This prize is paid in cash');
     }
 
     const wht = await this.computeWht(claim.grossPrizeValueNgn, path);
@@ -774,6 +785,7 @@ async reviewKyc(
           draw: {
             select: {
               drawCode: true,
+              drawType: true,
               prizeDescription: true,
             },
           },
@@ -831,6 +843,7 @@ async reviewKyc(
       claimId: c.claimId,
       winnerTicketRef: c.winnerTicketRef,
       drawCode: c.drawResult.draw.drawCode,
+      isJackpot: c.drawResult.draw.drawType === 'SATURDAY_JACKPOT',
       prizeDescription: claimPrizeDescription(c),
       status: c.status,
       claimType: c.claimType,
@@ -934,6 +947,55 @@ async reviewKyc(
   }
 
   // WHT applies to CASH prizes at/above the threshold. See wht-calculation.
+  // Whether this winner may take an item instead of cash.
+  async itemAllowed(claim: { drawWinnerId: string | null; drawResultId: string }): Promise<boolean> {
+    if (!claim.drawWinnerId) {
+      // Claims from before prize pools: as before.
+      return true;
+    }
+    const winner = await this.prisma.drawWinner.findUnique({
+      where: { winnerId: claim.drawWinnerId },
+      select: { drawId: true, tierNo: true },
+    });
+    if (!winner) return false;
+    const tier = await this.prisma.drawPrizeTier.findUnique({
+      where: { drawId_tierNo: { drawId: winner.drawId, tierNo: winner.tierNo } },
+      select: { itemPrize: true },
+    });
+    if (tier) return tier.itemPrize;
+    // Single-prize draws keep their old choice.
+    const draw = await this.prisma.draw.findUnique({ where: { drawId: winner.drawId }, select: { prizeModel: true } });
+    return draw?.prizeModel === 'SINGLE';
+  }
+
+  // A winner who has not chosen by the selection deadline gets cash; the
+  // claim deadline still applies. Used by the claim defaults loop.
+  async defaultToCash(claimId: string): Promise<boolean> {
+    const claim = await this.prisma.prizeClaim.findUnique({ where: { claimId } });
+    if (!claim || claim.status !== PrizeClaimStatus.NOTIFIED) return false;
+
+    const wht = await this.computeWht(claim.grossPrizeValueNgn, ClaimType.CASH);
+    const changed = await this.prisma.prizeClaim.updateMany({
+      where: { claimId, status: PrizeClaimStatus.NOTIFIED },
+      data: {
+        claimType: ClaimType.CASH,
+        claimTypeSelectedAt: new Date(),
+        status: PrizeClaimStatus.SELECTION_MADE,
+        ...wht,
+      },
+    });
+    if (changed.count !== 1) return false;
+
+    await this.audit.write({
+      severity: AuditSeverity.INFO,
+      actor: { type: AuditActorType.SYSTEM, id: 'claim-defaults' },
+      action: 'CLAIM_DEFAULTED_TO_CASH',
+      resource: { type: 'PrizeClaim', id: claimId },
+      metadata: { winnerTicketRef: claim.winnerTicketRef, grossPrizeValueNgn: claim.grossPrizeValueNgn },
+    });
+    return true;
+  }
+
   private async computeWht(grossNgn: number, path: ClaimType) {
     return computeWht(this.settings, grossNgn, path);
   }

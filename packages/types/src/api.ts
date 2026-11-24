@@ -13,6 +13,20 @@ export interface GetDrawResponse {
   ticketsSold: number;
   prizePoolNgn: number;
   jackpotEligible: boolean;
+  // Prize pool and jackpot stage draws: what each category pays.
+  prizes?: {
+    model: 'POOL' | 'STAGES' | 'SINGLE';
+    guaranteedPoolNgn: number | null;
+    payoutRatio: string | null;
+    categories: {
+      name: string;
+      prizePerWinnerNgn: number;
+      prizeDescription: string | null;
+      itemPrize: boolean;
+      shareOfPool: string | null;
+      winners: number | null;
+    }[];
+  } | null;
 }
 
 export interface ListPastResultsRequest {
@@ -319,6 +333,8 @@ export interface ClaimPath {
   /** True if user already chose. */
   selectionMade: boolean;
   selectedPath: 'PRODUCT' | 'CASH' | null;
+  /** False when the prize is cash only (every daily prize). */
+  itemAllowed?: boolean;
   /** Selection deadline (typically draw + 7 days). */
   selectionDeadlineAt: string;
   /** 48h from selection — the user can change once. */

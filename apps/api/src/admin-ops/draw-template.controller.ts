@@ -15,19 +15,26 @@ import {
   AuditActorType,
   AuditSeverity,
   ConfigVersionStatus,
+  DrawTemplate,
   DrawTemplateType,
+  DrawType,
+  Prisma,
 } from '@prisma/client';
 import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
   IsString,
   Length,
+  IsUUID,
+  Matches,
   Max,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
 import { AdminRoleGuard } from '../admin-auth/guards/admin-role.guard';
@@ -37,16 +44,28 @@ import { AdminJwtPayload } from '../admin-auth/admin-auth.types';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../database/prisma.service';
 import { MinTier } from '../admin-auth/decorators/min-tier.decorator';
+import { headlinePrizeNgn, tiersOf } from '../products/products.service';
 
+// A schedule. With productId: a product schedule for one slot (price and
+// prizes come from the product, so they are not sent). Without: an old
+// single-prize schedule, unchanged.
 class ProposeTemplateDto {
-  @IsEnum(DrawTemplateType) templateType!: DrawTemplateType;
+  @IsOptional() @IsUUID() productId?: string;
+  @ValidateIf((o: ProposeTemplateDto) => !!o.productId)
+  @Matches(/^[A-Z0-9_]{2,20}$/, { message: 'Slot code must be 2 to 20 capital letters, digits or underscores, e.g. NOON' })
+  slotCode?: string;
+
+  @ValidateIf((o: ProposeTemplateDto) => !o.productId) @IsEnum(DrawTemplateType) templateType?: DrawTemplateType;
   @IsString() @Length(3, 120) label!: string;
-  @IsString() @Length(3, 200) prizeDescription!: string;
-  @IsInt() @Min(1) prizeValueNgn!: number;
-  @IsInt() @Min(1) ticketPriceNgn!: number;
+  @ValidateIf((o: ProposeTemplateDto) => !o.productId) @IsString() @Length(3, 200) prizeDescription?: string;
+  @ValidateIf((o: ProposeTemplateDto) => !o.productId) @IsInt() @Min(1) prizeValueNgn?: number;
+  @ValidateIf((o: ProposeTemplateDto) => !o.productId) @IsInt() @Min(1) ticketPriceNgn?: number;
   @IsOptional() @IsInt() @Min(1) ticketQuota?: number;
   @IsInt() @Min(0) @Max(1439) cutoffMinutesWat!: number;
   @IsInt() @Min(0) @Max(1439) scheduledMinutesWat!: number;
+  // When sales open (WAT minutes), and whether that is the evening before.
+  @IsOptional() @IsInt() @Min(0) @Max(1439) salesOpenMinutesWat?: number;
+  @IsOptional() @IsBoolean() salesOpenPreviousDay?: boolean;
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(7) weekdays!: number[];
   @IsOptional() @IsString() effectiveFrom?: string;
 }
@@ -86,23 +105,40 @@ export class DrawTemplateController {
     @Body() dto: ProposeTemplateDto,
     @CurrentAdmin() admin: AdminJwtPayload,
   ) {
-    if (dto.cutoffMinutesWat >= dto.scheduledMinutesWat) {
-      throw new ConflictException('Cutoff must be earlier in the day than the draw time');
-    }
+    checkTimes(dto);
     if (dto.weekdays.some((d) => d < 0 || d > 6)) {
       throw new ConflictException('Weekdays must be 0 (Sunday) to 6 (Saturday)');
     }
 
+    // Product schedules take price and prizes from the product.
+    let productFields: {
+      templateType: DrawTemplateType;
+      prizeDescription: string;
+      prizeValueNgn: number;
+      ticketPriceNgn: number;
+    } | null = null;
+    if (dto.productId) {
+      const product = await this.prisma.product.findUnique({ where: { productId: dto.productId } });
+      if (!product) throw new NotFoundException('Product not found');
+      if (!product.approvedAt) throw new ConflictException('Approve the product before scheduling it');
+      productFields = {
+        templateType: product.kind === DrawType.SATURDAY_JACKPOT ? DrawTemplateType.SATURDAY_JACKPOT : DrawTemplateType.DAILY_STANDARD,
+        prizeDescription: product.prizeDescription,
+        prizeValueNgn: Math.max(1, headlinePrizeNgn(product.kind, { ...product, tiers: tiersOf(product) })),
+        ticketPriceNgn: product.ticketPriceNgn,
+      };
+    }
+
+    const templateType = productFields?.templateType ?? (dto.templateType as DrawTemplateType);
+    const key = versionKey({ templateType, productId: dto.productId ?? null, slotCode: dto.slotCode ?? null });
+
     const current = await this.prisma.drawTemplate.findFirst({
-      where: { templateType: dto.templateType, status: ConfigVersionStatus.ACTIVE },
+      where: { ...key, status: ConfigVersionStatus.ACTIVE },
       orderBy: { version: 'desc' },
     });
 
     const pending = await this.prisma.drawTemplate.findFirst({
-      where: {
-        templateType: dto.templateType,
-        status: ConfigVersionStatus.PENDING_APPROVAL,
-      },
+      where: { ...key, status: ConfigVersionStatus.PENDING_APPROVAL },
     });
     if (pending) {
       throw new ConflictException(
@@ -112,14 +148,18 @@ export class DrawTemplateController {
 
     const created = await this.prisma.drawTemplate.create({
       data: {
-        templateType: dto.templateType,
+        templateType,
+        productId: dto.productId ?? null,
+        slotCode: dto.productId ? dto.slotCode ?? null : null,
         label: dto.label,
-        prizeDescription: dto.prizeDescription,
-        prizeValueNgn: dto.prizeValueNgn,
-        ticketPriceNgn: dto.ticketPriceNgn,
+        prizeDescription: productFields?.prizeDescription ?? (dto.prizeDescription as string),
+        prizeValueNgn: productFields?.prizeValueNgn ?? (dto.prizeValueNgn as number),
+        ticketPriceNgn: productFields?.ticketPriceNgn ?? (dto.ticketPriceNgn as number),
         ticketQuota: dto.ticketQuota ?? null,
         cutoffMinutesWat: dto.cutoffMinutesWat,
         scheduledMinutesWat: dto.scheduledMinutesWat,
+        salesOpenMinutesWat: dto.salesOpenMinutesWat ?? null,
+        salesOpenPreviousDay: dto.salesOpenMinutesWat != null && !!dto.salesOpenPreviousDay,
         weekdays: dto.weekdays,
         version: (current?.version ?? 0) + 1,
         status: ConfigVersionStatus.PENDING_APPROVAL,
@@ -135,10 +175,16 @@ export class DrawTemplateController {
       action: 'DRAW_TEMPLATE_PROPOSED',
       resource: { type: 'DrawTemplate', id: created.templateId },
       metadata: {
-        templateType: dto.templateType,
+        templateType,
+        productId: created.productId,
+        slotCode: created.slotCode,
         version: created.version,
-        ticketPriceNgn: dto.ticketPriceNgn,
-        prizeValueNgn: dto.prizeValueNgn,
+        ticketPriceNgn: created.ticketPriceNgn,
+        prizeValueNgn: created.prizeValueNgn,
+        salesOpenMinutesWat: created.salesOpenMinutesWat,
+        salesOpenPreviousDay: created.salesOpenPreviousDay,
+        cutoffMinutesWat: created.cutoffMinutesWat,
+        scheduledMinutesWat: created.scheduledMinutesWat,
         supersedes: current?.templateId ?? null,
       },
     });
@@ -167,10 +213,11 @@ export class DrawTemplateController {
     const now = new Date();
 
     const [, activated] = await this.prisma.$transaction([
-      // Retire the version being replaced.
+      // Retire the version being replaced: same product and slot (or, for
+      // old schedules, the same type), never another product's schedule.
       this.prisma.drawTemplate.updateMany({
         where: {
-          templateType: t.templateType,
+          ...versionKey(t),
           status: ConfigVersionStatus.ACTIVE,
         },
         data: { status: ConfigVersionStatus.SUPERSEDED, effectiveTo: now },
@@ -234,6 +281,10 @@ export class DrawTemplateController {
   private toView(t: {
     templateId: string;
     templateType: DrawTemplateType;
+    productId: string | null;
+    slotCode: string | null;
+    salesOpenMinutesWat: number | null;
+    salesOpenPreviousDay: boolean;
     label: string;
     prizeDescription: string;
     prizeValueNgn: number;
@@ -256,6 +307,10 @@ export class DrawTemplateController {
     return {
       templateId: t.templateId,
       templateType: t.templateType,
+      productId: t.productId,
+      slotCode: t.slotCode,
+      salesOpenMinutesWat: t.salesOpenMinutesWat,
+      salesOpenPreviousDay: t.salesOpenPreviousDay,
       label: t.label,
       prizeDescription: t.prizeDescription,
       prizeValueNgn: t.prizeValueNgn,
@@ -275,5 +330,35 @@ export class DrawTemplateController {
       supersedesId: t.supersedesId,
       createdAt: t.createdAt.toISOString(),
     };
+  }
+}
+
+// Which versions replace each other: product schedules by product and slot;
+// old schedules by type (and only those without a product).
+function versionKey(t: Pick<DrawTemplate, 'templateType' | 'productId' | 'slotCode'>): Prisma.DrawTemplateWhereInput {
+  return t.productId
+    ? { productId: t.productId, slotCode: t.slotCode }
+    : { templateType: t.templateType, productId: null };
+}
+
+// Sales open, then close, then the draw. Sales may open the evening before
+// (7pm for a noon draw); otherwise everything is on the draw's day.
+function checkTimes(dto: {
+  cutoffMinutesWat: number;
+  scheduledMinutesWat: number;
+  salesOpenMinutesWat?: number;
+  salesOpenPreviousDay?: boolean;
+}) {
+  if (dto.cutoffMinutesWat >= dto.scheduledMinutesWat) {
+    throw new ConflictException('Cutoff must be earlier in the day than the draw time');
+  }
+  if (dto.salesOpenMinutesWat == null) return;
+  if (!dto.salesOpenPreviousDay && dto.salesOpenMinutesWat >= dto.cutoffMinutesWat) {
+    throw new ConflictException('Sales must open before the cutoff (or tick "opens the evening before")');
+  }
+  if (dto.salesOpenPreviousDay && dto.salesOpenMinutesWat <= dto.scheduledMinutesWat) {
+    // e.g. opens 11:00 the day before a 12:00 draw: over 24 hours of sales,
+    // which would overlap the previous day's draw for this slot.
+    throw new ConflictException('A sales window that opens the evening before must open after the previous draw time');
   }
 }

@@ -11,8 +11,9 @@ import { formatDrawDate, formatDrawTime } from '@/lib/draw-helpers';
 export default async function BuyTicketChoicePage() {
   const { draws } = await api.draws.listActive();
 
-  const dailyDraw = draws.find((draw) => draw.drawType === 'DAILY_STANDARD');
-  const jackpotDraw = draws.find((draw) => draw.drawType === 'SATURDAY_JACKPOT');
+  // Every open draw: each daily product for the current slot, and the jackpots.
+  const dailyDraws = draws.filter((draw) => draw.drawType === 'DAILY_STANDARD');
+  const jackpotDraws = draws.filter((draw) => draw.drawType === 'SATURDAY_JACKPOT');
 
   return (
     <main className="bg-[#F8FAF4]">
@@ -27,25 +28,28 @@ export default async function BuyTicketChoicePage() {
           </h1>
 
           <p className="mt-4 text-base leading-relaxed text-slate-600">
-            Buy today’s regular draw ticket or enter the coming Saturday jackpot
-            directly.
+            Pick a product. Each one has its own prizes, and sales close
+            automatically before the draw.
           </p>
         </div>
 
         <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
-          {dailyDraw ? (
-            <TicketChoiceCard
-              title={dailyDraw.prizeDescription}
-              eyebrow="Today’s draw"
-              description="Buy a regular ticket for today’s named Surewina draw."
-              priceLabel={formatNaira(dailyDraw.ticketPriceNgn)}
-              scheduleLabel={`${formatDrawDate(dailyDraw.scheduledAt)} · ${formatDrawTime(
-                dailyDraw.scheduledAt,
-              )}`}
-              href={`/draws/${dailyDraw.drawCode}`}
-              cta="Buy regular ticket"
-              icon={<Gift className="h-7 w-7" />}
-            />
+          {dailyDraws.length > 0 ? (
+            dailyDraws.map((dailyDraw) => (
+              <TicketChoiceCard
+                key={dailyDraw.drawCode}
+                title={dailyDraw.productName ?? dailyDraw.prizeDescription}
+                eyebrow={dailyDraw.productName ? dailyDraw.drawName : 'Today’s draw'}
+                description={dailyDraw.productName ? dailyDraw.prizeDescription : 'Buy a regular ticket for today’s named Surewina draw.'}
+                priceLabel={formatNaira(dailyDraw.ticketPriceNgn)}
+                scheduleLabel={`${formatDrawDate(dailyDraw.scheduledAt)} · ${formatDrawTime(
+                  dailyDraw.scheduledAt,
+                )}`}
+                href={`/draws/${dailyDraw.drawCode}`}
+                cta={`Buy ${formatNaira(dailyDraw.ticketPriceNgn)} ticket`}
+                icon={<Gift className="h-7 w-7" />}
+              />
+            ))
           ) : (
             <UnavailableCard
               title="Today’s draw unavailable"
@@ -53,20 +57,23 @@ export default async function BuyTicketChoicePage() {
             />
           )}
 
-          {jackpotDraw ? (
-            <TicketChoiceCard
-              title="Sure Jackpot"
-              eyebrow="Saturday jackpot"
-              description="Buy a direct jackpot ticket for the coming Saturday draw."
-              priceLabel={formatNaira(jackpotDraw.ticketPriceNgn)}
-              scheduleLabel={`${formatDrawDate(jackpotDraw.scheduledAt)} · ${formatDrawTime(
-                jackpotDraw.scheduledAt,
-              )}`}
-              href={`/draws/${jackpotDraw.drawCode}`}
-              cta="Buy jackpot ticket"
-              icon={<Trophy className="h-7 w-7" />}
-              featured
-            />
+          {jackpotDraws.length > 0 ? (
+            jackpotDraws.map((jackpotDraw) => (
+              <TicketChoiceCard
+                key={jackpotDraw.drawCode}
+                title={jackpotDraw.productName ?? 'Sure Jackpot'}
+                eyebrow={jackpotDraw.productName ? jackpotDraw.drawName : 'Saturday jackpot'}
+                description={jackpotDraw.productName ? jackpotDraw.prizeDescription : 'Buy a direct jackpot ticket for the coming Saturday draw.'}
+                priceLabel={formatNaira(jackpotDraw.ticketPriceNgn)}
+                scheduleLabel={`${formatDrawDate(jackpotDraw.scheduledAt)} · ${formatDrawTime(
+                  jackpotDraw.scheduledAt,
+                )}`}
+                href={`/draws/${jackpotDraw.drawCode}`}
+                cta="Buy jackpot ticket"
+                icon={<Trophy className="h-7 w-7" />}
+                featured
+              />
+            ))
           ) : (
             <UnavailableCard
               title="Jackpot unavailable"

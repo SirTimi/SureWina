@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 import { drawTypeShortLabel, formatCountdown, formatDrawDate } from '@/lib/draw-helpers';
 import { HowDrawWorks } from '@/components/how-draw-works';
 import { BuyTicketPanel } from '@/components/buy-ticket-panel';
-import { getCustomerDrawName, getCustomerDrawSubtitle } from '@/lib/customer-draw-display';
+import { getCustomerDrawName, getCustomerDrawSubtitle, getTicketTypeLabel } from '@/lib/customer-draw-display';
 
 interface DrawDetailPageProps {
   params: Promise<{ drawCode: string }>;
@@ -24,7 +24,8 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
     notFound();
   }
 
-  const { draw, ticketsSold } = drawData;
+  const { draw, ticketsSold, prizes } = drawData;
+  const seedCommittedHash = (drawData as { seedCommittedHash?: string | null }).seedCommittedHash ?? null;
   const isJackpot = draw.drawType === 'SATURDAY_JACKPOT';
   const displayDrawName = getCustomerDrawName(draw);
   const displayDrawSubtitle = getCustomerDrawSubtitle(draw);
@@ -92,9 +93,40 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
                 <div className="grid grid-cols-1 border-t border-slate-100 md:grid-cols-3">
                   <InfoCell icon={<Ticket className="h-4 w-4" />} title="Draw code" value={draw.drawCode} />
                   <InfoCell icon={<Clock className="h-4 w-4" />} title="Scheduled" value={formatDrawDate(draw.scheduledAt)} />
-                  <InfoCell icon={<Hash className="h-4 w-4" />} title="Ticket type" value={isJackpot ? 'Sure Jackpot ticket' : 'Regular daily ticket'} />
+                  <InfoCell icon={<Hash className="h-4 w-4" />} title="Ticket type" value={getTicketTypeLabel(draw)} />
                 </div>
               </Card>
+
+              {prizes && prizes.categories.length > 0 && (
+                <Card variant="default" className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">Prizes</p>
+                  <h2 className="mt-1 font-display text-2xl font-black tracking-[-0.03em] text-navy-950">
+                    {prizes.model === 'POOL'
+                      ? `${prizes.categories.length} prize categories`
+                      : `${prizes.categories.length} jackpot ${prizes.categories.length === 1 ? 'stage' : 'stages'}`}
+                  </h2>
+                  {prizes.model === 'POOL' && prizes.guaranteedPoolNgn != null && (
+                    <p className="mt-1 text-sm text-slate-600">
+                      Prize pool: {prizes.payoutRatio} of ticket sales, never less than {formatNaira(prizes.guaranteedPoolNgn)}. The more tickets sold, the more winners.
+                    </p>
+                  )}
+                  <ul className="mt-4 divide-y divide-slate-100">
+                    {prizes.categories.map((c) => (
+                      <li key={c.name} className="flex items-center justify-between gap-4 py-2.5 text-sm">
+                        <span className="font-bold text-navy-950">{c.name}</span>
+                        <span className="text-right text-slate-700">
+                          {c.itemPrize && c.prizeDescription
+                            ? `${c.prizeDescription} or ${formatNaira(c.prizePerWinnerNgn)} cash`
+                            : `${formatNaira(c.prizePerWinnerNgn)} each`}
+                          {c.winners != null && <span className="block text-xs text-slate-500">{c.winners} {c.winners === 1 ? 'winner' : 'winners'}</span>}
+                          {c.shareOfPool && <span className="block text-xs text-slate-500">{c.shareOfPool} of the pool</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 text-xs text-slate-500">Winners are picked automatically by the draw engine. A ticket can win only once per draw.</p>
+                </Card>
+              )}
 
               <Card variant="default" className="rounded-3xl border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
                 <div className="mb-5 flex items-center justify-between gap-4">
@@ -102,7 +134,6 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
                     <p className="text-[10px] font-black uppercase tracking-[0.14em] text-navy-700">Live demand</p>
                     <h2 className="mt-1 font-display text-2xl font-black tracking-[-0.03em] text-navy-950">{ticketsSold.toLocaleString()} tickets sold so far</h2>
                   </div>
-                  <div className="hidden rounded-sm bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 sm:block">Updated 12s ago</div>
                 </div>
 
                 {ticketCap ? (
@@ -117,7 +148,8 @@ export default async function DrawDetailPage({ params }: DrawDetailPageProps) {
                 )}
               </Card>
 
-              <HowDrawWorks seedHash="9f4c2b8e1a7d6f30c5e9b2148a6d4f7c2c6e9a4b7d0f3e6c1a5b8d" seedCommittedAt="00:00 WAT" />
+              {/* The draw's real sealed-seed fingerprint, committed before sales opened. */}
+              <HowDrawWorks seedHash={seedCommittedHash ?? undefined} />
             </div>
 
             <aside className="lg:sticky lg:top-28 lg:self-start">

@@ -33,7 +33,7 @@ import { generateTicketRef } from '../payments/ticket-ref.util';
 import { CustomerAdminService } from '../admin-ops/customer-admin.service';
 import { SellTicketsDto } from './dto/sell-tickets.dto';
 import { AccountService } from '../account/account.service'
-import { drawDisplayName, drawShortCode } from '../common/draw-naming.util';
+import { productDrawName, productDrawShortCode } from '../common/draw-naming.util';
 import { AgentAccountingService } from './agent-accounting.service';
 import { WalletService } from '../wallet/wallet.service';
 import { WitmangoWalletLinkService } from '../integrations/witmango/witmango-wallet-link.service';
@@ -671,6 +671,7 @@ export class AgentSalesService {
         scheduledAt: true,
         cutoffAt: true,
         ticketPriceNgn: true,
+        product: { select: { code: true, name: true, ticketLabel: true } },
       },
     });
     if (!draw) throw new NotFoundException('Draw not found for this sale');
@@ -682,8 +683,10 @@ export class AgentSalesService {
         : 'ONLINE',
       drawNumber: String(draw.drawNumber).padStart(4, '0'),
       drawType: draw.drawType,
-      drawName: drawDisplayName(draw.drawType, draw.scheduledAt),
-      drawShortCode: drawShortCode(draw.drawType, draw.scheduledAt),
+      drawName: productDrawName(draw.drawType, draw.scheduledAt, draw.product),
+      drawShortCode: productDrawShortCode(draw.drawType, draw.scheduledAt, draw.product),
+      productName: draw.product?.name ?? null,
+      ticketLabel: draw.product?.ticketLabel ?? null,
       scheduledAt: draw.scheduledAt.toISOString(),
       cutoffAt: draw.cutoffAt.toISOString(),
       soldAt: (txn.confirmedAt ?? txn.createdAt).toISOString(),

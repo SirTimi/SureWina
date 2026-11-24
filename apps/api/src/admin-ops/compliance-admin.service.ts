@@ -420,7 +420,7 @@ export class ComplianceAdminService {
   async salesReport(fromDate: string, toDate: string) {
     const { from, to } = this.rangeOf(fromDate, toDate);
 
-    const [byGateway, byState, byDay] = await Promise.all([
+    const [byGateway, byState, byDay, byProductRows, byChannel, byAgent] = await Promise.all([
       this.prisma.paymentTransaction.groupBy({
         by: ['gateway'],
         where: { status: PaymentStatus.CONFIRMED, confirmedAt: { gte: from, lte: to } },
@@ -441,7 +441,75 @@ export class ComplianceAdminService {
         FROM tickets
         WHERE created_at >= ${from} AND created_at <= ${to}
         GROUP BY 1 ORDER BY 1`,
+      // Product, draw time and channel. Tickets from before products show
+      // under their draw type.
+      this.prisma.$queryRaw<
+        {
+          product_code: string | null;
+          product_name: string | null;
+          draw_type: string;
+          slot_code: string | null;
+          purchase_channel: string;
+          sales_ngn: string | null;
+          tickets: string | null;
+        }[]
+      >`SELECT p.code AS product_code, p.name AS product_name, d.draw_type,
+               d.slot_code, t.purchase_channel,
+               SUM(t.face_value_ngn) AS sales_ngn, COUNT(*) AS tickets
+        FROM tickets t
+        JOIN draws d ON d.draw_id = t.draw_id
+        LEFT JOIN products p ON p.product_id = d.product_id
+        WHERE t.created_at >= ${from} AND t.created_at <= ${to}
+        GROUP BY 1, 2, 3, 4, 5
+        ORDER BY 6 DESC`,
+      this.prisma.ticket.groupBy({
+        by: ['purchaseChannel'],
+        where: { createdAt: { gte: from, lte: to } },
+        _sum: { faceValueNgn: true },
+        _count: true,
+      }),
+      this.prisma.ticket.groupBy({
+        by: ['agentId'],
+        where: { createdAt: { gte: from, lte: to }, agentId: { not: null } },
+        _sum: { faceValueNgn: true },
+        _count: true,
+        orderBy: { _sum: { faceValueNgn: 'desc' } },
+        take: 50,
+      }),
     ]);
+
+    const agentIds = byAgent.map((a) => a.agentId).filter((id): id is string => !!id);
+    const agents = agentIds.length
+      ? await this.prisma.agent.findMany({
+          where: { agentId: { in: agentIds } },
+          select: { agentId: true, agentCode: true, fullName: true, registeredStateCode: true, superAgentCode: true },
+        })
+      : [];
+    const agentById = new Map(agents.map((a) => [a.agentId, a]));
+
+    // By product: one line per product (or old draw type), split by slot and channel.
+    const products = new Map<string, {
+      productCode: string | null;
+      productName: string;
+      tickets: number;
+      salesNgn: number;
+      bySlot: Record<string, { tickets: number; salesNgn: number }>;
+      byChannel: Record<string, { tickets: number; salesNgn: number }>;
+    }>();
+    for (const r of byProductRows) {
+      const key = r.product_code ?? `legacy:${r.draw_type}`;
+      const name = r.product_name ?? (r.draw_type === 'SATURDAY_JACKPOT' ? 'Jackpot (before products)' : 'Daily (before products)');
+      const p = products.get(key) ?? { productCode: r.product_code, productName: name, tickets: 0, salesNgn: 0, bySlot: {}, byChannel: {} };
+      const tickets = Number(r.tickets ?? 0);
+      const sales = Number(r.sales_ngn ?? 0);
+      p.tickets += tickets;
+      p.salesNgn += sales;
+      const slot = r.slot_code ?? 'ALL';
+      p.bySlot[slot] = { tickets: (p.bySlot[slot]?.tickets ?? 0) + tickets, salesNgn: (p.bySlot[slot]?.salesNgn ?? 0) + sales };
+      const ch = r.purchase_channel;
+      p.byChannel[ch] = { tickets: (p.byChannel[ch]?.tickets ?? 0) + tickets, salesNgn: (p.byChannel[ch]?.salesNgn ?? 0) + sales };
+      products.set(key, p);
+    }
 
     return {
       fromDate,
@@ -465,6 +533,23 @@ export class ComplianceAdminService {
         tickets: Number(d.tickets),
         salesNgn: Number(d.sales_ngn ?? 0),
       })),
+      byProduct: [...products.values()].sort((a, b) => b.salesNgn - a.salesNgn),
+      byChannel: byChannel
+        .map((c) => ({ channel: c.purchaseChannel, tickets: c._count, salesNgn: c._sum.faceValueNgn ?? 0 }))
+        .sort((a, b) => b.salesNgn - a.salesNgn),
+      // Top 50 agents by sales, for rewards and expansion planning.
+      topAgents: byAgent.map((a, i) => {
+        const agent = a.agentId ? agentById.get(a.agentId) : undefined;
+        return {
+          rank: i + 1,
+          agentCode: agent?.agentCode ?? '—',
+          agentName: agent?.fullName ?? '—',
+          stateCode: agent?.registeredStateCode ?? '—',
+          superAgentCode: agent?.superAgentCode ?? null,
+          tickets: a._count,
+          salesNgn: a._sum.faceValueNgn ?? 0,
+        };
+      }),
       totals: {
         salesNgn: byState.reduce((s, r) => s + (r._sum.faceValueNgn ?? 0), 0),
         tickets: byState.reduce((s, r) => s + r._count, 0),

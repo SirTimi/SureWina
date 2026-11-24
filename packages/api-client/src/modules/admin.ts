@@ -450,6 +450,7 @@ export interface AdminPrizeTier {
   winnerCount?: number | null;
   prizePerWinnerNgn: number;
   prizeDescription?: string | null;
+  itemPrize?: boolean;
 }
 
 export interface AdminPrizeSetup {
@@ -597,9 +598,43 @@ export interface AdminDrawPreChecks {
   }[];
 }
 
+export interface AdminProductTerms {
+  name: string;
+  ticketLabel: string;
+  ticketPriceNgn: number;
+  prizeDescription: string;
+  poolPayoutBp?: number | null;
+  poolMinimumNgn?: number | null;
+  poolRevenueBasis?: AdminPoolRevenueBasis | null;
+  tiers: AdminPrizeTier[];
+}
+
+export interface AdminProduct extends AdminProductTerms {
+  productId: string;
+  code: string;
+  kind: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+  active: boolean;
+  approved: boolean;
+  prizeModel: 'POOL' | 'STAGES';
+  version: number;
+  pending: {
+    isNewProduct: boolean;
+    change: AdminProductTerms | null;
+    proposedBy: string | null;
+    proposedAt: string | null;
+  } | null;
+  approvedByAdminId: string | null;
+  approvedAt: string | null;
+  createdAt: string;
+}
+
 export interface AdminDrawTemplate {
   templateId: string;
   templateType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+  productId: string | null;
+  slotCode: string | null;
+  salesOpenMinutesWat: number | null;
+  salesOpenPreviousDay: boolean;
   label: string;
   prizeDescription: string;
   prizeValueNgn: number;
@@ -698,6 +733,24 @@ export interface AdminSalesReport {
   byGateway: { gateway: string; transactions: number; tickets: number; amountNgn: number }[];
   byState: { stateCode: string; tickets: number; salesNgn: number }[];
   byDay: { day: string; tickets: number; salesNgn: number }[];
+  byProduct?: {
+    productCode: string | null;
+    productName: string;
+    tickets: number;
+    salesNgn: number;
+    bySlot: Record<string, { tickets: number; salesNgn: number }>;
+    byChannel: Record<string, { tickets: number; salesNgn: number }>;
+  }[];
+  byChannel?: { channel: 'DIRECT' | 'AGENT'; tickets: number; salesNgn: number }[];
+  topAgents?: {
+    rank: number;
+    agentCode: string;
+    agentName: string;
+    stateCode: string;
+    superAgentCode: string | null;
+    tickets: number;
+    salesNgn: number;
+  }[];
   totals: { salesNgn: number; tickets: number };
 }
 
@@ -1507,19 +1560,49 @@ export class AdminModule {
     return this.client.get('/admin/draw-templates', { query: { status } });
   }
 
+  // Without productId: an old single-prize schedule. With productId: a
+  // product schedule for one slot; price and prizes come from the product.
   async proposeDrawTemplate(input: {
-    templateType: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+    templateType?: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT';
+    productId?: string;
+    slotCode?: string;
     label: string;
-    prizeDescription: string;
-    prizeValueNgn: number;
-    ticketPriceNgn: number;
+    prizeDescription?: string;
+    prizeValueNgn?: number;
+    ticketPriceNgn?: number;
     ticketQuota?: number;
     cutoffMinutesWat: number;
     scheduledMinutesWat: number;
+    salesOpenMinutesWat?: number;
+    salesOpenPreviousDay?: boolean;
     weekdays: number[];
     effectiveFrom?: string;
   }): Promise<AdminDrawTemplate> {
     return this.client.post('/admin/draw-templates', input);
+  }
+
+  async listProducts(): Promise<{ products: AdminProduct[] }> {
+    return this.client.get('/admin/products');
+  }
+
+  async createProduct(input: AdminProductTerms & { code: string; kind: 'DAILY_STANDARD' | 'SATURDAY_JACKPOT' }): Promise<AdminProduct> {
+    return this.client.post('/admin/products', input);
+  }
+
+  async proposeProductChange(productId: string, input: AdminProductTerms): Promise<AdminProduct> {
+    return this.client.post(`/admin/products/${encodeURIComponent(productId)}/changes`, input);
+  }
+
+  async approveProduct(productId: string): Promise<AdminProduct & { updatedDraws: number }> {
+    return this.client.post(`/admin/products/${encodeURIComponent(productId)}/approve`, {});
+  }
+
+  async rejectProduct(productId: string, note: string): Promise<AdminProduct> {
+    return this.client.post(`/admin/products/${encodeURIComponent(productId)}/reject`, { note });
+  }
+
+  async setProductActive(productId: string, active: boolean): Promise<AdminProduct> {
+    return this.client.patch(`/admin/products/${encodeURIComponent(productId)}/active`, { active });
   }
 
   async approveDrawTemplate(templateId: string): Promise<AdminDrawTemplate> {

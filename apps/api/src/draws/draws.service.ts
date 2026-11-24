@@ -93,7 +93,9 @@ export class DrawsService {
         status: DrawStatus.ACTIVE,
         cutoffAt: { gt: new Date() },
       },
-      orderBy: { scheduledAt: 'asc' },
+      include: { product: true },
+      // Soonest first; within a slot, cheapest product first.
+      orderBy: [{ scheduledAt: 'asc' }, { ticketPriceNgn: 'asc' }],
     });
 
     return { draws: draws.map(toDrawPublic) };
@@ -102,7 +104,11 @@ export class DrawsService {
   async getByCode(drawCode: string): Promise<GetDrawResponseDto> {
     const draw = await this.prisma.draw.findUnique({
       where: { drawCode },
-      include: { seedCommit: { select: {seedHash:true}}}
+      include: {
+        seedCommit: { select: { seedHash: true } },
+        product: true,
+        prizeTiers: { where: { active: true }, orderBy: { tierNo: 'asc' } },
+      },
     });
 
     if (!draw || !PUBLIC_VISIBLE_STATUSES.includes(draw.status)) {
@@ -138,7 +144,25 @@ export class DrawsService {
       ticketsSold,
       prizePoolNgn,
       jackpotEligible: draw.drawType === DrawType.SATURDAY_JACKPOT,
-      seedCommittedHash: draw.seedCommit?.seedHash ?? null
+      seedCommittedHash: draw.seedCommit?.seedHash ?? null,
+      // What the draw pays, for buyers. Pools: each category's share and
+      // prize, and the guaranteed minimum. Stages: winners and prize each.
+      prizes:
+        draw.prizeModel !== DrawPrizeModel.POOL && draw.prizeModel !== DrawPrizeModel.STAGES
+          ? null
+          : {
+              model: draw.prizeModel,
+              guaranteedPoolNgn: draw.prizeModel === DrawPrizeModel.POOL ? draw.poolMinimumNgn : null,
+              payoutRatio: draw.prizeModel === DrawPrizeModel.POOL && draw.poolPayoutBp ? formatBp(draw.poolPayoutBp) : null,
+              categories: (draw.prizeTiers ?? []).map((t) => ({
+                name: t.name,
+                prizePerWinnerNgn: t.prizePerWinnerNgn,
+                prizeDescription: t.prizeDescription,
+                itemPrize: t.itemPrize,
+                shareOfPool: t.allocationBp != null ? formatBp(t.allocationBp) : null,
+                winners: t.winnerCount,
+              })),
+            },
     };
   }
 
@@ -446,6 +470,7 @@ export class DrawsService {
           winnerCount: t.winnerCount,
           prizePerWinnerNgn: t.prizePerWinnerNgn,
           prizeDescription: t.prizeDescription,
+          itemPrize: t.itemPrize,
         })),
       },
       winners: draw.winners.map((w) => ({
@@ -815,6 +840,7 @@ function tierInput(t: {
   winnerCount?: number | null;
   prizePerWinnerNgn: number;
   prizeDescription?: string | null;
+  itemPrize?: boolean | null;
 }): TierInput {
   return {
     tierNo: t.tierNo,
@@ -824,6 +850,7 @@ function tierInput(t: {
     winnerCount: t.winnerCount ?? null,
     prizePerWinnerNgn: t.prizePerWinnerNgn,
     prizeDescription: t.prizeDescription ?? null,
+    itemPrize: !!t.itemPrize,
   };
 }
 
@@ -836,6 +863,7 @@ function tierRow(t: TierInput) {
     winnerCount: t.winnerCount ?? null,
     prizePerWinnerNgn: t.prizePerWinnerNgn,
     prizeDescription: t.prizeDescription?.trim() || null,
+    itemPrize: !!t.itemPrize,
   };
 }
 

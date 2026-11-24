@@ -13,6 +13,7 @@ import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
 import { DrawsModule } from './draws/draws.module';
+import { ProductsModule } from './products/products.module';
 import { ResultsModule } from './results/results.module'
 import { PaymentsModule } from './payments/payments.module';
 import { QueueModule } from './queue/queue.module';
@@ -56,6 +57,7 @@ import { WalletOnboardingModule } from './onboarding/wallet-onboarding.module';
     AdminAuthModule,
     HealthModule,
     DrawsModule,
+    ProductsModule,
     ResultsModule,
     PaymentsModule,
     QueueModule,

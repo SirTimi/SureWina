@@ -36,12 +36,16 @@ function TicketOptionBody({ agent }: { agent: AgentMe }) {
           res.draws.map((d) => ({
             kind: d.drawType === 'SATURDAY_JACKPOT' ? 'JACKPOT' : 'DAILY',
             drawCode: d.drawCode,
-            drawName: d.drawType === 'SATURDAY_JACKPOT' ? 'Sure Jackpot' : "Today's draw",
+            // Product draws carry their own name, e.g. "SURE 100 · 12:00".
+            drawName: d.productName
+              ? d.drawName
+              : d.drawType === 'SATURDAY_JACKPOT' ? 'Sure Jackpot' : "Today's draw",
             ticketPriceNgn: d.ticketPriceNgn,
             scheduledAt: d.scheduledAt,
             cutoffAt: d.cutoffAt,
-            description:
-              d.drawType === 'SATURDAY_JACKPOT'
+            description: d.productName
+              ? d.prizeDescription
+              : d.drawType === 'SATURDAY_JACKPOT'
                 ? 'Direct entry into the coming Saturday jackpot.'
                 : "Regular entry into today's named Surewina draw.",
           })),
@@ -58,8 +62,9 @@ function TicketOptionBody({ agent }: { agent: AgentMe }) {
     };
   }, []);
 
-  const dailyOffer = offers.find((offer) => offer.kind === 'DAILY');
-  const jackpotOffer = offers.find((offer) => offer.kind === 'JACKPOT');
+  // Every open draw: each daily product for the current slot, and the jackpots.
+  const dailyOffers = offers.filter((offer) => offer.kind === 'DAILY');
+  const jackpotOffers = offers.filter((offer) => offer.kind === 'JACKPOT');
 
   const startSale = (offer: SurewinaTicketOffer) => {
     writeSaleDraft({
@@ -83,7 +88,7 @@ function TicketOptionBody({ agent }: { agent: AgentMe }) {
       <SectionHeading
         eyebrow="60-second sale · Step 1 of 3"
         title="Choose ticket type"
-        description="Sell today’s regular draw ticket or a direct Saturday jackpot ticket."
+        description="Pick the product the customer wants. Each draw closes for sale automatically at its cutoff."
         backHref="/"
       />
 
@@ -103,26 +108,28 @@ function TicketOptionBody({ agent }: { agent: AgentMe }) {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {dailyOffer && (
+          {dailyOffers.map((offer) => (
             <TicketOptionCard
-              offer={dailyOffer}
+              key={offer.drawCode}
+              offer={offer}
               icon={<Gift className="h-6 w-6" />}
-              label="Today’s draw"
-              cta={`Sell ${formatNaira(dailyOffer.ticketPriceNgn)} ticket`}
-              onSelect={() => startSale(dailyOffer)}
+              label="Daily draw"
+              cta={`Sell ${formatNaira(offer.ticketPriceNgn)} ticket`}
+              onSelect={() => startSale(offer)}
             />
-          )}
+          ))}
 
-          {jackpotOffer && (
+          {jackpotOffers.map((offer) => (
             <TicketOptionCard
-              offer={jackpotOffer}
+              key={offer.drawCode}
+              offer={offer}
               icon={<Trophy className="h-6 w-6" />}
-              label="Saturday jackpot"
-              cta={`Sell ${formatNaira(jackpotOffer.ticketPriceNgn)} jackpot ticket`}
-              onSelect={() => startSale(jackpotOffer)}
+              label="Jackpot"
+              cta={`Sell ${formatNaira(offer.ticketPriceNgn)} jackpot ticket`}
+              onSelect={() => startSale(offer)}
               featured
             />
-          )}
+          ))}
         </div>
       )}
 

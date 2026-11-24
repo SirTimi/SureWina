@@ -153,7 +153,7 @@ describe('Prize configuration rules', () => {
     broken.tiers[1] = { ...broken.tiers[1], tierNo: 1 };
     const errors = validatePrizeConfig(broken);
     expect(errors).toEqual(expect.arrayContaining([
-      'Tiers must be numbered 1 to 3, each once',
+      'Tiers must be numbered 1 to 4, each once',
       'Tier 1: a name of 1 to 60 characters is required',
       'Tier 1: prize per winner must be a whole naira amount of at least ₦1',
     ]));
@@ -301,5 +301,43 @@ describe('Winner selection from the sealed seed', () => {
     for (const w of wins) {
       expect(Math.abs(w - expected) / expected).toBeLessThan(0.1);
     }
+  });
+});
+
+describe('Products: 4 daily categories, 3 jackpot stages, jackpot item prizes', () => {
+  const four = [
+    { tierNo: 1, name: 'First', active: true, allocationBp: 1000, prizePerWinnerNgn: 50000 },
+    { tierNo: 2, name: 'Second', active: true, allocationBp: 2000, prizePerWinnerNgn: 10000 },
+    { tierNo: 3, name: 'Third', active: true, allocationBp: 3000, prizePerWinnerNgn: 2000 },
+    { tierNo: 4, name: 'Fourth', active: true, allocationBp: 4000, prizePerWinnerNgn: 500 },
+  ];
+
+  it('a daily pool takes 4 categories and works them all out', () => {
+    expect(validatePrizeConfig({ model: 'POOL', payoutBp: 5000, minimumNgn: 100000, tiers: four })).toEqual([]);
+    const plan = planPrizes({ model: 'POOL', payoutBp: 5000, minimumNgn: 100000, tiers: four }, 1_000_000);
+    // ₦500k pool: 1 × ₦50k, 10 × ₦10k, 75 × ₦2k, 400 × ₦500.
+    expect(plan.tiers.map((t) => t.winners)).toEqual([1, 10, 75, 400]);
+    expect(plan.totalPrizeNgn + plan.roundingNgn).toBe(500000);
+  });
+
+  it('but not a fifth, and jackpot stages stop at 3', () => {
+    const five = [...four, { tierNo: 5, name: 'Fifth', active: true, allocationBp: 1, prizePerWinnerNgn: 1 }];
+    expect(validatePrizeConfig({ model: 'POOL', payoutBp: 5000, minimumNgn: 0, tiers: five })).toEqual(['Between 1 and 4 prize tiers are required']);
+    const stages = four.map((t) => ({ ...t, allocationBp: null, winnerCount: 1 }));
+    expect(validatePrizeConfig({ model: 'STAGES', tiers: stages })).toEqual(['Between 1 and 3 prize tiers are required']);
+  });
+
+  it('a jackpot stage can be an item, with the prize amount as its cash value', () => {
+    const tiers = [{ tierNo: 1, name: 'Jackpot', active: true, winnerCount: 1, prizePerWinnerNgn: 3_500_000, prizeDescription: 'Toyota Corolla', itemPrize: true }];
+    expect(validatePrizeConfig({ model: 'STAGES', tiers })).toEqual([]);
+    const plan = planPrizes({ model: 'STAGES', tiers }, 0);
+    expect(plan.tiers[0]).toMatchObject({ itemPrize: true, prizeDescription: 'Toyota Corolla or ₦3,500,000 cash', prizePerWinnerNgn: 3_500_000 });
+  });
+
+  it('an item stage must name the item, and daily categories are cash only', () => {
+    expect(validatePrizeConfig({ model: 'STAGES', tiers: [{ tierNo: 1, name: 'Jackpot', active: true, winnerCount: 1, prizePerWinnerNgn: 1000, itemPrize: true }] }))
+      .toEqual(['Tier 1: name the item (the prize amount is its cash value)']);
+    const itemDaily = four.map((t, i) => (i === 0 ? { ...t, itemPrize: true, prizeDescription: 'Phone' } : t));
+    expect(validatePrizeConfig({ model: 'POOL', payoutBp: 5000, minimumNgn: 0, tiers: itemDaily })).toEqual(['Tier 1: daily prize categories are cash only']);
   });
 });

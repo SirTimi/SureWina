@@ -81,6 +81,14 @@ const navGroups: Array<{
         roles: ['OPERATOR'],
       },
       {
+        label: 'Products',
+        href: '/products',
+        icon: Ticket,
+        help: 'Daily and jackpot products: price, prize pool or stages, and draw times — dual approval',
+        permission: 'VIEW_DRAW_SCHEDULE',
+        roles: ['OPERATOR'],
+      },
+      {
         label: 'Schedule config',
         href: '/draws/schedule',
         icon: CalendarClock,

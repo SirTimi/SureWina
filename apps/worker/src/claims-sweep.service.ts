@@ -46,13 +46,13 @@ export class ClaimsSweepService implements OnModuleInit, OnModuleDestroy {
       const expired = await this.prisma.prizeClaim.findMany({
         where: {
           OR: [
-            {
-              status: PrizeClaimStatus.NOTIFIED,
-              selectionDeadlineAt: { lte: now },
-            },
+            // A winner who misses the selection deadline is given cash by
+            // the API (they are not forfeited for not choosing). Only the
+            // claim deadline forfeits a prize.
             {
               status: {
                 in: [
+                  PrizeClaimStatus.NOTIFIED,
                   PrizeClaimStatus.SELECTION_MADE,
                   PrizeClaimStatus.KYC_PENDING,
                 ],

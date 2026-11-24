@@ -40,6 +40,15 @@ export interface DrawPublic {
   ticketPriceNgn: NairaAmount;
   scheduledAt: Timestamp;
   cutoffAt: Timestamp;
+  // Product draws (null on draws from before products).
+  productCode: string | null;
+  productName: string | null;
+  ticketLabel: string | null;
+  slotCode: string | null;
+  salesOpenAt: Timestamp | null;
+  // e.g. "SURE 100 · 12:00", or the old day name.
+  drawName: string;
+  drawShortCode: string;
 }
 
 export type DrawStateBreakdown = Record<string, number>;

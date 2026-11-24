@@ -49,12 +49,16 @@ export class LifecycleService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // Opens sales once the seed is committed and, for scheduled product draws,
+  // once their sales-open time has come (7pm the evening before a noon draw).
   private async activateCommittedDraws(): Promise<void> {
+    const now = new Date();
     const ready = await this.prisma.draw.findMany({
       where: {
         status: DrawStatus.SCHEDULED,
-        cutoffAt: { gt: new Date() },
+        cutoffAt: { gt: now },
         seedCommit: { isNot: null },
+        OR: [{ salesOpenAt: null }, { salesOpenAt: { lte: now } }],
       },
     });
 

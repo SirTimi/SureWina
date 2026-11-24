@@ -245,6 +245,80 @@ function Body() {
               </SectionCard>
             </div>
 
+            {report.byProduct && report.byProduct.length > 0 && (
+              <SectionCard title="By product" description="Sales per product, by draw time and by who sold the ticket." padded={false}>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-[#F8FAF4] text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                      <tr>
+                        <th className="px-4 py-2 text-left">Product</th>
+                        <th className="px-4 py-2 text-left">By draw time</th>
+                        <th className="px-4 py-2 text-right">Agents</th>
+                        <th className="px-4 py-2 text-right">Direct</th>
+                        <th className="px-4 py-2 text-right">Tickets</th>
+                        <th className="px-4 py-2 text-right">Sales</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {report.byProduct.map((p) => (
+                        <tr key={p.productCode ?? p.productName}>
+                          <td className="px-4 py-2 font-bold">
+                            {p.productName}
+                            {p.productCode && <span className="ml-1 font-mono text-[10px] text-slate-400">{p.productCode}</span>}
+                          </td>
+                          <td className="px-4 py-2 text-xs text-slate-600">
+                            {Object.entries(p.bySlot).map(([slot, v]) => `${slot}: ${formatNaira(v.salesNgn)}`).join(' · ')}
+                          </td>
+                          <td className="px-4 py-2 text-right tabular-nums">{formatNaira(p.byChannel.AGENT?.salesNgn ?? 0)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{formatNaira(p.byChannel.DIRECT?.salesNgn ?? 0)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{p.tickets.toLocaleString('en-NG')}</td>
+                          <td className="px-4 py-2 text-right font-bold tabular-nums">{formatNaira(p.salesNgn)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </SectionCard>
+            )}
+
+            {report.topAgents && report.topAgents.length > 0 && (
+              <SectionCard title="Top agents" description="Ranked by ticket sales in this period. For rewards and expansion planning." padded={false}>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-[#F8FAF4] text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                      <tr>
+                        <th className="px-4 py-2 text-left">#</th>
+                        <th className="px-4 py-2 text-left">Agent</th>
+                        <th className="px-4 py-2 text-left">State</th>
+                        <th className="px-4 py-2 text-left">Super agent</th>
+                        <th className="px-4 py-2 text-right">Tickets</th>
+                        <th className="px-4 py-2 text-right">Sales</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {report.topAgents.map((a) => (
+                        <tr key={a.agentCode}>
+                          <td className="px-4 py-2 tabular-nums text-slate-400">{a.rank}</td>
+                          <td className="px-4 py-2 font-bold">
+                            {a.agentName} <span className="font-mono text-[10px] text-slate-400">{a.agentCode}</span>
+                          </td>
+                          <td className="px-4 py-2 font-mono text-xs font-black">{a.stateCode}</td>
+                          <td className="px-4 py-2 font-mono text-xs">{a.superAgentCode ?? '—'}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{a.tickets.toLocaleString('en-NG')}</td>
+                          <td className="px-4 py-2 text-right font-bold tabular-nums">{formatNaira(a.salesNgn)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {report.byChannel && (
+                  <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
+                    {report.byChannel.map((c) => `${c.channel === 'AGENT' ? 'Agents' : 'Direct (app and web)'}: ${formatNaira(c.salesNgn)} from ${c.tickets.toLocaleString('en-NG')} tickets`).join(' · ')}
+                  </p>
+                )}
+              </SectionCard>
+            )}
+
             <p className="text-xs text-slate-500">
               Generated {new Date(report.generatedAt).toLocaleString('en-NG')} · channel figures
               from confirmed payments; state and daily figures from ticket records.
