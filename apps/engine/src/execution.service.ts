@@ -9,6 +9,7 @@ import {
   AuditActorType,
   AuditSeverity,
   DrawPrizeModel,
+  DrawReleaseStatus,
   DrawStatus,
   DrawType,
   JackpotEntryStatus,
@@ -19,6 +20,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 import { EngineKeysService } from './engine-keys.service';
+import { drawSnapshotHash } from './draw-snapshot';
 import {
   computeMerkleRoot,
   deterministicWinnerIndex,
@@ -110,6 +112,8 @@ export class ExecutionService implements OnModuleInit, OnModuleDestroy {
         where: {
           status: DrawStatus.SALES_CLOSED,
           scheduledAt: { lte: new Date() },
+          // Gate 2: only a draw approved after its reconciliation checks.
+          release: { status: DrawReleaseStatus.APPROVED },
         },
         include: { seedCommit: true },
       });
@@ -178,6 +182,43 @@ export class ExecutionService implements OnModuleInit, OnModuleDestroy {
             buyerPhone: e.buyerPhone,
           })),
         );
+      }
+
+      // Gate 2: the approval is for exactly these entries and this prize
+      // setup. If anything changed since, do not run: hand the draw back
+      // for a fresh check and approval.
+      const release = await this.prisma.drawRelease.findUnique({ where: { drawId } });
+      const fingerprint = drawSnapshotHash({
+        drawId: draw.drawId,
+        drawCode: draw.drawCode,
+        ticketPriceNgn: draw.ticketPriceNgn,
+        prizeModel: draw.prizeModel,
+        poolPayoutBp: draw.poolPayoutBp,
+        poolMinimumNgn: draw.poolMinimumNgn,
+        poolRevenueBasis: draw.poolRevenueBasis,
+        prizeValueNgn: draw.prizeValueNgn,
+        tiers: draw.prizeTiers,
+        ticketRefs: tickets.map((t) => t.ticketRef),
+        entryIds: pool.filter((u) => u.kind === 'ENTRY').map((u) => (u as { entryId: string }).entryId),
+      });
+      if (!release || release.status !== DrawReleaseStatus.APPROVED || release.snapshotHash !== fingerprint) {
+        await this.prisma.$transaction([
+          this.prisma.drawRelease.updateMany({
+            where: { drawId, status: DrawReleaseStatus.APPROVED },
+            data: { status: DrawReleaseStatus.INVALIDATED, invalidatedAt: new Date() },
+          }),
+          this.prisma.draw.updateMany({
+            where: { drawId, status: DrawStatus.EXECUTING },
+            data: { status: DrawStatus.SALES_CLOSED },
+          }),
+        ]);
+        await this.signedAudit('DRAW_RELEASE_FINGERPRINT_MISMATCH', drawId, {
+          drawCode: draw.drawCode,
+          approved: release?.snapshotHash ?? null,
+          actual: fingerprint,
+        }, AuditSeverity.CRITICAL);
+        this.logger.error(`${draw.drawCode}: not run — it changed after approval. Sent back for a fresh check.`);
+        return;
       }
 
       if (pool.length === 0) {

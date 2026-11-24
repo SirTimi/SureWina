@@ -301,6 +301,51 @@ model AuditCheckpoint {
   @@map("audit_checkpoints")
 }
 
+enum DrawReleaseStatus {
+  // A hard check failed: the draw cannot be approved until it is fixed.
+  CHECKS_FAILED
+  AWAITING_APPROVAL
+  APPROVED
+  REJECTED
+  // The draw changed after approval (the engine refused to run it).
+  INVALIDATED
+}
+
+// Gate 2: after sales close, the system reconciles the draw and the owner
+// (or a backup approver) approves it before the engine runs it. The approval
+// is tied to the draw's fingerprint: its exact entries and prize setup. The
+// engine runs only an APPROVED draw whose fingerprint still matches.
+// Approving never influences who wins: the seed was sealed before sales.
+model DrawRelease {
+  releaseId String            @id @default(uuid()) @map("release_id")
+  drawId    String            @unique @map("draw_id")
+  draw      Draw              @relation(fields: [drawId], references: [drawId], onDelete: Restrict)
+  status    DrawReleaseStatus
+
+  // [{ code, label, ok, blocking, detail }]
+  checks       Json     @map("checks")
+  snapshotHash String   @map("snapshot_hash") @db.VarChar(64)
+  tickets      Int
+  entries      Int
+  salesNgn     Int      @map("sales_ngn")
+  checkedAt    DateTime @map("checked_at")
+  checkRuns    Int      @default(1) @map("check_runs")
+
+  approvedBy      String?   @map("approved_by")
+  approvedAt      DateTime? @map("approved_at")
+  rejectedBy      String?   @map("rejected_by")
+  rejectedAt      DateTime? @map("rejected_at")
+  rejectionReason String?   @map("rejection_reason") @db.VarChar(500)
+  escalatedAt     DateTime? @map("escalated_at")
+  invalidatedAt   DateTime? @map("invalidated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("draw_releases")
+}
+
 // ─── PRODUCTS ───────────────────────────────────────────────
 
 // A game sold to players: a daily product (prize pool with up to 4
@@ -391,6 +436,14 @@ model Draw {
   product   Product? @relation(fields: [productId], references: [productId])
   // The schedule slot, e.g. NOON or EVENING.
   slotCode  String?  @map("slot_code") @db.VarChar(20)
+
+  // Gate 1: the draw's setup is approved. Sales never open without it.
+  // Product draws are approved through their product and schedule; draws
+  // set up by hand need a different senior admin. Any edit clears it.
+  setupApprovedAt DateTime? @map("setup_approved_at")
+  setupApprovedBy String?   @map("setup_approved_by")
+
+  release DrawRelease?
 
   // When ticket sales open. Null: as soon as the seed is committed (every
   // draw before twice-daily schedules).

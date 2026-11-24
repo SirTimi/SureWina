@@ -123,3 +123,11 @@ Built 2026-11-24 from Mr Alex's changes; **not accepted**. See `docs/PRODUCTS_AN
 - Fixed: Uncollected prizes page was Super-Admin-only; draw page showed a fixed example seed fingerprint.
 - Next: Phase 2 approvals (approvers still to be named).
 
+## Parallel Track: Draw Approvals (Phase 2)
+
+Built 2026-11-24; **not accepted**. See `docs/DRAW_APPROVALS.md`.
+
+- Gate 1: setup approved before sales open (product draws via product + schedule; hand-made draws by a second senior admin).
+- Gate 2: reconciliation checks at sales close, fingerprint of entries + prizes, approval with password + two-factor; engine runs only approved draws whose fingerprint matches.
+- Approvers are settings (default SUPER tier) until Mr Alex names them; escalation after 30 minutes.
+

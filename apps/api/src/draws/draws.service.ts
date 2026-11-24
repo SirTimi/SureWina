@@ -301,6 +301,9 @@ export class DrawsService {
           scheduledAt: dto.scheduledAt ? scheduledAt : undefined,
           cutoffAt: dto.cutoffAt ? cutoffAt : undefined,
           configVersion: { increment: 1 },
+          // Gate 1: any change needs the setup approved again.
+          setupApprovedAt: null,
+          setupApprovedBy: null,
         },
       });
 

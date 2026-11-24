@@ -178,6 +178,12 @@ export const envValidationSchema = Joi.object({
   PRIZE_AUTO_WALLET_CREDIT_ENABLED:
     Joi.boolean().default(false),
 
+  // Draw approvals (Phase 2). See draw-release.service.ts.
+  DRAW_RELEASE_APPROVAL_REQUIRED: Joi.boolean().default(true),
+  DRAW_RELEASE_APPROVER_TIERS: Joi.string().default('SUPER'),
+  DRAW_RELEASE_APPROVER_ROLES: Joi.string().allow('').default(''),
+  DRAW_RELEASE_ESCALATE_MINUTES: Joi.number().integer().min(1).max(1440).default(30),
+
   // A 4-digit PIN is needed to withdraw and to save a bank account. On by
   // default; switching it off removes that check for everyone.
   WALLET_PIN_REQUIRED:

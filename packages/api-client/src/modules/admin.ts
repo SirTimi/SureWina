@@ -532,6 +532,67 @@ export interface AdminUncollectedPrizes {
   total: number;
 }
 
+export interface AdminReleaseCheck {
+  code: string;
+  label: string;
+  ok: boolean;
+  blocking: boolean;
+  detail: string;
+}
+
+export type AdminReleaseStatus = 'CHECKING' | 'CHECKS_FAILED' | 'AWAITING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'INVALIDATED';
+
+export interface AdminDrawApprovals {
+  approvalRequired: boolean;
+  approvers: { tiers: string[]; roles: string[] };
+  escalateMinutes: number;
+  setups: { drawId: string; drawCode: string; scheduledAt: string; cutoffAt: string; ticketPriceNgn: number; prizeDescription: string; prizeModel: string }[];
+  closedDraws: {
+    drawId: string;
+    drawCode: string;
+    productName: string | null;
+    scheduledAt: string;
+    cutoffAt: string;
+    releaseStatus: AdminReleaseStatus;
+    tickets: number | null;
+    salesNgn: number | null;
+    failedChecks: number;
+    escalated: boolean;
+  }[];
+}
+
+export interface AdminDrawRelease {
+  drawId: string;
+  drawCode: string;
+  productName: string | null;
+  status: string;
+  scheduledAt: string;
+  cutoffAt: string;
+  setupApprovedAt: string | null;
+  prizeModel: string;
+  payoutRatio: string | null;
+  poolMinimumNgn: number | null;
+  poolRevenueBasis: string | null;
+  release: {
+    status: Exclude<AdminReleaseStatus, 'CHECKING'>;
+    checks: AdminReleaseCheck[];
+    snapshotHash: string;
+    tickets: number;
+    entries: number;
+    salesNgn: number;
+    checkedAt: string;
+    checkRuns: number;
+    approvedBy: string | null;
+    approvedAt: string | null;
+    rejectedBy: string | null;
+    rejectedAt: string | null;
+    rejectionReason: string | null;
+    escalatedAt: string | null;
+    invalidatedAt: string | null;
+  } | null;
+  plan: AdminPrizePlan | null;
+}
+
 export interface AdminDrawDetail {
   draw: {
     drawId: string;
@@ -1579,6 +1640,35 @@ export class AdminModule {
     effectiveFrom?: string;
   }): Promise<AdminDrawTemplate> {
     return this.client.post('/admin/draw-templates', input);
+  }
+
+  async drawApprovals(): Promise<AdminDrawApprovals> {
+    return this.client.get('/admin/draw-approvals');
+  }
+
+  async drawRelease(drawId: string): Promise<AdminDrawRelease> {
+    return this.client.get(`/admin/draw-approvals/${encodeURIComponent(drawId)}`);
+  }
+
+  async drawReleaseReport(drawId: string): Promise<Blob> {
+    return this.client.getBlob(`/admin/draw-approvals/${encodeURIComponent(drawId)}/report.csv`);
+  }
+
+  // Needs the approver's password and current two-factor code.
+  async approveDrawRelease(drawId: string, password: string, mfaCode: string): Promise<AdminDrawRelease> {
+    return this.client.post(`/admin/draw-approvals/${encodeURIComponent(drawId)}/approve`, { password, mfaCode });
+  }
+
+  async rejectDrawRelease(drawId: string, reason: string): Promise<AdminDrawRelease> {
+    return this.client.post(`/admin/draw-approvals/${encodeURIComponent(drawId)}/reject`, { reason });
+  }
+
+  async recheckDrawRelease(drawId: string): Promise<AdminDrawRelease> {
+    return this.client.post(`/admin/draw-approvals/${encodeURIComponent(drawId)}/recheck`, {});
+  }
+
+  async approveDrawSetup(drawId: string): Promise<{ drawId: string; setupApprovedAt: string }> {
+    return this.client.post(`/admin/draw-approvals/${encodeURIComponent(drawId)}/setup/approve`, {});
   }
 
   async listProducts(): Promise<{ products: AdminProduct[] }> {

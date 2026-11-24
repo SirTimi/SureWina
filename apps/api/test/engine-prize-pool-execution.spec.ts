@@ -6,6 +6,7 @@ import { join } from 'path';
 
 import { ExecutionService } from '../../engine/src/execution.service';
 import { pickWinnerIndexes } from '../../engine/src/draw-math.utils';
+import { drawSnapshotHash } from '../../engine/src/draw-snapshot';
 
 type AnyRecord = Record<string, unknown>;
 
@@ -19,6 +20,7 @@ function harness(opts: {
   payoutBp?: number;
   minimumNgn?: number;
   signPayload?: (p: string) => string;
+  release?: { snapshotHash: string } | null;
 }) {
   const seed = randomBytes(32);
   const seedHash = createHash('sha256').update(seed).digest('hex');
@@ -67,6 +69,19 @@ function harness(opts: {
     },
     ticket: { findMany: jest.fn(async () => tickets) },
     jackpotEntry: { findMany: jest.fn(async () => []) },
+    // Gate 2: approved for exactly these tickets (unless a test says otherwise).
+    drawRelease: {
+      findUnique: jest.fn(async () => (opts.release === null ? null : {
+        status: 'APPROVED',
+        snapshotHash: opts.release?.snapshotHash ?? drawSnapshotHash({
+          ...(draw as never as Record<string, never>),
+          tiers: draw.prizeTiers as never,
+          ticketRefs: tickets.map((t) => t.ticketRef),
+          entryIds: [],
+        } as never),
+      })),
+      updateMany: jest.fn(async () => ({ count: 1 })),
+    },
     agent: { findMany: jest.fn(async () => [{ agentId: 'agent-1', commissionRate: { toString: () => '0.1000' }, overrideCommissionRate: null }]) },
     auditLog: { create: jest.fn(async ({ data }: { data: AnyRecord }) => { writes.audit.push(data); return data; }) },
     $transaction: jest.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),

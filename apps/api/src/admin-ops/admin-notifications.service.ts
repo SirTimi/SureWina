@@ -5,6 +5,9 @@ import {
   AgentStatus,
   ConfigVersionStatus,
   DisputeStatus,
+  DrawReleaseStatus,
+  DrawStatus,
+  Prisma,
   PaymentStatus,
   PrizeClaimStatus,
   RemittanceStatus,
@@ -48,7 +51,66 @@ export class AdminNotificationsService {
           title: 'Draw config awaiting your approval',
           detail: 'A pricing or schedule change was proposed and needs a second admin.',
           count: pendingTemplates,
-          href: '/draws/schedule',
+          href: '/products',
+        });
+      }
+
+      // Products awaiting approval (new, or a change).
+      const pendingProducts = await this.prisma.product.count({
+        where: { pendingChange: { not: Prisma.AnyNull } },
+      });
+      if (pendingProducts > 0) {
+        notifications.push({
+          id: 'products-pending',
+          severity: 'WARNING',
+          title: 'Product awaiting your approval',
+          detail: 'A new product, or a change to a price or prizes, needs a second admin.',
+          count: pendingProducts,
+          href: '/products',
+        });
+      }
+
+      // Draw approvals. A closed draw waits for approval before it runs.
+      const [awaiting, held, setups] = await Promise.all([
+        this.prisma.draw.count({
+          where: { status: DrawStatus.SALES_CLOSED, release: { status: DrawReleaseStatus.AWAITING_APPROVAL } },
+        }),
+        this.prisma.draw.count({
+          where: {
+            status: DrawStatus.SALES_CLOSED,
+            release: { status: { in: [DrawReleaseStatus.CHECKS_FAILED, DrawReleaseStatus.REJECTED, DrawReleaseStatus.INVALIDATED] } },
+          },
+        }),
+        this.prisma.draw.count({ where: { status: DrawStatus.SCHEDULED, setupApprovedAt: null } }),
+      ]);
+      if (awaiting > 0) {
+        notifications.push({
+          id: 'draws-awaiting-approval',
+          severity: 'CRITICAL',
+          title: 'Draw awaiting your approval',
+          detail: 'Sales have closed and the checks passed. The draw runs only after it is approved.',
+          count: awaiting,
+          href: '/draws/approvals',
+        });
+      }
+      if (held > 0) {
+        notifications.push({
+          id: 'draws-held',
+          severity: 'CRITICAL',
+          title: 'Draw held',
+          detail: 'A check failed, the draw was rejected, or it changed after approval. It will not run until resolved.',
+          count: held,
+          href: '/draws/approvals',
+        });
+      }
+      if (setups > 0) {
+        notifications.push({
+          id: 'draw-setups-pending',
+          severity: 'WARNING',
+          title: 'Draw setup awaiting approval',
+          detail: 'Sales for these draws cannot open until a second admin approves the setup.',
+          count: setups,
+          href: '/draws/approvals',
         });
       }
     }

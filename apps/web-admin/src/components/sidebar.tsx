@@ -25,6 +25,7 @@ import {
   UserCog,
   Users,
   Wallet,
+  ShieldCheck,
 } from 'lucide-react';
 import { Logo } from '@surewina/ui';
 import type { AdminFunction, AdminPermission, AdminSession } from '@/lib/admin-auth';
@@ -79,6 +80,14 @@ const navGroups: Array<{
         help: 'Review RNG seed commitments and draw verification',
         permission: 'VIEW_DRAWS',
         roles: ['OPERATOR'],
+      },
+      {
+        label: 'Approvals',
+        href: '/draws/approvals',
+        icon: ShieldCheck,
+        help: 'Approve each draw after sales close; nothing runs without it',
+        permission: 'VIEW_DRAWS',
+        roles: ['OPERATOR', 'FINANCE_OFFICER', 'COMPLIANCE_OFFICER'],
       },
       {
         label: 'Products',
@@ -344,7 +353,12 @@ export function Sidebar({ session }: { session: AdminSession }) {
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const Icon = item.icon;
-                const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}/`));
+                // A parent link (e.g. /draws) is not highlighted when a more
+                // specific link (e.g. /draws/approvals) matches the page.
+                const matches = (href: string) => pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
+                const active =
+                  matches(item.href) &&
+                  !visibleGroups.some((g) => g.items.some((other) => other.href.length > item.href.length && other.href.startsWith(`${item.href}/`) && matches(other.href)));
                 return (
                   <Link
                     key={item.href}

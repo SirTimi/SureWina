@@ -171,6 +171,10 @@ export class DrawSchedulerService implements OnModuleInit, OnModuleDestroy {
           salesOpenAt,
           scheduledAt,
           cutoffAt,
+          // Gate 1: approved through the product and the schedule, each
+          // approved by a second senior admin.
+          setupApprovedAt: new Date(),
+          setupApprovedBy: `product:${product.code}@v${product.version}+schedule:${t.templateId}@v${t.version}`,
           prizeTiers: {
             create: tiers.map((tier) => ({
               tierNo: tier.tierNo,
@@ -228,7 +232,13 @@ export class DrawSchedulerService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const draw = await this.prisma.draw.create({
-        data: { ...drawData, status: DrawStatus.SCHEDULED },
+        data: {
+          ...drawData,
+          status: DrawStatus.SCHEDULED,
+          // Gate 1: approved through the schedule (second senior admin).
+          setupApprovedAt: new Date(),
+          setupApprovedBy: `schedule:${templateId}@v${templateVersion}`,
+        },
       });
 
       await this.prisma.auditLog.create({

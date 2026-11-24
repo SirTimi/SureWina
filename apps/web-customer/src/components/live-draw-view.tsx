@@ -218,7 +218,7 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
                   Draw runs
                   <br />
                   <span className="text-navy-700">
-                    {secondsToDraw > 0 ? `in ${cdM}m ${String(cdS).padStart(2, '0')}s.` : 'any moment.'}
+                    {secondsToDraw > 0 ? `in ${cdM}m ${String(cdS).padStart(2, '0')}s.` : 'after final checks.'}
                   </span>
                 </>
               )}
@@ -241,8 +241,10 @@ export function LiveDrawView({ drawCode }: LiveDrawViewProps) {
             </h1>
 
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
-              {state.phase === 'PRE_DRAW' &&
+              {state.phase === 'PRE_DRAW' && secondsToDraw > 0 &&
                 'The seed hash is committed and public. When the clock hits zero, the engine locks the ticket pool and runs the deterministic RNG.'}
+              {state.phase === 'PRE_DRAW' && secondsToDraw <= 0 &&
+                'Draw verification in progress. Sales are closed and every ticket is being reconciled and approved before the engine runs. Nothing about the result can change: the seed was sealed before sales opened.'}
               {isSpinning &&
                 'The engine is locking the pool and feeding the committed seed into the draw logic.'}
               {isRevealed &&

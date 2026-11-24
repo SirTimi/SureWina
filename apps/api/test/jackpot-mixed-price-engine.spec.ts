@@ -1,3 +1,4 @@
+import { drawSnapshotHash } from '../../engine/src/draw-snapshot';
 import {
   DrawStatus,
   DrawType,
@@ -91,6 +92,19 @@ async function executeMixedJackpot({
           ? [{ entryId: 'legacy-entry-1', buyerPhone: '+2348099999999' }]
           : [],
       ),
+    },
+    // Gate 2: approved for exactly these entries.
+    drawRelease: {
+      findUnique: jest.fn(async () => ({
+        status: 'APPROVED',
+        snapshotHash: drawSnapshotHash({
+          ...(draw as never as Record<string, never>),
+          tiers: draw.prizeTiers,
+          ticketRefs: pricedTickets.map((t: { ticketRef: string }) => t.ticketRef),
+          entryIds: legacyEntry ? ['legacy-entry-1'] : [],
+        } as never),
+      })),
+      updateMany: jest.fn(async () => ({ count: 0 })),
     },
     auditLog: { create: jest.fn(async () => ({})) },
     $transaction: jest.fn(async (

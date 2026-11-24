@@ -372,6 +372,7 @@ const routePermissions: Array<{ path: string; permission: AdminPermission }> = [
   { path: '/jackpot-fund', permission: 'VIEW_FINANCE' },
   { path: '/uncollected-prizes', permission: 'VIEW_FINANCE' },
   { path: '/products', permission: 'VIEW_DRAW_SCHEDULE' },
+  { path: '/draws/approvals', permission: 'VIEW_DRAWS' },
   { path: '/draws/new', permission: 'INITIATE_DRAW_SETUP' },
   { path: '/draws', permission: 'VIEW_DRAWS' },
   { path: '/rng-seeds', permission: 'VIEW_DRAWS' },

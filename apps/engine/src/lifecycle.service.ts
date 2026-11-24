@@ -58,6 +58,8 @@ export class LifecycleService implements OnModuleInit, OnModuleDestroy {
         status: DrawStatus.SCHEDULED,
         cutoffAt: { gt: now },
         seedCommit: { isNot: null },
+        // Gate 1: sales never open on a draw whose setup is not approved.
+        setupApprovedAt: { not: null },
         OR: [{ salesOpenAt: null }, { salesOpenAt: { lte: now } }],
       },
     });
