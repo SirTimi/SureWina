@@ -13,6 +13,11 @@ export function checkApiConfiguration(): string | null {
   if (/localhost|127\.0\.0\.1/.test(API_URL)) {
     return 'On a physical phone, use your computer LAN IP or an HTTPS API address, not localhost.';
   }
+  // Release builds (the terminals and the Play Store) talk to the live
+  // server only, over HTTPS. Plain http is for development on a LAN.
+  if (!__DEV__ && !API_URL.startsWith('https://')) {
+    return 'This build is not set up with a secure SureWina server address.';
+  }
   return null;
 }
 

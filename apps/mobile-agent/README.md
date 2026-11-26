@@ -1,6 +1,14 @@
 # SureWina Agent (Android-first development build)
 
-Phase 1: native Android development APK with OTP sign-in, secure session restoration, live agent dashboard, refresh and sign-out. Mobile ticket selling, wallet top-ups and prize payment are **not enabled yet**.
+Phase B0a: OTP sign-in, secure session restoration, tab navigation (Home dashboard, More), sign-out, and home-screen (launcher) mode for the GT81EZ terminals. Mobile ticket selling, wallet top-ups and prize payment are **not enabled yet**. Plan: `docs/MOBILE_AGENT_PHASE_PLAN.md`.
+
+The app starts from `index.ts` (not `node_modules/expo/AppEntry.js`, which cannot find `App.tsx` under pnpm).
+
+Release builds (`preview`, `production`) only accept an `https://` API address.
+
+## Make SureWina the terminal's home screen
+
+After installing, press the terminal's Home button: Android asks which Home app to use. Choose **SureWina Agent** and **Always**. (Or Settings → Apps → Default apps → Home app.) Restart the terminal: SureWina opens on its own. To undo, set the Home app back to the original launcher in Settings.
 
 ## Build an Android development APK
 

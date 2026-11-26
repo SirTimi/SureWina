@@ -2,20 +2,21 @@
 
 Android first, React Native + Expo. The existing Next.js agent portal is reference implementation; the NestJS API, PostgreSQL ledger and Redis are reused.
 
-**Acceptance rule:** one meaningful mobile increment per commit/push to `main`, status `AWAITING USER TEST` until a real phone test passes.
+**Target device:** GT81EZ Android 14 POS terminal (built-in thermal printer, rear camera, NFC). Also published on Google Play, which needs Google's real-money gambling approval under the operator's licence.
 
-| Phase | Mobile screens | Core integration | Device acceptance |
-| --- | --- | --- | --- |
-| 1 | Splash/loading, phone sign-in, OTP verification, live dashboard | Agent auth, /agents/auth/me, /agent/dashboard, /agent/sales | Auth, session recovery, live figures, network failures |
-| 2 | Choose draw, quantity/phone, confirm sale, sale success | /draws/active, /agent/tickets/sell | One controlled prepaid sale with wallet debit and ticket refs |
-| 3 | Sales history, receipt detail/share/print | /agent/sales, /agent/tickets/sale/:ref | Confirm old receipts and supported printer workflow |
-| 4 | Wallet, funding initiation/status, ledger history | /agent/wallet, funding and history endpoints | Sandbox-only funding and server verification |
-| 5 | Commission & earnings | /agent/commission/summary, /agent/performance | Totals match verified sales |
-| 6 | QR camera, manual lookup, prize verification, payment confirmation and success | Agent prize lookup/log-payment | Ineligible and duplicate payout rejected; eligible payment logged once |
-| 7 | Profile, legacy balances, historical remittance | /agents/auth/me, /agent/remittance/* | Read-only identity and old debt audit |
-| 8 | Reliability, camera/device permissions, accessibility, low-network and APK QA | No new financial routes | Full end-to-end phone regression |
+**Acceptance rule:** one meaningful increment per push to `main`, status `AWAITING DEVICE TEST` until it passes on a GT81EZ.
 
-Later optional expansion: customers, super-agent network, training and broadcast; existing agent web screens depend on mock/incomplete backing systems and are out of mobile v1.
+| Phase | What | Device acceptance |
+| --- | --- | --- |
+| B0a | Tab navigation, home dashboard, More (profile, version, sign-out), home-screen (launcher) mode, HTTPS-only release builds, local `index.ts` entry | Sign in by real SMS, restart keeps session, sign-out, suspended agent refused, offline screen; set as Home app and reboot opens SureWina |
+| B0b | Kiosk lock (device owner + lock task) with supervisor PIN unlock to Settings | Agent cannot leave the app; supervisor can reach Wi-Fi settings and return |
+| B1 | Sell: product picker, quantity, customer phone, confirm, success; double-sale protection; keep screen on while selling | One controlled sale debits once; forced network drop does not duplicate |
+| B2 | Receipts: built-in printer, ticket QR, sales history, reprint, share | Printed receipt QR verifies the ticket |
+| B3 | Wallet: balance, history, funding account, withdrawals with PIN | Sandbox top-up arrives; wrong PIN / low balance refused |
+| B4 | Prize payout: QR scan or reference, eligibility, pay once, reimbursement | Paid once; second attempt and ineligible tickets refused |
+| B5 | Commission, performance, daily records | Totals match the sales made |
+| B6 | Profile, announcements, push notifications | Notifications arrive on the terminal |
+| B7 | App lock, forced update, over-the-air updates, crash reporting, pilot with 5 to 10 agents | Full regression on the terminal |
 
 ## Phase 1 deployment constraints
 
